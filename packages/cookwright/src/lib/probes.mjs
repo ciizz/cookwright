@@ -1,9 +1,10 @@
-// src/lib/probes.mjs — the few questions init and doctor ask the machine: is a tool
-// on PATH, which Claude Code is installed, does git ignore a path, which files sit at
-// the root.
+// src/lib/probes.mjs — the few questions init, doctor and the hooks ask the machine:
+// is a tool on PATH, which Claude Code is installed, does git ignore a path, which
+// files sit at the root, what gitleaks finds in the staged diff.
 //
-// They are injected (doctor's `probes`), so the tests need no Claude binary and can
-// play a machine without git. Each is bounded by doctor's shared budget (budget.mjs).
+// They are injected (doctor's `probes`), so the tests need no Claude or gitleaks
+// binary and can play a machine without git. Each is bounded by doctor's shared
+// budget (budget.mjs) when one is open.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -78,5 +79,39 @@ export function rootFiles(dir) {
   });
 }
 
-/** The real probes; doctor and init take overrides of any of them. */
-export const PROBES = Object.freeze({ hasTool, claudeVersion, ignored, rootFiles });
+/** The staged-diff scan: `--exit-code 3` tells a finding from a failure to run. */
+export const SCAN_ARGS = Object.freeze([
+  'git',
+  '--pre-commit',
+  '--staged',
+  '--redact',
+  '--verbose',
+  '--no-color',
+  '--no-banner',
+  '--exit-code',
+  '3',
+]);
+export const SCAN_CAP_MS = 60_000;
+
+/**
+ * gitleaks over the staged diff at `root`: `{ status, timedOut, stderr }`, status
+ * null when it could not be spawned. Its redacted output streams straight to the
+ * terminal (no buffer to overflow on a large staged dump); with `quiet` (doctor's
+ * dry run) stdout is discarded and stderr kept for its first line, inside the
+ * shared budget. `env` is git's, so a partial commit's GIT_INDEX_FILE is seen.
+ */
+export function scanStaged(root, { quiet = false, env, cap = quiet ? undefined : SCAN_CAP_MS } = {}) {
+  const stdio = quiet ? ['ignore', 'ignore', 'pipe'] : ['ignore', 'inherit', 'inherit'];
+  const opts = { cwd: root, stdio, ...(env ? { env } : {}) };
+  const r = runBounded('gitleaks', SCAN_ARGS, opts, cap);
+  return { status: r.status, timedOut: r.timedOut, stderr: r.stderr };
+}
+
+/** gitleaks' version (`x.y.z`), or null when it is absent, fails or is slow. */
+export function gitleaksVersion({ bin = 'gitleaks', timeout = 5000 } = {}) {
+  const r = runBounded(bin, ['version'], {}, timeout);
+  return r.status === 0 ? parseVersion(r.stdout) : null;
+}
+
+/** The real probes; doctor, init and the hooks take overrides of any of them. */
+export const PROBES = Object.freeze({ hasTool, claudeVersion, ignored, rootFiles, scanStaged, gitleaksVersion });

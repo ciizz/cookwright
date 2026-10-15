@@ -15,10 +15,11 @@ import { findRoot, loadConfig, workTreeRoot } from '../config.mjs';
  * git's exit status and output: a check decides what a failure means. The one throw
  * is TimedOut, when git outlasts the shared budget (budget.mjs) or `cap`, the per-call
  * ceiling (doctor's 1.5 s by default; the changelog and the hooks pass 60 s). Inside
- * a budget, the budget still bounds the call.
+ * a budget, the budget still bounds the call. `env` replaces the process's own (the
+ * hook passes git's, GIT_INDEX_FILE included); absent, git inherits it.
  */
-export function gitRun(root, args, { cap = CALL_CAP_MS } = {}) {
-  const r = runBounded('git', args, { cwd: root }, cap);
+export function gitRun(root, args, { cap = CALL_CAP_MS, env } = {}) {
+  const r = runBounded('git', args, env ? { cwd: root, env } : { cwd: root }, cap);
   if (r.timedOut) throw new TimedOut(`git ${args[0]}`);
   return { status: r.status, stdout: r.stdout, stderr: r.stderr };
 }

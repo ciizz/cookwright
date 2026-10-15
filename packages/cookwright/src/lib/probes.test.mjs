@@ -6,7 +6,17 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { gitInit, run, scratchRoot, stageOnly } from '../test-helpers.mjs';
-import { atLeast, claudeVersion, hasTool, ignored, parseVersion, rootFiles } from './probes.mjs';
+import {
+  SCAN_ARGS,
+  atLeast,
+  claudeVersion,
+  gitleaksVersion,
+  hasTool,
+  ignored,
+  parseVersion,
+  rootFiles,
+  scanStaged,
+} from './probes.mjs';
 
 const TMP = scratchRoot('cookwright-probes-');
 
@@ -81,5 +91,37 @@ describe('rootFiles', () => {
     fs.symlinkSync('README.md', path.join(dir, 'link.md'));
     fs.symlinkSync('missing', path.join(dir, 'dangling'));
     expect(rootFiles(dir).sort()).toEqual(['README.md', 'link.md']);
+  });
+});
+
+describe('gitleaks', () => {
+  /** A fake gitleaks in its own PATH directory: prints its argv and cwd to stderr, exits `code`. */
+  function fakeGitleaks(name, code) {
+    const dir = path.join(TMP, name);
+    fs.mkdirSync(dir);
+    const body = `#!/bin/sh\necho "$@" >&2\npwd >&2\necho "8.30.1"\nexit ${code}\n`;
+    fs.writeFileSync(path.join(dir, 'gitleaks'), body, { mode: 0o755 });
+    return dir;
+  }
+
+  it('scans the staged diff at the root with the exit-code-3 flags, under the env it is given', () => {
+    const root = gitInit(path.join(TMP, 'scan'));
+    const env = { PATH: fakeGitleaks('leaks3', 3) };
+    const r = scanStaged(root, { quiet: true, env, cap: 10_000 });
+    expect(r.status).toBe(3);
+    expect(r.timedOut).toBe(false);
+    const [args, cwd] = r.stderr.trim().split('\n');
+    expect(args).toBe(SCAN_ARGS.join(' '));
+    expect(SCAN_ARGS).toEqual(['git', '--pre-commit', '--staged', '--redact', '--verbose', '--no-color', '--no-banner', '--exit-code', '3']);
+    expect(fs.realpathSync(cwd)).toBe(fs.realpathSync(root));
+    expect(scanStaged(root, { quiet: true, env: { PATH: path.join(TMP, 'nowhere') } }).status).toBeNull();
+  });
+
+  it('reads the version, or null when gitleaks is absent or fails', () => {
+    const ok = fakeGitleaks('leaks0', 0);
+    expect(gitleaksVersion({ bin: path.join(ok, 'gitleaks'), timeout: 10_000 })).toBe('8.30.1');
+    const failing = fakeGitleaks('leaks1', 1);
+    expect(gitleaksVersion({ bin: path.join(failing, 'gitleaks'), timeout: 10_000 })).toBeNull();
+    expect(gitleaksVersion({ bin: path.join(TMP, 'no-such-gitleaks') })).toBeNull();
   });
 });

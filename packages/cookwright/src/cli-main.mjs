@@ -10,6 +10,7 @@ const COMMANDS = {
   init: () => import('./init.mjs'),
   doctor: () => import('./doctor.mjs'),
   changelog: () => import('./changelog.mjs'),
+  hook: () => import('./hook.mjs'),
   bundle: () => import('./bundle.mjs'),
 };
 

@@ -35,7 +35,7 @@ describe('dispatch', () => {
 
   it('prints the usage and exits 2 on an unknown or missing command', async () => {
     expect(await dispatch(['bogus'])).toBe(2);
-    expect(errors.at(-1)).toBe(`usage: ${CLI} <init|doctor|changelog|bundle> …`);
+    expect(errors.at(-1)).toBe(`usage: ${CLI} <init|doctor|changelog|hook|bundle> …`);
     expect(await dispatch([])).toBe(2);
     expect(await dispatch(['toString'])).toBe(2); // not an inherited property
   });
@@ -54,6 +54,16 @@ describe('dispatch', () => {
     expect(await dispatch(['changelog', '--check'], { cwd: repo.root })).toBe(1);
     expect(errors.at(-1)).toMatch(/^CHANGELOG\.md: missing; /);
     expect(await dispatch(['changelog', '--check', '--adopt'], { cwd: repo.root })).toBe(2);
+  });
+
+  it('hands `hook` and git’s arguments to the hook command', async () => {
+    const repo = scratchRepo(TMP, 'hook');
+    const probes = { hasTool: (bin) => bin === 'git' };
+    const env = { PATH: process.env.PATH };
+    expect(await dispatch(['hook', 'pre-commit', 'extra'], { cwd: repo.root, probes, env })).toBe(0);
+    expect(logs.at(-1)).toMatch(/^pre-commit {2}SKIP {2}doc-sync {2}no doc-sync rules/);
+    expect(await dispatch(['hook'], { cwd: repo.root })).toBe(2);
+    expect(errors.at(-1)).toMatch(new RegExp(`^usage: ${CLI} hook <pre-commit\\|pre-push>`));
   });
 });
 

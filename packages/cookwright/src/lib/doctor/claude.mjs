@@ -60,9 +60,12 @@ export function sessionStartCommands(settings) {
     .map((h) => h.command);
 }
 
-/** Detection is by equality with HOOK_COMMAND, never a substring search. */
-export function checkClaudeHook(repo) {
-  const file = host.settings;
+/**
+ * Detection is by equality with HOOK_COMMAND, never a substring search. `entry` is
+ * the host-table entry (a test passes one with a past command).
+ */
+export function checkClaudeHook(repo, probes, entry = host) {
+  const file = entry.settings;
   const abs = path.join(repo.root, file);
   if (!isFile(abs)) return fail(m.hostHook.none(file));
   let settings;
@@ -72,7 +75,7 @@ export function checkClaudeHook(repo) {
     return fail(m.hostHook.invalid(file, err.message));
   }
   const commands = sessionStartCommands(settings);
-  if (commands.includes(host.hookCommand)) return pass(m.hostHook.ok(file));
-  if (commands.some((c) => host.hookCommandsPast.includes(c))) return warn(m.hostHook.past(file));
+  if (commands.includes(entry.hookCommand)) return pass(m.hostHook.ok(file));
+  if (commands.some((c) => entry.hookCommandsPast.includes(c))) return warn(m.hostHook.past(file));
   return fail(m.hostHook.none(file));
 }

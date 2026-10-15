@@ -36,3 +36,16 @@ Bootstrapping like a compiler. Stage 0 copies Leeka's bundle runner verbatim and
 ## Amendments
 
 - 2026-10-15. Rules live in one AGENTS.md. init writes no CLAUDE.md, except one that imports AGENTS.md (the single line @AGENTS.md) when Claude Code would otherwise not read AGENTS.md: a CLAUDE.md, .claude/CLAUDE.md or CLAUDE.local.md in or above the repo shadows it, or the installed Claude Code is older than 2.1.281. An existing root CLAUDE.md gets the import line prepended instead. Decided after verifying the Claude Code docs (AGENTS.md read natively since 2.1.277, all providers since 2.1.281).
+- 2026-10-15. Judgment rules, the section below: nine rules every disposition of a finding or an open question is made by, and that the orchestrator cites by number.
+
+## Judgment rules (amendment 2026-10-15)
+
+1. A harness problem never blocks the user's work. A missing tool, a missing package, an invalid config or a crash in cookwright is one printed line and a clean exit. Only a finding in the user's own change fails a hook.
+2. Drift from the declared level is FAIL. A state the user chose (hooks managed by husky, a hand-kept changelog) is WARN with the reason. A FAIL the user cannot clear is a bug in cookwright.
+3. Claim only what was measured. A line names what it tested; when the thing judged is not the thing tested, it is SKIP with the reason, never PASS with a footnote.
+4. Logic lives in the package, imported, never copied. The user's repo holds shims, config and generated files, so an update changes behaviour without touching their tree.
+5. Generated artifacts are never hand-maintained, and derived state is never stored. Stored copies rot.
+6. A feature wanted for a second time gets built. A feature wanted once goes to the backlog with its real justification.
+7. Nothing private in the repo, ever: no paths, usernames, credentials or private project data, in any commit. A leak is a history rewrite, not a note.
+8. Escapes are per-check, named, and carry their reason in the commit message. `--no-verify` is the last resort and is documented as such.
+9. The core package has no runtime dependency. Any dependency anywhere is asked for first.

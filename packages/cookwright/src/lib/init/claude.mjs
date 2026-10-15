@@ -7,10 +7,11 @@ import path from 'node:path';
 
 import { Refusal } from '../cli.mjs';
 import { shadowingFiles, sessionStartCommands } from '../doctor/claude.mjs';
+import { sameFile } from '../doctor/repo.mjs';
 import { HOSTS } from '../hosts.mjs';
 import { messages } from '../messages.mjs';
 import { atLeast } from '../probes.mjs';
-import { hasImport } from '../rules/block.mjs';
+import { RULES_FILE, hasImport } from '../rules/block.mjs';
 import { KEPT, SKIPPED, UPDATED, WROTE, eolOf, readTarget, row } from './files.mjs';
 
 const m = messages.init;
@@ -20,6 +21,11 @@ const ROOT_RULES = 'CLAUDE.md';
 /** Step 4. The version probe runs only when nothing shadows AGENTS.md. */
 export function claudeRulesStep(repo, io, entry = host) {
   const token = entry.importLine;
+  // CLAUDE.md linked to AGENTS.md: Claude reads the rules through the link, and
+  // prepending would rewrite AGENTS.md from its pre-block text.
+  if (sameFile(path.join(repo.root, ROOT_RULES), path.join(repo.root, RULES_FILE))) {
+    return row(KEPT, ROOT_RULES, m.hostRules.linked);
+  }
   const text = readTarget(repo.root, ROOT_RULES);
   if (text !== null) {
     if (hasImport(text, token)) return row(KEPT, ROOT_RULES, m.hostRules.imports(token));

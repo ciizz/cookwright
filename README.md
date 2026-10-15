@@ -19,7 +19,7 @@ npx cookwright init
 - `npx cookwright doctor` checks that Level 0 is still in place and names anything missing. The hook runs it as `doctor --hook` at every session start, and that form never fails a session. Its git calls share a two-second budget, so a stalled git yields a one-line diagnosis, not a killed hook.
 - `npx cookwright bundle …` runs a feature bundle across fresh-context sessions. The procedure is `docs/playbook.md`, and the Claude Code adapter is under `hosts/claude/`.
 
-**Already have a `CLAUDE.md`?** Move its rules into `AGENTS.md` and leave `CLAUDE.md` as the single line `@AGENTS.md`. Every host then reads one rules file. If you leave `CLAUDE.md` as it is, init prepends that import line to it.
+**Already have a `CLAUDE.md`?** Move its rules into `AGENTS.md` and leave `CLAUDE.md` as the single line `@AGENTS.md`. Every host then reads one rules file. If you leave `CLAUDE.md` as it is, init prepends that import line to it. A `CLAUDE.md` that is a symlink to `AGENTS.md` already works and is left alone; init refuses to write through any other symlink.
 
 ## Developing cookwright
 

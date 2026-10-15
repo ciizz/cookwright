@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { Refusal } from '../cli.mjs';
+import { isLink } from '../doctor/repo.mjs';
 import { messages } from '../messages.mjs';
 
 const m = messages.init;
@@ -27,7 +28,14 @@ export function kindOf(abs) {
     const st = fs.statSync(abs);
     return st.isFile() ? 'file' : st.isDirectory() ? 'dir' : 'other';
   } catch (err) {
-    return err.code === 'ENOENT' ? 'none' : 'other';
+    return err.code === 'ENOENT' && !isLink(abs) ? 'none' : 'other';
+  }
+}
+
+/** Refuse, in preflight, any write that would land through a symbolic link. */
+export function refuseLinks(root, rows) {
+  for (const { writes } of rows) {
+    for (const { rel } of writes) if (isLink(path.join(root, rel))) throw new Refusal(m.symlink(rel));
   }
 }
 

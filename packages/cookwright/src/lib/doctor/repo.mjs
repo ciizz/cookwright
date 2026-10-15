@@ -31,6 +31,27 @@ const stat = (p) => {
 export const isFile = (p) => stat(p)?.isFile() ?? false;
 export const isDir = (p) => stat(p)?.isDirectory() ?? false;
 
+export const isLink = (p) => {
+  try {
+    return fs.lstatSync(p).isSymbolicLink();
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * True when `a` and `b` are one file: the same inode (a symlink or a hard link),
+ * or `a` a symlink naming `b` that does not exist yet.
+ */
+export function sameFile(a, b) {
+  const id = (p) => {
+    const st = stat(p);
+    return st ? `${st.dev}:${st.ino}` : null;
+  };
+  if (id(a) !== null && id(a) === id(b)) return true;
+  return isLink(a) && path.resolve(path.dirname(a), fs.readlinkSync(a)) === b;
+}
+
 const real = (p) => {
   try {
     return fs.realpathSync(p);

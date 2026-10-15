@@ -38,10 +38,12 @@ describe('versions', () => {
     expect(claudeVersion({ bin: path.join(TMP, 'no-such-claude') })).toBeNull();
     const fake = path.join(TMP, 'fake-claude');
     fs.writeFileSync(fake, '#!/bin/sh\necho "2.1.300 (Claude Code)"\n', { mode: 0o755 });
-    expect(claudeVersion({ bin: fake })).toBe('2.1.300');
+    // A generous timeout: a script exec'd for the first time can be slow to start
+    // (macOS scans a new executable), and this test is about the parsing.
+    expect(claudeVersion({ bin: fake, timeout: 10_000 })).toBe('2.1.300');
     const failing = path.join(TMP, 'failing-claude');
     fs.writeFileSync(failing, '#!/bin/sh\necho 2.1.300; exit 3\n', { mode: 0o755 });
-    expect(claudeVersion({ bin: failing })).toBeNull();
+    expect(claudeVersion({ bin: failing, timeout: 10_000 })).toBeNull();
   });
 });
 

@@ -8,9 +8,9 @@ import path from 'node:path';
 import { HOSTS } from '../hosts.mjs';
 import { messages } from '../messages.mjs';
 import { atLeast } from '../probes.mjs';
-import { hasImport } from '../rules/block.mjs';
+import { RULES_FILE, hasImport } from '../rules/block.mjs';
 import { fail, pass, skip, warn } from '../verdict.mjs';
-import { isFile } from './repo.mjs';
+import { isFile, sameFile } from './repo.mjs';
 
 const m = messages.doctor;
 const host = HOSTS.claude;
@@ -37,6 +37,8 @@ export function shadowingFiles({ cwd, home }) {
  */
 export function checkClaudeRules(repo, probes) {
   const rootClaude = path.join(repo.root, 'CLAUDE.md');
+  const rules = path.join(repo.root, RULES_FILE);
+  if (isFile(rules) && sameFile(rootClaude, rules)) return pass(m.hostRules.linked);
   if (isFile(rootClaude) && hasImport(fs.readFileSync(rootClaude, 'utf8'), host.importLine)) {
     return pass(m.hostRules.imports('CLAUDE.md', host.importLine));
   }

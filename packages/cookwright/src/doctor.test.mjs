@@ -197,6 +197,12 @@ describe('host.rules', () => {
   const rules = (root, opts = {}) => doctor(root, opts)['host.rules'];
   const version = (v) => ({ probes: probes({ claudeVersion: () => v }) });
 
+  it('PASSes a root CLAUDE.md that is a link to AGENTS.md', () => {
+    const root = level0();
+    fs.symlinkSync('AGENTS.md', path.join(root, 'CLAUDE.md'));
+    expect(rules(root, version(null))).toEqual({ status: 'PASS', note: m.hostRules.linked });
+  });
+
   it('reads the version only when nothing shadows AGENTS.md', () => {
     const root = level0();
     expect(rules(root, version('2.1.281'))).toEqual({ status: 'PASS', note: m.hostRules.native('2.1.281') });

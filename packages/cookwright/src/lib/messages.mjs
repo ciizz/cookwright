@@ -70,6 +70,7 @@ const doctor = {
     old: (version, min) =>
       `claude ${version} reads only CLAUDE.md (AGENTS.md needs ${min} or newer; ${RUN_INIT}, which writes the import)`,
     noClaude: 'skipped, needs claude, run setup (AGENTS.md support unverified)',
+    linked: 'CLAUDE.md is the same file as AGENTS.md, so Claude Code reads the rules through it',
   },
   hostHook: {
     ok: (file) => `${file} runs doctor at session start`,
@@ -105,6 +106,7 @@ const init = {
   notWorkTree: (cwd) => `${cwd} is not inside a git work tree (init needs git and a repo: run git init first)`,
   notAFile: (rel) => `${rel} exists and is not a file; move it aside, then rerun`,
   notADir: (rel) => `${rel} exists and is not a directory; move it aside, then rerun`,
+  symlink: (rel) => `${rel} is a symbolic link and init does not write through one; replace it with the file, then rerun`,
   gitFailed: (what, detail) => `git ${what} failed: ${detail}`,
   badBase: (base) => `--base ${JSON.stringify(base)} is not a valid branch name`,
   freshInvalid: (problems) => `the ${CONFIG_FILE} init would write is invalid: ${problems.join('; ')}`,
@@ -148,6 +150,7 @@ const init = {
       `only ${token}: claude ${version} reads only CLAUDE.md (AGENTS.md needs ${min} or newer)`,
     native: (version) => `not needed: claude ${version} reads AGENTS.md natively and nothing shadows it`,
     noClaude: 'not needed: nothing shadows AGENTS.md (claude not on PATH, its version unverified)',
+    linked: 'the same file as AGENTS.md: Claude Code reads the rules through it',
   },
   hostHook: {
     wrote: 'SessionStart hook runs doctor',

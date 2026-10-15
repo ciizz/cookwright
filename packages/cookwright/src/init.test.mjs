@@ -402,6 +402,53 @@ describe('host rules: the CLAUDE.md import', () => {
   });
 });
 
+describe('host rules: a symlinked CLAUDE.md or AGENTS.md', () => {
+  const link = (root, from, to) => fs.symlinkSync(to, path.join(root, from));
+  const isLink = (root, rel) => fs.lstatSync(path.join(root, rel)).isSymbolicLink();
+
+  it('keeps CLAUDE.md -> AGENTS.md and appends the block once, through no second write', () => {
+    const root = fresh();
+    write(root, 'AGENTS.md', '# Rules\n');
+    link(root, 'CLAUDE.md', 'AGENTS.md');
+    const first = init(root);
+    expect(first.code).toBe(0);
+    expect(first.rows['CLAUDE.md']).toEqual({ action: 'kept', note: m.hostRules.linked });
+    expect(first.rows['AGENTS.md'].action).toBe('updated');
+    expect(read(root, 'AGENTS.md')).toBe(`# Rules\n\n${BLOCK}\n`);
+    expect(isLink(root, 'CLAUDE.md')).toBe(true);
+    const second = init(root);
+    expect(second.actions.filter((a) => a === 'wrote' || a === 'updated')).toEqual([]);
+    expect(read(root, 'AGENTS.md')).toBe(`# Rules\n\n${BLOCK}\n`);
+  });
+
+  it('keeps a CLAUDE.md linked to an AGENTS.md init is about to write', () => {
+    const root = fresh();
+    link(root, 'CLAUDE.md', 'AGENTS.md');
+    const { code, rows } = init(root);
+    expect(code).toBe(0);
+    expect([rows['AGENTS.md'].action, rows['CLAUDE.md']]).toEqual(['wrote', { action: 'kept', note: m.hostRules.linked }]);
+    expect(read(root, 'CLAUDE.md')).toBe(`${BLOCK}\n`);
+  });
+
+  it('refuses to write through any other link, before any write', () => {
+    const reverse = fresh();
+    write(reverse, 'CLAUDE.md', '# Rules\n');
+    link(reverse, 'AGENTS.md', 'CLAUDE.md');
+    expect(init(reverse).code).toBe(2);
+    expect(err[0]).toBe(m.refused(m.symlink('AGENTS.md')));
+    expect(read(reverse, 'CLAUDE.md')).toBe('# Rules\n');
+    expect(exists(reverse, 'cookwright.json')).toBe(false);
+
+    const elsewhere = fresh();
+    write(elsewhere, 'docs/claude.md', '# Mine\n');
+    link(elsewhere, 'CLAUDE.md', 'docs/claude.md');
+    const before = tree(elsewhere);
+    expect(init(elsewhere).code).toBe(2);
+    expect(err[0]).toBe(m.refused(m.symlink('CLAUDE.md')));
+    expect(tree(elsewhere)).toEqual(before);
+  });
+});
+
 describe('host hook: .claude/settings.json', () => {
   const FILE = '.claude/settings.json';
   const entry = { type: 'command', command: HOOK_COMMAND, timeout: 10 };

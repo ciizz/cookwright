@@ -2,22 +2,27 @@
 //
 // The config is the ONLY place a user repo tells the harness about itself: where the
 // state homes live, which host runs the agent, which commands make up the gate.
-// Everything the lifted scripts hardcoded is a key here. Stage 0 holds only
-// what the bundle runner needs; levels and tool detection come later as new keys.
+// Everything the lifted scripts hardcoded is a key here, and the repo declares its
+// level (levels.mjs), which doctor measures.
 //
 // Validation is by hand (a handful of keys, no dependency). The JSON Schema under
-// schema/ is the editor-facing twin; a test keeps the two in step.
+// schema/ is the editor-facing twin; a test keeps the two in step. The loader's
+// messages live here, not in messages.mjs: messages.mjs imports this file, so the
+// reverse import would close a cycle.
 
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
 import { KNOWN_HOSTS } from './hosts.mjs';
+import { KNOWN_LEVELS } from './levels.mjs';
 
 export const CONFIG_FILE = 'cookwright.json';
 export const CONFIG_VERSION = 1;
 
 export const DEFAULTS = Object.freeze({
   version: CONFIG_VERSION,
+  level: 0,
   hosts: ['claude'],
   baseBranch: 'main',
   paths: {
@@ -25,26 +30,46 @@ export const DEFAULTS = Object.freeze({
     closeouts: 'docs/closeouts',
     backlog: 'docs/backlog.md',
     playbook: 'docs/playbook.md',
+    changelog: 'CHANGELOG.md',
   },
   gate: { checks: [], flakes: {} },
 });
 
 /** Every key the validator knows, per object — the schema test compares these. */
 export const KNOWN_KEYS = Object.freeze({
-  top: ['$schema', 'version', 'hosts', 'baseBranch', 'paths', 'gate', 'ci'],
-  paths: ['bundles', 'closeouts', 'backlog', 'playbook'],
+  top: ['$schema', 'version', 'level', 'hosts', 'baseBranch', 'paths', 'gate', 'ci'],
+  paths: ['bundles', 'closeouts', 'backlog', 'playbook', 'changelog'],
   gate: ['checks', 'flakes'],
   check: ['name', 'run', 'needs'],
   ci: ['workflow'],
 });
 
-/** The nearest directory at or above `cwd` holding cookwright.json, or null. */
-export function findRoot(cwd = process.cwd()) {
+/** The git work tree's top directory containing `cwd`, or null (not a work tree, no git). */
+export function workTreeRoot(cwd = process.cwd()) {
+  const out = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd, encoding: 'utf8' });
+  return out.status === 0 ? out.stdout.trim() : null;
+}
+
+const real = (p) => {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+};
+
+/**
+ * The nearest directory at or above `cwd` holding cookwright.json, or null. With
+ * `stopAt` (the work tree's top), the walk never climbs past it: a config in an
+ * enclosing directory or an enclosing repo is not this repo's.
+ */
+export function findRoot(cwd = process.cwd(), { stopAt } = {}) {
+  const stop = stopAt ? real(stopAt) : null;
   let dir = path.resolve(cwd);
   for (;;) {
     if (fs.existsSync(path.join(dir, CONFIG_FILE))) return dir;
     const parent = path.dirname(dir);
-    if (parent === dir) return null;
+    if (parent === dir || (stop && real(dir) === stop)) return null;
     dir = parent;
   }
 }
@@ -106,14 +131,21 @@ export function validateConfig(config) {
   ];
 }
 
-function validateTop({ $schema, version, hosts, baseBranch }) {
+function validateTop({ $schema, version, level, hosts, baseBranch }) {
   const out = [];
   if ($schema !== undefined && !isStr($schema)) out.push('$schema must be a string');
   if (version !== CONFIG_VERSION) out.push(`version must be ${CONFIG_VERSION}`);
+  if (!Number.isInteger(level) || !KNOWN_LEVELS.includes(level)) {
+    out.push(`level must be one of ${KNOWN_LEVELS.join(', ')} in this version of cookwright`);
+  }
   if (!Array.isArray(hosts) || hosts.length === 0) out.push('hosts must be a non-empty list');
   else {
     for (const h of hosts) {
-      if (!KNOWN_HOSTS.includes(h)) out.push(`hosts: unknown host "${h}" (known: ${KNOWN_HOSTS.join(', ')})`);
+      if (!KNOWN_HOSTS.includes(h)) {
+        out.push(
+          `hosts: host "${h}" is not available in this version of cookwright (known: ${KNOWN_HOSTS.join(', ')})`,
+        );
+      }
     }
     if (new Set(hosts).size !== hosts.length) out.push('hosts: each host once');
   }

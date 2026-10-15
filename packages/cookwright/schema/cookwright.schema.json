@@ -16,6 +16,14 @@
       "description": "Config format version. Bumped only with a migration.",
       "const": 1
     },
+    "level": {
+      "description": "The level this repo declares. doctor measures it: a piece the level requires that is missing is drift.",
+      "type": "integer",
+      "enum": [
+        0
+      ],
+      "default": 0
+    },
     "hosts": {
       "description": "Agent hosts this repo is set up for, each once. The first is the default host: the one whose workflow scripts and rules files the CLI names.",
       "type": "array",
@@ -64,6 +72,12 @@
           "description": "The bundle playbook every session reads. Root-relative, no trailing slash.",
           "type": "string",
           "default": "docs/playbook.md",
+          "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$))(?!.*//)(?!.*\\\\).*[^/]$"
+        },
+        "changelog": {
+          "description": "The changelog: user-visible changes, under an Unreleased section. Root-relative, no trailing slash.",
+          "type": "string",
+          "default": "CHANGELOG.md",
           "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$))(?!.*//)(?!.*\\\\).*[^/]$"
         }
       }

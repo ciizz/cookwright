@@ -17,8 +17,11 @@ import {
   nonCodePathspecs,
   validateConfig,
   withDefaults,
+  workTreeRoot,
 } from './config.mjs';
 import { KNOWN_HOSTS, rulesFiles, workflowScript } from './hosts.mjs';
+import { KNOWN_LEVELS } from './levels.mjs';
+import { gitInit } from '../test-helpers.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCHEMA = JSON.parse(
@@ -48,12 +51,32 @@ describe('findRoot', () => {
     fs.mkdirSync(dir, { recursive: true });
     expect(findRoot(dir)).toBeNull();
   });
+
+  it('never climbs past the work tree: an enclosing directory’s config is not this repo’s', () => {
+    const outer = repoWith('enclosing', { version: 1 });
+    const inner = gitInit(path.join(outer, 'a/inner'));
+    fs.mkdirSync(path.join(inner, 'src'));
+    const top = workTreeRoot(path.join(inner, 'src'));
+    expect(fs.realpathSync(top)).toBe(fs.realpathSync(inner));
+    expect(findRoot(path.join(inner, 'src'), { stopAt: top })).toBeNull();
+    // Unbounded, the walk would have found the enclosing one.
+    expect(fs.realpathSync(findRoot(inner))).toBe(fs.realpathSync(outer));
+    // A config at the work tree's top is still found from below it.
+    fs.writeFileSync(path.join(inner, CONFIG_FILE), '{"version":1}');
+    expect(findRoot(path.join(inner, 'src'), { stopAt: top })).toBe(inner);
+  });
+
+  it('has no work tree outside git', () => {
+    expect(workTreeRoot(path.join(TMP, 'bare/x'))).toBeNull();
+  });
 });
 
 describe('loadConfig', () => {
   it('applies the defaults one level deep', () => {
     const dir = repoWith('defaults', { version: 1, paths: { bundles: 'state/bundles' } });
     const config = loadConfig(dir);
+    expect(config.level).toBe(0);
+    expect(config.paths.changelog).toBe('CHANGELOG.md');
     expect(config.hosts).toEqual(['claude']);
     expect(config.baseBranch).toBe('main');
     expect(config.paths).toEqual({ ...DEFAULTS.paths, bundles: 'state/bundles' });
@@ -90,10 +113,28 @@ describe('validateConfig', () => {
   });
 
   it('refuses an unknown or repeated host and keeps the known ones listed', () => {
-    expect(problems({ hosts: ['gemini'] })).toMatch(/unknown host "gemini" \(known: claude\)/);
+    expect(problems({ hosts: ['gemini'] })).toMatch(
+      /hosts: host "gemini" is not available in this version of cookwright \(known: claude\)/,
+    );
     expect(problems({ hosts: 'claude' })).toMatch(/non-empty list/);
     expect(problems({ hosts: ['claude', 'claude'] })).toMatch(/each host once/);
     expect(problems({ $schema: 1 })).toMatch(/\$schema must be a string/);
+  });
+
+  it('refuses a level this version does not know, or one that is not an integer', () => {
+    expect(problems({ level: 0 })).toBe('');
+    for (const level of [1, '0', -1, 0.5, null]) {
+      expect(problems({ level })).toMatch(/^level must be one of 0 in this version of cookwright$/);
+    }
+  });
+
+  it('holds paths.changelog to the root-relative rule, outside the nesting check', () => {
+    const changelog = (p) => problems({ paths: { ...DEFAULTS.paths, changelog: p } });
+    expect(changelog('docs/CHANGELOG.md')).toBe('');
+    expect(changelog('/CHANGELOG.md')).toMatch(/paths\.changelog must be a root-relative path/);
+    expect(changelog('../CHANGELOG.md')).toMatch(/paths\.changelog/);
+    expect(changelog('docs/bundles/CHANGELOG.md')).toBe(''); // not a state home that nests
+    expect(nonCodePathspecs(valid())).not.toContain(':(exclude)CHANGELOG.md'); // a changelog line is code
   });
 
   it('refuses paths that escape the root, are absolute, or are the root itself', () => {
@@ -152,8 +193,11 @@ describe('the schema and the validator agree', () => {
     expect(props(SCHEMA.properties.ci)).toEqual([...KNOWN_KEYS.ci].sort());
   });
 
-  it('agree on the defaults and the known hosts', () => {
+  it('agree on the defaults, the known hosts and the known levels', () => {
     const p = SCHEMA.properties;
+    expect(p.level.enum).toEqual([...KNOWN_LEVELS]);
+    expect(p.level.type).toBe('integer');
+    expect(p.level.default).toBe(DEFAULTS.level);
     expect(p.hosts.default).toEqual(DEFAULTS.hosts);
     expect(p.hosts.items.enum).toEqual(KNOWN_HOSTS);
     expect(p.baseBranch.default).toBe(DEFAULTS.baseBranch);

@@ -53,7 +53,7 @@ import {
   lockPath,
   probePid,
 } from './lib/rig-lock.mjs';
-import { commit, run, scratchRepo as scratchRepoIn, scratchRoot } from './test-helpers.mjs';
+import { commit, gitInit, run, scratchRepo as scratchRepoIn, scratchRoot } from './test-helpers.mjs';
 
 const TMP = scratchRoot('bundle-test-');
 const scratchRepo = (name, config) => scratchRepoIn(TMP, name, config);
@@ -1045,6 +1045,14 @@ describe('the CLI', () => {
     expect(errors.join('\n')).toMatch(/no cookwright\.json here or in any parent directory/);
     expect(main(['bogus'], { cwd: repo.root })).toBe(2);
     expect(errors.join('\n')).toMatch(/usage: npx cookwright bundle </);
+  });
+
+  it('refuses a nested repo whose only cookwright.json belongs to the enclosing one', () => {
+    const outer = scratchRepo('cli-outer');
+    const inner = gitInit(path.join(outer.root, 'vendor/inner'));
+    errors.length = 0;
+    expect(main(['status'], { cwd: inner })).toBe(2);
+    expect(errors.join('\n')).toMatch(/no cookwright\.json here or in any parent directory/);
   });
 
   it('inits a bundle, gates it with the configured checks, starts a phase and emits args', () => {

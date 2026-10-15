@@ -79,7 +79,7 @@ import {
   validateSplit,
 } from './lib/bundle/state.mjs';
 import { Refusal, need, numberFlag, parseArgv, stringFlag } from './lib/cli.mjs';
-import { findRoot, loadConfig } from './lib/config.mjs';
+import { findRoot, loadConfig, workTreeRoot } from './lib/config.mjs';
 import { workflowScript } from './lib/hosts.mjs';
 
 const now = () => new Date().toISOString();
@@ -91,9 +91,10 @@ const readStdin = () => fs.readFileSync(0, 'utf8');
 
 // ── the repo ─────────────────────────────────────────────────────────────────
 
-/** The repo = { root, config }: the checkout holding cookwright.json above `cwd`. */
+/** The repo = { root, config }: the checkout holding cookwright.json above `cwd`,
+ * never above the git work tree `cwd` is in. */
 export function openRepo(cwd) {
-  const root = findRoot(cwd);
+  const root = findRoot(cwd, { stopAt: workTreeRoot(cwd) });
   if (!root) throw new Refusal(messages.noConfig);
   try {
     return { root, config: loadConfig(root) };

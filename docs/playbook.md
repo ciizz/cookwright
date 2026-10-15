@@ -2,7 +2,7 @@
 
 How a feature bundle runs across many fresh-context sessions with one orchestrator. This is the judgment layer; what a script enforces is not repeated here:
 
-- **The state:** the bundle CLI (`node packages/cookwright/src/bundle.mjs`, written `bundle …` below), its only writer. It reads `cookwright.json` at the repo root for the paths named `<paths.x>` here.
+- **The state:** the bundle CLI (`npx cookwright bundle`, written `bundle …` below), its only writer. It reads `cookwright.json` at the repo root for the paths named `<paths.x>` here.
 - **The phase order and the schemas:** the host's `bundle-phase` workflow (`hosts/<host>/workflows/bundle-phase.js`).
 
 The entry point is the `/bundle` skill. The repo's rules file (`CLAUDE.md`, `AGENTS.md`) applies throughout; this file names the few rules a phase needs.
@@ -41,7 +41,7 @@ This covers `plan-review`, `implement:*`, `review:*`, `fix:*`, `qa` rounds and `
    - A done phase reopens this way only while every later phase is still pending, or is the closeout, which resets with it.
    - **Every rerun starts here too:** on a running phase, `start` opens a new run, so each rerun is counted and keeps its own id.
 2. `bundle args <slug> <phase>`, then `Workflow({ scriptPath: '<the path status prints>', args })`.
-   - **As soon as the runtime returns the run id**, record it: `bundle phase <slug> run <phase> --run-id <id> --transcript-dir <dir>`. That id is what lets a crashed orchestrator's successor resume the run in flight instead of paying for every finished session again.
+   - **As soon as the runtime returns the run id**, record it: `bundle phase <slug> run <phase> --run-id <id>`. That id is what lets a crashed orchestrator's successor resume the run in flight instead of paying for every finished session again.
    - **Resume** (the orchestrator crashed mid-run) with `resumeFromRunId`: `bundle status` prints the call, and only for a run in flight.
    - **Rerun** (the findings were acted on, or a review came back incomplete) with `phase start` again, then a fresh Workflow run without `resumeFromRunId`. A resume replays every unchanged agent result, a timeout included, and a replayed QA review would describe code it never saw.
    - Never hand-edit args. They are byte-stable for resume and carry the content hash of every file the prompts point at (the rules file, the playbook, the plan, findings), so an edited file re-runs instead of replaying. The state file itself is pointed at unhashed, deliberately: every CLI write would otherwise defeat the cache. The one exception is the closeout run, whose args carry the state revision.

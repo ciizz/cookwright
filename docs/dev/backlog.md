@@ -10,7 +10,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 - **E-002** (2026-10-15) Atlas pack: manual phases (`atlas`, `operator`) declared in config and inserted into `derivePhases`, plus the re-lift of the UI-surface tripwire and the pre-commit regex reader (recoverable at `a5e0675`). `WORKFLOW_KINDS` and the "not a Workflow phase" branch already leave room.
 - **E-003** (2026-10-15) A `/docs-audit` skill, and the doc list for `docs-audit.js` declared in `cookwright.json` instead of hand-written args.
 - **E-004** (2026-10-15) Move the remaining user-facing literals of the bundle CLI (refusal texts beside their checks) into `messages.mjs`; stage 0 moved the guidance strings only.
-- **E-007** (2026-10-15) How the host adapters under `hosts/` and the playbook reach a user's repo from the npm package (symlinks, thin shims or a generated `.claude/`), whether `paths.playbook` defaults to the package's own copy, and the CLI invocation itself: `messages.mjs` names this monorepo's path (`node packages/cookwright/src/bundle.mjs`) and the package has no `bin` yet. Init's concern; stage 0 only wires this repo.
+- **E-007** (2026-10-15) How the host adapters under `hosts/` and the playbook reach a user's repo from the npm package (symlinks, thin shims or a generated `.claude/`), and whether `paths.playbook` defaults to the package's own copy. The CLI invocation itself is done: the package has a `cookwright` bin and every printed command and doc says `npx cookwright` (stage-1). Init's concern; stage 0 only wires this repo.
 - **E-008** (2026-10-15) Lint and format tooling for this repo's own gate (`gate.checks` has `npm test` only).
 
 ## Closed

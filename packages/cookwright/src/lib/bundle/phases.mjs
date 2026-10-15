@@ -101,9 +101,11 @@ function rangeFor(state, name, head, base) {
  * Record the Workflow run id of the run IN FLIGHT, as soon as the runtime hands it
  * back — so a crashed orchestrator's successor can resume it instead of paying for
  * every finished session again. One id per run: a rerun is a new run (`phase start`),
- * never an overwrite that would lose the earlier run's id and tokens.
+ * never an overwrite that would lose the earlier run's id and tokens. The id only:
+ * the run's transcript directory is a machine-local absolute path, derivable from
+ * the host's project home and the id, and committed state never holds a local path.
  */
-export function setRunId(state, name, { runId, transcriptDir }) {
+export function setRunId(state, name, { runId }) {
   const phase = findPhase(state, name);
   if (phase.status !== 'running') throw new Error(`phase ${name} is not running`);
   const run = phase.runs.at(-1);
@@ -113,21 +115,19 @@ export function setRunId(state, name, { runId, transcriptDir }) {
     );
   }
   run.runId = runId;
-  if (transcriptDir) run.transcriptDir = transcriptDir;
 }
 
 /** Close a phase run; a finished phase records the commit it ended on. */
 export function finishPhase(
   state,
   name,
-  { now, head, lastCode, runId, transcriptDir, usage, keepOpen },
+  { now, head, lastCode, runId, usage, keepOpen },
 ) {
   const phase = findPhase(state, name);
   if (phase.status !== 'running') throw new Error(`phase ${name} is not running`);
   const run = phase.runs.at(-1);
   run.endedAt = now;
   if (runId) run.runId = runId;
-  if (transcriptDir) run.transcriptDir = transcriptDir;
   // budget.spent() is the TURN's output tokens across the main loop and every
   // workflow, not this run's alone — named so nobody sums it as if it were.
   if (usage !== undefined) run.turnOutputTokens = usage;

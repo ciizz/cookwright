@@ -1158,4 +1158,39 @@ describe('the CLI', () => {
     expect(cli('status')).toBe(0);
     expect(logs.at(-1)).toMatch(/next     : npx cookwright bundle phase rt start implement:s1/);
   });
+
+  it('records the run id only, refuses a flag a phase verb does not take, and persists no absolute path', () => {
+    const repo = scratchRepo('cli-paths', { gate: { checks: [{ name: 'ok', run: 'true' }] } });
+    commit(repo, { 'docs/playbook.md': 'pb' }, 'main');
+    const plan = path.join(TMP, 'cli-paths-plan.md');
+    const split = path.join(TMP, 'cli-paths-split.json');
+    fs.writeFileSync(plan, 'the plan');
+    fs.writeFileSync(split, JSON.stringify({ slices: [{ id: 'core', sessions: [{ id: 's1', scope: '§1' }] }] }));
+    run(repo.root, 'git', ['checkout', '-q', '-b', 'bundle/paths']);
+    const cli = (...argv) => main(argv, { cwd: repo.root });
+    expect(cli('init', 'paths', '--plan', plan, '--split', split)).toBe(0);
+    commit(repo, {}, 'chore(bundle): paths initialized');
+    expect(cli('gate', 'paths')).toBe(0);
+    expect(cli('phase', 'paths', 'start', 'plan-review')).toBe(0);
+
+    const dir = path.join(TMP, 'transcripts/wf_1');
+    expect(cli('phase', 'paths', 'run', 'plan-review', '--run-id', 'wf_1', '--transcript-dir', dir)).toBe(2);
+    expect(errors.at(-1)).toMatch(/unknown flag --transcript-dir \(known: --run-id\)/);
+    expect(cli('phase', 'paths', 'run', 'plan-review', '--run-id', 'wf_1')).toBe(0);
+    expect(cli('phase', 'paths', 'done', 'plan-review', '--transcript-dir', dir)).toBe(2);
+    expect(errors.at(-1)).toMatch(/unknown flag --transcript-dir/);
+    expect(cli('phase', 'paths', 'start', 'implement:s1', '--tokens', '9')).toBe(2);
+
+    const saved = fs.readFileSync(path.join(repo.root, 'docs/bundles/paths/state.json'), 'utf8');
+    const strings = [];
+    const walk = (v) => {
+      if (typeof v === 'string') strings.push(v);
+      else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+    };
+    walk(JSON.parse(saved));
+    expect(strings.length).toBeGreaterThan(10);
+    expect(strings.filter((s) => s.startsWith('/') || /^[A-Za-z]:\\/.test(s))).toEqual([]);
+    expect(JSON.parse(saved).phases[0].runs[0]).toMatchObject({ runId: 'wf_1' });
+    expect(JSON.parse(saved).phases[0].runs[0]).not.toHaveProperty('transcriptDir');
+  });
 });

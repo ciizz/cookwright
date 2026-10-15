@@ -21,10 +21,11 @@
 //   CLI status [slug]
 //   CLI args <slug> <phase>
 //   CLI phase <slug> start <phase> [--token-target N]
-//   CLI phase <slug> run <phase> --run-id R [--transcript-dir D]
-//   CLI phase <slug> done <phase> [--run-id R] [--transcript-dir D] [--usage N]
+//   CLI phase <slug> run <phase> --run-id R
+//   CLI phase <slug> done <phase> [--run-id R] [--usage N]
 //                                 [--keep-open] [--accept-open "<reason>"]
 //                                 [--no-device "<reason>"]   (qa)
+//   (a `phase` verb refuses any flag it does not list)
 //   CLI record <slug> findings <phase> [--accept-incomplete "<reason>"]  < result.json
 //   CLI record <slug> session <phase>                                    < impl.json
 //   CLI record <slug> qa                                                 < notes.md
@@ -78,7 +79,7 @@ import {
   statePath,
   validateSplit,
 } from './lib/bundle/state.mjs';
-import { Refusal, need, numberFlag, parseArgv, stringFlag } from './lib/cli.mjs';
+import { Refusal, need, numberFlag, onlyFlags, parseArgv, stringFlag } from './lib/cli.mjs';
 import { findRoot, loadConfig, workTreeRoot } from './lib/config.mjs';
 import { workflowScript } from './lib/hosts.mjs';
 
@@ -234,10 +235,7 @@ function phaseStart(repo, state, name, flags) {
 }
 
 function phaseRun(state, name, flags) {
-  setRunId(state, name, {
-    runId: need(flags['run-id'], '--run-id <id>'),
-    transcriptDir: stringFlag(flags, 'transcript-dir'),
-  });
+  setRunId(state, name, { runId: need(flags['run-id'], '--run-id <id>') });
   return 'run id recorded';
 }
 
@@ -267,17 +265,24 @@ function phaseDone(repo, state, name, flags) {
     head: tip,
     lastCode: ctx.lastCode,
     runId: stringFlag(flags, 'run-id'),
-    transcriptDir: stringFlag(flags, 'transcript-dir'),
     usage: numberFlag(flags, 'usage'),
     keepOpen,
   });
   return keepOpen ? 'run recorded' : 'done';
 }
 
+/** The flags each `phase` verb takes; any other is refused, never silently dropped. */
+const PHASE_FLAGS = {
+  start: ['token-target'],
+  run: ['run-id'],
+  done: ['run-id', 'usage', 'keep-open', 'accept-open', 'no-device'],
+};
+
 function cmdPhase(repo, pos, flags) {
   const state = openBundle(repo, pos[0]);
   const verb = need(pos[1], 'start|run|done');
   const name = need(pos[2], '<phase>');
+  if (Object.hasOwn(PHASE_FLAGS, verb)) onlyFlags(flags, PHASE_FLAGS[verb]);
   let outcome;
   if (verb === 'start') outcome = phaseStart(repo, state, name, flags);
   else if (verb === 'run') outcome = phaseRun(state, name, flags);

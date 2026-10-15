@@ -8,25 +8,21 @@
 //     HEAD. A bundle branch fails these until its end BY DESIGN, which is why CI does
 //     not run them — a tick that is red by design teaches everyone to ignore red.
 //
-// Four verdicts. PASS and FAIL speak for themselves. WARN is a pass with a hole the
-// reader must see (a tool missing, so a claim went unverified). SKIP is a check with
-// no subject here (nothing configured). Only FAIL makes the check exit non-zero; the
-// summary line counts the other two so a pass with holes reads as one.
+// The four verdicts and the summary counts are shared with doctor (../verdict.mjs);
+// re-exported here so the runner and its tests keep importing them from this file.
 
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { FAIL, PASS, SKIP, WARN, summarize } from '../verdict.mjs';
 import { dirtyPaths, head, isAncestor, lastCodeCommit, mergeBase } from './git.mjs';
 import { onPath, skippedNames } from './gate.mjs';
 import { messages } from './messages.mjs';
 import { blockingOpen, closeoutPath } from './phases.mjs';
 import { sha256File } from './state.mjs';
 
-export const PASS = 'PASS';
-export const FAIL = 'FAIL';
-export const WARN = 'WARN';
-export const SKIP = 'SKIP';
+export { FAIL, PASS, SKIP, WARN, summarize };
 
 const ok = (note) => ({ status: PASS, note });
 const bad = (note) => ({ status: FAIL, note });
@@ -207,12 +203,6 @@ export function bundleChecks(repo, state) {
     ['bundle.closeout-verified', closeoutCheck(repo, state)],
     ['bundle.ci', ciCheck(tip, { workflow: config.ci?.workflow, cwd: root })],
   ];
-}
-
-/** Counts for the summary line: FAIL, SKIP and WARN rows. */
-export function summarize(rows) {
-  const count = (status) => rows.filter(([, r]) => r.status === status).length;
-  return { failed: count(FAIL), skipped: count(SKIP), warned: count(WARN) };
 }
 
 const short = (sha) => (sha ? sha.slice(0, 8) : '—');

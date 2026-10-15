@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 45,
+  "revision": 47,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -302,6 +302,12 @@
       "path": "docs/dev/bundles/stage-2/sessions/implement-s1-1.md",
       "at": "2026-10-15T15:49:25.946Z",
       "stored": true
+    },
+    {
+      "phase": "fix:changelog",
+      "path": "docs/dev/bundles/stage-2/sessions/fix-changelog-1.md",
+      "at": "2026-10-15T16:05:16.818Z",
+      "stored": true
     }
   ],
   "qaRounds": [],
@@ -465,6 +471,13 @@
       "actor": "orchestrator",
       "source": "review:changelog findings, 2026-10-15",
       "text": "fix:changelog applies findings 0 (the template read normalised to LF, with a CRLF-template test), 1 (unborn means HEAD is a symbolic ref whose target is absent: symbolic-ref -q HEAD succeeds and rev-parse --verify -q HEAD fails; any other git failure is a refusal through gitFailed, with a corrupt-HEAD test), 2 (version parts compared as digit strings by length then lexically, never Number), 3 (metadata read from %(contents:subject) and %(contents:body), git stripping the signature in every format; the SIGNATURE regex goes, with a parseMeta test per marker the old regex missed), 4 (the showSignature test asserts the exact argv commitsBetween passes to git, so dropping -c log.showSignature=false fails it), 5 (fs errors from changelogState and the write are Refusals, exit 2, one line '<file>: <code>', never exit 1). Finding 6 (template header vs the v1 block until s3) needs no change: s3 lands the v2 block before anything leaves the branch, and the whole-branch review checks that the template and the block agree.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T16:05:19.051Z",
+      "actor": "orchestrator",
+      "source": "fix:changelog report, 2026-10-15",
+      "text": "Accepted as built, over the finding-3 disposition: the tag signature is cut off %(contents) by the length of %(contents:signature) (git splits it in every signing format), not read from %(contents:subject) plus %(contents:body), because the implementer measured that %(contents:subject) folds a one-paragraph tag body into one line and would merge 'released:' and 'note:' into one key. Unborn is now 'rev-parse --verify HEAD fails and symbolic-ref HEAD succeeds'; any other git state is a refusal. Plan §4.4's wording of both stays as hashed; the closeout records the two deviations. The two s1-fix strings (the '<file>: <code>' refusal detail and the README exit-code sentence) go to the developer with the s2 batch.",
       "claim": true
     }
   ],

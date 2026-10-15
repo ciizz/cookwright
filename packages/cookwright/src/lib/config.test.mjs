@@ -128,12 +128,16 @@ describe('validateConfig', () => {
     }
   });
 
-  it('holds paths.changelog to the root-relative rule, outside the nesting check', () => {
+  it('holds paths.changelog to the root-relative rule and keeps it out of every other path', () => {
     const changelog = (p) => problems({ paths: { ...DEFAULTS.paths, changelog: p } });
     expect(changelog('docs/CHANGELOG.md')).toBe('');
     expect(changelog('/CHANGELOG.md')).toMatch(/paths\.changelog must be a root-relative path/);
     expect(changelog('../CHANGELOG.md')).toMatch(/paths\.changelog/);
-    expect(changelog('docs/bundles/CHANGELOG.md')).toBe(''); // not a state home that nests
+    expect(changelog('docs/bundles/CHANGELOG.md')).toMatch(/paths\.bundles and paths\.changelog overlap/);
+    expect(changelog('docs/closeouts')).toMatch(/paths\.changelog and paths\.closeouts overlap/);
+    expect(changelog('docs/playbook.md')).toMatch(/paths\.changelog and paths\.playbook overlap/);
+    const playbook = { ...DEFAULTS.paths, playbook: 'docs/closeouts/playbook.md' };
+    expect(problems({ paths: playbook })).toMatch(/paths\.closeouts and paths\.playbook overlap/);
     expect(nonCodePathspecs(valid())).not.toContain(':(exclude)CHANGELOG.md'); // a changelog line is code
   });
 

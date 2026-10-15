@@ -46,7 +46,7 @@
       "default": "main"
     },
     "paths": {
-      "description": "The state homes, relative to the repo root. bundles, closeouts and backlog must not nest inside one another.",
+      "description": "The state homes and code docs, relative to the repo root. No two of these paths may be equal or nest inside one another.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

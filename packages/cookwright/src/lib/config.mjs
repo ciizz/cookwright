@@ -173,9 +173,11 @@ function validatePaths(paths) {
   for (const key of KNOWN_KEYS.paths) {
     if (!isRelPath(paths[key])) out.push(`paths.${key} must be a root-relative path inside the repo`);
   }
-  // The state homes must not nest: the gate ignores dirt under `bundles`, and a
-  // closeout or backlog inside it would be gated over while uncommitted.
-  const homes = ['bundles', 'closeouts', 'backlog'].filter((k) => isRelPath(paths[k]));
+  // No two paths may nest or coincide: the gate ignores dirt under `bundles`, so a
+  // closeout or backlog inside it would be gated over while uncommitted; a
+  // changelog or playbook (code) inside a state home would count as non-code; and
+  // init would schedule a directory and a file at one path.
+  const homes = KNOWN_KEYS.paths.filter((k) => isRelPath(paths[k]));
   for (const a of homes) {
     for (const b of homes) {
       if (a < b && (within(paths[a], paths[b]) || within(paths[b], paths[a]))) {

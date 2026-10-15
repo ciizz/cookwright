@@ -69,7 +69,7 @@ function verdict(name, repo, ctx, prep) {
     return skip(m.couldNotRun(harness(err)));
   }
   const judged = r.status === PASS || r.status === FAIL;
-  return judged && prep.label ? { ...r, note: `${r.note} ${prep.label}` } : r;
+  return judged && prep.label ? { ...r, note: `${r.note}, ${prep.label}` } : r;
 }
 
 /** The hook's one-time preparation, or the reason none of its checks can run. */

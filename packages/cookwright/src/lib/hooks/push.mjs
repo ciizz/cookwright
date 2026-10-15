@@ -1,12 +1,13 @@
 // src/lib/hooks/push.mjs — the pre-push checks, `gate` and `changelog`, and what
 // git's stdin says is being pushed (plan §4.1).
 //
-// They judge the working tree, never the pushed commit. Each pushed sha is peeled to
-// its commit, so an annotated tag on HEAD counts as HEAD. The checks run when any
-// pushed ref is HEAD, each verdict naming the other refs as not tested; they SKIP
-// only when no pushed ref is HEAD. A dirty tree labels each verdict with the count
-// of uncommitted files. Never a refusal, which would breed --no-verify; a temporary
-// worktree per pushed sha is the real fix (backlogged).
+// They judge the working tree, so they run only when it is a pushed commit (judgment
+// rule 3: what is judged must be what is tested, else SKIP with the reason). Each
+// pushed sha is peeled to its commit, so an annotated tag on HEAD counts as HEAD.
+// They SKIP when no pushed ref is HEAD, and on a dirty tree, which is not HEAD
+// either. When HEAD is pushed with other refs they run, and each verdict names the
+// refs it tested and the ones it did not. Never a refusal, which would breed
+// --no-verify; a temporary worktree per pushed sha is the real fix (backlogged).
 
 import fs from 'node:fs';
 
@@ -89,8 +90,8 @@ function uncommitted(repo, env) {
 
 /**
  * pre-push's preparation: `{ skip }` when there is nothing to judge (nothing pushed,
- * only deletions, no pushed ref at HEAD), else `{ label }` naming the refs not
- * tested and a dirty tree, else `{}`.
+ * only deletions, no pushed ref at HEAD, a dirty tree), else `{ label }` naming the
+ * refs tested and those not when only some are HEAD, else `{}`.
  */
 export function pushContext(repo, ctx) {
   const lines = parsePushLines(pushInput(ctx));
@@ -99,12 +100,13 @@ export function pushContext(repo, ctx) {
   if (!pushed.length) return { skip: m.push.deletions };
   const head = commitOf(repo.root, 'HEAD', ctx.env);
   const atHead = (l) => head !== null && (l.localSha === head || commitOf(repo.root, l.localSha, ctx.env) === head);
-  const others = pushed.filter((l) => !atHead(l)).map((l) => shortRef(l.localRef));
-  if (others.length === pushed.length) return { skip: m.push.notHead(others) };
+  const refs = pushed.map((l) => ({ ref: shortRef(l.localRef), head: atHead(l) }));
+  const tested = refs.filter((r) => r.head).map((r) => r.ref);
+  const others = refs.filter((r) => !r.head).map((r) => r.ref);
+  if (!tested.length) return { skip: m.push.notHead(others) };
   const dirty = uncommitted(repo, ctx.env);
-  const labels = [dirty && m.push.dirty(dirty, head.slice(0, 8)), others.length && m.push.untested(others)];
-  const label = labels.filter(Boolean).join(' ');
-  return label ? { label } : {};
+  if (dirty) return { skip: m.push.dirty(dirty, head.slice(0, 8)) };
+  return others.length ? { label: m.push.tested(tested, others) } : {};
 }
 
 const seconds = (results) => (results.reduce((sum, r) => sum + r.ms, 0) / 1000).toFixed(1);

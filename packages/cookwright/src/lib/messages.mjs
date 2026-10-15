@@ -284,8 +284,8 @@ const hook = {
     nothing: 'nothing to push',
     deletions: 'only deletions pushed',
     notHead: (refs) => notTested(refs),
-    untested: (refs) => `(${notTested(refs)})`,
-    dirty: (n, sha) => `(judged on the working tree, ${n} uncommitted file(s), not ${sha})`,
+    tested: (heads, others) => `tested ${shown(heads)} at HEAD; ${notTested(others)}`,
+    dirty: (n, sha) => `not tested: the working tree has ${n} uncommitted file(s) and is not ${sha}`,
   },
   gate: {
     none: 'no gate checks configured (gate.checks)',

@@ -6,7 +6,6 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 
 - **B-002** (2026-10-15) The SessionStart hook command looks for `node_modules/cookwright` in `CLAUDE_PROJECT_DIR`. When a Claude session starts in a subdirectory of the repo, or the package is installed in a workspace sub-package, the hook prints "package not installed", although doctor run from there would find the root.
 - **B-003** (2026-10-15) The bundle CLI ignores unknown flags on every subcommand but the three `phase` verbs, so a mistyped or dropped flag passes silently. `init` and `doctor` refuse them through `onlyFlags` in `src/lib/cli.mjs`.
-- **B-005** (2026-10-15) README.md still says the package is not on npm; cookwright@0.0.0 was published on 2026-10-15 during stage-1 (doc drift found by the closeout verify). One line; lands with stage 2's first commit.
 
 ## Open enhancements
 
@@ -27,6 +26,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 
 ## Closed
 
+- **B-005** (2026-10-15, closed by stage-2) README.md said the package is not on npm although cookwright@0.0.0 was published during stage-1. The Install section now installs it from npm, a checkout being the way to try an unpublished change.
 - **B-004** (opened and closed by stage-1, 2026-10-15) Six commits on `bundle/stage-1` before B-001's fix carried absolute machine-local paths in bundle records. Closed by rewriting the branch with `git filter-repo --replace-text` (main untouched, 41 ids changed), remapping the recorded ids with a one-off script from the commit-map, and re-gating on the new HEAD; the procedure is in the stage-1 closeout. The paths came from implementer reports listing files absolutely, the `--transcript-dir` flag, and reviewer notes naming scratch files; since B-001's fix every record is scrubbed at write time and a test walks the bundle directory for absolute paths.
 - **B-001** (opened and closed by stage-1, 2026-10-15) The bundle runner persisted `--transcript-dir`, an absolute machine-local path, into committed bundle state. Fixed: the state keeps the run id only, the flag is gone from `phase run` and `phase done`, and a test refuses any absolute path in saved state.
 - **E-009** (opened and closed by stage 0, 2026-10-15) A check naming an npm script the repo does not define is misconfiguration, not absence: the gate refuses before anything runs, naming the check and the script. Skipping stays reserved for tools the developer has not installed (`needs`, or the command's first word absent from PATH).

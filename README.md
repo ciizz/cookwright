@@ -6,12 +6,14 @@ Early: Level 0 works, nothing is released yet. See `CHARTER.md` for what it will
 
 ## Install
 
-Not on npm yet, so install it from a checkout of this repo. In your app's repo (a git repo):
+In your app's repo (a git repo):
 
 ```bash
-npm install --save-dev /path/to/cookwright/packages/cookwright
+npm install --save-dev cookwright
 npx cookwright init
 ```
+
+To try a change that is not published yet, install from a checkout of this repo instead: `npm install --save-dev /path/to/cookwright/packages/cookwright`.
 
 ## Commands
 

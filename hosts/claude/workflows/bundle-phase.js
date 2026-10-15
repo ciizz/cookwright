@@ -162,6 +162,11 @@ if (!args || typeof args !== 'object' || !args.phase || !args.plan || !args.play
 const RANGE = args.range ? `${args.range.from}..${args.range.to}` : null;
 const CODEX = Boolean(args.codex);
 
+// The implementer's (and the fix session's) one line on the doc-sync hook, as the
+// playbook's Implementer role says it.
+const DOC_SYNC_LINE =
+  'When the pre-commit hook refuses a commit on doc sync, stage the doc the rule names; a commit with no doc implication goes through with `COOKWRIGHT_SKIP=doc-sync git commit …` and the reason in its message, never `--no-verify`.\n';
+
 function header(role) {
   const rules = (args.rules ?? [])
     .map((r) => `- the repo's rules file ${r.path} (sha ${r.sha}): every rule in it applies to you.\n`)
@@ -171,7 +176,7 @@ Before acting, read these yourself — they are not pasted here:
 ${rules}- the playbook ${args.playbook.path} (sha ${args.playbook.sha}): the "${role}" role section and "Prompt header".
 - the plan ${args.plan.path} (sha ${args.plan.sha}).
 - the bundle state ${args.state} — written ONLY by the bundle CLI (${args.cli}); never edit it.
-Your final message is consumed by the orchestrator: return the structured result only.`;
+${role === 'implementer' ? DOC_SYNC_LINE : ''}Your final message is consumed by the orchestrator: return the structured result only.`;
 }
 
 function codexReviewer(target) {

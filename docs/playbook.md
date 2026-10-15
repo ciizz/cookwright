@@ -111,6 +111,7 @@ It holds the plan, the developer's decisions and the review rounds, and it check
 
 - Works only inside its session's scope; anything else goes to `open_questions`.
 - Commits at each checkpoint, **staging named paths only**, never `git add -A`, which would sweep the state and other sessions' work into a code commit.
+- When the pre-commit hook refuses a commit on doc sync, stages the doc the rule names; a commit with no doc implication goes through with `COOKWRIGHT_SKIP=doc-sync git commit …` and the reason in its message, never `--no-verify`.
 - Follows the rules file's doc-sync rules in the same commit.
 - Never runs anything that leaves the repo (a deploy, a publish, a store action): names the command in `notes` for the developer's hands.
 - Lists every user-facing string it added or changed in `strings`; where strings live in the code is the rules file's call.
@@ -183,6 +184,7 @@ Every session prompt starts from `header()` in the Workflow script:
 - the bundle, branch and phase
 - the rules file, the playbook and the plan, each with its content hash, and the state path, deliberately unhashed (see the loop, step 2)
 - "read these yourself"
+- for the implementer and fix sessions, the doc-sync line of the Implementer role
 - the structured-result instruction
 
 Then come the session's scope as plan sections, the frozen range, and the checkpoints. **Pointers, not paste:** a prompt that pastes state goes stale on the next write and breaks the resume cache.

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 68,
+  "revision": 73,
   "slug": "stage-1",
   "branch": "bundle/stage-1",
   "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
@@ -241,7 +241,7 @@
     },
     {
       "name": "closeout",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -250,13 +250,24 @@
           "planSha": "a252db7ad517b7c2",
           "codex": true,
           "runId": "wf_d1b88e60-ede"
+        },
+        {
+          "startedAt": "2026-10-15T14:09:40.678Z",
+          "stateRevision": 68,
+          "planSha": "a252db7ad517b7c2",
+          "codex": true,
+          "runId": "wf_d466149c-6a8",
+          "endedAt": "2026-10-15T14:11:58.282Z",
+          "turnOutputTokens": 178634
         }
       ],
       "startCommit": "51a196990304193e8561ab40b653fe2d56b403ba",
       "range": {
         "from": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
         "to": "51a196990304193e8561ab40b653fe2d56b403ba"
-      }
+      },
+      "endCommit": "850abf3f379a192a72dbc688b8df88564f94c9a4",
+      "endCode": "0c782154e1010855ba06e24390c96257e56e20f1"
     }
   ],
   "gates": [
@@ -363,6 +374,19 @@
           "ms": 24878
         }
       ]
+    },
+    {
+      "commit": "850abf3f379a192a72dbc688b8df88564f94c9a4",
+      "at": "2026-10-15T14:11:58.098Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 23097
+        }
+      ]
     }
   ],
   "findings": [
@@ -456,6 +480,25 @@
       "stored": true,
       "head": "7dfbed9c0c16aade06fb1152042b57ee17c5a3f6",
       "closeoutSha": "ea1b2a3a107ee823"
+    },
+    {
+      "phase": "closeout",
+      "path": "docs/dev/bundles/stage-1/findings/closeout-2.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 0,
+        "rejected": 11,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      },
+      "at": "2026-10-15T14:11:34.867Z",
+      "stored": true,
+      "head": "850abf3f379a192a72dbc688b8df88564f94c9a4",
+      "closeoutSha": "80ff95419edcf3a6"
     }
   ],
   "reports": [

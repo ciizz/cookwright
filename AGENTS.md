@@ -29,7 +29,7 @@ The repo's own harness config (this file, the hooks, the bundle runner, `docs/de
 - `docs/dev/closeouts/` — one past-tense file per shipped bundle.
 - `docs/dev/bundles/` — bundle state, written only by the runner.
 
-<!-- cookwright:begin rules v1 -->
+<!-- cookwright:begin rules v2 -->
 This block is managed by cookwright. `npx cookwright init` refreshes it from the package, so an edit between the markers is lost on the next refresh. Your own rules go outside the markers, above or below.
 
 ## State homes
@@ -38,7 +38,7 @@ Every kind of state has exactly one home. This file is the map, not the store.
 
 - Tasks, bugs and enhancements: the backlog, `docs/dev/backlog.md`.
 - What a piece of work did and why: a closeout in `docs/dev/closeouts/`, written once, in the past tense, when the work closes.
-- User-visible changes: the Unreleased section of `CHANGELOG.md`.
+- User-visible changes: the subject of a conventional commit (`feat:`, `fix:`, `perf:`; `!` marks a breaking one). `CHANGELOG.md` is generated from release tags by `npx cookwright changelog` and never edited by hand; `npx cookwright changelog --unreleased` lists what is pending.
 - Don't record what can be derived. Merge state is git's; test state is the suite's.
 - No "pending" or "next steps" narrative in an active doc. A thing to do is a backlog entry.
 - Update the state homes at every status change you take part in or learn of.
@@ -51,7 +51,11 @@ Every kind of state has exactly one home. This file is the map, not the store.
 
 ## Doc sync
 
-A change with doc implications updates the doc in the same commit. When unsure whether a doc is affected, update it.
+A change with doc implications updates the doc in the same commit. When unsure whether a doc is affected, update it. The pre-commit hook enforces the rules in `cookwright.json` (`hooks.docSync`). A commit that really has no doc implication goes through with `COOKWRIGHT_SKIP=doc-sync git commit …` and carries the reason in its message, since the escape itself leaves no trace.
+
+## Git hooks
+
+When `npx cookwright init` has installed the hooks (`.githooks/`): pre-commit scans the staged diff for secrets (gitleaks; skipped when it is not installed) and checks doc sync; pre-push runs the gate checks and verifies the changelog. `COOKWRIGHT_SKIP=<check,…>` skips the named checks and says so; `git commit --no-verify` skips everything and is the last resort.
 
 ## Session start
 

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 65,
+  "revision": 66,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -602,6 +602,13 @@
       "actor": "orchestrator",
       "source": "implement:s3 report and open questions, 2026-10-15",
       "text": "Accepted as built: one shared hooksSetup reader for init and doctor with one foreignHooks message set; the three foreign init rows carrying the same reason; the hooks dir shown root-relative, dotfiles and *.sample not counted; a mode-only write that runs chmod alone; git writes carrying the inert shim paths for the refusal text, run after the file writes; the doc-sync line in header() for the implementer role (fix sessions included) with the playbook bullet; README line 5 reworded; the v1Block test helper. Open questions: the config-root versus work-tree-top placement of .githooks is logged as B-007, not folded into B-002; the loader masking a non-object hooks/gate is B-006; the several-refs pre-push behaviour stays with fix:hooks as decided.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T16:37:39.826Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, implement:s3 strings batch",
+      "text": "The s3 strings stand as built: init's hooks rows and refusal, the shared foreign-hooks lines, doctor's hooks.*, tools.gitleaks, gate.scripts and homes.changelog notes, the Level 0 summary, the rules block v2 text, the implementer doc-sync line in the prompt header and the playbook, and the README sections.",
       "claim": true
     }
   ],

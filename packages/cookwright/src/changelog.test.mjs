@@ -13,6 +13,7 @@ import { classify } from './lib/changelog/commits.mjs';
 import { MARKER, TEMPLATE, hasMarker, renderChangelog } from './lib/changelog/render.mjs';
 import { changelogState, generate } from './lib/changelog/state.mjs';
 import { parseMeta, rawTags, releaseTags, tagMeta } from './lib/changelog/tags.mjs';
+import { Refusal } from './lib/cli.mjs';
 import { messages } from './lib/messages.mjs';
 import { commit, gitInit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
 
@@ -418,5 +419,24 @@ describe('npx cookwright changelog', () => {
     const root = gitInit(path.join(TMP, `r${(n += 1)}`));
     expect(main(['--check'], { cwd: root })).toBe(2);
     expect(err.at(-1)).toMatch(/^changelog: no cookwright\.json at or above /);
+  });
+
+  it('refuses a HEAD that names no commit and is no unborn branch, never an empty changelog', () => {
+    const repo = repoAt();
+    commitMsg(repo, 'feat: one');
+    tag(repo, 'v1.0.0');
+    expect(cl(repo)).toBe(0);
+    const before = read(repo);
+    const ref = path.join(repo.root, '.git/refs/heads/main');
+    expect(fs.existsSync(ref)).toBe(true);
+    fs.writeFileSync(ref, 'not a sha\n');
+    expect(() => releaseTags(repo.root)).toThrow(Refusal);
+    for (const argv of [[], ['--check'], ['--unreleased']]) {
+      expect(cl(repo, ...argv)).toBe(2);
+      expect(err).toEqual([expect.stringMatching(/^changelog: git symbolic-ref failed: \S/)]);
+    }
+    expect(read(repo)).toBe(before);
+    fs.writeFileSync(path.join(repo.root, '.git/HEAD'), 'ref: refs/heads/a..b\n');
+    expect(() => releaseTags(repo.root)).toThrow(Refusal);
   });
 });

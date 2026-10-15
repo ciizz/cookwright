@@ -26,8 +26,17 @@ export function git(root, args, what = args[0]) {
   return r.stdout;
 }
 
-/** True when HEAD names no commit yet: every user's repo starts there. */
-export const isUnborn = (root) => gitTry(root, ['rev-parse', '--verify', '-q', 'HEAD']).status !== 0;
+/**
+ * True when HEAD names no commit yet, every user's repo starts there: HEAD is a
+ * symbolic ref whose branch does not exist. Any other HEAD that names no commit (a
+ * malformed branch ref, an invalid name) is a refusal, never an empty changelog.
+ */
+export function isUnborn(root) {
+  if (gitTry(root, ['rev-parse', '--verify', '-q', 'HEAD']).status === 0) return false;
+  const sym = gitTry(root, ['symbolic-ref', '-q', 'HEAD']);
+  if (sym.status !== 0) throw gitFailed('symbolic-ref', sym);
+  return true;
+}
 
 const SEMVER = /^v(\d+)\.(\d+)\.(\d+)$/;
 const GLOB = 'v[0-9]*.[0-9]*.[0-9]*';

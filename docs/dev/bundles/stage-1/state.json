@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "revision": 1,
+  "slug": "stage-1",
+  "branch": "bundle/stage-1",
+  "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
+  "createdAt": "2026-10-15T08:56:26.487Z",
+  "plan": {
+    "path": "docs/dev/bundles/stage-1/plan.md",
+    "sha": "78b8a834d66ff43b"
+  },
+  "slices": [
+    {
+      "id": "core",
+      "sessions": [
+        {
+          "id": "s1",
+          "scope": "plan §4.1, §4.2, §4.3; the helper extraction of §5 (cli.mjs, verdict.mjs, test-helpers.mjs, messages.mjs with the bin's strings and CLI)",
+          "checkpoints": [
+            "the bin dispatches init/doctor/bundle; `bundle status` works through it; node_modules/.bin/cookwright link verified; test count at start measured and recorded",
+            "config `level` and `paths.changelog` with tests and schema parity",
+            "levels.mjs with its test; cli.mjs, verdict.mjs, test-helpers.mjs extracted; every existing test green; the invocation renamed to `npx cookwright` in code and docs"
+          ]
+        },
+        {
+          "id": "s2",
+          "scope": "plan §4.8; §4.5 (block.mjs, blockState, the template's markers and render; prose deferred to s3); the check half of §4.7 (the host table's new fields)",
+          "checkpoints": [
+            "verdict.mjs shared; the doctor check registry; levels.requires held to the registry by a test",
+            "every check of the §4.8 table with its tests, including the unknown-host config FAIL",
+            "the readout, the level line (complete/drift/weak), `--hook` mode always exit 0"
+          ]
+        },
+        {
+          "id": "s3",
+          "scope": "plan §4.4, §4.6, the block's prose (§4.5), the write half of §4.7, §7 (dogfood), §9 (docs, backlog, README; not the closeout)",
+          "checkpoints": [
+            "init: fresh-repo walk with tests; idempotence (second run all kept, byte-identical); refresh and refusal cases",
+            "the host cases: import line, settings merge with indent kept, unparseable refusal; .gitignore via check-ignore",
+            "dogfood: git mv CLAUDE.md AGENTS.md, init run here and committed, doctor all PASS; README, playbook, skill, backlog updated"
+          ]
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "name": "plan-review",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s1",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s2",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s3",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:core",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:core",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "qa",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "closeout",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    }
+  ],
+  "gates": [],
+  "findings": [],
+  "reports": [],
+  "qaRounds": [],
+  "decisions": [],
+  "costs": []
+}

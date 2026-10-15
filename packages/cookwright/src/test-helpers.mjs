@@ -59,3 +59,17 @@ export function commit(repo, files, msg) {
   run(dir, 'git', ['commit', '-q', '--no-verify', '-m', msg]);
   return run(dir, 'git', ['rev-parse', 'HEAD']);
 }
+
+/**
+ * The managed block as v1 shipped it (stage 1), from a v2 render: the v1 marker,
+ * the hand-kept changelog line, no doc-sync enforcement, no Git hooks section.
+ */
+export function v1Block(v2) {
+  const out = v2
+    .replace(/^<!-- cookwright:begin rules v2 -->$/m, '<!-- cookwright:begin rules v1 -->')
+    .replace(/^- User-visible changes: .*$/m, '- User-visible changes: the Unreleased section of `CHANGELOG.md`.')
+    .replace(/ The pre-commit hook enforces .*$/m, '')
+    .replace(/^## Git hooks\n\n.*\n\n/m, '');
+  if (out === v2 || /COOKWRIGHT_SKIP|rules v2/.test(out)) throw new Error('v1Block: the v2 render changed shape');
+  return out;
+}

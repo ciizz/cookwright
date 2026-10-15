@@ -15,8 +15,8 @@ import { ENV_LINES } from './lib/init/gitignore.mjs';
 import { HOOK_COMMAND, HOOK_LINES, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { hasTool } from './lib/probes.mjs';
-import { renderBlock } from './lib/rules/block.mjs';
-import { commit, gitInit, run, scratchRoot, stageOnly } from './test-helpers.mjs';
+import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
+import { commit, gitInit, run, scratchRoot, stageOnly, v1Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-init-');
 const m = messages.init;
@@ -372,6 +372,17 @@ describe('the rules block', () => {
     expect(read(root, 'AGENTS.md')).toBe(`above\n\n${BLOCK}\nbelow, with an <!-- cookwright:end --> mention\n`);
   });
 
+  it('refreshes a v1 block to v2, the text outside the markers byte-identical', () => {
+    const root = fresh();
+    const above = '# My rules\n\n- mine, with a `<!-- cookwright:end -->` mention\n\n';
+    const below = '\n## More of mine\n\nThe Unreleased section is history.\n';
+    write(root, 'AGENTS.md', `${above}${v1Block(BLOCK)}\n${below}`);
+    expect(init(root).rows['AGENTS.md']).toEqual({ action: 'updated', note: m.block.refreshed(2) });
+    expect(read(root, 'AGENTS.md')).toBe(`${above}${BLOCK}\n${below}`);
+    expect(BLOCK).toContain('COOKWRIGHT_SKIP=doc-sync git commit');
+    expect(init(root).rows['AGENTS.md'].action).toBe('kept');
+  });
+
   it('keeps a CRLF file CRLF, and a second run keeps it', () => {
     const root = fresh();
     const crlf = (s) => s.replace(/\n/g, '\r\n');
@@ -384,9 +395,9 @@ describe('the rules block', () => {
 
   it('leaves a newer block alone', () => {
     const root = fresh();
-    const newer = BLOCK.replace('rules v1 -->', 'rules v9 -->');
+    const newer = BLOCK.replace(beginMarker(), beginMarker(RULES_VERSION + 7));
     write(root, 'AGENTS.md', `${newer}\n`);
-    expect(init(root).rows['AGENTS.md']).toEqual({ action: 'kept', note: m.block.newer(9) });
+    expect(init(root).rows['AGENTS.md']).toEqual({ action: 'kept', note: m.block.newer(RULES_VERSION + 7) });
     expect(read(root, 'AGENTS.md')).toBe(`${newer}\n`);
   });
 });

@@ -6,7 +6,7 @@ Every kind of state has exactly one home. This file is the map, not the store.
 
 - Tasks, bugs and enhancements: the backlog, `{{paths.backlog}}`.
 - What a piece of work did and why: a closeout in `{{paths.closeouts}}/`, written once, in the past tense, when the work closes.
-- User-visible changes: the Unreleased section of `{{paths.changelog}}`.
+- User-visible changes: the subject of a conventional commit (`feat:`, `fix:`, `perf:`; `!` marks a breaking one). `{{paths.changelog}}` is generated from release tags by `{{cli}} changelog` and never edited by hand; `{{cli}} changelog --unreleased` lists what is pending.
 - Don't record what can be derived. Merge state is git's; test state is the suite's.
 - No "pending" or "next steps" narrative in an active doc. A thing to do is a backlog entry.
 - Update the state homes at every status change you take part in or learn of.
@@ -19,7 +19,11 @@ Every kind of state has exactly one home. This file is the map, not the store.
 
 ## Doc sync
 
-A change with doc implications updates the doc in the same commit. When unsure whether a doc is affected, update it.
+A change with doc implications updates the doc in the same commit. When unsure whether a doc is affected, update it. The pre-commit hook enforces the rules in `cookwright.json` (`hooks.docSync`). A commit that really has no doc implication goes through with `COOKWRIGHT_SKIP=doc-sync git commit …` and carries the reason in its message, since the escape itself leaves no trace.
+
+## Git hooks
+
+When `{{cli}} init` has installed the hooks (`.githooks/`): pre-commit scans the staged diff for secrets (gitleaks; skipped when it is not installed) and checks doc sync; pre-push runs the gate checks and verifies the changelog. `COOKWRIGHT_SKIP=<check,…>` skips the named checks and says so; `git commit --no-verify` skips everything and is the last resort.
 
 ## Session start
 

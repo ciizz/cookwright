@@ -22,7 +22,7 @@ import { HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { PROBES } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
-import { commit, gitInit, run, scratchRepo, scratchRoot, stageOnly } from './test-helpers.mjs';
+import { commit, gitInit, run, scratchRepo, scratchRoot, stageOnly, v1Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-doctor-');
 const m = messages.doctor;
@@ -201,6 +201,10 @@ describe('rules', () => {
       status: 'WARN',
       note: m.block.newer('AGENTS.md', RULES_VERSION + 7),
     });
+  });
+
+  it('FAILs a v1 block as stale', () => {
+    expect(state(`# Rules\n\n${v1Block(block)}\n`)).toEqual({ status: 'FAIL', note: m.block.stale('AGENTS.md') });
   });
 
   it('renders the block with the repo’s own paths', () => {

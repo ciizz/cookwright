@@ -78,6 +78,19 @@ describe('release tags', () => {
     expect(skipped).toEqual(['v1.0.0-rc1']);
   });
 
+  it('orders versions past 2^53 exactly, never as equal Numbers in git’s lexical order', () => {
+    const repo = repoAt();
+    commitMsg(repo, 'feat: one');
+    const names = ['v10000000000000000.0.0', 'v9999999999999999.0.0', 'v1.0.9007199254740993', 'v1.0.9007199254740992'];
+    for (const t of names) tag(repo, t);
+    expect(releaseTags(repo.root).tags.map((t) => t.name)).toEqual([
+      'v1.0.9007199254740992',
+      'v1.0.9007199254740993',
+      'v9999999999999999.0.0',
+      'v10000000000000000.0.0',
+    ]);
+  });
+
   it('reads metadata from an annotated tag, never from a lightweight one', () => {
     const repo = repoAt();
     commit(repo, { 'a.txt': 'a' }, 'feat: one\n\nnote: from the commit body');

@@ -47,7 +47,12 @@ const TAG_FORMAT = '--format=%(refname:strip=2)%1f%(objecttype)';
 /** The raw `name\x1ftype` lines git returns for the release glob, merged into HEAD. */
 export const rawTags = (root) => git(root, ['tag', '-l', GLOB, '--merged', 'HEAD', TAG_FORMAT], 'tag');
 
-const byVersion = (a, b) => a.v[0] - b.v[0] || a.v[1] - b.v[1] || a.v[2] - b.v[2];
+/** Two digit strings compared as integers of any size: no leading zero, then length, then lexically. */
+const byDigits = (a, b) => {
+  const [x, y] = [a.replace(/^0+(?=\d)/, ''), b.replace(/^0+(?=\d)/, '')];
+  return x.length - y.length || (x < y ? -1 : x > y ? 1 : 0);
+};
+const byVersion = (a, b) => byDigits(a.v[0], b.v[0]) || byDigits(a.v[1], b.v[1]) || byDigits(a.v[2], b.v[2]);
 
 /**
  * `{ tags, skipped }`: `tags` are `{ name, version, annotated }` in ascending
@@ -62,7 +67,7 @@ export function releaseTags(root) {
     const [name, type] = line.split('\x1f');
     const v = SEMVER.exec(name);
     if (!v) skipped.push(name);
-    else tags.push({ name, version: name.slice(1), annotated: type === 'tag', v: v.slice(1).map(Number) });
+    else tags.push({ name, version: name.slice(1), annotated: type === 'tag', v: v.slice(1) });
   }
   tags.sort(byVersion);
   return { tags: tags.map(({ v, ...t }) => t), skipped: skipped.sort() };

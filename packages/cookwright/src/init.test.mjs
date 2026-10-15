@@ -678,6 +678,34 @@ describe('git hooks', () => {
     }
   });
 
+  it('writes the shims at the work tree top when cookwright.json is below it, entering the config root', () => {
+    const top = fresh();
+    const app = path.join(top, 'apps/mobile');
+    write(app, 'cookwright.json', JSON.stringify({ version: 1 }));
+    const nested = ['hooks.path', '../../.githooks/pre-commit', '../../.githooks/pre-push'];
+    const first = init(app);
+    expect(first.code).toBe(0);
+    expect(nested.map((t) => first.rows[t].action)).toEqual(['wrote', 'wrote', 'wrote']);
+    expect(read(top, '.githooks/pre-commit')).toBe(shimText('pre-commit', 'apps/mobile'));
+    expect(read(top, '.githooks/pre-push')).toBe(shimText('pre-push', 'apps/mobile'));
+    expect(exists(app, '.githooks')).toBe(false);
+    expect(hooksPath(top)).toBe('.githooks');
+    expect(nested.map((t) => init(app).rows[t].action)).toEqual(['kept', 'kept', 'kept']);
+  });
+
+  it('keeps a user’s hook at the top that enters the config root and calls cookwright', () => {
+    const top = fresh();
+    const app = path.join(top, 'apps/mobile');
+    write(app, 'cookwright.json', JSON.stringify({ version: 1 }));
+    for (const line of [`cd apps/mobile && exec ${callLine('pre-commit')}`, `${callLine('pre-commit', 'apps/mobile')} || exit 1`]) {
+      userHook(top, `#!/bin/sh\n${line}\n`);
+      expect([line, init(app).rows['../../.githooks/pre-commit']]).toEqual([line, { action: 'kept', note: m.hooks.calls }]);
+    }
+    userHook(top, `#!/bin/sh\n${callLine('pre-commit')}\n`); // from the top: no config there
+    const note = f.file('../../.githooks/pre-commit');
+    expect(init(app).rows['hooks.path']).toEqual({ action: 'skipped', note });
+  });
+
   it('skips all three when git’s hooks directory holds a hook of the user’s', () => {
     const root = fresh();
     write(root, '.git/hooks/pre-commit', '#!/bin/sh\nexit 0\n');

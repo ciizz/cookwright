@@ -452,6 +452,29 @@ describe('git hooks', () => {
     }
   });
 
+  it('reads the shims at the work tree top when cookwright.json is below it', () => {
+    const top = gitInit(path.join(TMP, `nested-top-${(n += 1)}`));
+    const app = path.join(top, 'apps/mobile');
+    const { '.githooks/pre-commit': a, '.githooks/pre-push': b, ...rest } = LEVEL0_FILES;
+    const config = JSON.stringify({ version: 1 });
+    writeAll(app, { ...rest, 'cookwright.json': config, '.githooks/pre-commit': a, '.githooks/pre-push': b }); // B-007's place
+    commit({ root: top }, {}, 'level 0 in apps/mobile');
+    run(top, 'git', ['config', '--local', 'core.hooksPath', '.githooks']);
+    expect(hooks(app).slice(1)).toEqual([
+      { status: 'FAIL', note: m.hooks.missing('../../.githooks/pre-commit') },
+      { status: 'FAIL', note: m.hooks.missing('../../.githooks/pre-push') },
+    ]);
+    writeAll(top, {
+      '.githooks/pre-commit': shimText('pre-commit', 'apps/mobile'),
+      '.githooks/pre-push': shimText('pre-push', 'apps/mobile'),
+    });
+    expect(hooks(app)).toEqual([
+      ok[0],
+      { status: 'PASS', note: m.hooks.shim('../../.githooks/pre-commit') },
+      { status: 'PASS', note: m.hooks.shim('../../.githooks/pre-push') },
+    ]);
+  });
+
   it('never shows a machine path: an absolute core.hooksPath, or a sibling worktree’s hooks directory', () => {
     const abs = hooks(level0({}, null, { hooksPath: path.join(TMP, 'elsewhere') }));
     expect(abs).toEqual(elsewhere(f.path(f.absolutePath, 'local')));

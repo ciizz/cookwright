@@ -4,9 +4,8 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 
 ## Open bugs
 
-- **B-002** (2026-10-15) The SessionStart hook command looks for `node_modules/cookwright` in `CLAUDE_PROJECT_DIR`. When a Claude session starts in a subdirectory of the repo, or the package is installed in a workspace sub-package, the hook prints "package not installed", although doctor run from there would find the root. The git hook shims (stage-2) share the bug: they look for `node_modules/cookwright` at the work tree root, so a workspace sub-package install, or a linked worktree without `node_modules`, prints the not-installed line and the hook checks nothing.
+- **B-002** (2026-10-15) The SessionStart hook command looks for `node_modules/cookwright` in `CLAUDE_PROJECT_DIR`. When a Claude session starts in a subdirectory of the repo, or the package is installed in a workspace sub-package, the hook prints "package not installed", although doctor run from there would find the root. The git hook shims (stage-2) share the bug: they look for `node_modules/cookwright` in the config root (the directory holding `cookwright.json`, entered from the work tree's top since B-007's fix), so a workspace sub-package install, or a linked worktree without `node_modules`, prints the not-installed line and the hook checks nothing.
 - **B-003** (2026-10-15) The bundle CLI ignores unknown flags on every subcommand but the three `phase` verbs, so a mistyped or dropped flag passes silently. `init` and `doctor` refuse them through `onlyFlags` in `src/lib/cli.mjs`.
-- **B-007** (2026-10-15) init writes `.githooks/` and doctor reads it under the config root (the directory holding `cookwright.json`), while git resolves a relative `core.hooksPath` against the work tree top. When `cookwright.json` sits in a subdirectory of the work tree (a monorepo app), the shims land where git never looks and no hook runs. B-002's family: the harness assumes the config root is the work tree root. Found by implement:s3 of stage-2.
 
 ## Open enhancements
 
@@ -32,6 +31,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 
 ## Closed
 
+- **B-007** (2026-10-15, closed by stage-2) init wrote `.githooks/` and doctor read it under the config root while git resolves a relative `core.hooksPath` against the work tree's top, so a `cookwright.json` below the top (a monorepo app) ran no hook. Fixed in fix:hooks: the shims are written and read at the top, enter the config root first (`cd <dir>`), and the hook command finds the config from its cwd; an end-to-end test commits through the real hook from a nested config and checks doctor.
 - **B-006** (2026-10-15, closed by stage-2) `withDefaults` replaced a non-object `hooks` or `gate` with the default, so the validator's `must be an object` lines never fired. Fixed in fix:hooks: the nested defaults apply only when the key is absent or an object (`paths` too), so a string, a list or null reaches the validator and is refused.
 - **E-010** (2026-10-15, closed by stage-2) Git hooks for Level 0. init installs `.githooks/` shims with `core.hooksPath`; pre-commit runs the gitleaks staged scan (skipped when absent) and the `hooks.docSync` rules, pre-push the gate checks and the changelog check; `COOKWRIGHT_SKIP` skips a check per invocation; doctor reports the hooks, gitleaks and the gate's npm scripts.
 - **E-011** (2026-10-15, closed by stage-2) `npx cookwright changelog` generates the changelog from release tags, with `--check`, `--unreleased` and `--adopt`; this repo's changelog is generated.

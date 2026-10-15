@@ -21,7 +21,8 @@ const real = (p) => {
 
 /**
  * The directory holding cookwright.json found upward from `cwd`, bounded by the
- * work tree, else the work tree's top. Not a work tree (or no git): refused.
+ * work tree, else the work tree's top (`top`, where the git hooks go). Not a work
+ * tree (or no git): refused.
  */
 export function openInitRepo(cwd, { home = os.homedir() } = {}) {
   const top = workTreeRoot(cwd);
@@ -29,7 +30,7 @@ export function openInitRepo(cwd, { home = os.homedir() } = {}) {
   const root = findRoot(cwd, { stopAt: top }) ?? top;
   // Real paths, so the host scan's home test and its relative names hold through a
   // symlinked temp or home directory (doctor does the same).
-  return { root: real(root), cwd: real(cwd), home: real(home), config: null };
+  return { root: real(root), top: real(top), cwd: real(cwd), home: real(home), config: null };
 }
 
 /** git's answer to a yes/no question: exit 0 yes, 1 no, anything else refuses. */

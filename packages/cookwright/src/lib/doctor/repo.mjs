@@ -93,5 +93,5 @@ export function openDoctorRepo(cwd, probes, { home = os.homedir() } = {}) {
   const workTree = Boolean(inside) && inside.status === 0 && inside.stdout.trim() === 'true';
   // Real paths throughout, so the scan's home test and its relative names hold
   // through a symlinked temp or home directory.
-  return { root: real(root), cwd: real(cwd), home: real(home), hasGit, workTree, config, configError };
+  return { root: real(root), top: top && real(top), cwd: real(cwd), home: real(home), hasGit, workTree, config, configError };
 }

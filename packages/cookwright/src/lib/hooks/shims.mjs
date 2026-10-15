@@ -7,6 +7,12 @@
 // 1 for git, any other non-zero code to one crashed line and exit 0, so a module
 // that does not load can never block a commit. No `exec` (the mapping needs the
 // shell back) and no npx (it contacts the registry before refusing).
+//
+// git runs a hook from the work tree's top, and the shims live there. When the
+// config root (the directory holding cookwright.json, where node_modules/cookwright
+// is installed) is below the top, `rel` is its path from the top and the shim
+// enters it first. git resolves a relative GIT_INDEX_FILE against the top from any
+// subdirectory (measured, git 2.52), so the staged diff is unchanged by the cd.
 
 export const HOOKS_DIR = '.githooks';
 export const HOOK_NAMES = Object.freeze(['pre-commit', 'pre-push']);
@@ -19,23 +25,35 @@ const BIN = 'node_modules/cookwright/bin/cookwright.mjs';
 /** What git is doing when the hook runs: the thing that goes through unchecked. */
 const subject = (name) => (name === 'pre-push' ? 'push' : 'commit');
 
-/** The shim's three fallback lines; each ends the hook at exit 0. */
-export const fallbackLines = (name) =>
+/** The shim's fallback lines; each ends the hook at exit 0. */
+export const fallbackLines = (name, rel = '') =>
   Object.freeze({
+    noDir: `cookwright ${name} skipped: ${rel} is not in this checkout`,
     noNode: `cookwright ${name} skipped, needs node, run setup`,
     notInstalled: `cookwright ${name} skipped: package not installed (npm install)`,
     crashed: `cookwright ${name} crashed (exit $s); the ${subject(name)} goes through unchecked`,
   });
 
-/** The call itself, as a user's own hook may carry it. */
-export const callLine = (name) => `node ${BIN} hook ${name} "$@"`;
+/** `s` as one shell word: bare when it holds only safe characters, else single-quoted. */
+export const shellWord = (s) => (/^[\w./@+-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`);
 
-/** The managed shim for hook `name`: LF, written with mode 0755. */
-export function shimText(name) {
-  const lines = fallbackLines(name);
+/** `cd <rel> && ` when the config root is below the work tree's top, else nothing. */
+const enter = (rel) => (rel ? `cd ${shellWord(rel)} && ` : '');
+
+/** The call itself, as a user's own hook may carry it; `rel` as for the shim. */
+export const callLine = (name, rel = '') => `${enter(rel)}node ${BIN} hook ${name} "$@"`;
+
+/**
+ * The managed shim for hook `name`: LF, written with mode 0755. `rel` is the config
+ * root's path from the work tree's top, empty when they are one directory.
+ */
+export function shimText(name, rel = '') {
+  const lines = fallbackLines(name, rel);
+  const cd = rel ? [`cd ${shellWord(rel)} 2>/dev/null || { echo ${shellWord(lines.noDir)}; exit 0; }`] : [];
   return [
     '#!/bin/sh',
     '# Managed by cookwright (npx cookwright init). The logic is in the package; this file only calls it.',
+    ...cd,
     `command -v node >/dev/null 2>&1 || { echo "${lines.noNode}"; exit 0; }`,
     `[ -f ${BIN} ] || { echo "${lines.notInstalled}"; exit 0; }`,
     `${callLine(name)}; s=$?`,
@@ -52,13 +70,14 @@ export function shimText(name) {
  * `<call> || exit 1` or `<call> || exit $?`; or the call alone as the last line
  * that is neither blank nor a comment. `<call> || true`, any other suffix, or the
  * call followed by more commands swallows the status and is not a call. Whole
- * trimmed lines only, never a substring.
+ * trimmed lines only, never a substring. With a `rel`, each form starts with
+ * `cd <rel> && ` (`cd <rel> && exec node …` for the exec form).
  */
-export function callsCookwright(text, name) {
-  if (text === shimText(name)) return true;
-  const call = callLine(name);
+export function callsCookwright(text, name, rel = '') {
+  if (text === shimText(name, rel)) return true;
+  const call = callLine(name, rel);
   const lines = text.split('\n').map((l) => l.replace(/\r$/, '').trim());
-  const forms = [`exec ${call}`, `${call} || exit 1`, `${call} || exit $?`];
+  const forms = [`${enter(rel)}exec ${callLine(name)}`, `${call} || exit 1`, `${call} || exit $?`];
   if (lines.some((l) => forms.includes(l))) return true;
   const last = lines.filter((l) => l !== '' && !l.startsWith('#')).at(-1);
   return last === call;

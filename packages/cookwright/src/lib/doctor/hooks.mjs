@@ -27,8 +27,18 @@ const firstLine = (r) => (r.stderr || '').trim().split('\n')[0] || `exit ${r.sta
 /** Executable for its owner, group or others; Windows has no such bit. */
 const executable = (st) => process.platform === 'win32' || (st.mode & 0o111) !== 0;
 
-/** The root-relative path of hook `name`'s file. */
-export const hookRel = (name) => `${HOOKS_DIR}/${name}`;
+const posix = (p) => p.split(path.sep).join('/');
+
+/**
+ * Where the hooks sit for a config root `root` in the work tree whose top is `top`:
+ * `rel`, the root's path from the top (empty when they are one directory), which
+ * the shim enters; `up`, the top's path from the root, where the shims are written,
+ * since git runs hooks and resolves `.githooks` from the top.
+ */
+export const placement = (root, top = root) => ({ rel: posix(path.relative(top, root)), up: posix(path.relative(root, top)) });
+
+/** The root-relative path of hook `name`'s file: under the work tree's top (`up`). */
+export const hookRel = (name, up = '') => (up ? `${up}/${HOOKS_DIR}/${name}` : `${HOOKS_DIR}/${name}`);
 
 const configFailed = (r) => new Error(messages.probeFailed('git config core.hooksPath', firstLine(r)));
 const chomp = (text) => text.replace(/\r?\n$/, '');
@@ -61,8 +71,8 @@ function configuredPath(root) {
   return { scope, value: value.join('\t') };
 }
 
-/** git's own hooks directory (root-relative) and the hooks a user put there. */
-function hooksDirEntries(root) {
+/** git's own hooks directory (shown from the top) and the hooks a user put there. */
+function hooksDirEntries(root, top) {
   const r = gitRun(root, ['rev-parse', '--git-path', 'hooks']);
   if (r.status !== 0) throw new Error(messages.probeFailed('git rev-parse --git-path hooks', firstLine(r)));
   const abs = path.resolve(root, r.stdout.trim());
@@ -76,7 +86,7 @@ function hooksDirEntries(root) {
     .filter((e) => !e.isDirectory() && !e.name.endsWith('.sample') && !e.name.startsWith('.'))
     .map((e) => e.name)
     .sort();
-  return { dir: shownDir(path.relative(root, abs)), names };
+  return { dir: shownDir(path.relative(top, abs)), names };
 }
 
 /** git's hooks directory for a readout: root-relative inside the repo, else a phrase. */
@@ -103,8 +113,8 @@ export function shownHooksPath(value) {
  * dangling link); for a file, whether it is our shim byte for byte, whether it
  * calls cookwright in a form that keeps a finding's exit code, and its mode.
  */
-export function hookFile(root, name) {
-  const rel = hookRel(name);
+export function hookFile(root, name, at = placement(root)) {
+  const rel = hookRel(name, at.up);
   const abs = path.join(root, rel);
   let st;
   try {
@@ -114,17 +124,18 @@ export function hookFile(root, name) {
   }
   if (!st.isFile()) return { rel, kind: 'other' };
   const text = fs.readFileSync(abs, 'utf8');
-  return { rel, kind: 'file', ours: text === shimText(name), calls: callsCookwright(text, name), executable: executable(st) };
+  const ours = text === shimText(name, at.rel);
+  return { rel, kind: 'file', ours, calls: callsCookwright(text, name, at.rel), executable: executable(st) };
 }
 
 /** Why the hooks are someone else's, or null: the first of the three foreign cases. */
-function foreignReason(root, configured, files) {
+function foreignReason(root, top, configured, files) {
   const f = messages.foreignHooks;
   if (configured && (configured.value !== HOOKS_DIR || configured.scope !== 'local')) {
     return f.path(shownHooksPath(configured.value), configured.scope);
   }
   if (!configured) {
-    const { dir, names } = hooksDirEntries(root);
+    const { dir, names } = hooksDirEntries(root, top);
     if (names.length) return f.dir(dir, names);
   }
   const theirs = Object.values(files).find((x) => x.kind === 'file' && !x.calls);
@@ -132,16 +143,18 @@ function foreignReason(root, configured, files) {
 }
 
 /**
- * `{ configured, files, foreign }`: the effective core.hooksPath (null when unset),
- * each hook file by name, and the reason the setup is foreign, or null. Foreign is
- * core.hooksPath set to anything but the relative `.githooks` or from a scope other
- * than `local`; unset with a user's hook in git's hooks directory; or a .githooks
- * file that does not call cookwright. Throws on a git failure (TimedOut on a stall).
+ * `{ configured, files, at, foreign }`: the effective core.hooksPath (null when
+ * unset), each hook file by name (under the work tree's top `top`), the placement,
+ * and the reason the setup is foreign, or null. Foreign is core.hooksPath set to
+ * anything but the relative `.githooks` or from a scope other than `local`; unset
+ * with a user's hook in git's hooks directory; or a .githooks file that does not
+ * call cookwright. Throws on a git failure (TimedOut on a stall).
  */
-export function hooksSetup(root) {
+export function hooksSetup(root, top = root) {
+  const at = placement(root, top);
   const configured = configuredPath(root);
-  const files = Object.fromEntries(HOOK_NAMES.map((name) => [name, hookFile(root, name)]));
-  return { configured, files, foreign: foreignReason(root, configured, files) };
+  const files = Object.fromEntries(HOOK_NAMES.map((name) => [name, hookFile(root, name, at)]));
+  return { configured, files, at, foreign: foreignReason(root, top, configured, files) };
 }
 
 // ── doctor's checks (plan §4.6) ──────────────────────────────────────────────
@@ -149,7 +162,7 @@ export function hooksSetup(root) {
 const m = messages.doctor;
 
 /** The setup, read once per doctor run: three checks share it. */
-const setupOf = (repo) => (repo.hooksSetup ??= hooksSetup(repo.root));
+const setupOf = (repo) => (repo.hooksSetup ??= hooksSetup(repo.root, repo.top ?? repo.root));
 
 /**
  * `hooks.path`: PASS when core.hooksPath is `.githooks` from the local scope; WARN a

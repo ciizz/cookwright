@@ -22,13 +22,15 @@ import { FAIL } from './lib/verdict.mjs';
 const m = messages.hook;
 
 /**
- * `{ root, config, configError }` at the work tree's top (git runs hooks there), or
- * null outside a work tree. No cookwright.json is a config of null with no error.
+ * `{ root, config, configError }`: the config found from `cwd` upward, bounded by
+ * the work tree's top (git runs hooks at the top; a shim whose config root is below
+ * it enters that directory first), else the top with no config; null outside a
+ * work tree. No cookwright.json is a config of null with no error.
  */
 function openHookRepo(cwd, probes) {
   const top = probes.hasTool('git') ? workTreeRoot(cwd) : null;
   if (!top) return null;
-  return openDoctorRepo(top, probes) ?? { root: fs.realpathSync(top), config: null, configError: null };
+  return openDoctorRepo(cwd, probes) ?? { root: fs.realpathSync(top), config: null, configError: null };
 }
 
 /**

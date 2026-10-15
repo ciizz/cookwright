@@ -11,13 +11,15 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { main } from './hook.mjs';
 import { main as init } from './init.mjs';
+import { openDoctorRepo } from './lib/doctor/repo.mjs';
+import { runChecks } from './lib/doctor/registry.mjs';
 import { TimedOut } from './lib/budget.mjs';
 import { generate } from './lib/changelog/state.mjs';
 import { CONFIG_FILE } from './lib/config.mjs';
 import { CLI, messages } from './lib/messages.mjs';
 import { callLine, callsCookwright, shimText } from './lib/hooks/shims.mjs';
 import { hasTool } from './lib/probes.mjs';
-import { commit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
+import { commit, gitInit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-hook-');
 
@@ -576,6 +578,47 @@ describe('end to end: a real git commit through the shim', () => {
     expect(refused.output).toMatch(/pre-commit {2}FAIL {2}doc-sync {2}docs: 1 file\(s\) changed \(src\/a\.mjs\)/);
     expect(head(repo)).toBe(before);
     expect(gitCommit(repo, { 'docs/guide.md': 'updated' }).status).toBe(0);
+  });
+
+  it('a config below the work tree top: init writes the shims at the top, a real commit is checked, doctor agrees', () => {
+    const top = gitInit(path.join(TMP, `nested-${(n += 1)}`));
+    const repo = { root: path.join(top, 'apps/mobile') };
+    fs.mkdirSync(repo.root, { recursive: true });
+    fs.writeFileSync(path.join(repo.root, CONFIG_FILE), JSON.stringify({ version: 1, hooks: { docSync: [RULE] } }));
+    const outer = { root: top };
+    commit(outer, { 'README.md': 'x', 'apps/mobile/docs/guide.md': 'g' }, 'init');
+    fs.appendFileSync(path.join(top, '.git/info/exclude'), 'node_modules\n');
+    fs.mkdirSync(path.join(repo.root, 'node_modules'));
+    fs.symlinkSync(PKG, path.join(repo.root, 'node_modules/cookwright'));
+    const probes = { ...gitleaks(), claudeVersion: () => '2.1.281' };
+    init([], { cwd: repo.root, home: TMP, probes });
+    expect(out.join('\n')).toMatch(/wrote +\.\.\/\.\.\/\.githooks\/pre-commit/);
+    expect(fs.readFileSync(path.join(top, '.githooks/pre-commit'), 'utf8')).toBe(shimText('pre-commit', 'apps/mobile'));
+    expect(fs.existsSync(path.join(repo.root, '.githooks'))).toBe(false);
+    expect(run(top, 'git', ['config', '--get', 'core.hooksPath'])).toBe('.githooks');
+    const before = head(outer);
+    const refused = gitCommit(outer, { 'apps/mobile/src/a.mjs': 'a' });
+    expect(refused.status).toBe(1);
+    expect(refused.output).toMatch(/pre-commit {2}FAIL {2}doc-sync {2}docs: 1 file\(s\) changed \(apps\/mobile\/src\/a\.mjs\)/);
+    expect(head(outer)).toBe(before);
+    expect(gitCommit(outer, { 'apps/mobile/docs/guide.md': 'updated' }).status).toBe(0);
+    const rows = Object.fromEntries(runChecks(openDoctorRepo(repo.root, probes, { home: TMP }), probes));
+    expect(['hooks.path', 'hooks.pre-commit', 'hooks.pre-push'].map((c) => rows[c])).toEqual([
+      { status: 'PASS', note: messages.doctor.hooks.pathOk('.githooks') },
+      { status: 'PASS', note: messages.doctor.hooks.shim('../../.githooks/pre-commit') },
+      { status: 'PASS', note: messages.doctor.hooks.shim('../../.githooks/pre-push') },
+    ]);
+  });
+
+  it('a config below the top in a checkout without that directory: the not-here line, exit 0', () => {
+    const repo = repoAt();
+    commit(repo, { 'README.md': 'x' }, 'init');
+    fs.mkdirSync(path.join(repo.root, '.githooks'));
+    hookFile(repo, shimText('pre-commit', 'apps/gone'));
+    run(repo.root, 'git', ['config', 'core.hooksPath', '.githooks']);
+    const r = gitCommit(repo, { 'src/a.mjs': 'a' });
+    expect(r.status).toBe(0);
+    expect(r.output).toContain('cookwright pre-commit skipped: apps/gone is not in this checkout');
   });
 
   it('without the package installed: the not-installed line, exit 0, the commit lands', () => {

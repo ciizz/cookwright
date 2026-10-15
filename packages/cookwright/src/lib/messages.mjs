@@ -159,7 +159,7 @@ const init = {
     wrote: (lines) => `ignores ${list(lines)}`,
     appended: (lines) => `appended ${list(lines)}`,
     overridden: (paths) =>
-      `${list(paths)} not ignored although .gitignore lists the patterns (a later rule overrides them); left alone`,
+      `${list(paths)} not ignored although .gitignore ends with the patterns (a rule outside it overrides them); left alone`,
   },
 };
 

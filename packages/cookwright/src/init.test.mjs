@@ -10,6 +10,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { main } from './init.mjs';
 import { DEFAULTS } from './lib/config.mjs';
 import { claudeHookStep } from './lib/init/claude.mjs';
+import { ENV_LINES } from './lib/init/gitignore.mjs';
 import { HOOK_COMMAND, HOOK_LINES, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { renderBlock } from './lib/rules/block.mjs';
@@ -440,11 +441,21 @@ describe('.gitignore', () => {
     expect(init(root).rows['.gitignore'].action).toBe('kept');
   });
 
-  it('leaves the file alone when a later rule overrides the patterns', () => {
+  it('appends the patterns after a later rule that overrides them, once', () => {
     const root = fresh();
     const text = '.env\n.env.*\n!.env.example\n!.env.local\n';
     write(root, '.gitignore', text);
-    expect(init(root).rows['.gitignore']).toEqual({ action: 'kept', note: m.gitignore.overridden(['.env.local']) });
+    expect(init(root).rows['.gitignore']).toEqual({ action: 'updated', note: m.gitignore.appended(ENV_LINES) });
+    expect(read(root, '.gitignore')).toBe(`${text}.env\n.env.*\n!.env.example\n`);
+    expect(init(root).rows['.gitignore'].action).toBe('kept');
+  });
+
+  it('leaves the file alone when it ends with the patterns and git still does not ignore', () => {
+    const root = fresh();
+    const text = 'node_modules/\n.env\n.env.*\n!.env.example\n';
+    write(root, '.gitignore', text);
+    const probes = { ignored: (_, p) => p !== '.env.local' };
+    expect(init(root, [], { probes }).rows['.gitignore']).toEqual({ action: 'kept', note: m.gitignore.overridden(['.env.local']) });
     expect(read(root, '.gitignore')).toBe(text);
   });
 

@@ -10,6 +10,7 @@
 // point, and under vitest `process.argv[1]` is the vitest binary.
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -1167,7 +1168,8 @@ describe('the CLI', () => {
     fs.writeFileSync(plan, 'the plan');
     fs.writeFileSync(split, JSON.stringify({ slices: [{ id: 'core', sessions: [{ id: 's1', scope: '§1' }] }] }));
     run(repo.root, 'git', ['checkout', '-q', '-b', 'bundle/paths']);
-    const cli = (...argv) => main(argv, { cwd: repo.root });
+    let stdin = '';
+    const cli = (...argv) => main(argv, { cwd: repo.root, input: () => stdin });
     expect(cli('init', 'paths', '--plan', plan, '--split', split)).toBe(0);
     commit(repo, {}, 'chore(bundle): paths initialized');
     expect(cli('gate', 'paths')).toBe(0);
@@ -1192,5 +1194,34 @@ describe('the CLI', () => {
     expect(strings.filter((s) => s.startsWith('/') || /^[A-Za-z]:\\/.test(s))).toEqual([]);
     expect(JSON.parse(saved).phases[0].runs[0]).toMatchObject({ runId: 'wf_1' });
     expect(JSON.parse(saved).phases[0].runs[0]).not.toHaveProperty('transcriptDir');
+
+    // Every record beside the state, too: a session's absolute file list becomes
+    // root-relative, and any other path on this machine is redacted.
+    const scratch = path.join(os.tmpdir(), 'scratchpad/codex.out');
+    const home = path.join(os.homedir(), 'notes.md');
+    const abs = path.join(repo.root, 'src/a.mjs');
+    stdin = JSON.stringify({ commits: ['abc'], files: [abs, 'b.mjs'], notes: `see ${abs}, ${scratch} and ${home}` });
+    expect(cli('record', 'paths', 'session', 'implement:s1')).toBe(0);
+    stdin = JSON.stringify({ issues: [], notes: `output at ${scratch}`, partialReportPath: scratch });
+    expect(cli('record', 'paths', 'findings', 'plan-review')).toBe(0);
+    stdin = `QA notes in ${repo.root}/qa.md and ${home}`;
+    expect(cli('record', 'paths', 'qa')).toBe(0);
+    stdin = JSON.stringify({ commits: [], files: [home] });
+    expect(cli('record', 'paths', 'session', 'implement:s1')).toBe(2);
+    expect(errors.at(-1)).toMatch(/a session report lists a file outside the repo/);
+
+    const bdir = path.join(repo.root, 'docs/bundles/paths');
+    const files = fs.readdirSync(bdir, { recursive: true }).filter((f) => fs.statSync(path.join(bdir, f)).isFile());
+    expect(files).toEqual(
+      expect.arrayContaining(['state.json', 'sessions/implement-s1-1.md', 'findings/plan-review-1.json', 'qa/round-1.md']),
+    );
+    const local = [repo.root, fs.realpathSync(repo.root), os.homedir(), os.tmpdir()];
+    for (const f of files) {
+      const text = fs.readFileSync(path.join(bdir, f), 'utf8');
+      expect(local.filter((l) => text.includes(l)), f).toEqual([]);
+    }
+    const report = fs.readFileSync(path.join(bdir, 'sessions/implement-s1-1.md'), 'utf8');
+    expect(report).toContain('- `src/a.mjs`');
+    expect(report).toContain('see src/a.mjs, <local path> and <local path>');
   });
 });

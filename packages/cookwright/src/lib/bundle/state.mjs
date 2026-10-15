@@ -19,6 +19,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { scrubLocalPaths } from './scrub.mjs';
+
 export const STATE_VERSION = 1;
 
 export const SLUG = /^[a-z0-9][a-z0-9-]{1,48}$/;
@@ -68,7 +70,7 @@ export function saveState(repo, state) {
   }
   const next = { ...state, revision: state.revision + 1 };
   const tmp = `${file}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(next, null, 2) + '\n');
+  fs.writeFileSync(tmp, scrubLocalPaths(JSON.stringify(next, null, 2), repo.root) + '\n');
   fs.renameSync(tmp, file);
   state.revision = next.revision;
 }

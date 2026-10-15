@@ -49,6 +49,7 @@ This covers `plan-review`, `implement:*`, `review:*`, `fix:*`, `qa` rounds and `
    - **Findings:** `plan-review`, `review:*` and `closeout` go through `bundle record <slug> findings <phase>`, which stamps the HEAD they were recorded at. A review whose reviewer never finished is refused as incomplete: start a fresh run, or pass `--accept-incomplete "<reason>"`, which is recorded as a decision.
    - **Sessions:** `implement:*` and `fix:*` go through `bundle record <slug> session <phase>`.
    - **A `qa` round returns both:** `results.fix` goes to `record session qa`, and `results.review` to `record findings qa`.
+   - **No local paths.** Every record and the state are written root-relative: a path inside the repo loses its root, a path elsewhere under the home or temp directory becomes `<local path>`, and a session report that lists a file outside the repo is refused.
 4. **Verify.** See "Between phases" below.
 5. **Gate:** `bundle gate <slug>`. It needs everything outside `<paths.bundles>/` committed.
 6. `bundle phase <slug> done <phase> --usage <budget.spent()>`. `done` refuses until the phase has its evidence:

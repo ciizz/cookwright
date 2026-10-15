@@ -17,6 +17,7 @@ import path from 'node:path';
 
 import { rulesFiles } from '../hosts.mjs';
 import { BUNDLE_CLI } from './messages.mjs';
+import { relativeFiles, scrubLocalPaths } from './scrub.mjs';
 import { bundleDir, bundleRel, findPhase, sha256File, sliceOfPhase } from './state.mjs';
 
 /** Kinds that run through the Workflow script; the rest are shell or the developer's hands. */
@@ -229,7 +230,7 @@ function writeRecord(repo, state, sub, base, ext, content) {
   let n = 1;
   while (fs.existsSync(path.join(dir, `${base}-${n}.${ext}`))) n += 1;
   const file = path.join(dir, `${base}-${n}.${ext}`);
-  fs.writeFileSync(file, content);
+  fs.writeFileSync(file, scrubLocalPaths(content, repo.root));
   return path.relative(repo.root, file).split(path.sep).join('/');
 }
 
@@ -366,7 +367,9 @@ export function recordReport(repo, state, name, report, now) {
       'a session report needs the IMPL shape (commits[], files[], …) — pipe `results`, or `results.fix` for qa',
     );
   }
-  const rel = writeRecord(repo, state, 'sessions', fileSafe(name), 'md', renderReport(name, report));
+  const files = relativeFiles(report.files, repo.root);
+  const body = renderReport(name, { ...report, files });
+  const rel = writeRecord(repo, state, 'sessions', fileSafe(name), 'md', body);
   state.reports.push({ phase: name, path: rel, at: now, stored: true });
   return rel;
 }

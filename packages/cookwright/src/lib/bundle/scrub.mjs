@@ -1,6 +1,9 @@
 // src/lib/bundle/scrub.mjs — committed bundle records never hold a machine-local
 // path. A path under the repo root becomes root-relative; any other path under this
-// machine's home or temp directories (a scratchpad, a transcript) becomes LOCAL_PATH.
+// machine's home or temp directories (a scratchpad, a transcript), under any macOS
+// home or mounted volume (`/Users/<name>`, `/Volumes/<name>`), or on a Windows drive
+// or share becomes LOCAL_PATH. Other absolute paths (`/usr/bin/env`, `/opt/…`, an
+// API route such as `/media/upload`) are not machine-identifying and are kept.
 // The bundle state and every record pass through here on their way to disk.
 
 import fs from 'node:fs';
@@ -27,6 +30,15 @@ const MACHINE_DIRS = () => [os.homedir(), os.tmpdir(), '/tmp', '/private/tmp'];
 // A path starts the text, follows a character that cannot be part of a path or URL
 // (so `app/tmp/x` and `https://host/tmp` are left alone), or follows `file://`.
 const LEFT = String.raw`(?:(?<=file://)|(?<![\w.~%+@/\\-]))`;
+// The rest of a path after its machine-local start: a separator and what follows up
+// to a delimiter, or nothing when the start is a whole word.
+const TAIL = String.raw`(?:[\\/][^\s'"\x60)\]}<>,;]*|(?![\w.-]))`;
+// Machine-local starts that hold for any machine, as regex source.
+const ANY_MACHINE = [
+  String.raw`/(?:Users|Volumes)/[^/\s'"\x60)\]}<>,;]+`,
+  String.raw`[A-Za-z]:(?=[\\/])`,
+  String.raw`\\\\[\w.$-]+`,
+];
 
 /** A function that scrubs one string: the repo root's paths made relative, other machine-local paths redacted. */
 function scrubber(root) {
@@ -35,8 +47,8 @@ function scrubber(root) {
       new RegExp(`${LEFT}${escape(r)}(/|(?![\\w.-]))`, 'g'),
       (_, slash) => (slash ? '' : '.'),
     ]),
-    ...spellings(MACHINE_DIRS()).map((d) => [
-      new RegExp(`${LEFT}${escape(d)}(?:/[^\\s'"\`)\\]}>,;]*|(?![\\w.-]))`, 'g'),
+    ...[...spellings(MACHINE_DIRS()).map(escape), ...ANY_MACHINE].map((start) => [
+      new RegExp(`${LEFT}${start}${TAIL}`, 'g'),
       LOCAL_PATH,
     ]),
   ];

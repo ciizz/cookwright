@@ -25,6 +25,17 @@ describe('scrubLocalPaths', () => {
     expect(scrubLocalPaths(text, root)).toBe(text);
     expect(scrubLocalPaths(`vendor${root}/a`, root)).toBe(`vendor${root}/a`);
   });
+
+  it('redacts any macOS home or volume and any Windows drive or share, keeping system paths and routes', () => {
+    expect(scrubLocalPaths('/Volumes/ClientName/build.log and /Users/someone/a.mjs', root)).toBe(
+      `${LOCAL_PATH} and ${LOCAL_PATH}`,
+    );
+    expect(scrubLocalPaths('C:\\Users\\bob\\a.txt, D:/work/b and \\\\server\\share\\x', root)).toBe(
+      `${LOCAL_PATH}, ${LOCAL_PATH} and ${LOCAL_PATH}`,
+    );
+    const kept = '/usr/bin/env, /opt/x, the /media/upload route, /users/1, https://h/Users/x, step a: do';
+    expect(scrubLocalPaths(kept, root)).toBe(kept);
+  });
 });
 
 describe('scrubValue', () => {

@@ -8,4 +8,4 @@ Hand-maintained for now: every user-visible change adds a line under Unreleased,
 - `npx cookwright doctor` checks Level 0 and names what is missing. `--hook` is the session-start form and never fails a session.
 - One `cookwright` bin with three commands: `init`, `doctor` and `bundle`.
 - The bundle runner keeps only the run id. `phase run` and `phase done` no longer take `--transcript-dir`.
-- The bundle runner writes no machine-local path into its records: paths inside the repo are stored root-relative, other home or temp paths as `<local path>`, and a session report listing a file outside the repo is refused.
+- The bundle runner writes no machine-local path into its records: paths inside the repo are stored root-relative; home, temp, macOS volume and Windows drive or share paths as `<local path>`; and a session report listing a file outside the repo is refused.

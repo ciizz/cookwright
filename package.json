@@ -1,0 +1,10 @@
+{
+  "name": "cookwright-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm test --workspace packages/cookwright"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "./packages/cookwright/schema/cookwright.schema.json",
+  "version": 1,
+  "hosts": ["claude"],
+  "baseBranch": "main",
+  "paths": {
+    "bundles": "docs/dev/bundles",
+    "closeouts": "docs/dev/closeouts",
+    "backlog": "docs/dev/backlog.md",
+    "playbook": "docs/playbook.md"
+  },
+  "gate": {
+    "checks": [{ "name": "test", "run": "npm test" }]
+  }
+}

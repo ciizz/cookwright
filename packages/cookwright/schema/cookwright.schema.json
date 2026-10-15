@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cookwright.dev/schema/cookwright.schema.json",
+  "title": "cookwright.json",
+  "description": "What a repo tells cookwright about itself: its state homes, its agent hosts, its gate. Lives at the repo root.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": {
+      "description": "Config format version. Bumped only with a migration.",
+      "const": 1
+    },
+    "hosts": {
+      "description": "Agent hosts this repo is set up for. The first is the default host: the one whose workflow scripts and rules file the CLI names.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["claude"] },
+      "default": ["claude"]
+    },
+    "baseBranch": {
+      "description": "The branch bundles branch from and merge back into.",
+      "type": "string",
+      "minLength": 1,
+      "default": "main"
+    },
+    "paths": {
+      "description": "The state homes, relative to the repo root.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bundles": {
+          "description": "Directory of bundle state, written only by the bundle CLI.",
+          "type": "string",
+          "default": "docs/bundles"
+        },
+        "closeouts": {
+          "description": "Directory of closeouts, one past-tense file per shipped bundle.",
+          "type": "string",
+          "default": "docs/closeouts"
+        },
+        "backlog": {
+          "description": "The backlog file: bugs and enhancements outside the current bundle.",
+          "type": "string",
+          "default": "docs/backlog.md"
+        },
+        "playbook": {
+          "description": "The bundle playbook every session reads.",
+          "type": "string",
+          "default": "docs/playbook.md"
+        }
+      }
+    },
+    "gate": {
+      "description": "The checks that run between bundle phases.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "description": "Run in order; every one runs even after a failure. A check whose `needs` are not on PATH is skipped and reported, never failed.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "run"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "run": {
+                "description": "A shell command, as in a package.json script.",
+                "type": "string",
+                "minLength": 1
+              },
+              "needs": {
+                "description": "Executables that must be on PATH for this check to run.",
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        },
+        "flakes": {
+          "description": "The retry allowlist: a failed gate may be re-run once when the only failures are a named flake. Keys are your backlog ids.",
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "default": {}
+        }
+      }
+    },
+    "ci": {
+      "description": "When present, the landing check asks GitHub (through `gh`) whether this workflow is green on HEAD.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workflow"],
+      "properties": {
+        "workflow": {
+          "description": "The workflow file name under .github/workflows/.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

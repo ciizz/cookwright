@@ -19,7 +19,7 @@ const RUN_INIT = `run ${CLI} init`;
 const doctor = {
   usage: `usage: ${CLI} doctor [--hook]`,
   refused: (detail) => `doctor: ${detail}`,
-  noConfig: (cwd) => `no ${CONFIG_FILE} in ${cwd} or above it in this repo; ${RUN_INIT}`,
+  noConfig: (cwd) => `no ${CONFIG_FILE} at or above ${cwd}; ${RUN_INIT}`,
   hookLine: (text) => `cookwright doctor: ${text}`,
   crashed: (detail) => `cookwright doctor crashed: ${detail}`,
   checkThrew: (detail) => `the check could not run: ${detail}`,
@@ -66,7 +66,7 @@ const doctor = {
     imports: (file, token) => `${file} imports ${token}`,
     native: (version) => `claude ${version} reads AGENTS.md natively; nothing shadows it`,
     shadowed: (files, token) =>
-      `${list(files)} shadow(s) AGENTS.md and the root CLAUDE.md does not carry ${token} (${RUN_INIT})`,
+      `AGENTS.md is shadowed by ${list(files)} and the root CLAUDE.md does not carry ${token} (${RUN_INIT})`,
     old: (version, min) =>
       `claude ${version} reads only CLAUDE.md (AGENTS.md needs ${min} or newer; ${RUN_INIT}, which writes the import)`,
     noClaude: 'skipped, needs claude, run setup (AGENTS.md support unverified)',

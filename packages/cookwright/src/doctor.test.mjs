@@ -4,8 +4,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { dispatch } from './cli-main.mjs';
+import { main } from './doctor.mjs';
 import { DEFAULTS } from './lib/config.mjs';
 import { checkClaudeHook } from './lib/doctor/claude.mjs';
 import { openDoctorRepo } from './lib/doctor/repo.mjs';
@@ -304,5 +306,115 @@ describe('secrets.env', () => {
       status: 'FAIL',
       note: m.checkThrew('git check-ignore .env failed: boom'),
     });
+  });
+});
+
+describe('the readout', () => {
+  const out = [];
+  const err = [];
+  let spies;
+  beforeAll(() => {
+    spies = [
+      vi.spyOn(console, 'log').mockImplementation((...a) => out.push(a.join(' '))),
+      vi.spyOn(console, 'error').mockImplementation((...a) => err.push(a.join(' '))),
+    ];
+  });
+  afterAll(() => spies.forEach((s) => s.mockRestore()));
+  afterEach(() => {
+    out.length = 0;
+    err.length = 0;
+  });
+  const doc = (root, argv = [], over = {}) => main(argv, { cwd: root, home: TMP, probes: probes(over) });
+
+  it('prints every check, the counts, the level line and the next level', () => {
+    expect(doc(level0())).toBe(0);
+    expect(out).toHaveLength(15);
+    expect(out[0]).toBe(`PASS  config           ${m.config.ok(0)}`);
+    expect(out.slice(-3)).toEqual([
+      '11 checks — 11 PASS, 0 FAIL, 0 WARN, 0 SKIP',
+      'level 0 declared: complete',
+      'next: Level 1 is not available in this version of cookwright',
+    ]);
+  });
+
+  it('reads a FAIL among the requirements as drift, and exits 1', () => {
+    expect(doc(level0({ 'AGENTS.md': null, 'CHANGELOG.md': null }))).toBe(1);
+    expect(out).toContain('level 0 declared: drift, 2 piece(s) missing: homes.changelog, rules.block');
+  });
+
+  it('names what is weak or unverified, and still reads complete', () => {
+    expect(doc(level0({}, { baseBranch: 'trunk' }), [], { claudeVersion: () => null })).toBe(0);
+    expect(out).toContain('level 0 declared: complete; weak: git; unverified: host.rules');
+    expect(out).toContain('11 checks — 9 PASS, 0 FAIL, 1 WARN, 1 SKIP');
+  });
+
+  it('a WARN outside the requirements is neither drift nor weak', () => {
+    expect(doc(level0({ '.gitignore': '.env\n' }))).toBe(0);
+    expect(out).toContain('level 0 declared: complete');
+  });
+
+  it('reads an invalid config as level unknown, and exits 1', () => {
+    expect(doc(level0({}, { hosts: ['codex'] }))).toBe(1);
+    expect(out.at(-1)).toBe('level unknown: config invalid');
+    expect(out.join('\n')).not.toMatch(/^FAIL {2}host\./m);
+  });
+
+  it('refuses no config, an unknown flag and a positional with exit 2', () => {
+    const bare = gitInit(path.join(TMP, 'bare'));
+    expect(doc(bare)).toBe(2);
+    expect(err.at(-1)).toBe(`doctor: ${m.noConfig(bare)}`);
+    expect(err.at(-1)).toMatch(/run npx cookwright init$/);
+    expect(doc(level0(), ['--verbose'])).toBe(2);
+    expect(err.at(-1)).toBe('doctor: unknown flag --verbose (known: --hook)');
+    expect(doc(level0(), ['now'])).toBe(2);
+    expect(doc(level0(), ['--hook', 'now'])).toBe(0);
+    expect(err.at(-1)).toBe(`doctor: ${m.usage}`);
+    expect(out).toEqual([m.hookLine(m.usage)]);
+    expect(out).toHaveLength(1);
+  });
+});
+
+describe('--hook', () => {
+  const out = [];
+  let spy;
+  beforeAll(() => {
+    spy = vi.spyOn(console, 'log').mockImplementation((...a) => out.push(a.join(' ')));
+  });
+  afterAll(() => spy.mockRestore());
+  afterEach(() => {
+    out.length = 0;
+  });
+  const hook = (root, over = {}) => main(['--hook'], { cwd: root, home: TMP, probes: probes(over) });
+
+  it('prints exactly one line when everything passes', () => {
+    expect(hook(level0())).toBe(0);
+    expect(out).toEqual(['cookwright doctor: level 0 complete']);
+  });
+
+  it('prints only what is not PASS, the counts and the level line, and exits 0 on a FAIL', () => {
+    expect(hook(level0({ '.claude/settings.json': null }))).toBe(0);
+    expect(out).toEqual([
+      `FAIL  host.hook  ${m.hostHook.none('.claude/settings.json')}`,
+      'cookwright doctor: 11 checks — 10 PASS, 1 FAIL, 0 WARN, 0 SKIP',
+      'level 0 declared: drift, 1 piece(s) missing: host.hook',
+    ]);
+  });
+
+  it('exits 0 on a thrown probe, printing one line', () => {
+    const root = level0();
+    expect(hook(root, { hasTool: () => { throw new Error('PATH unreadable\nmore'); } })).toBe(0);
+    expect(out).toEqual(['cookwright doctor crashed: PATH unreadable']);
+  });
+
+  it('exits 0 with no cookwright.json, naming init', () => {
+    const bare = gitInit(path.join(TMP, 'bare-hook'));
+    expect(hook(bare)).toBe(0);
+    expect(out).toEqual([m.hookLine(m.noConfig(bare))]);
+  });
+
+  it('runs through the dispatcher, from a subdirectory', async () => {
+    const root = level0({ 'src/x.txt': 'x' });
+    expect(await dispatch(['doctor', '--hook'], { cwd: path.join(root, 'src'), home: TMP, probes: probes() })).toBe(0);
+    expect(out).toEqual(['cookwright doctor: level 0 complete']);
   });
 });

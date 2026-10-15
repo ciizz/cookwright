@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 14,
+  "revision": 21,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -150,7 +150,26 @@
       ]
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-2/findings/plan-review-1.json",
+      "counts": {
+        "confirmed": 18,
+        "plausible": 5,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 5,
+        "P2": 11,
+        "P3": 7
+      },
+      "at": "2026-10-15T15:19:38.361Z",
+      "stored": true,
+      "head": "a2f1127e6f51094d60dd04f5e2e14caa3f0f9f13"
+    }
+  ],
   "reports": [],
   "qaRounds": [],
   "decisions": [
@@ -222,6 +241,48 @@
       "actor": "orchestrator",
       "source": "plan §2 disposition 7, from the plan review",
       "text": "B-002 is widened to the git hook shims rather than a new id: one bug, the package is looked for at the work tree root (node_modules/cookwright), so a workspace sub-package install or a linked worktree without node_modules prints the not-installed line.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:25:06.423Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 3 (disposition 8)",
+      "text": "The pre-push checks judge the working tree, never the pushed commit. Refusing a push with a dirty tree or a non-HEAD sha would breed --no-verify; each pre-push line carries '(judged on the working tree, not <sha8>)' when that is the case, the README says so, and a per-sha temporary worktree is backlogged.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:25:06.838Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 10, 11, 12 (disposition 9)",
+      "text": "Findings leave 'cookwright hook' with exit 10; the shim maps 10 to 1 and any other non-zero code to one crashed line and exit 0 (no exec), so a module-load failure never blocks a commit. A harness problem inside one check is that check's SKIP line and never changes another check's FAIL. 'secrets' runs without a config; the config-dependent checks SKIP with the loader's message.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:25:07.241Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 4 (disposition 10), measured",
+      "text": "Linked worktrees: core.hooksPath is shared repo config, so a sibling worktree whose branch lacks .githooks/ silently runs no hook (measured). Accepted as a known state doctor reports there (hooks.pre-commit FAIL missing, run init) and init repairs on that branch; no refusal and no worktree-scoped config in this stage. hooksPath scope read with --show-scope, never --show-origin (absolute path).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:25:07.671Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 5 (disposition 11)",
+      "text": "tools.gitleaks runs one bounded dry invocation of the staged scan at session start (output discarded, --redact kept): exit 0 or 3 is PASS, any other exit is FAIL naming the stderr line (a malformed .gitleaks.toml is drift, not a silent skip), a timeout is unverified.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:25:08.082Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 7 (disposition 12)",
+      "text": "Changelog release order is version order; a release's range is <previous version>..<tag>. A previous version that is not an ancestor of the next (merge-base --is-ancestor) is reported on stderr by the command and rendered anyway, deterministically.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:25:08.490Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 14 (disposition 13)",
+      "text": "A .githooks/pre-commit or pre-push that is neither cookwright's shim nor calls cookwright in a failure-preserving form makes the hooks setup foreign: hooks.path WARN naming it, the file checks SKIP, init writes nothing. callsCookwright accepts only exec <call>, <call> || exit 1, <call> || exit $?, or <call> as the last line; '|| true' and trailing commands are not a call.",
       "claim": true
     }
   ],

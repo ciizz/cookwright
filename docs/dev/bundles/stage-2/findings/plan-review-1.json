@@ -1,0 +1,392 @@
+{
+  "phase": "plan-review",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "line 93; planned packages/cookwright/src/lib/changelog/tags.mjs",
+      "problem": "git tag --format=%(refname:strip=2)%x1f%(objecttype) emits %x1f literally; ref-filter formats use %1f (or %00), %x1f is a pretty-format escape. Git 2.52.0 emitted the literal characters for %x1f and byte 0x1f for %1f.",
+      "severity": "P1",
+      "suggested_fix": "Specify %1f or %00 for git tag --format, parse that exact delimiter, and add a low-level test asserting the raw tuple returned by Git before higher-level rendering tests.",
+      "failure_scenario": "Repo has annotated v1.0.0 and lightweight v1.1.0 tags. The parser never receives the unit separator, so it rejects every combined value as non-semver or cannot tell annotated from lightweight; the changelog reports zero releases or reads metadata wrongly.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "plan.md:93 uses %x1f. Measured with git 2.52 for-each-ref: %x1f prints literal '%x1f', %1f prints byte 037."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "lines 64-74,116; planned lib/hooks/shims.mjs and lib/doctor/hooks.mjs",
+      "problem": "callsCookwright accepts a matching call on any line, including with `|| <anything>`; neither proves cookwright's exit status reaches Git.",
+      "severity": "P1",
+      "suggested_fix": "Recognize only failure-preserving forms: `exec <call>`, the call as the final effective command, or a narrowly parsed `<call> || exit 1` / `exit $?`. Reject `|| true`, arbitrary suffixes, and calls followed by other commands without set -e. Add end-to-end tests that a finding blocks each accepted form and swallowed forms fail doctor.",
+      "failure_scenario": "An existing hook contains `node ... hook pre-commit \"$@\" || true`, or calls cookwright then ends with `echo done`. Init reports kept, doctor PASS, but a secret or doc-sync finding's exit 1 is swallowed and Git accepts the commit.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "plan.md:74 callsCookwright accepts any line with an optional ' || <anything>' suffix and checks nothing about the exit status reaching Git. The plan's own test cases (plan.md:154) include '|| exit 1' but not '|| true'."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "lines 101-103,151; planned src/changelog.mjs and lib/changelog/state.mjs (cf. packages/cookwright/src/lib/init/files.mjs:35-57)",
+      "problem": "The plan writes paths.changelog without applying the repo's existing never-write-through-a-symlink-or-linked-parent protection.",
+      "severity": "P1",
+      "suggested_fix": "Move the path-component link check into a reusable write-safety helper and require it before changelog writes; refuse a linked target and any linked parent. Test that --adopt and default mode leave an external target byte-identical.",
+      "failure_scenario": "CHANGELOG.md is a symlink to a shared document outside the repo, or its parent dir is a symlink. `cookwright changelog --adopt` follows it and overwrites the external target; a generated-marker target can be overwritten by default mode too.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "src/lib/init/files.mjs:48-55 refuseLinks covers init rows only. plan.md:101-103 and 151 write paths.changelog with no link check."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "lines 56-60,152; planned lib/hooks/push.mjs",
+      "problem": "Pre-push reads stdin only to detect empty/deletion pushes; gate commands and changelogState() run against the current checkout, ignoring each pushed local SHA.",
+      "severity": "P1",
+      "suggested_fix": "For this stage, refuse unless the tree is clean and every non-deletion local SHA equals HEAD, explaining that the pushed ref cannot be verified; fuller fix is a temporary worktree per unique pushed SHA. Add tests for an unstaged fix masking a bad commit and for a non-HEAD refspec.",
+      "failure_scenario": "Developer commits a failing test or stale changelog, then makes an unstaged fix. `git push` tests the fixed working tree, passes, and pushes the broken commit. `git push origin other-branch:main` checks the checked-out branch instead of other-branch.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "plan.md:56-58 runs gate and changelogState against the checkout and reads stdin only for empty/deletion detection."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "lines 74,80-85; planned lib/init/hooks.mjs",
+      "problem": "In a linked worktree `git config --local` writes the shared repo config, so the relative `.githooks` core.hooksPath applies to all worktrees, including ones on older branches lacking the tracked shims.",
+      "severity": "P1",
+      "suggested_fix": "Detect linked worktrees in preflight and either refuse them for Stage 2 with an actionable message, or support worktree-scoped config via extensions.worktreeConfig plus `git config --worktree`. Add a two-worktree test showing init in one cannot silently disable checks in the other.",
+      "failure_scenario": "Init runs in one linked worktree and activates .githooks. A sibling worktree on an older branch has no .githooks/pre-commit; Git silently finds no hook, so commits bypass secret and doc-sync checks without even the planned 'package not installed' line.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "plan.md:82 writes `config --local core.hooksPath .githooks`. In a linked worktree --local is the shared config, so every worktree gets it. plan.md:74 only covers a missing node_modules, not a missing .githooks on an older branch."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "lines 43,49-52,117,152; planned lib/hooks/secrets.mjs and lib/doctor/hooks.mjs",
+      "problem": "The hook treats gitleaks invocation/configuration errors as SKIP and exits 0, while doctor's tools.gitleaks only checks the executable is on PATH. The plan itself notes a malformed .gitleaks.toml gives exit 1.",
+      "severity": "P2",
+      "suggested_fix": "Add a bounded doctor probe validating the real gitleaks invocation and repo config (PASS on scan exit 0 or finding exit 3, FAIL/WARN on invocation/config errors), a malformed-config test, and PASS wording supported by what was verified.",
+      "failure_scenario": "Repo has a malformed .gitleaks.toml. Every commit prints 'gitleaks did not run' and proceeds unchecked, yet doctor reports tools.gitleaks PASS and 'level 0 declared: complete'.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "plan.md:51 maps non-0/3 gitleaks exits to SKIP and notes exit 1 on a malformed toml. plan.md:117 tools.gitleaks only checks hasTool."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "line 85; packages/cookwright/src/lib/init/files.mjs:80-88",
+      "problem": "Init deliberately runs the git config write before file writes; a later failure leaves core.hooksPath pointing at an empty directory, which Git silently ignores.",
+      "severity": "P2",
+      "suggested_fix": "Do not activate the path until both shims are written and executable: file writes then config write, or roll back the prior config value on any later failure. Add a fault-injection test showing a failure cannot leave an active empty hooks path.",
+      "failure_scenario": "git config succeeds, then creating or chmodding .githooks/pre-commit fails (permissions, disk full, concurrent change). Init aborts without its final doctor run, and later commits run no hook.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "plausible",
+      "evidence": "plan.md:85 runs the git write before the file writes and says a later failure leaves hooksPath pointing at an empty dir. The scenario is real but the plan accepts it explicitly; severity is low."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "lines 93,97,103; planned lib/changelog/tags.mjs and commits.mjs",
+      "problem": "Tags are sorted numerically and adjacent <prev>..<tag> ranges computed without verifying the previous tag is an ancestor of the next; --merged HEAD admits tags from merged maintenance branches.",
+      "severity": "P2",
+      "suggested_fix": "Define release ordering in ancestry terms and reject ambiguous/divergent tag graphs, or choose an explicit first-parent/topological policy. Add a maintenance-branch merge test and an out-of-order backport tag test.",
+      "failure_scenario": "Main has v2.0.0, then merges a maintenance branch tagged v1.1.1. Numeric order puts v1.1.1 before v2.0.0 though the commits are not a linear chain; sections duplicate or omit commits and --unreleased uses the numerically greatest tag rather than the most recent release in history.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "confirmed",
+      "evidence": "plan.md:93,97 sort numerically and use <prev>..<tag> with --merged HEAD. No ancestry check is specified."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.4 Tags",
+      "problem": "The tag listing format `--format=%(refname:strip=2)%x1f%(objecttype)` uses the pretty-format escape `%x1f`, which `git tag`/for-each-ref formats do not interpret. Their hex escape is `%1f`. Measured on git 2.52 in a scratch repo: `%x1f` prints the literal text `v1.0.0%x1ftag`, and `%1f` prints byte 037.",
+      "severity": "P2",
+      "suggested_fix": "Use `%(refname:strip=2)%1f%(objecttype)` for the tag listing. Keep `%x1f` only in the `git log --format` call, where it is correct. Note the difference in the plan so the implementer doesn't copy one into the other.",
+      "failure_scenario": "An implementer follows the plan and splits on \\x1f. No line splits, so every name reads `v1.0.0%x1ftag` and fails `^v(\\d+)\\.(\\d+)\\.(\\d+)$`. Every tag is then skipped as non-semver, the changelog stays header-only for ever, and `--check` reports `current` on a repo that has releases. If the split is done some other way, objecttype is never `tag`, so no metadata is ever read.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "confirmed",
+      "evidence": "Same measurement as [0]; plan.md:93."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.3 preflight, §4.6 hooks.path",
+      "problem": "The plan tells local from non-local config by the origin string `file:.git/config`. Measured: from a linked worktree, and likewise for a submodule or an `include`d file, `git config --show-origin --get core.hooksPath` prints the absolute path `file:/…/.git/config` for the local config. `--show-scope` prints `local` in every case.",
+      "severity": "P2",
+      "suggested_fix": "Use `git config --show-scope --get core.hooksPath` (git 2.26+) and treat scope `local` as ours. Keep `--show-origin` only to word the reason. Add a test that runs doctor and init from a linked worktree.",
+      "failure_scenario": "A developer works in `git worktree add ../feature`. doctor there reads `hooks.path WARN core.hooksPath is .githooks (from file:<local path>): hooks are managed elsewhere`, and both file checks SKIP. Re-running init skips all three rows, though the setup is exactly cookwright's. The absolute path also lands in the readout.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 9,
+      "verdict": "plausible",
+      "evidence": "plan.md:80 assumes the origin is 'file:.git/config'. I could not measure a linked worktree here (scratch repos were denied). Git is known to report the absolute path when the repo is not at the cwd, and --show-scope would avoid it."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.1 exit contract, §4.2 shim",
+      "problem": "The plan claims that `main` catches everything, so the harness never blocks a commit. A failure while modules load happens before `main` runs. `dispatch` awaits `load()` with no catch, and `cli-main.mjs` imports `messages.mjs` statically. The shim `exec`s node with no fallback, so an import error, a syntax error or an unsupported Node exits 1 with a stack trace, and git refuses the commit or push. The SessionStart hook guards this case with `|| echo crashed`; the shim has no equivalent. In this repo `node_modules/cookwright` is a workspace symlink, so the hooks run the working tree's code.",
+      "severity": "P2",
+      "suggested_fix": "Give findings their own exit code from `hook`, for example 10. Drop `exec` and map it in the shim: `node … hook pre-commit \"$@\"; s=$?; [ $s -eq 0 ] && exit 0; [ $s -eq 10 ] && exit 1; echo \"cookwright pre-commit crashed (exit $s); the commit goes through unchecked\"; exit 0`. A non-exec child still inherits stdin, so pre-push keeps its ref lines. Alternatively, catch errors from `load()` in dispatch for `hook`. Add a test with a broken module.",
+      "failure_scenario": "In s3, after §7 makes the hooks live, a session leaves a half-edited `src/lib/messages.mjs` in the working tree, or a hook module imports a renamed export. Every `git commit` and `git push` then fails with an ERR_MODULE_NOT_FOUND or SyntaxError stack trace, which pushes the agent towards `--no-verify`. A user's machine on an older Node, or with a partly installed package, gets the same blocked commits.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 10,
+      "verdict": "confirmed",
+      "evidence": "src/cli-main.mjs:7 statically imports messages.mjs and line 23 awaits load() with no catch. plan.md:71 shim uses exec with no fallback. Module-load failures bypass main's catch (plan.md:43)."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.1 exit contract, doc-sync git-error branch, gate scriptProblems branch",
+      "problem": "The plan says a check that throws or times out produces `crashed …; the commit goes through unchecked` and exit 0, and a git error in doc-sync or a missing npm script is `one line, exit 0`. It does not say how these combine with another check's FAIL in the same run. Read literally, a harness problem in one check makes the whole hook exit 0. No test covers a throw or harness problem alongside a FAIL.",
+      "severity": "P2",
+      "suggested_fix": "Make a throwing check, or one with a harness problem, a per-check SKIP line with its reason. The exit code then stays 1 whenever any other check FAILed. Add a test: secrets FAIL plus a doc-sync throw (or git exit 128) must exit 1.",
+      "failure_scenario": "A commit stages a token, so gitleaks exits 3 and `secrets` FAILs. In the same commit, a `hooks.docSync` pathspec that passed validation makes git exit 128, or doc-sync throws on an index-lock race. The hook prints the crashed or harness line, exits 0, and the commit with the secret lands.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 11,
+      "verdict": "confirmed",
+      "evidence": "plan.md:43 and 54-56 say a crashed check or harness problem is exit 0. Nothing states how this combines with another check's FAIL, and the tests at plan.md:152 do not cover it."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.1 exit contract (config invalid) with §4.5 validation",
+      "problem": "A missing or invalid `cookwright.json` makes the whole pre-commit exit 0 unchecked, the secret scan included, although `secrets` needs no config. §4.5 adds strict static validation of pathspec magic, which makes an invalid config more likely after an edit to `hooks.docSync`. The secret scan therefore fails open on an unrelated config typo.",
+      "severity": "P2",
+      "suggested_fix": "Run `secrets` whatever the state of the config, since it needs only the git root. Skip only the config-dependent checks (doc-sync, gate, changelog) with the loader's message. Add a test: invalid config plus a staged finding gives exit 1.",
+      "failure_scenario": "An agent adds `\"code\": [\":(top,glob)src/**\", \":(gob)x\"]` to `hooks.docSync`. Every later commit prints `cookwright.json invalid: …; the commit goes through unchecked`. One of those commits stages a credential, and gitleaks never runs. The SessionStart FAIL appears only at the next session start, which may come after the commit.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 12,
+      "verdict": "confirmed",
+      "evidence": "plan.md:43 says invalid or missing config makes the whole hook exit 0 unchecked. secrets needs no config (plan.md:49-52). plan.md:107 adds strict validation."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.1 secrets (scanStaged probe), §4.9 gitRun",
+      "problem": "The plan does not set `maxBuffer` for `scanStaged`'s spawnSync or for `runBounded`/`gitRun`, so Node's default of 1 MB applies. When output passes that, Node kills the child and returns status null with ENOBUFS. The plan maps any exit other than 0 or 3 to `SKIP gitleaks did not run`, and a git status other than 0 to a harness problem with exit 0.",
+      "severity": "P2",
+      "suggested_fix": "For gitleaks, use `stdio: ['ignore', 'inherit', 'inherit']` so its redacted output goes straight to the terminal and the exit code is reliable, or set a large maxBuffer and treat ENOBUFS as FAIL. Give `runBounded` a maxBuffer, for example 64 MB as runCheck has, and test a large `git log` range.",
+      "failure_scenario": "A developer stages a large HAR capture or log dump with a few thousand token-shaped strings. gitleaks `--verbose` writes more than 1 MB, spawnSync kills it with ENOBUFS, and the hook prints `SKIP gitleaks did not run` and exits 0, so the secrets are committed. Separately, an app with more than about 10k commits before its first tag overflows `git log %H%x1f%s` on the first range, and `changelog` refuses or pre-push reports a harness line.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 13,
+      "verdict": "confirmed",
+      "evidence": "src/lib/budget.mjs:53 spawnSync has no maxBuffer, so the 1 MB default applies. src/lib/doctor/repo.mjs:19 gitRun adds none. Only gate.mjs:84 sets one. plan.md:51 maps other exits to SKIP, so the gitleaks ENOBUFS case holds; the git log 10k-commit case is a weaker size estimate."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.3 init shim rows, §4.6 hooks.pre-commit/pre-push FAIL",
+      "problem": "The plan doesn't distinguish a repo that already uses `.githooks` with `core.hooksPath .githooks` for its own hooks, a common convention, from cookwright's setup. init reports `kept`, writes `.githooks/pre-push` into the user's hooks dir, and doctor FAILs the user's own pre-commit with `add the line`. Amendment 1 calls user hooks in the hooks dir a chosen state (WARN) and keeps FAIL only for cookwright's own shim when it is present but broken.",
+      "severity": "P2",
+      "suggested_fix": "When hooksPath is `.githooks` but a `.githooks/` file neither calls cookwright nor equals a shim, and init did not write it, treat the setup as foreign. hooks.path is then WARN with the reason, the file checks SKIP, and init writes nothing, matching the `.git/hooks` user-hooks case. Otherwise make that file check a WARN. Either way, never add a new active hook into a dir that already holds user hooks.",
+      "failure_scenario": "A user repo has `.githooks/pre-commit` running eslint, with hooksPath set to `.githooks`. `npx cookwright init` adds `.githooks/pre-push`, so every push now runs the full `gate.checks` suite. doctor shows `hooks.pre-commit FAIL … add the line` at every session start, and Level 0 reads as drift until the user edits their own script.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 14,
+      "verdict": "confirmed",
+      "evidence": "plan.md:83 keeps a user's non-calling file and plan.md:116 makes doctor FAIL on it. That contradicts amendment 1's chosen-state WARN. plan.md:82 treats hooksPath=.githooks as ours and writes pre-push into the user's dir."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.1 gate; §7 'every push runs npm test'; §6",
+      "problem": "The pre-push gate runs the user's suite inside the hook environment. githooks(5) says git exports variables such as GIT_DIR and GIT_WORK_TREE so that git commands in the hook find the repository, and that a hook working in a foreign repository must clear them. This repo's suite runs git in scratch repos through `test-helpers.mjs` with an inherited env and no scrub. The plan doesn't scrub that environment and doesn't measure it, although it measures many other hook facts. My attempt to measure it in a scratch repo was blocked by permissions.",
+      "severity": "P2",
+      "suggested_fix": "Measure `env | grep ^GIT_` inside a pre-push hook from the main checkout and from a linked worktree. Run the gate's checks from the hook with GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_PREFIX, GIT_COMMON_DIR and GIT_OBJECT_DIRECTORY removed from the env. Make the scratch-repo test helpers do the same.",
+      "failure_scenario": "After §7, `git push` from this repo runs `npm test` with an inherited GIT_DIR. With a relative `.git`, tests that run git from a scratch subdirectory fail spuriously and the push is refused. With an absolute GIT_DIR, as in a linked worktree, tests that write `core.hooksPath .husky/_`, tags or commits act on the developer's real repository. A user's jest tests that spawn git break the same way on every push.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 15,
+      "verdict": "plausible",
+      "evidence": "plan.md:56,166 run the suite inside the hook environment with no env scrub and none measured. Git does export GIT_INDEX_FILE and similar to hooks, but which hooks get GIT_DIR was not verified here."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.1 gate line; §6 hook tests",
+      "problem": "Amendment 6 asks for the elapsed time on the pre-push gate line. The plan specifies it only on the PASS form (`PASS  gate  test (18.3 s)`). The FAIL form is `FAIL  <names>` with no time, and the tests assert the time only on PASS.",
+      "severity": "P3",
+      "suggested_fix": "Put the elapsed time on every gate line where a check ran, PASS and FAIL alike (`FAIL  gate  test (18.3 s)`), and add the FAIL-case assertion.",
+      "failure_scenario": "A push that fails after a 40 s suite prints no duration. The cost the developer wanted visible on every push is shown only when the push succeeds.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 16,
+      "verdict": "confirmed",
+      "evidence": "plan.md:56 gives the time only on 'PASS  gate  test (18.3 s)'. The FAIL form is 'FAIL  <names>' and plan.md:152 asserts time only on PASS."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/state.json",
+      "location": "slices[0].sessions[0].scope (s1) vs plan §10",
+      "problem": "s1's scope includes registering the `hook` name in cli-main. The usage text is derived from `Object.keys(COMMANDS)`, so the name can't appear in it without a loader for `./hook.mjs`, and that file arrives only in s2.",
+      "severity": "P3",
+      "suggested_fix": "s1 registers `changelog` only and its usage test reads `<init|doctor|changelog|bundle>`. s2 adds `hook` and updates the test. Note this as a correction in the plan, since the state file is the CLI's to write.",
+      "failure_scenario": "Between s1 and s2, `npx cookwright hook pre-commit` crashes with ERR_MODULE_NOT_FOUND. review:changelog then reviews a dangling import, or s1 hand-edits the usage so that it lists a command that does not exist.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 17,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/cli-main.mjs:9-13,18-20: COMMANDS holds lazy `() => import(...)` loaders and the usage is `messages.usage(Object.keys(COMMANDS))`, so `hook` can appear in the usage only with a loader for ./hook.mjs. plan.md:41 says `hook.mjs` is s2's work, and plan.md:200 puts the `hook` command in s2. The s1 scope in state.json (slices[0].sessions[0].scope) nonetheless includes registering `hook`. Between s1 and s2 the entry would throw ERR_MODULE_NOT_FOUND, or the usage would be hand-edited to list a command that does not exist. Plan.md:199 mentions only the generic `cli-main` registration for s1, so the state scope is the part that overreaches."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.4 --check and changelogState",
+      "problem": "`--check` and the pre-push changelog check compare the file's bytes. Elsewhere the repo compares LF-normalised text (`readLF`) because a checkout can be CRLF. The plan addresses Windows for the mode bits but not for line endings.",
+      "severity": "P3",
+      "suggested_fix": "Compare `readLF(file)` with the render. Keep writing LF.",
+      "failure_scenario": "On a Windows clone with `core.autocrlf=true`, CHANGELOG.md is checked out with CRLF. `--check` reports stale and every push is refused by the changelog check, although the file matches the tags.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 18,
+      "verdict": "plausible",
+      "evidence": "src/lib/doctor/repo.mjs:63 readLF normalises CRLF. plan.md:101,103 say 'render and compare' without specifying LF normalisation, and the plan handles Windows only for mode bits (plan.md:121)."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.4 Commits",
+      "problem": "The `git log` calls don't override the user's config. With `log.showSignature=true`, a setting common among people who sign commits, git adds gpg verification lines to the output even under a custom `--format`. The render then depends on the machine. This is plausible but not measured; no key is available here.",
+      "severity": "P3",
+      "suggested_fix": "Pass `--no-show-signature` or use `git -c log.showSignature=false log …`, and add a test with that config set.",
+      "failure_scenario": "The developer's laptop has `log.showSignature=true`. The parse records `gpg: …` lines as unconventional, internal commits, so the internal count differs from another machine's. `--check` and pre-push flip to stale depending on where they run.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 19,
+      "verdict": "plausible",
+      "evidence": "plan.md:97 git log has no config override. log.showSignature is known to add output under --format, but this could not be measured with no key."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.4 Release metadata",
+      "problem": "A key line is `^[a-z][\\w-]*:`, which also matches a URL at the start of a continuation line (`https://…`) or any lowercase `word:` in prose.",
+      "severity": "P3",
+      "suggested_fix": "Require a space or end of line after the colon (`^([a-z][\\w-]*):(?:\\s|$)`), and test a multi-line note with a URL line.",
+      "failure_scenario": "A tag reads `note: See the migration guide\\nhttps://example.com/guide`. The render shows the blockquote cut short and then `**Https.** //example.com/guide`, and that is the committed changelog that `--check` holds to.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 20,
+      "verdict": "confirmed",
+      "evidence": "plan.md:95 key regex ^[a-z][\\w-]*: matches 'https:' at the start of a continuation line."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.4 Modes (default / --adopt write)",
+      "problem": "The `changelog` command is a new writer of a user file, but the plan doesn't apply stage-1's rule that cookwright refuses to write through a symlink or through a linked directory on the way.",
+      "severity": "P3",
+      "suggested_fix": "Run the init writer's link refusal (`refuseLinks`, or the same realpath(dirname) test) before the `changelog` write, with a test.",
+      "failure_scenario": "CHANGELOG.md is a symlink to a shared file outside the repo, or `docs/` is a linked directory. `npx cookwright changelog --adopt` overwrites the target outside the work tree, where init would have refused.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 21,
+      "verdict": "confirmed",
+      "evidence": "Duplicate of [2]: src/lib/init/files.mjs:48-55 protects init writes only; plan.md:103 specifies none for the changelog command."
+    },
+    {
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.5 / §5 schema change",
+      "problem": "The plan rewrites the changelog wording in the template and the rules block, but `schema/cookwright.schema.json` still describes `paths.changelog` as 'The changelog: user-visible changes, under an Unreleased section.' §4.5 changes the schema only for `hooks`. The schema is user-facing text in editors, so this breaks the doc-sync rule.",
+      "severity": "P3",
+      "suggested_fix": "Add the `paths.changelog` description to the s1 scope (§4.4 or §4.8): generated from release tags by `npx cookwright changelog`, never edited by hand.",
+      "failure_scenario": "After the bundle, a user hovering `paths.changelog` in their editor is told to keep an Unreleased section, which `--check` would then report as drift, and the only response is `--adopt`.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 22,
+      "verdict": "confirmed",
+      "evidence": "schema/cookwright.schema.json:78 says 'under an Unreleased section'. plan.md:107 and 145 change the schema for hooks only."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "AGENTS.md",
+    "docs/playbook.md Reviewer role",
+    "docs/dev/bundles/stage-2/plan.md vs packages/cookwright, hosts, docs (Codex, 20 read-only commands)",
+    "AGENTS.md / CLAUDE.md rules (nothing private, every piece optional, strings in one place, symlink refusal precedent)",
+    "docs/playbook.md reviewer role and prompt header",
+    "plan.md in full, including the two developer amendments (dispositions 1 and 6) against §4.1, §4.6, §6 and §9",
+    "state.json split vs plan §10",
+    "packages/cookwright/src/lib/bundle/gate.mjs (runGate, planChecks, scriptProblems, onPath vs probes.hasTool)",
+    "src/lib/budget.mjs runBounded (no maxBuffer, CALL_CAP_MS)",
+    "src/lib/doctor/repo.mjs openDoctorRepo/gitRun",
+    "src/cli-main.mjs dispatch (no catch around load) and bin/cookwright.mjs",
+    "src/lib/hosts.mjs HOOK_COMMAND crash fallback vs proposed shim",
+    "src/lib/doctor/registry.mjs (11 checks today, so 16 after)",
+    "src/lib/levels.mjs, src/lib/init/config.mjs (watch and placeholder test-script handling)",
+    "src/lib/rules/agents-block.md and block.mjs placeholders",
+    "schema/cookwright.schema.json changelog description",
+    "src/test-helpers.mjs (no GIT_* env scrub)",
+    "backlog B-002/B-005/E-010/E-011, README",
+    "this repo: node_modules/cookwright is a workspace symlink, no core.hooksPath, no tags, all commits conventional",
+    "measured in a scratch repo (git 2.52): `%x1f` is literal in git tag --format while `%1f` works; --show-origin gives an absolute path from a linked worktree while --show-scope gives `local`"
+  ],
+  "notes": "Codex run completed within the ceiling (gpt-5.6-sol, high effort, session 01a1401c-9759-79d0-b1c5-fd6bbad0e1a6). Verdict per Codex: plan not ready, 5 P1 and 3 P2. Full output: <local path> Findings transcribed without additions.\n---\nRed-team review of plan sha 324abc3c1708885e, read-only; I wrote only scratch repos under the session scratchpad. Two findings are measured: the tag-format escape and the worktree origin string. Running git hooks in a scratch repo, to see the GIT_* environment a hook inherits, was denied by permissions, so that finding rests on githooks(5) and is plausible, not measured. The two amendments are mostly carried through: WARN for a foreign hooks setup with the file checks SKIP and the level-line forms, and backlog item (f) for hooks.push. Two gaps remain: the elapsed time is specified on the PASS line only, and a user's own `.githooks` setup is still FAILed rather than WARNed. The most serious themes are the fail-open paths around the secret scan: an invalid config, a crash in a sibling check, ENOBUFS, and the load-time crash that blocks commits instead.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a1401c-9759-79d0-b1c5-fd6bbad0e1a6",
+    "partialReportPath": null
+  }
+}

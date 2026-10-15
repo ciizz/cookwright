@@ -2,6 +2,7 @@
 // tags and their metadata, the commits between them, the render, the file's state,
 // and the command's four modes (plan §4.4, §6).
 
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -49,6 +50,18 @@ let f = 0;
 const commitMsg = (repo, msg) => commit(repo, { [`f${(f += 1)}.txt`]: msg }, msg);
 const tag = (repo, name, ...messages) =>
   run(repo.root, 'git', ['tag', ...(messages.length ? ['-a', name, ...messages.flatMap((x) => ['-m', x])] : [name])]);
+/**
+ * An annotated tag on HEAD whose message carries a `marker` armour block straight
+ * after it, as `git tag -s` writes one: built with mktag, so no key is needed.
+ */
+function signedTag(repo, name, message, marker) {
+  const object = run(repo.root, 'git', ['rev-parse', 'HEAD']);
+  const armour = `-----BEGIN ${marker}-----\n\nAAAAexample==\n-----END ${marker}-----\n`;
+  const head = `object ${object}\ntype commit\ntag ${name}\ntagger T <t@example.invalid> 1760486400 +0000`;
+  const input = `${head}\n\n${message}\n${armour}`;
+  const sha = execFileSync('git', ['mktag'], { cwd: repo.root, encoding: 'utf8', input }).trim();
+  run(repo.root, 'git', ['update-ref', `refs/tags/${name}`, sha]);
+}
 
 describe('release tags', () => {
   it('returns git’s raw name and object type joined by byte 037 (%1f, not %x1f)', () => {
@@ -106,6 +119,23 @@ describe('release tags', () => {
     ]);
     expect(tagMeta(repo.root, subjectOnly)).toEqual([{ key: 'released', lines: ['2026-10-16'] }]);
   });
+
+  it('drops the signature in every format git signs with, the message one paragraph', () => {
+    const repo = repoAt();
+    commitMsg(repo, 'feat: one');
+    const markers = ['PGP SIGNATURE', 'PGP MESSAGE', 'SIGNED MESSAGE', 'SSH SIGNATURE'];
+    const message = 'released: 2026-10-15\nnote: first line\n  second line';
+    markers.forEach((marker, i) => signedTag(repo, `v1.0.${i}`, message, marker));
+    const { tags } = releaseTags(repo.root);
+    expect(tags.map((t) => t.annotated)).toEqual([true, true, true, true]);
+    for (const t of tags) {
+      expect(tagMeta(repo.root, t)).toEqual([
+        { key: 'released', lines: ['2026-10-15'] },
+        { key: 'note', lines: ['first line', 'second line'] },
+      ]);
+    }
+    expect(generate(repo.root).text).not.toMatch(/-----|AAAAexample/);
+  });
 });
 
 describe('tag metadata', () => {
@@ -119,11 +149,12 @@ describe('tag metadata', () => {
     ]);
   });
 
-  it('ends a value at a blank line or the next key, and drops a signature block', () => {
-    const body = 'store: live\n\norphan line\nnote:\nlater\n-----BEGIN PGP SIGNATURE-----\nkey: x\n';
+  it('ends a value at a blank line or the next key', () => {
+    const body = 'store: live\n\norphan line\nnote:\nlater\nkey: x\n';
     expect(parseMeta(body)).toEqual([
       { key: 'store', lines: ['live'] },
       { key: 'note', lines: ['later'] },
+      { key: 'key', lines: ['x'] },
     ]);
   });
 

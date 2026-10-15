@@ -88,20 +88,18 @@ export function notAncestors(root, tags) {
 // A key line: `key:` then a space or the line's end, so `https://…` and a `word:`
 // run into prose are not keys.
 const KEY = /^([a-z][\w-]*):(?:\s|$)/;
-const SIGNATURE = /^-----BEGIN [A-Z ]*SIGNATURE-----/;
 
 /**
- * `[{ key, lines }]` in body order, from an annotated tag's `%(contents)`: the
- * subject counts only when it is itself a key line; a value continues over the
- * following lines until the next key line or a blank line; a signature block is
- * dropped from its first line on.
+ * `[{ key, lines }]` in body order, from an annotated tag's message, signature
+ * already removed (`tagMessage`): the subject counts only when it is itself a key
+ * line; a value continues over the following lines until the next key line or a
+ * blank line.
  */
 export function parseMeta(contents) {
   const lines = contents.replace(/\r\n/g, '\n').split('\n');
-  const end = lines.findIndex((l) => SIGNATURE.test(l));
   const entries = [];
   let open = null;
-  for (const raw of end === -1 ? lines : lines.slice(0, end)) {
+  for (const raw of lines) {
     const line = raw.trim();
     const key = KEY.exec(line);
     if (key) {
@@ -114,8 +112,24 @@ export function parseMeta(contents) {
   return entries;
 }
 
+// The signature first, then byte 037, then the whole message: armour never holds
+// byte 037, so the first one splits them whatever the message holds.
+const MESSAGE_FORMAT = '--format=%(contents:signature)%1f%(contents)';
+
+/**
+ * An annotated tag's message without its signature. git splits the signature off in
+ * every format it signs with (PGP, x509, SSH); `%(contents:subject)` and
+ * `%(contents:body)` would do it too, but the subject folds a first paragraph of
+ * several `key: value` lines into one.
+ */
+export function tagMessage(root, name) {
+  const out = git(root, ['for-each-ref', `refs/tags/${name}`, MESSAGE_FORMAT], 'for-each-ref');
+  const cut = out.indexOf('\x1f');
+  const [signature, contents] = [out.slice(0, cut), out.slice(cut + 1)];
+  return signature && contents.includes(signature) ? contents.slice(0, contents.lastIndexOf(signature)) : contents;
+}
+
 /** An annotated tag's metadata entries; a lightweight tag has none (its contents are the commit's). */
 export function tagMeta(root, tag) {
-  if (!tag.annotated) return [];
-  return parseMeta(git(root, ['for-each-ref', `refs/tags/${tag.name}`, '--format=%(contents)'], 'for-each-ref'));
+  return tag.annotated ? parseMeta(tagMessage(root, tag.name)) : [];
 }

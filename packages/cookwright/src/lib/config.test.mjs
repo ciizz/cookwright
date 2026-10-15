@@ -94,6 +94,22 @@ describe('loadConfig', () => {
     expect(() => loadConfig(repoWith('empty', {}))).toThrow(/version must be 1/);
   });
 
+  it('refuses a paths, gate or hooks that is not an object instead of defaulting it', () => {
+    for (const value of ['disabled', [], null]) {
+      for (const [key, line] of [
+        ['hooks', 'hooks must be an object'],
+        ['gate', 'gate must be an object'],
+        ['paths', 'paths must be an object'],
+      ]) {
+        const dir = repoWith(`not-object-${key}-${JSON.stringify(value).replace(/\W/g, '') || 'x'}`, {
+          version: 1,
+          [key]: value,
+        });
+        expect(() => loadConfig(dir)).toThrow(line);
+      }
+    }
+  });
+
   it('normalizes a trailing slash so the gate’s dirty-path exclusion matches', () => {
     const dir = repoWith('slash', { version: 1, paths: { bundles: 'state/bundles/' } });
     expect(loadConfig(dir).paths.bundles).toBe('state/bundles');

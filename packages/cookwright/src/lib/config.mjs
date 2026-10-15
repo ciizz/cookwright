@@ -107,20 +107,30 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const trimSlash = (p) => (typeof p === 'string' ? p.replace(/\/+$/, '') : p);
 
 /**
+ * `raw[key]` over its defaults when it is absent or an object; any other value (a
+ * string, a list, null) is kept as it is, so the validator refuses it rather than
+ * a default hiding it.
+ */
+function nested(raw, key) {
+  const v = raw?.[key];
+  if (v === undefined) return { ...DEFAULTS[key] };
+  return isObj(v) ? { ...DEFAULTS[key], ...v } : v;
+}
+
+/**
  * Defaults applied one level deep: an absent `paths.x`, `gate.x` or `hooks.x` gets its default.
  * `version` is never defaulted — a config must say which format it speaks.
  */
 export function withDefaults(raw) {
-  const obj = (v) => (isObj(v) ? v : {});
-  const paths = { ...DEFAULTS.paths, ...obj(raw?.paths) };
-  for (const k of Object.keys(paths)) paths[k] = trimSlash(paths[k]);
+  const paths = nested(raw, 'paths');
+  if (isObj(paths)) for (const k of Object.keys(paths)) paths[k] = trimSlash(paths[k]);
   return {
     ...DEFAULTS,
     ...raw,
     version: raw?.version,
     paths,
-    gate: { ...DEFAULTS.gate, ...obj(raw?.gate) },
-    hooks: { ...DEFAULTS.hooks, ...obj(raw?.hooks) },
+    gate: nested(raw, 'gate'),
+    hooks: nested(raw, 'hooks'),
   };
 }
 

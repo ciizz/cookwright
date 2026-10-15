@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\"; command -v node >/dev/null 2>&1 || { echo \"cookwright doctor skipped, needs node, run setup\"; exit 0; }; [ -f node_modules/cookwright/bin/cookwright.mjs ] || { echo \"cookwright doctor skipped: package not installed (npm install)\"; exit 0; }; node node_modules/cookwright/bin/cookwright.mjs doctor --hook || echo \"cookwright doctor crashed (exit $?)\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

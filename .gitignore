@@ -4,3 +4,4 @@ CLAUDE.local.md
 *.log
 .env
 .env.*
+!.env.example

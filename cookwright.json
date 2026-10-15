@@ -1,6 +1,7 @@
 {
   "$schema": "./packages/cookwright/schema/cookwright.schema.json",
   "version": 1,
+  "level": 0,
   "hosts": ["claude"],
   "baseBranch": "main",
   "paths": {

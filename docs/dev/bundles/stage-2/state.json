@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 54,
+  "revision": 56,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -151,7 +151,7 @@
     },
     {
       "name": "implement:s2",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -159,11 +159,15 @@
           "stateRevision": 49,
           "planSha": "825bfd5edc1f9ee2",
           "codex": true,
-          "runId": "wf_14119464-194"
+          "runId": "wf_14119464-194",
+          "endedAt": "2026-10-15T16:20:53.576Z",
+          "turnOutputTokens": 204947
         }
       ],
       "startCommit": "1eda96ba86b3086919adbe941eb4cc04a6bf6d0e",
-      "range": null
+      "range": null,
+      "endCommit": "12bc3b810d465f83e39ea286d9067a3d0d2902cc",
+      "endCode": "9c0f1aae237cc07879b63311947f48810cd207ff"
     },
     {
       "name": "implement:s3",
@@ -245,6 +249,19 @@
           "name": "test",
           "result": "pass",
           "ms": 23600
+        }
+      ]
+    },
+    {
+      "commit": "12bc3b810d465f83e39ea286d9067a3d0d2902cc",
+      "at": "2026-10-15T16:20:46.642Z",
+      "slice": "hooks",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 13515
         }
       ]
     }

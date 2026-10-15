@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 29,
+  "revision": 30,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -54,7 +54,7 @@
   "phases": [
     {
       "name": "plan-review",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -76,11 +76,15 @@
           "stateRevision": 26,
           "planSha": "01c77695e1359cf2",
           "codex": true,
-          "runId": "wf_4471e125-f69"
+          "runId": "wf_4471e125-f69",
+          "endedAt": "2026-10-15T15:38:44.042Z",
+          "turnOutputTokens": 479989
         }
       ],
       "startCommit": "754041686d12193c2e95e3d0c1281789c0848136",
-      "range": null
+      "range": null,
+      "endCommit": "e5140f7f60647c2c8e6679dd7b935291ccb200a9",
+      "endCode": "5272c24a336b2088c77e41127f458ddf03450f35"
     },
     {
       "name": "implement:s1",
@@ -347,6 +351,13 @@
       "actor": "developer",
       "source": "chat 2026-10-15, after plan-review re-check 1 (finding 4, disposition 10 ratified)",
       "text": "Linked worktrees: accept that a sibling worktree whose branch lacks .githooks/ runs no hook; doctor reports it there. Keep the two-worktree test that asserts the doctor FAIL in the sibling, and the README line. No per-commit worktree listing.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:38:44.041Z",
+      "actor": "orchestrator",
+      "source": "phase done plan-review --accept-open",
+      "text": "closed plan-review with findings open: Findings 3 and 4 (Codex P1s) are accepted as design by the developer, ratified in chat on 2026-10-15 and recorded as developer decisions: pre-push judges the working tree with the SKIP and labelled forms, never a refusal, the per-sha worktree backlogged; a linked worktree whose branch lacks .githooks/ runs no hook, doctor reports it there, with the two-worktree test and the README line.",
       "claim": true
     }
   ],

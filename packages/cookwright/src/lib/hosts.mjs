@@ -23,28 +23,16 @@ export const HOOK_LINES = Object.freeze({
 
 const HOOK_BIN = 'node_modules/cookwright/bin/cookwright.mjs';
 
-/**
- * The SessionStart command init writes and doctor's `host.hook` looks for, verbatim.
- * Claude's cwd may be a subdirectory of the repo and the package hoisted to a
- * workspace root, so the bin is looked for from the cwd upward, as node resolves a
- * package; doctor then runs in the cwd and finds the root itself.
- */
+/** The SessionStart command init writes and doctor's `host.hook` looks for, verbatim. */
 export const HOOK_COMMAND = [
   'cd "${CLAUDE_PROJECT_DIR:-.}"',
   `command -v node >/dev/null 2>&1 || { echo "${HOOK_LINES.noNode}"; exit 0; }`,
-  `d=$PWD; until [ -f "$d/${HOOK_BIN}" ] || [ "$d" = / ]; do d=$(dirname "$d"); done`,
-  `[ -f "$d/${HOOK_BIN}" ] || { echo "${HOOK_LINES.notInstalled}"; exit 0; }`,
-  `node "$d/${HOOK_BIN}" doctor --hook || echo "${HOOK_LINES.crashed}"`,
+  `[ -f ${HOOK_BIN} ] || { echo "${HOOK_LINES.notInstalled}"; exit 0; }`,
+  `node ${HOOK_BIN} doctor --hook || echo "${HOOK_LINES.crashed}"`,
 ].join('; ');
 
-/**
- * Earlier versions of HOOK_COMMAND, byte for byte as they were written: doctor WARNs
- * on one, init replaces it. Literals, never rebuilt from HOOK_LINES.
- */
-export const HOOK_COMMANDS_PAST = Object.freeze([
-  // stage-1, before the upward search
-  'cd "${CLAUDE_PROJECT_DIR:-.}"; command -v node >/dev/null 2>&1 || { echo "cookwright doctor skipped, needs node, run setup"; exit 0; }; [ -f node_modules/cookwright/bin/cookwright.mjs ] || { echo "cookwright doctor skipped: package not installed (npm install)"; exit 0; }; node node_modules/cookwright/bin/cookwright.mjs doctor --hook || echo "cookwright doctor crashed (exit $?)"',
-]);
+/** Earlier versions of HOOK_COMMAND: doctor WARNs on one, init replaces it. */
+export const HOOK_COMMANDS_PAST = Object.freeze([]);
 
 export const HOSTS = Object.freeze({
   claude: Object.freeze({

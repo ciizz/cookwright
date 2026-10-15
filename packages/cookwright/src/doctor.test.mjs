@@ -15,7 +15,7 @@ import { DEFAULTS } from './lib/config.mjs';
 import { checkClaudeHook } from './lib/doctor/claude.mjs';
 import { openDoctorRepo } from './lib/doctor/repo.mjs';
 import { runChecks } from './lib/doctor/registry.mjs';
-import { HOOK_COMMAND, HOOK_LINES, HOSTS } from './lib/hosts.mjs';
+import { HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { PROBES } from './lib/probes.mjs';
 import { renderBlock } from './lib/rules/block.mjs';
@@ -449,31 +449,5 @@ describe('a stalled git', () => {
     expect(r.status).toBe(0);
     expect(r.stdout.trim().split('\n')).toEqual([m.hookLine(messages.timedOut('git rev-parse'))]);
     expect(elapsed).toBeLessThan(BUDGET_MS + 1500); // the budget plus node's own startup
-  });
-});
-
-describe('the SessionStart hook command', () => {
-  const PKG = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const hookFrom = (projectDir) =>
-    spawnSync('/bin/sh', ['-c', HOOK_COMMAND], {
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectDir },
-      encoding: 'utf8',
-      timeout: 10_000,
-    });
-
-  it('finds the package above a subdirectory session and runs doctor there', () => {
-    const root = level0({ 'apps/mobile/src/x.txt': 'x' });
-    fs.mkdirSync(path.join(root, 'node_modules'));
-    fs.symlinkSync(PKG, path.join(root, 'node_modules/cookwright'));
-    const r = hookFrom(path.join(root, 'apps/mobile/src'));
-    expect(r.status).toBe(0);
-    expect(r.stdout).not.toContain(HOOK_LINES.notInstalled);
-    expect(r.stdout).toMatch(/^cookwright doctor: |^level 0 declared: /m);
-  });
-
-  it('says the package is not installed when nothing up the tree has it', () => {
-    const root = level0({ 'src/x.txt': 'x' });
-    const r = hookFrom(path.join(root, 'src'));
-    expect([r.status, r.stdout]).toEqual([0, `${HOOK_LINES.notInstalled}\n`]);
   });
 });

@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "revision": 1,
+  "slug": "stage-2",
+  "branch": "bundle/stage-2",
+  "base": "5272c24a336b2088c77e41127f458ddf03450f35",
+  "createdAt": "2026-10-15T15:08:00.585Z",
+  "plan": {
+    "path": "docs/dev/bundles/stage-2/plan.md",
+    "sha": "324abc3c1708885e"
+  },
+  "slices": [
+    {
+      "id": "changelog",
+      "sessions": [
+        {
+          "id": "s1",
+          "scope": "plan §4.4, §4.9, the changelog half of §4.8, the CHANGELOG template rewrite, cli-main registration of `changelog` and `hook` names in the usage, B-005",
+          "checkpoints": [
+            "tags and tag metadata with tests (annotated, lightweight, subject-only, unborn HEAD, non-semver skipped, --merged HEAD)",
+            "render equals the template byte for byte at zero tags",
+            "changelogState and the four modes (default, --adopt, --check, --unreleased) with tests; gitRun cap",
+            "cli-main usage test green; B-005 line in README"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hooks",
+      "sessions": [
+        {
+          "id": "s2",
+          "scope": "plan §4.1, §4.2, §4.5, the hook half of §4.8: the `hook` command and its four checks, the shims module, the `hooks.docSync` config key with pathspec validation and schema parity, the probes (scanStaged, gitleaksVersion)",
+          "checkpoints": [
+            "config `hooks.docSync` with validation and schema parity tests",
+            "`secrets` and `doc-sync` checks with tests (probe-played gitleaks; staged/excluded/deleted/renamed/unborn cases)",
+            "`pre-push` with tests (stdin cases, planned skips, elapsed time on the gate line, changelog state mapping)",
+            "the end-to-end commit test with test-written shims and COOKWRIGHT_SKIP=secrets"
+          ]
+        },
+        {
+          "id": "s3",
+          "scope": "plan §4.3, §4.6, §4.7, §7, §9: init's hooks step, doctor's five checks and levels, the rules block v2, the dogfood on this repo, the implementer prompt-header and playbook line, README and backlog",
+          "checkpoints": [
+            "init hooks rows with idempotence and the foreign cases (local hooksPath, global origin, user hooks in .git/hooks)",
+            "doctor's five checks and the changelog marker with tests; level line forms (weak hooks.path, unverified tools.gitleaks)",
+            "the block v2 refresh (stale v1 → updated, outside text byte-identical)",
+            "dogfood committed with doctor 16 PASS; README, playbook/bundle-phase line, backlog"
+          ]
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "name": "plan-review",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s1",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:changelog",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:changelog",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s2",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s3",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:hooks",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:hooks",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "qa",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "closeout",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    }
+  ],
+  "gates": [],
+  "findings": [],
+  "reports": [],
+  "qaRounds": [],
+  "decisions": [],
+  "costs": []
+}

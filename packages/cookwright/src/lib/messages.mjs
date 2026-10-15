@@ -248,6 +248,7 @@ const changelog = {
 // hook: the git hooks' command (plan §4.1). One line per check,
 // `<hook>  <STATUS>  <check>  <note>`; a FAIL's detail above its line.
 const shown = (files) => (files.length > 5 ? [...files.slice(0, 5), '…'] : files).join(', ');
+const notTested = (refs) => `not tested: ${shown(refs)} ${refs.length === 1 ? 'is' : 'are'} not the checked-out branch`;
 const hook = {
   usage: `usage: ${CLI} hook <pre-commit|pre-push> [git's hook arguments…]`,
   line: (name, status, check, note) => `${name}  ${status}  ${check}  ${note}`,
@@ -280,7 +281,8 @@ const hook = {
   push: {
     nothing: 'nothing to push',
     deletions: 'only deletions pushed',
-    notHead: (ref) => `not tested: ${ref} is not the checked-out branch`,
+    notHead: (refs) => notTested(refs),
+    untested: (refs) => `(${notTested(refs)})`,
     dirty: (n, sha) => `(judged on the working tree, ${n} uncommitted file(s), not ${sha})`,
   },
   gate: {

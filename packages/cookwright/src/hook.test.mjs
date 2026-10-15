@@ -335,6 +335,49 @@ describe('pre-push', () => {
     expect(fs.existsSync(path.join(repo.root, 'ran'))).toBe(false);
   });
 
+  it('runs both when any pushed ref is HEAD, naming the others as not tested (branch plus an older branch)', () => {
+    const repo = pushRepo();
+    const older = run(repo.root, 'git', ['rev-parse', 'HEAD~1']);
+    const input = `${pushing(repo)}${pushing(repo, older, 'refs/heads/old')}`;
+    expect(push(repo, input)).toBe(0);
+    const label = '(not tested: old is not the checked-out branch)';
+    expect(line('gate').note).toMatch(new RegExp(`^ok \\(\\d+\\.\\d s\\) ${label.replace(/[()]/g, '\\$&')}$`));
+    expect(line('changelog')).toEqual({ status: 'PASS', note: `CHANGELOG.md matches 0 release tag(s) ${label}` });
+  });
+
+  /** An annotated tag `name` on `rev`: its own object sha, not the commit's. */
+  const annotated = (repo, name, rev = 'HEAD') => {
+    run(repo.root, 'git', ['tag', '-a', name, '-m', 'released: 2026-10-15', rev]);
+    return run(repo.root, 'git', ['rev-parse', name]);
+  };
+
+  it('counts an annotated tag on HEAD as HEAD: pushed with the branch, or alone', () => {
+    const repo = pushRepo();
+    const tag = annotated(repo, 'v1.0.0');
+    expect(tag).not.toBe(repo.head);
+    const tagLine = `refs/tags/v1.0.0 ${tag} refs/tags/v1.0.0 ${ZERO}\n`;
+    // The changelog predates the tag: the release push is where the stale check must fire.
+    expect(push(repo, `${pushing(repo)}${tagLine}`)).toBe(10);
+    expect(line('gate').status).toBe('PASS');
+    expect(line('changelog')).toEqual({
+      status: 'FAIL',
+      note: 'CHANGELOG.md: out of date with the release tags; run npx cookwright changelog and commit',
+    });
+    out.length = 0;
+    expect(push(repo, tagLine)).toBe(10);
+    expect(line('gate').note).not.toMatch(/not tested/);
+    expect(line('changelog').status).toBe('FAIL');
+  });
+
+  it('SKIPs both when the only pushed ref is an annotated tag on another commit', () => {
+    const repo = pushRepo();
+    const tag = annotated(repo, 'v0.9.0', 'HEAD~1');
+    expect(push(repo, `refs/tags/v0.9.0 ${tag} refs/tags/v0.9.0 ${ZERO}\n`)).toBe(0);
+    const note = 'not tested: refs/tags/v0.9.0 is not the checked-out branch';
+    expect(line('gate')).toEqual({ status: 'SKIP', note });
+    expect(line('changelog')).toEqual({ status: 'SKIP', note });
+  });
+
   it('labels each verdict when the tree is dirty, not counting the bundle state', () => {
     const repo = pushRepo();
     fs.writeFileSync(path.join(repo.root, 'README.md'), 'changed');

@@ -1,10 +1,12 @@
 // src/lib/hooks/push.mjs — the pre-push checks, `gate` and `changelog`, and what
 // git's stdin says is being pushed (plan §4.1).
 //
-// They judge the working tree, never the pushed commit: a pushed sha that is not
-// HEAD makes both SKIP (not tested), and a dirty tree labels each verdict with the
-// count of uncommitted files. Never a refusal, which would breed --no-verify; a
-// temporary worktree per pushed sha is the real fix (backlogged).
+// They judge the working tree, never the pushed commit. Each pushed sha is peeled to
+// its commit, so an annotated tag on HEAD counts as HEAD. The checks run when any
+// pushed ref is HEAD, each verdict naming the other refs as not tested; they SKIP
+// only when no pushed ref is HEAD. A dirty tree labels each verdict with the count
+// of uncommitted files. Never a refusal, which would breed --no-verify; a temporary
+// worktree per pushed sha is the real fix (backlogged).
 
 import fs from 'node:fs';
 
@@ -71,8 +73,9 @@ export function parsePushLines(text) {
 const isZero = (sha) => /^0+$/.test(sha);
 const shortRef = (ref) => ref.replace(/^refs\/heads\//, '');
 
-function headSha(root, env) {
-  const r = gitRun(root, ['rev-parse', '--verify', '-q', 'HEAD'], { cap: GIT_CAP_MS, env });
+/** The commit `rev` names (an annotated tag peeled to its commit), or null. */
+function commitOf(root, rev, env) {
+  const r = gitRun(root, ['rev-parse', '--verify', '-q', `${rev}^{commit}`], { cap: GIT_CAP_MS, env });
   return r.status === 0 ? r.stdout.trim() : null;
 }
 
@@ -86,19 +89,22 @@ function uncommitted(repo, env) {
 
 /**
  * pre-push's preparation: `{ skip }` when there is nothing to judge (nothing pushed,
- * only deletions, a pushed sha that is not HEAD), else `{ label }` when the tree is
- * dirty, else `{}`.
+ * only deletions, no pushed ref at HEAD), else `{ label }` naming the refs not
+ * tested and a dirty tree, else `{}`.
  */
 export function pushContext(repo, ctx) {
   const lines = parsePushLines(pushInput(ctx));
   if (!lines.length) return { skip: m.push.nothing };
   const pushed = lines.filter((l) => !isZero(l.localSha));
   if (!pushed.length) return { skip: m.push.deletions };
-  const head = headSha(repo.root, ctx.env);
-  const other = pushed.find((l) => l.localSha !== head);
-  if (other) return { skip: m.push.notHead(shortRef(other.localRef)) };
+  const head = commitOf(repo.root, 'HEAD', ctx.env);
+  const atHead = (l) => head !== null && (l.localSha === head || commitOf(repo.root, l.localSha, ctx.env) === head);
+  const others = pushed.filter((l) => !atHead(l)).map((l) => shortRef(l.localRef));
+  if (others.length === pushed.length) return { skip: m.push.notHead(others) };
   const dirty = uncommitted(repo, ctx.env);
-  return dirty ? { label: m.push.dirty(dirty, head.slice(0, 8)) } : {};
+  const labels = [dirty && m.push.dirty(dirty, head.slice(0, 8)), others.length && m.push.untested(others)];
+  const label = labels.filter(Boolean).join(' ');
+  return label ? { label } : {};
 }
 
 const seconds = (results) => (results.reduce((sum, r) => sum + r.ms, 0) / 1000).toFixed(1);

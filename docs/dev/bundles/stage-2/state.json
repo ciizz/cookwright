@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 84,
+  "revision": 85,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -503,6 +503,12 @@
       "phase": "fix:hooks",
       "path": "docs/dev/bundles/stage-2/sessions/fix-hooks-1.md",
       "at": "2026-10-15T17:00:32.763Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:whole",
+      "path": "docs/dev/bundles/stage-2/sessions/fix-whole-1.md",
+      "at": "2026-10-15T17:14:05.562Z",
       "stored": true
     }
   ],

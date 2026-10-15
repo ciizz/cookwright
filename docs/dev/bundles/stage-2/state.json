@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 79,
+  "revision": 81,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -440,6 +440,24 @@
       "at": "2026-10-15T16:43:28.206Z",
       "stored": true,
       "head": "f4708c58e84d3f07a253194baedb6a352202c5a1"
+    },
+    {
+      "phase": "review:whole",
+      "path": "docs/dev/bundles/stage-2/findings/review-whole-1.json",
+      "counts": {
+        "confirmed": 3,
+        "plausible": 1,
+        "rejected": 1,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 3,
+        "P3": 1
+      },
+      "at": "2026-10-15T17:07:55.865Z",
+      "stored": true,
+      "head": "0ec6fbee4e88931959736caac968f4c4f0ef5000"
     }
   ],
   "reports": [
@@ -705,6 +723,13 @@
       "actor": "developer",
       "source": "chat 2026-10-15, fix:hooks strings batch",
       "text": "The fix:hooks strings stand as built: the foreign-hooks readout's scope and path phrases, the pre-push not-tested forms, the nested-config shim line, the doctor not-installed WARN, and the README Git hooks bullets.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T17:08:51.517Z",
+      "actor": "orchestrator",
+      "source": "review:whole findings, 2026-10-15",
+      "text": "Finding 0 rejected by the verifier (measured in code: git resolves a relative GIT_INDEX_FILE against the top from a subdirectory), no change. Finding 1 (rule 3, rule 6: a Windows bug nobody can measure here) is B-008. Finding 4 (rule 1 names the harm, rule 3 forbids claiming a fix unmeasured) is B-009, with the fix spelled out for a Windows runner. fix:whole applies finding 2 (rule 3 and rule 1: the staged secret scan and doctor's dry run spawn gitleaks with cwd at the work tree top, repo.top, never the nested config root, so the whole staged diff and the top-level .gitleaks.toml are what is scanned; the nested end-to-end test asserts the probe's cwd) and finding 3 (rule 3, the charter, which is later than and supersedes the ratified label of 2026-10-15 15:36: on a dirty tree both pre-push checks are SKIP 'not tested: the working tree has <N> uncommitted file(s) and is not <sha8>', nothing run; when some pushed refs are HEAD and others are not, the checks run and each line names what it tested, '<verdict> …, tested <ref> at HEAD; not tested: <others>', a PASS that names its subject rather than a footnote on another; README pre-push bullet and tests follow).",
       "claim": true
     }
   ],

@@ -1,0 +1,122 @@
+{
+  "phase": "review:whole",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/hooks/shims.mjs",
+      "location": "line 53",
+      "problem": "For nested configurations the shim changes directory before preserving Git's environment. Relative values such as GIT_INDEX_FILE=.git/alternate-index are then resolved beneath the config directory instead of the worktree root.",
+      "severity": "P2",
+      "suggested_fix": "Avoid changing directory before invoking the hook, passing the config root explicitly instead. Alternatively convert every relative Git-local path variable to an absolute path based on the worktree root before cd. Add a nested-config end-to-end test using a relative alternate index.",
+      "failure_scenario": "In apps/mobile/cookwright.json, a partial-index commit exports a relative GIT_INDEX_FILE. The shim enters apps/mobile; gitleaks and git diff --cached cannot read the intended index, both checks report SKIP, and the commit proceeds unchecked.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "rejected",
+      "evidence": "shims.mjs:11-15 documents that git resolves a relative GIT_INDEX_FILE against the work tree top from any subdirectory, measured on git 2.52. The cd on line 53 therefore doesn't change which index git, or gitleaks via its git subprocess, reads. I didn't re-run the measurement because the sandbox denied it, so this rests on the in-code measurement and my knowledge of git's chdir-to-top setup."
+    },
+    {
+      "file": "packages/cookwright/src/lib/probes.mjs",
+      "location": "lines 16-26",
+      "problem": "hasTool searches only the literal executable name and ignores Windows PATHEXT, so it cannot find ordinary installs such as gitleaks.exe, node.exe or npm.cmd.",
+      "severity": "P2",
+      "suggested_fix": "On Windows, resolve executable candidates using PATHEXT, or use a platform-aware command lookup. Add tests with .exe and .cmd tools.",
+      "failure_scenario": "On Windows, doctor reports gitleaks as absent, pre-commit skips the secret scan, and pre-push may consider every npm test gate check unavailable even though the tools are installed.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/probes.mjs:16-26 (at bea071f): hasTool joins each PATH dir with the bare `bin` and calls accessSync/statSync. It never reads PATHEXT or tries .exe/.cmd/.bat, so on win32 `gitleaks`, `node` and `npm` resolve to no file and it returns false. The code is Windows-aware elsewhere (plan.md:98 and :136, doctor/hooks.mjs:28), so Windows is a considered target and the gap is real. I did not check which callers use hasTool or whether the hooks run there, so the downstream effects (doctor reporting gitleaks absent, pre-commit skipping the scan) are inferred, not traced."
+    },
+    {
+      "file": "packages/cookwright/src/lib/hooks/secrets.mjs",
+      "location": "checkSecrets: probes.scanStaged(repo.root, { env }); also src/lib/probes.mjs scanStaged (cwd: root) and src/lib/doctor/hooks.mjs checkGitleaks",
+      "problem": "Since a5ebf4f the shim cds into the config root, so repo.root is the config root and not the work tree's top whenever cookwright.json sits below the top. The README's 'A config below the top' bullet explicitly supports that monorepo layout. gitleaks is spawned with cwd set to that subdirectory and no source argument. gitleaks v8's staged mode runs `git -C <source> diff -U0 --no-ext-diff --staged .`, and the trailing `.` pathspec limits the diff to the source directory. It also loads `.gitleaks.toml` and `.gitleaksignore` from the source directory. So the scan covers only the config root's subtree, and the top-level allowlist or rules are ignored. I read this from gitleaks' source because the sandbox blocked me from measuring it, so it is the first thing to confirm. The PASS line still says 'staged diff clean', which breaks the bundle's own rule 3 (claim only what was measured).",
+      "severity": "P2",
+      "suggested_fix": "Run the scan from the work tree's top: pass repo.top ?? repo.root to scanStaged in the hook and in doctor's dry run (openDoctorRepo already returns top), or pass the top as gitleaks' source. Add an end-to-end test in the nested layout with a staged file outside the config root, using a probe that records cwd so no secret-shaped fixture is needed.",
+      "failure_scenario": "Monorepo with cookwright.json in apps/mobile/. The developer stages a credential in packages/api/config.ts or in a top-level file and commits. The shim cds into apps/mobile, gitleaks diffs only `apps/mobile/`, and it exits 0. The hook prints 'pre-commit  PASS  secrets  staged diff clean (gitleaks 8.30.1)' and the secret is committed. In the same layout, a .gitleaks.toml at the repo top is not loaded, so its allowlist is ignored and a false positive blocks commits.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "plausible",
+      "evidence": "Code side holds. secrets.mjs:19 calls probes.scanStaged(repo.root), and probes.mjs:105 runs gitleaks with cwd: root and SCAN_ARGS (probes.mjs:83-93). SCAN_ARGS has no source or path argument. config.mjs:58 workTreeRoot is the git top, while findRoot (config.mjs:75-85) returns the nearest cookwright.json, and shims.mjs:41-53 cds into that config root. So repo.root is the config root when cookwright.json sits below the top. I could not run gitleaks (the sandbox denied the measurement). My recollection of gitleaks' git --staged source (a trailing `.` pathspec on `git diff --staged`, and .gitleaks.toml loaded from the source directory) matches the finding, so I could not refute it. I treat the gitleaks behavior as unmeasured, so the finding is not confirmed."
+    },
+    {
+      "file": "packages/cookwright/src/lib/hooks/push.mjs",
+      "location": "pushContext (labels m.push.dirty / m.push.untested) with registry.mjs verdict(), which appends prep.label to PASS notes",
+      "problem": "CHARTER.md is authoritative and gained Judgment rule 3 in this range (f345127): 'when the thing judged is not the thing tested, it is SKIP with the reason, never PASS with a footnote.' The pre-push checks do the opposite in two cases. (a) On a dirty tree they PASS with the footnote '(judged on the working tree, N uncommitted file(s), not <sha>)', so the thing judged (the working tree) is not the thing pushed. (b) Since 03aca1d, a push that carries HEAD plus other refs PASSes with the footnote '(not tested: <refs> are not the checked-out branch)'. Case (b) also goes past the developer's ratified refinement, which said a pushed sha that is not HEAD gives SKIP 'not tested'. The orchestrator widened it to PASS-with-footnote before the charter rule existed, and no recorded disposition reconciles either footnote with rule 3.",
+      "severity": "P2",
+      "suggested_fix": "Either make both cases SKIP with the reason, as rule 3 requires, or record a developer decision citing rule 3 that explicitly exempts these two labelled forms, and amend the charter or plan wording to match. Update the README pre-push bullet and the tests to whichever is chosen.",
+      "failure_scenario": "`git push origin main release/1.x` with HEAD on main: release/1.x has a failing test, but the hook prints 'pre-push  PASS  gate  test (18.3 s) (not tested: release/1.x is not the checked-out branch)' and the push goes through. Likewise, a dirty tree where an uncommitted local fix makes the suite pass prints PASS, while the pushed sha fails the suite. Both are a PASS with a footnote, which the charter forbids.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "CHARTER.md:45 (rule 3) says a judged-not-tested case is SKIP with the reason, never PASS with a footnote. packages/cookwright/src/lib/hooks/push.mjs:~100-108 (pushContext): `others.length === pushed.length` is the only SKIP. When HEAD is pushed together with other refs, or the tree is dirty, it returns `{label}` and the check PASSes with the footnote. Footnotes are defined in messages.mjs:283-288 (`dirty`, `untested`). The plan ratified only SKIP 'not tested' for a pushed sha that is not HEAD (plan.md:33, :67), so the PASS-with-footnote for HEAD plus other refs (case b) goes past what the developer ratified. Case (a), the dirty-tree footnote, was explicitly ratified (plan.md:33), but it was ratified before rule 3 and conflicts with it literally. I found no disposition reconciling either footnote with rule 3. The scenario of `git push origin main release/1.x` with a failing release/1.x passing through holds, because only the working tree is tested."
+    },
+    {
+      "file": "packages/cookwright/src/lib/hooks/shims.mjs",
+      "location": "shimText / init writes .githooks/* with no line-ending protection; doctor/hooks.mjs hookFile compares bytes",
+      "problem": "The shims are committed to the user's repo, and nothing pins their line endings (no .gitattributes `eol=lf` entry, no LF-normalised comparison). On a Windows checkout with core.autocrlf=true, which Git for Windows' installer sets by default, a clone or a branch checkout rewrites `.githooks/pre-commit` with CRLF. sh then reads `}\\r` as a word, the brace group never closes, and the shim exits with a syntax error (exit 2). git treats that as a failing hook and aborts the commit. That is the exact outcome the shim's exit mapping exists to prevent (Judgment rule 1: a harness problem never blocks the user's work). doctor then reads the file as not ours and not calling cookwright, so it reports `hooks.path` WARN '.githooks/pre-commit is not cookwright's' (a foreign setup), and init skips. Neither tells the user how to recover. The plan handles CRLF for the changelog and the template but not for the shims. I reasoned this out and could not measure it here.",
+      "severity": "P3",
+      "suggested_fix": "Have init write (or append) a `.gitattributes` line `.githooks/* text eol=lf`, and have hookFile compare LF-normalised text so a CRLF copy reads as ours but broken (FAIL, run init) rather than as foreign. Or log it in the backlog as a Windows bug.",
+      "failure_scenario": "A developer runs init on macOS and commits .githooks/. On a Windows machine with Git for Windows defaults, they clone the repo and run `git commit`. The CRLF shim fails to parse, git reports that the pre-commit hook failed, and every commit is blocked until they use --no-verify. Doctor in that session says the hooks are 'not cookwright's' rather than broken.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "The tree at bea071f has no .gitattributes. shimText (shims.mjs:51-66) emits single-line brace groups such as `{ echo ...; exit 0; }` (lines 53, 58, 59), which a CRLF checkout turns into `}\\r`. doctor/hooks.mjs:127 compares bytes with `text === shimText(...)`, so a CRLF file is not 'ours'. callsCookwright (shims.mjs:78-84) strips `\\r` only for the call-line forms, not for the byte-for-byte shim match. The Windows autocrlf consequence follows from this reasoning but was not run."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 5272c24..bea071f via Codex (gpt-5.6-sol, high effort, read-only)",
+    "CHARTER.md, AGENTS.md and the stage-2 plan",
+    "hooks shims.mjs, tag metadata parsing, config.mjs unknownMagic pathspec validation",
+    "probes.mjs hasTool",
+    "Read plan.md, AGENTS.md rules, CHARTER amendments, state.json decisions",
+    "src/hook.mjs exit contract and whole-hook fallback",
+    "src/lib/hooks/registry.mjs: COOKWRIGHT_SKIP, per-check SKIP isolation, prepare",
+    "src/lib/hooks/secrets.mjs and probes.mjs scanStaged/gitleaksVersion (exit 0/3/other, redaction, budget)",
+    "src/lib/hooks/docsync.mjs: pathspec matching via diff --cached, -z, env kept",
+    "src/lib/hooks/push.mjs: stdin parsing, HEAD peeling, dirty label, gate env scrubbing, elapsed time",
+    "src/lib/hooks/shims.mjs: shim text, exit mapping, callsCookwright forms, nested cd",
+    "src/changelog.mjs and lib/changelog/{tags,commits,render,state}.mjs: unborn HEAD, %1f tag format, strict semver sort, --not lower tags, signature cut, link refusal, adopt refusal, LF compare",
+    "src/lib/doctor/hooks.mjs: foreign detection, scope fallback, path redaction, notInstalled WARN, gitleaks dry run, gate.scripts",
+    "src/lib/init/hooks.mjs and files.mjs: git write after file writes, mode-only writes, refuseLinks on nested ../ paths",
+    "src/lib/config.mjs: hooks.docSync validation, nested defaults (B-006)",
+    "budget.mjs maxBuffer, repo.mjs gitRun cap/env",
+    "bundle-phase.js header doc-sync line (implementer and fix), playbook line",
+    "README, backlog and AGENTS.md v2 block against the code",
+    "Diff scanned for absolute paths and emails (none)",
+    "Function length in new modules (no real function over ~40 lines)"
+  ],
+  "notes": "Codex completed within the ceiling; no recovery was needed. Findings are transcribed from its final report. Its output is at <local path> (session 01a14083-107f-7c40-a92c-926678261ae7).\n---\nRead-only review of 5272c24a..bea071f9. The sandbox refused even a non-secret scratch-repo measurement, so the gitleaks scoping finding rests on my reading of gitleaks v8 source (`git -C <source> diff ... --staged .`, and its config is loaded from the source directory). Confirm it with a recording scanStaged probe or a scratch repo before fixing. Other observations, not raised as issues because recorded decisions already accept them: the pathspec validator refuses some valid git short forms (`:foo`, `:*.md`), which was accepted in implement:s2; and user hooks in the `exec` or last-line forms let a crash block a commit, a choice the plan leaves to the user. Exit code 10 can collide with node's rare internal bootstrap failure code; that is negligible. No private paths, credentials or plaintext env files were found in the range.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a14083-107f-7c40-a92c-926678261ae7",
+    "partialReportPath": null
+  }
+}

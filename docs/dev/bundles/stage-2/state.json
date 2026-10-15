@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 24,
+  "revision": 26,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -308,6 +308,20 @@
       "actor": "orchestrator",
       "source": "plan-review round 1, finding 14 (disposition 13)",
       "text": "A .githooks/pre-commit or pre-push that is neither cookwright's shim nor calls cookwright in a failure-preserving form makes the hooks setup foreign: hooks.path WARN naming it, the file checks SKIP, init writes nothing. callsCookwright accepts only exec <call>, <call> || exit 1, <call> || exit $?, or <call> as the last line; '|| true' and trailing commands are not a call.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:36:49.654Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, after plan-review re-check 1 (finding 3, disposition 8 ratified)",
+      "text": "Pre-push judges the working tree, never refuses. Two refinements: when the pushed sha is not HEAD, the gate and changelog lines are SKIP 'not tested: <ref> is not the checked-out branch' rather than a PASS judged on HEAD; when the tree is dirty, the label names the count, 'judged on the working tree, N uncommitted file(s), not <sha>'. The per-sha temporary worktree is backlogged as the real fix.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:36:50.058Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, after plan-review re-check 1 (finding 4, disposition 10 ratified)",
+      "text": "Linked worktrees: accept that a sibling worktree whose branch lacks .githooks/ runs no hook; doctor reports it there. Keep the two-worktree test that asserts the doctor FAIL in the sibling, and the README line. No per-commit worktree listing.",
       "claim": true
     }
   ],

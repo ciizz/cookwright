@@ -12,5 +12,19 @@
   },
   "gate": {
     "checks": [{ "name": "test", "run": "npm test" }]
+  },
+  "hooks": {
+    "docSync": [
+      {
+        "name": "playbook",
+        "code": [
+          "packages/cookwright/src/bundle.mjs",
+          "packages/cookwright/src/lib/bundle/*",
+          ":!*.test.mjs",
+          "hosts/claude/workflows/bundle-phase.js"
+        ],
+        "docs": ["docs/playbook.md", "hosts/claude/skills/bundle/SKILL.md"]
+      }
+    ]
   }
 }

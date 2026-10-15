@@ -32,8 +32,11 @@ export function kindOf(abs) {
   }
 }
 
-/** The first component of `rel`, from the root down to `rel` itself, that is a symbolic link, or null. */
-function linkOnPath(root, rel) {
+/**
+ * The first component of `rel`, from the root down to `rel` itself, that is a
+ * symbolic link, or null. The changelog command refuses on it too.
+ */
+export function linkOnPath(root, rel) {
   const parts = rel.split(/[\\/]/);
   for (let i = 1; i <= parts.length; i += 1) {
     const sub = parts.slice(0, i).join('/');

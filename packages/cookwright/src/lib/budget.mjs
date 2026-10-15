@@ -43,6 +43,9 @@ export class TimedOut extends Error {
   }
 }
 
+/** Output a bounded call may return: Node's 1 MiB default would cut a long `git log` short (ENOBUFS). */
+export const MAX_BUFFER = 64 * 1024 * 1024;
+
 /**
  * spawnSync bounded by the budget. Never throws: `status` is null on any spawn
  * error, and `timedOut` says whether that error was the clock.
@@ -50,7 +53,13 @@ export class TimedOut extends Error {
 export function runBounded(cmd, args, opts = {}, cap = CALL_CAP_MS) {
   const ms = timeLeft(cap);
   if (ms <= 0) return { status: null, stdout: '', stderr: '', timedOut: true };
-  const r = spawnSync(cmd, args, { encoding: 'utf8', ...opts, timeout: ms, killSignal: 'SIGKILL' });
+  const r = spawnSync(cmd, args, {
+    encoding: 'utf8',
+    maxBuffer: MAX_BUFFER,
+    ...opts,
+    timeout: ms,
+    killSignal: 'SIGKILL',
+  });
   return {
     status: r.error ? null : r.status,
     stdout: r.stdout ?? '',

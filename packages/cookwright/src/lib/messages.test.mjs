@@ -21,6 +21,7 @@ const SCANNED = [
   'src/cli-main.mjs',
   'src/init.mjs',
   'src/doctor.mjs',
+  'src/changelog.mjs',
   'src/lib/cli.mjs',
   'src/lib/init',
   'src/lib/doctor',

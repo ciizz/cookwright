@@ -7,13 +7,17 @@ import path from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { main } from './changelog.mjs';
+import { main as initMain } from './init.mjs';
 import { classify } from './lib/changelog/commits.mjs';
 import { MARKER, TEMPLATE, hasMarker, renderChangelog } from './lib/changelog/render.mjs';
-import { generate } from './lib/changelog/state.mjs';
+import { changelogState, generate } from './lib/changelog/state.mjs';
 import { parseMeta, rawTags, releaseTags, tagMeta } from './lib/changelog/tags.mjs';
-import { commit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
+import { messages } from './lib/messages.mjs';
+import { commit, gitInit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-changelog-');
+const m = messages.changelog;
 const TEMPLATE_FILE = path.join(path.dirname(new URL(import.meta.url).pathname), 'lib/templates/CHANGELOG.md');
 
 const out = [];
@@ -228,5 +232,167 @@ _2 commits in this release, 1 internal (docs, chore, refactor, tests, tooling)._
     expect(v210).toContain('_2 commits in this release, 1 internal');
     expect(g.text.indexOf(F.slice(0, 8))).toBeGreaterThan(g.text.indexOf('## 1.1.1'));
     expect(generate(repo.root).text).toBe(g.text);
+  });
+});
+
+const read = (repo, rel = 'CHANGELOG.md') => fs.readFileSync(path.join(repo.root, rel), 'utf8');
+const write = (repo, body, rel = 'CHANGELOG.md') => {
+  fs.mkdirSync(path.dirname(path.join(repo.root, rel)), { recursive: true });
+  fs.writeFileSync(path.join(repo.root, rel), body);
+};
+/** Run the command; `out` and `err` hold what it printed. */
+const cl = (repo, ...argv) => {
+  out.length = 0;
+  err.length = 0;
+  return main(argv, { cwd: repo.root });
+};
+
+describe('the changelog state', () => {
+  it('is missing, unmarked, stale or current, LF-normalised', () => {
+    const repo = repoAt();
+    commitMsg(repo, 'feat: one');
+    tag(repo, 'v1.0.0', 'released: 2026-10-15');
+    expect(changelogState(repo).state).toBe('missing');
+    write(repo, '# Changelog\n\nmine\n');
+    expect(changelogState(repo).state).toBe('unmarked');
+    const text = generate(repo.root).text;
+    write(repo, `${text}\nedited\n`);
+    expect(changelogState(repo).state).toBe('stale');
+    write(repo, text);
+    expect(changelogState(repo)).toMatchObject({ state: 'current', tags: 1 });
+    write(repo, text.replace(/\n/g, '\r\n'));
+    expect(changelogState(repo).state).toBe('current');
+    expect(hasMarker(`x\n  ${MARKER}  \ny`)).toBe(true);
+  });
+});
+
+describe('npx cookwright changelog', () => {
+  it('passes --check on an unborn repo after init, and with commits but no tag', () => {
+    const root = gitInit(path.join(TMP, `r${(n += 1)}`));
+    initMain([], { cwd: root, home: TMP, probes: { claudeVersion: () => '2.1.281' } });
+    const repo = { root };
+    expect(read(repo)).toBe(TEMPLATE);
+    expect(cl(repo, '--check')).toBe(0);
+    expect(out).toEqual([m.check.current('CHANGELOG.md', 0)]);
+    expect(cl(repo, '--unreleased')).toBe(0);
+    expect(out).toEqual([m.noCommits]);
+    commitMsg(repo, 'feat: one');
+    commitMsg(repo, 'chore: two');
+    expect(cl(repo, '--check')).toBe(0);
+    expect(cl(repo, '--unreleased')).toBe(0);
+    expect(out.join('\n')).toMatch(/^## Unreleased — 2 commits, no release tag yet\n\n### Features\n\n- one `[0-9a-f]{8}`\n\n_1 internal /);
+  });
+
+  it('writes by default, reports non-semver tags, and a second run changes no byte', () => {
+    const repo = repoAt();
+    commitMsg(repo, 'feat: one');
+    tag(repo, 'v1.0.0', 'released: 2026-10-15');
+    tag(repo, 'v1.1.0-rc1');
+    expect(cl(repo)).toBe(0);
+    expect(out).toEqual([m.regenerated('CHANGELOG.md', 1)]);
+    expect(err).toEqual([m.skippedTag('v1.1.0-rc1')]);
+    const first = read(repo);
+    expect(first).toBe(generate(repo.root).text);
+    const mtime = fs.statSync(path.join(repo.root, 'CHANGELOG.md')).mtimeMs;
+    expect(cl(repo)).toBe(0);
+    expect(read(repo)).toBe(first);
+    expect(fs.statSync(path.join(repo.root, 'CHANGELOG.md')).mtimeMs).toBe(mtime);
+    expect(cl(repo, '--check')).toBe(0);
+    expect(out).toEqual([m.check.current('CHANGELOG.md', 1)]);
+  });
+
+  it('--check fails on a missing, an unmarked and a hand-edited file', () => {
+    const repo = repoAt();
+    commitMsg(repo, 'feat: one');
+    tag(repo, 'v1.0.0');
+    expect(cl(repo, '--check')).toBe(1);
+    expect(err).toEqual([m.check.missing('CHANGELOG.md')]);
+    write(repo, '# Changelog\n');
+    expect(cl(repo, '--check')).toBe(1);
+    expect(err).toEqual([m.check.unmarked('CHANGELOG.md')]);
+    write(repo, `${generate(repo.root).text}- a hand-written line\n`);
+    expect(cl(repo, '--check')).toBe(1);
+    expect(err).toEqual([m.check.stale('CHANGELOG.md')]);
+  });
+
+  it('refuses to replace a hand-kept changelog unless --adopt is passed', () => {
+    const repo = repoAt();
+    commitMsg(repo, 'feat: one');
+    write(repo, '# Changelog\n\n## Unreleased\n\n- mine\n');
+    expect(cl(repo)).toBe(2);
+    expect(err).toEqual([m.refused(m.unmarkedRefused('CHANGELOG.md'))]);
+    expect(read(repo)).toBe('# Changelog\n\n## Unreleased\n\n- mine\n');
+    expect(cl(repo, '--adopt')).toBe(0);
+    expect(read(repo)).toBe(TEMPLATE);
+  });
+
+  it('writes paths.changelog where the config puts it', () => {
+    const repo = repoAt({ paths: { changelog: 'docs/CHANGES.md' } });
+    commitMsg(repo, 'feat: one');
+    expect(cl(repo)).toBe(0);
+    expect(out).toEqual([m.regenerated('docs/CHANGES.md', 0)]);
+    expect(read(repo, 'docs/CHANGES.md')).toBe(TEMPLATE);
+    expect(fs.existsSync(path.join(repo.root, 'CHANGELOG.md'))).toBe(false);
+  });
+
+  it('never writes through a link: the file, or a directory on its path', () => {
+    const outside = path.join(TMP, `outside${(n += 1)}`);
+    fs.mkdirSync(outside);
+    fs.writeFileSync(path.join(outside, 'theirs.md'), 'theirs\n');
+    const repo = repoAt();
+    commitMsg(repo, 'feat: one');
+    fs.symlinkSync(path.join(outside, 'theirs.md'), path.join(repo.root, 'CHANGELOG.md'));
+    expect(cl(repo, '--adopt')).toBe(2);
+    expect(err).toEqual([m.refused(m.symlink('CHANGELOG.md'))]);
+    expect(fs.readFileSync(path.join(outside, 'theirs.md'), 'utf8')).toBe('theirs\n');
+
+    const linked = repoAt({ paths: { changelog: 'docs/CHANGELOG.md' } });
+    commitMsg(linked, 'feat: one');
+    fs.symlinkSync(outside, path.join(linked.root, 'docs'));
+    expect(cl(linked, '--adopt')).toBe(2);
+    expect(err).toEqual([m.refused(m.symlink('docs'))]);
+    expect(fs.readdirSync(outside)).toEqual(['theirs.md']);
+  });
+
+  it('--unreleased lists what no release tag holds, never a released maintenance commit', () => {
+    const repo = repoAt();
+    commitMsg(repo, 'feat: base');
+    tag(repo, 'v1.0.0');
+    expect(cl(repo, '--unreleased')).toBe(0);
+    expect(out).toEqual([m.nothingUnreleased('v1.0.0')]);
+    run(repo.root, 'git', ['checkout', '-q', '-b', 'maint']);
+    const F = commitMsg(repo, 'fix: maintenance');
+    tag(repo, 'v1.1.1');
+    run(repo.root, 'git', ['checkout', '-q', 'main']);
+    commitMsg(repo, 'feat: two');
+    tag(repo, 'v2.0.0');
+    run(repo.root, 'git', ['merge', '-q', '--no-ff', '--no-edit', 'maint']);
+    const B = commitMsg(repo, 'fix: after merge');
+    expect(cl(repo, '--unreleased')).toBe(0);
+    const printed = out.join('\n');
+    expect(printed).toMatch(/^## Unreleased — 2 commits since v2\.0\.0\n/);
+    expect(printed).toContain(B.slice(0, 8));
+    expect(printed).not.toContain(F.slice(0, 8));
+    expect(printed).toContain('_1 internal ');
+    expect(cl(repo)).toBe(0);
+    expect(err).toEqual([m.notAncestor('v1.1.1', 'v2.0.0')]);
+  });
+
+  it('refuses two modes, a positional, a flag value or an unknown flag with the usage, exit 2', () => {
+    const repo = repoAt();
+    for (const argv of [['--check', '--adopt'], ['x'], ['--check', 'x'], ['--bogus']]) {
+      expect(cl(repo, ...argv)).toBe(2);
+      expect(err.at(-1)).toMatch(/usage: npx cookwright changelog \[--check \| --unreleased \| --adopt\]$/);
+    }
+    expect(fs.existsSync(path.join(repo.root, 'CHANGELOG.md'))).toBe(false);
+  });
+
+  it('refuses outside a work tree and without a config', () => {
+    const bare = path.join(TMP, `plain${(n += 1)}`);
+    fs.mkdirSync(bare);
+    expect(main(['--check'], { cwd: bare })).toBe(2);
+    const root = gitInit(path.join(TMP, `r${(n += 1)}`));
+    expect(main(['--check'], { cwd: root })).toBe(2);
+    expect(err.at(-1)).toMatch(/^changelog: no cookwright\.json at or above /);
   });
 });

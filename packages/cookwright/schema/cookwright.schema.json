@@ -75,7 +75,7 @@
           "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$))(?!.*//)(?!.*\\\\).*[^/]$"
         },
         "changelog": {
-          "description": "The changelog: user-visible changes, under an Unreleased section. Root-relative, no trailing slash.",
+          "description": "The changelog: generated from release tags by `npx cookwright changelog`, never edited by hand. Root-relative, no trailing slash.",
           "type": "string",
           "default": "CHANGELOG.md",
           "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$))(?!.*//)(?!.*\\\\).*[^/]$"

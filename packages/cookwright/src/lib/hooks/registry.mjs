@@ -14,6 +14,7 @@ import { CONFIG_FILE } from '../config.mjs';
 import { messages } from '../messages.mjs';
 import { FAIL, PASS, skip } from '../verdict.mjs';
 import { checkDocSync } from './docsync.mjs';
+import { checkChangelog, checkGate, pushContext } from './push.mjs';
 import { checkSecrets } from './secrets.mjs';
 
 const m = messages.hook;
@@ -21,11 +22,14 @@ const m = messages.hook;
 export const CHECKS = Object.freeze({
   secrets: { run: checkSecrets },
   'doc-sync': { run: checkDocSync, config: true },
+  gate: { run: checkGate, config: true },
+  changelog: { run: checkChangelog, config: true },
 });
 
 /** Each hook's checks, in order; `prepare` runs once before them when any will run. */
 export const HOOKS = Object.freeze({
   'pre-commit': { checks: ['secrets', 'doc-sync'] },
+  'pre-push': { checks: ['gate', 'changelog'], prepare: pushContext },
 });
 
 export const CHECK_NAMES = Object.freeze(Object.keys(CHECKS));

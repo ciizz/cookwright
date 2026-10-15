@@ -74,11 +74,12 @@ export function planChecks({ checks, hasTool = onPath }) {
   });
 }
 
-function runCheck(check, { cwd }) {
+function runCheck(check, { cwd, env }) {
   if (check.skip) return { name: check.name, result: 'skipped', note: check.skip, ms: 0 };
   const t0 = Date.now();
   const r = spawnSync(check.run, {
     cwd,
+    env,
     shell: true,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
@@ -96,9 +97,11 @@ function runCheck(check, { cwd }) {
  * Run the gate. Every check runs even after a failure, so one gate shows every red
  * at once. Returns `{ results }` (the event the caller appends to `state.gates`; the
  * `tail` of a failing check is printed by the caller and not stored), or
- * `{ refused }` when nothing could run.
+ * `{ refused }` when nothing could run. `env` is the checks' environment (the
+ * pre-push hook passes its own with git's hook variables removed); absent, they
+ * inherit the process's.
  */
-export function runGate({ repo, log = console.log, hasTool = onPath }) {
+export function runGate({ repo, log = console.log, hasTool = onPath, env }) {
   const configured = repo.config.gate.checks;
   if (configured.length === 0) return { refused: messages.noChecksConfigured };
   const problems = scriptProblems(configured, repo.root);
@@ -106,7 +109,7 @@ export function runGate({ repo, log = console.log, hasTool = onPath }) {
   const results = [];
   for (const check of planChecks({ checks: configured, hasTool })) {
     log(`  … ${check.name}`);
-    const r = runCheck(check, { cwd: repo.root });
+    const r = runCheck(check, { cwd: repo.root, env });
     log(`  ${r.result.toUpperCase().padEnd(7)} ${check.name}${r.note ? ` (${r.note})` : ''}`);
     results.push(r);
   }

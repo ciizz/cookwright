@@ -14,7 +14,7 @@ import { ENV_LINES } from './lib/init/gitignore.mjs';
 import { HOOK_COMMAND, HOOK_LINES, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { renderBlock } from './lib/rules/block.mjs';
-import { commit, gitInit, run, scratchRoot } from './test-helpers.mjs';
+import { commit, gitInit, run, scratchRoot, stageOnly } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-init-');
 const m = messages.init;
@@ -461,7 +461,8 @@ describe('.gitignore', () => {
 
   it('counts a tracked .env as covered by the rules', () => {
     const root = fresh();
-    commit({ root }, { '.gitignore': '.env\n.env.*\n', '.env': 'X=1\n' }, 'oops');
+    stageOnly(root, '.env');
+    commit({ root }, { '.gitignore': '.env\n.env.*\n' }, 'oops');
     expect(init(root).rows['.gitignore'].action).toBe('kept');
   });
 });

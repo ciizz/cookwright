@@ -19,7 +19,7 @@ import { HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { PROBES } from './lib/probes.mjs';
 import { renderBlock } from './lib/rules/block.mjs';
-import { commit, gitInit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
+import { commit, gitInit, scratchRepo, scratchRoot, stageOnly } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-doctor-');
 const m = messages.doctor;
@@ -274,10 +274,7 @@ describe('host.hook', () => {
 
 describe('secrets.env', () => {
   const secrets = (root) => doctor(root)['secrets.env'];
-  const track = (root, rel) => {
-    write(root, rel, 'KEY=value\n');
-    run(root, 'git', ['add', '-f', rel]);
-  };
+  const track = stageOnly; // an index entry, never an env file on disk
 
   it('PASSes example files and .envrc; FAILs a tracked env file at any depth, named', () => {
     const root = level0();
@@ -293,9 +290,11 @@ describe('secrets.env', () => {
 
   it('WARNs an untracked env file at the root and a protected path git does not ignore', () => {
     const root = level0();
-    write(root, '.env.local', 'KEY=value\n');
-    write(root, 'sub/.env', 'KEY=value\n'); // not at the root: never walked
-    expect(secrets(root)).toEqual({ status: 'WARN', note: m.secrets.untracked(['.env.local']) });
+    const atRoot = probes({ rootFiles: () => ['README.md', '.env.local'] });
+    expect(doctor(root, { probes: atRoot })['secrets.env']).toEqual({
+      status: 'WARN',
+      note: m.secrets.untracked(['.env.local']),
+    });
     const onlyEnv = level0({ '.gitignore': '.env\n' });
     expect(secrets(onlyEnv)).toEqual({ status: 'WARN', note: m.secrets.notIgnored(['.env.local']) });
     expect(secrets(level0({ '.gitignore': '.env*\n' })).status).toBe('PASS');

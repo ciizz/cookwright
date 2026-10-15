@@ -1,5 +1,6 @@
 // src/lib/probes.mjs — the few questions init and doctor ask the machine: is a tool
-// on PATH, which Claude Code is installed, does git ignore a path.
+// on PATH, which Claude Code is installed, does git ignore a path, which files sit at
+// the root.
 //
 // They are injected (doctor's `probes`), so the tests need no Claude binary and can
 // play a machine without git. Each is bounded by doctor's shared budget (budget.mjs).
@@ -66,5 +67,16 @@ export function ignored(root, rel) {
   throw new Error(messages.probeFailed(`git check-ignore ${rel}`, detail));
 }
 
+/** The names of the regular files directly in `dir` (links followed): never a walk. */
+export function rootFiles(dir) {
+  return fs.readdirSync(dir).filter((name) => {
+    try {
+      return fs.statSync(path.join(dir, name)).isFile();
+    } catch {
+      return false;
+    }
+  });
+}
+
 /** The real probes; doctor and init take overrides of any of them. */
-export const PROBES = Object.freeze({ hasTool, claudeVersion, ignored });
+export const PROBES = Object.freeze({ hasTool, claudeVersion, ignored, rootFiles });

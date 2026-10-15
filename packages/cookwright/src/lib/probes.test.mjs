@@ -5,8 +5,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { gitInit, run, scratchRoot } from '../test-helpers.mjs';
-import { atLeast, claudeVersion, hasTool, ignored, parseVersion } from './probes.mjs';
+import { gitInit, run, scratchRoot, stageOnly } from '../test-helpers.mjs';
+import { atLeast, claudeVersion, hasTool, ignored, parseVersion, rootFiles } from './probes.mjs';
 
 const TMP = scratchRoot('cookwright-probes-');
 
@@ -58,8 +58,8 @@ describe('ignored', () => {
   it('judges a tracked path by the rules, not by the index', () => {
     const root = gitInit(path.join(TMP, 'tracked'));
     fs.writeFileSync(path.join(root, '.gitignore'), '.env\n');
-    fs.writeFileSync(path.join(root, '.env'), 'X=1\n');
-    run(root, 'git', ['add', '-f', '.env']);
+    stageOnly(root, '.env');
+    expect(run(root, 'git', ['ls-files'])).toBe('.env');
     expect(ignored(root, '.env')).toBe(true);
   });
 
@@ -67,5 +67,17 @@ describe('ignored', () => {
     const outside = path.join(TMP, 'not-a-repo');
     fs.mkdirSync(outside);
     expect(() => ignored(outside, '.env')).toThrow(/git check-ignore \.env failed: .+/);
+  });
+});
+
+describe('rootFiles', () => {
+  it('names the regular files at the top of a directory, never what is below', () => {
+    const dir = path.join(TMP, 'top');
+    fs.mkdirSync(path.join(dir, 'sub'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'README.md'), 'x');
+    fs.writeFileSync(path.join(dir, 'sub/notes.md'), 'x');
+    fs.symlinkSync('README.md', path.join(dir, 'link.md'));
+    fs.symlinkSync('missing', path.join(dir, 'dangling'));
+    expect(rootFiles(dir).sort()).toEqual(['README.md', 'link.md']);
   });
 });

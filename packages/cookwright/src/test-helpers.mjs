@@ -38,6 +38,16 @@ export function scratchRepo(parent, name, config = {}) {
   return { root: dir, config: loadConfig(dir) };
 }
 
+/**
+ * Stage `rel` as an empty file without writing it: an index entry only. The rules
+ * forbid a plaintext env file on disk even in a test, so a tracked `.env` is played
+ * this way.
+ */
+export function stageOnly(root, rel) {
+  const blob = execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: root, input: '', encoding: 'utf8' }).trim();
+  run(root, 'git', ['update-index', '--add', '--cacheinfo', `100644,${blob},${rel}`]);
+}
+
 /** Write `files` (root-relative path → body), stage everything, commit; returns the sha. */
 export function commit(repo, files, msg) {
   const dir = repo.root;

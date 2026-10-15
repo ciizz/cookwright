@@ -6,12 +6,11 @@
 // root directory only (never a walk, never node_modules). The patterns are exactly
 // `.env` and `.env.*`, the ones init writes to .gitignore; `.envrc` is not one.
 
-import fs from 'node:fs';
 import path from 'node:path';
 
 import { messages } from '../messages.mjs';
 import { fail, pass, skip, warn } from '../verdict.mjs';
-import { gitRun, isFile } from './repo.mjs';
+import { gitRun } from './repo.mjs';
 
 const m = messages.doctor;
 
@@ -35,9 +34,9 @@ function trackedEnvFiles(root) {
 export function checkSecrets(repo, probes) {
   if (!repo.workTree) return skip(m.secrets.notWorkTree);
   const tracked = trackedEnvFiles(repo.root);
-  const untracked = fs
-    .readdirSync(repo.root)
-    .filter((n) => isEnvFile(n) && !tracked.includes(n) && isFile(path.join(repo.root, n)))
+  const untracked = probes
+    .rootFiles(repo.root)
+    .filter((n) => isEnvFile(n) && !tracked.includes(n))
     .sort();
   const notIgnored = PROTECTED.filter((p) => !probes.ignored(repo.root, p));
   const notes = [

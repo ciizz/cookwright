@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 59,
+  "revision": 61,
   "slug": "stage-1",
   "branch": "bundle/stage-1",
   "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
@@ -454,7 +454,13 @@
       "stored": true
     }
   ],
-  "qaRounds": [],
+  "qaRounds": [
+    {
+      "path": "docs/dev/bundles/stage-1/qa/round-1.md",
+      "at": "2026-10-15T13:45:07.565Z",
+      "stored": true
+    }
+  ],
   "decisions": [
     {
       "at": "2026-10-15T08:57:25.610Z",
@@ -552,6 +558,13 @@
       "actor": "orchestrator",
       "source": "review:whole findings, 2026-10-15",
       "text": "fix:whole applies findings 2/12 (refuse a write when any path component between the root and the target is a symlink, by comparing realpath(dirname) with the real root; README sentence made true), 3 (scrub structured values, not serialized text: walk the object and scrub each string before JSON.stringify, scrub raw text for .md; a local path is one under the repo root (made relative), the home dir, os.tmpdir(), <local path>, <local path>, /Volumes, <local path>, /home/*, or a Windows drive or UNC path; JSON.parse the result before any rename and refuse on failure), 6 (same fix), 8 (a left boundary before every machine-dir pattern; app<local path> and URLs untouched; tests), 5 (changelog and playbook join the overlap check: neither may equal or nest inside bundles, closeouts or backlog, nor equal each other; tests refuse before any write), 10 (a TimedOut check is SKIP 'unverified: <what> did not answer in time', never drift), 11 (hasImport accepts @./AGENTS.md as the same import). Finding 4 is B-002, deferred: no change. Findings 1/9 (npm name) stay the developer's landing precondition. Findings 0/7 (the history rewrite and the commit ids it changes) are decided by the developer before any rewrite; the plan's 'every recorded commit id survives' claim is corrected in the closeout, not in plan.md.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T13:43:45.822Z",
+      "actor": "developer",
+      "source": "npm publish, 2026-10-15 13:42Z",
+      "text": "The npm name cookwright is held by the developer's own account: npm publish printed '+ cookwright@0.0.0' and the registry record (npm view, maintainers) is the developer's; the registry first shows a 2-file placeholder cookwright@0.0.0-stage ('Temporary package placeholder for staged publishing') created by npm's staged publishing while 0.0.0 is processed. Review findings review-core 5 and review-whole 1/9 (an unreserved name behind npx cookwright) are closed on this evidence; the closeout quotes the registry's dist-tags at verification time.",
       "claim": true
     }
   ],

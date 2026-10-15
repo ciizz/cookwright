@@ -1,0 +1,237 @@
+{
+  "phase": "review:core",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/bundles/stage-1/sessions/implement-s1-1.md",
+      "location": "Lines 11-35; likewise implement-s2-1.md:11-30 and implement-s3-1.md:13-40",
+      "problem": "Committed reports contain absolute machine-local paths, violating AGENTS.md 'Nothing private, ever'. recordReport also accepts absolute files entries without validation.",
+      "severity": "P1",
+      "suggested_fix": "Store repo-relative paths only, validate report.files in recordReport, add a bundle-directory absolute-path test, and rewrite the commits containing these paths.",
+      "failure_scenario": "Publishing the branch exposes the developer's username and workstation layout. Removing the paths in a later commit does not remove them from Git history.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "docs/dev/bundles/stage-1/sessions/implement-s1-1.md:11-15, implement-s2-1.md:11-15 and implement-s3-1.md:13-17 are tracked at 40bb0f2 (committed in da49f2d and later) and list absolute paths such as packages/cookwright/.... AGENTS.md:18 and CLAUDE.md:14 forbid committed local paths. recordReport (packages/cookwright/src/lib/bundle/phases.mjs:359-372) only checks that commits and files are arrays, then renders the report through renderReport and writes it with writeRecord. It does not reject or relativize absolute entries. The paths are in git history, so a later cleanup commit would not remove them."
+    },
+    {
+      "file": "packages/cookwright/src/lib/hosts.mjs",
+      "location": "Lines 24-31",
+      "problem": "The SessionStart hook looks for node_modules/cookwright directly under CLAUDE_PROJECT_DIR, although that variable may name a project subdirectory and dependencies may be workspace-hoisted.",
+      "severity": "P2",
+      "suggested_fix": "Resolve the installed bin through Node module resolution or search upward from the invocation directory. Add an execution test from a nested directory and a hoisted-workspace layout.",
+      "failure_scenario": "Starting Claude in packages/cookwright/src prints 'package not installed' and skips doctor even though cookwright is installed at the repository root; host.hook still reports PASS because it checks command equality only.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "plausible",
+      "evidence": "packages/cookwright/src/lib/hosts.mjs:24-31 does `cd \"${CLAUDE_PROJECT_DIR:-.}\"` and then tests `[ -f node_modules/cookwright/bin/cookwright.mjs ]` with no upward search. When that directory is a subdirectory or the package is hoisted, the hook prints the 'package not installed' line and exits 0. The plan (docs/dev/bundles/stage-1/plan.md:20,76) says CLAUDE_PROJECT_DIR is Claude's cwd and may be a subdirectory. docs/dev/backlog.md:7 already records the same defect as B-002, so it is a known limitation deferred by the plan, not a new regression. I did not check what host.hook compares (only the grep for it errored), and I did not confirm that Claude Code really sets CLAUDE_PROJECT_DIR to a subdirectory. That is why I did not mark it confirmed."
+    },
+    {
+      "file": "packages/cookwright/src/lib/init/gitignore.mjs",
+      "location": "Lines 30-34",
+      "problem": "If the standard patterns already occur earlier but are overridden by a later negation, init returns 'kept' instead of restoring protection. This contradicts plan 4.4, which requires appending the patterns whenever either protected path is not ignored.",
+      "severity": "P2",
+      "suggested_fix": "Whenever the probe reports missing protection, append the patterns after the overriding rules even if identical patterns occur earlier. Verify the second run is then idempotent.",
+      "failure_scenario": "With .env, .env.*, !.env.example, then !.env.local, .env.local remains commit-able; every init rerun leaves it that way and doctor continues warning.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/init/gitignore.mjs:30-31 returns KEPT whenever every ENV_LINES entry appears anywhere in .gitignore, even if `missing` (line 24) is non-empty. Plan §4.4 step 6 says to append `.env`, `.env.*` and `!.env.example` when either path is not ignored. Appending would restore protection, because git's last matching rule wins. With `.env`, `.env.*`, `!.env.example`, `!.env.local`, init keeps the file and `.env.local` stays committable. Doctor's secrets.env check (doctor/secrets.mjs:42) keeps warning on every rerun. The behaviour is deliberate: src/init.test.mjs:443-448 and the `overridden` message at src/lib/messages.mjs:161 encode it. It still contradicts the plan text, and the plan has no carve-out for it. I did not run it; this rests on reading the code and test. P2 severity is reasonable."
+    },
+    {
+      "file": "packages/cookwright/src/lib/config.mjs; packages/cookwright/src/lib/doctor/repo.mjs; packages/cookwright/src/lib/probes.mjs",
+      "location": "config.mjs:48-50; doctor/repo.mjs:15-17; probes.mjs:59-64",
+      "problem": "Doctor's Git subprocesses are unbounded or have five-second timeouts, violating the plan's total budget of under two seconds.",
+      "severity": "P2",
+      "suggested_fix": "Apply a shared deadline under two seconds to every subprocess, including root discovery, and test with a hanging Git shim.",
+      "failure_scenario": "A stalled Git executable can block workTreeRoot indefinitely, while later checks can each consume five seconds. The 10-second SessionStart hook may kill doctor before it emits any diagnosis.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "config.mjs:48-50 workTreeRoot calls spawnSync('git', ['rev-parse','--show-toplevel']) with no timeout, so a stalled git blocks indefinitely. doctor/repo.mjs:15-17 gitRun uses timeout 5000. probes.mjs:59-64 ignored() uses timeout 5000, once per path. The plan (plan.md:109) says the budget is under two seconds and 'every subprocess timeout fits inside it', and the hook timeout is 10 (plan.md:70). Only claudeVersion has a conforming 1500 ms timeout. A 5 s timeout already exceeds the 2 s budget, and a couple of stalled calls can pass 10 s. The stalled-git scenario is unlikely, but the rule violation is in the code and nothing handles it."
+    },
+    {
+      "file": "packages/cookwright/src/doctor.test.mjs; packages/cookwright/src/init.test.mjs; packages/cookwright/src/lib/probes.test.mjs",
+      "location": "doctor.test.mjs:275-295; init.test.mjs:453; probes.test.mjs:59-63",
+      "problem": "Tests create plaintext .env, nested .env, and .env.local files despite AGENTS.md explicitly forbidding them 'not as a fallback and not for a test'.",
+      "severity": "P2",
+      "suggested_fix": "Inject filesystem/index probes for these cases, or construct tracked index entries through Git plumbing without materializing .env files in a worktree.",
+      "failure_scenario": "Normal test execution writes prohibited env files to disk and commits some into scratch Git indexes, directly violating the repository's secrets rule.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "AGENTS.md:62 says 'Never write a plaintext env file (.env, .env.*), not as a fallback and not for a test.' doctor.test.mjs:275-279 track() writes KEY=value to .env, apps/mobile/.env and .env.local, then runs git add -f. doctor.test.mjs:296-297 writes .env.local and sub/.env. init.test.mjs:453 commits a '.env' with 'X=1' via commit(). probes.test.mjs:59-63 writes .env and git add -f's it. All of these go to scratch repos, not the real repo. The rule has no exemption for scratch dirs and names tests explicitly, so the literal violation holds. Impact is low: the files hold dummy values, and the tests need the files to exist to exercise the secrets check."
+    },
+    {
+      "file": "packages/cookwright/src/lib/rules/agents-block.md",
+      "location": "Session start section ('If no doctor line reached you, run `npx cookwright doctor`'); also README.md, docs/playbook.md, hosts/claude/skills/bundle/SKILL.md, src/lib/messages.mjs CLI constant",
+      "problem": "Plan §2(b) let the docs and the managed block say `npx cookwright` only if the developer reserved the npm name before s1's docs landed. The bundle state records that decision as done ('The npm name cookwright is reserved by the developer now'), but `npm view cookwright` returns E404: the name is unpublished and anyone can claim it. The invocation now ships into every user's AGENTS.md block, into this repo's playbook and skill, and into the Workflow args (`cli: npx cookwright bundle`). The claim recorded in the state goes beyond what is true.",
+      "severity": "P1",
+      "suggested_fix": "Publish a placeholder under `cookwright` (the developer's job) before this branch merges, and check it with `npm view cookwright`. Until then, have the block and docs name the local bin (`node node_modules/cookwright/bin/cookwright.mjs`), or say `npx --no cookwright`, which refuses to install.",
+      "failure_scenario": "A third party publishes `cookwright` to npm. A Codex session has no SessionStart hook, so it reads the managed block in a user's AGENTS.md and runs `npx cookwright doctor`. Another case is a fresh clone of this repo, before `npm ci`, where the playbook's `npx cookwright bundle status` runs. In both, npx is in a non-TTY shell with no local package, so it downloads and executes the squatter's package with the developer's environment.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "plausible",
+      "evidence": "Reproduced: `npm view cookwright` returns E404 now. The block line packages/cookwright/src/lib/rules/agents-block.md:26 renders `{{cli}} doctor`, and messages.mjs:13 has CLI = 'npx cookwright'. Plan §2(b) (plan.md:18, :36) makes `npx cookwright` conditional on the developer reserving the name before s1's docs land. state.json:336 records that as a developer claim (\"reserved ... now\"), not as a verified publish. What I could not tell is whether the reservation is merely still pending, in which case the plan's own gate covers it. The squatting scenario is real while the name is unpublished, and I could not refute it. I did not confirm it either: the finding is about an unmet precondition, not a defect in the code."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/sessions/implement-s3-1.md",
+      "location": "'## Files' sections of implement-s1-1.md, implement-s2-1.md, implement-s3-1.md (73 added lines); renderer packages/cookwright/src/lib/bundle/phases.mjs renderReport",
+      "problem": "The committed session reports list every file as an absolute machine-local path (`/Users/<user>/Programming/cookwright/...`). That breaks the rules file's 'Nothing private, ever … Never commit a local path'. This bundle closes B-001 as 'committed state never holds a local path', yet `record session` writes `r.files` verbatim, and the new test walks only state.json, not the session reports beside it. The plan's history rewrite covers only the pre-s1 commits (97b5a76, 839bc5f, 4d4c78c), not these three post-s1 commits.",
+      "severity": "P2",
+      "suggested_fix": "In `record session`, make each path in `files` relative to the repo root, or refuse an absolute one. Extend the B-001 test to walk every file under the bundle directory. Rewrite or amend the three report commits before push, in the same history rewrite the plan already schedules.",
+      "failure_scenario": "The branch is pushed as planned after the pre-s1 rewrite. docs/dev/bundles/stage-1/sessions/*.md still publish the developer's username and home layout in 73 lines. Every later bundle repeats it, because the renderer still stores absolute paths.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "At 40bb0f2 the three session reports hold 25 (implement-s1-1.md), 20 (implement-s2-1.md) and 28 (implement-s3-1.md) lines with ... paths. That totals 73, matching the finding. The renderer at packages/cookwright/src/lib/bundle/phases.mjs:408 writes r.files verbatim (`bullets(r.files, (f) => ...)`), and recordSession (:364-369) does no normalization. AGENTS.md:14 and :18 forbid committing local paths. plan.md:18 and :173 scope the history rewrite to the pre-s1 state commits and the no-absolute-path test to persisted state, so the post-s1 session reports are not covered. The three report files were added in the range (278 insertions)."
+    },
+    {
+      "file": "packages/cookwright/src/lib/init/claude.mjs",
+      "location": "claudeRulesStep (with files.mjs readTarget/kindOf/applyRows following symlinks; doctor/claude.mjs checkClaudeRules)",
+      "problem": "Many repos make `CLAUDE.md` a symlink to `AGENTS.md`, or the reverse. init does not handle that case. `kindOf` stats through the symlink and calls it a file, and the step reads AGENTS.md's text, finds no `@AGENTS.md` and plans an UPDATED write. That content is computed in preflight from the pre-write AGENTS.md. `applyRows` then writes it through the symlink after the block step's write, which overwrites the block init just appended. doctor's `host.rules` also FAILs this setup as 'shadowed', although Claude reads the rules through the link.",
+      "severity": "P2",
+      "suggested_fix": "Use lstat in kindOf/readTarget. When CLAUDE.md and AGENTS.md resolve to the same real file, report `kept` (Claude already reads the rules) and have doctor's host.rules PASS. Otherwise refuse a symlinked target in preflight rather than write through it.",
+      "failure_scenario": "A repo with `CLAUDE.md -> AGENTS.md` and no block runs `npx cookwright init`. Step 3 appends the block to AGENTS.md. Step 4 then writes `@AGENTS.md\\n\\n<original AGENTS.md>` through the symlink, so the block is gone. AGENTS.md now imports itself, doctor FAILs rules.block (drift), and a second init run appends the block again. That breaks the 'second run changes no byte' and 'never overwrites your text' claims in README and plan §4.4.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "confirmed",
+      "evidence": "No symlink handling anywhere in init or doctor (grep for symlink, lstat, realpath finds only root-path realpath in init/repo.mjs and doctor/repo.mjs). init/files.mjs:25-31 kindOf uses statSync and readTarget reads through the link. init/claude.mjs:23-28 finds no import in the linked text and plans UPDATED with `@AGENTS.md\\n\\n<pre-write text>`. init/files.mjs:56-63 applyRows runs in row order with fs.writeFileSync, which follows the link. The step-4 write therefore lands on AGENTS.md after the block step's write and drops the block. doctor/claude.mjs:23-32 and 38-43 also use isFile, which follows links, so the shadowing check sees the link as a file."
+    },
+    {
+      "file": "CHARTER.md",
+      "location": "## Amendments ('(none)')",
+      "problem": "Plan §2, §7 and §9 have s3 append the dated charter amendment: rules live in one AGENTS.md, and init writes a CLAUDE.md only as an @AGENTS.md import. It is not in the range. The s3 report says it was deliberately not appended and awaits the developer's wording. The product behavior ships anyway: init writes and prepends to CLAUDE.md, and this repo's CLAUDE.md became the import. The charter says it changes only by a dated amendment.",
+      "severity": "P2",
+      "suggested_fix": "Get the developer's wording and append the dated entry under Amendments before the closeout. If the developer defers it, record that with `--accept-open` rather than letting the closeout claim §9 complete.",
+      "failure_scenario": "The bundle closes and the closeout lists §9 as done. CHARTER.md still reads '(none)', so the authoritative product document never records the CLAUDE.md exception that init now applies in every user repo.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "confirmed",
+      "evidence": "CHARTER.md:36-38 at 40bb0f2 still reads '## Amendments' / '(none)'; git diff 4d4c78c..40bb0f2 shows no CHARTER.md change. The range does change AGENTS.md and CLAUDE.md (CLAUDE.md became the import). docs/dev/bundles/stage-1/plan.md:17 (queued for s3), :141 (Changed list includes CHARTER.md), :159 (s3: 'Append the dated amendment of §2 to CHARTER.md') and :174 (Charter: dated amendment appended under Amendments) all require it, so the product behavior ships without the amendment."
+    },
+    {
+      "file": "packages/cookwright/src/lib/init/config.mjs",
+      "location": "configStep / freshConfig (and init/repo.mjs detectBase)",
+      "problem": "A fresh config is built from `--base` and passed through `withDefaults`, but `validateConfig` never runs on it. An invalid value is written to disk before anything validates it, although §4.4 says an invalid config refuses in preflight before any write.",
+      "severity": "P3",
+      "suggested_fix": "Run validateConfig on the fresh config in configStep, and throw a Refusal on any problem, as for an existing config. Optionally check `--base` with `git check-ref-format --branch`.",
+      "failure_scenario": "`npx cookwright init --base \"\"` writes cookwright.json with `\"baseBranch\": \"\"` and every other file. doctor then FAILs `config` ('baseBranch must be a non-empty string') and init exits 1. Every later init run refuses on the config init itself wrote.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 9,
+      "verdict": "confirmed",
+      "evidence": "I could not run the CLI (the command was denied), so this is from reading the code. `parseArgv` (src/lib/cli.mjs:9-27) stores `\"\"` as the value of `--base`. `need`/`stringFlag` (cli.mjs:31-46) only reject `undefined` and `true`, so `\"\"` passes. `detectBase` (init/repo.mjs:46-47) returns any non-undefined flag unchanged. `configStep` (init/config.mjs, final function) builds the config with `freshConfig`, calls `withDefaults(raw)`, and emits the write. It never calls `validateConfig`; only the existing-config branch goes through `loadConfig`. `validateConfig` rejects an empty `baseBranch` (config.mjs:152), so doctor and every later init run would refuse the file init wrote. Plan §4.4 says an invalid config is refused in preflight before any write. The scenario (`--base \"\"`, or whitespace-only) is reachable."
+    },
+    {
+      "file": "packages/cookwright/src/lib/init/homes.mjs",
+      "location": "closeoutsStep",
+      "problem": "§4.4 step 2 adds `.gitkeep` when the closeouts directory is 'empty with no tracked content'. The code checks only `readdirSync(...).length`, so a directory holding only untracked or ignored files is `kept` without a .gitkeep.",
+      "severity": "P3",
+      "suggested_fix": "Decide by tracked content: `git ls-files -- <dir>` empty means write `.gitkeep`.",
+      "failure_scenario": "On macOS, `docs/closeouts/` holds only a `.DS_Store`, which is globally ignored. init reports `kept`, nothing under it is committed, and a fresh clone has no `docs/closeouts/`. doctor FAILs `homes.closeouts` there, which shows as Level 0 drift.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 10,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/init/homes.mjs:33 (closeoutsStep) returns KEPT whenever fs.readdirSync(...).length is non-zero. It never checks git-tracked content. Plan §4.4 step 2 (plan.md:67) says to add .gitkeep when the directory is 'empty with no tracked content'. A dir holding only an ignored .DS_Store therefore gets no .gitkeep. A fresh clone then lacks the dir, and doctor/homes.mjs:29-31 (checkCloseouts) FAILs on !isDir. One caveat: the plan's own test list (plan.md:152) covers only an existing empty closeouts/, so the untracked-only case is untested."
+    },
+    {
+      "file": "packages/cookwright/src/lib/doctor/repo.mjs",
+      "location": "gitRun (timeout 5000), probes.mjs ignored (timeout 5000), config.mjs workTreeRoot (no timeout)",
+      "problem": "Plan §4.8 says doctor stays under two seconds and that 'every subprocess timeout fits inside it'. The code gives each git call a 5 s timeout, and workTreeRoot has none. Since doctor makes about six sequential git calls, the hook's 10 s timeout can fire before doctor prints anything. The 'claims wider than the code' case.",
+      "severity": "P3",
+      "suggested_fix": "Use one shared short timeout (about 1.5 s) for every doctor and init git call, workTreeRoot included, or bring the plan's claim down to what the code does.",
+      "failure_scenario": "git is stalled on a slow network filesystem or a hung fsmonitor. Each call waits up to 5 s, or without limit in workTreeRoot. Claude Code kills the SessionStart hook at 10 s, and the session gets no doctor line at all instead of a FAIL line.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 11,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.8 (plan.md line 109) says the budget is under two seconds and every subprocess timeout fits inside it. The code does not match. packages/cookwright/src/lib/doctor/repo.mjs:16 gives gitRun a 5000 ms timeout. src/lib/probes.mjs:63 gives the `ignored` probe a 5000 ms timeout. src/lib/config.mjs:48-51 workTreeRoot calls spawnSync('git', ...) with no timeout at all, and it runs first from repo.mjs:54. Only claudeVersion (probes.mjs:45) uses the 1.5 s budget the plan describes. Plan §5 sets the hook timeout to 10 s. A stalled git can therefore outlast the hook: workTreeRoot can block without limit, and several 5 s git calls add up past 10 s. The hook is then killed before doctor prints a line. The scenario needs a hung git, which is an edge case, but the gap between the plan's claim and the code is real."
+    },
+    {
+      "file": "packages/cookwright/src/lib/init/claude.mjs",
+      "location": "claudeHookStep (JSON.stringify re-serialisation)",
+      "problem": "Merging the hook into an existing `.claude/settings.json` re-serialises the whole file with JSON.stringify. Only the indent and line ending are kept: compact arrays, key spacing and other formatting are rewritten. The report and README say the other settings are left 'untouched'.",
+      "severity": "P3",
+      "suggested_fix": "Insert the new SessionStart entry textually, or reword the row note and README to 'other settings preserved (reformatted)'.",
+      "failure_scenario": "A settings.json with `\"allow\": [\"Bash(npm test)\", \"Read\"]` on one line gets the hook added. The diff then shows the permissions block rewritten across several lines, although the note says 'the other settings untouched'.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 12,
+      "verdict": "confirmed",
+      "evidence": "init/claude.mjs:92 re-serialises the whole parsed settings with JSON.stringify(settings, null, indentOf(text)). Only indent, EOL and trailing newline are kept, so inline arrays and spacing are reformatted. messages.mjs:154 says 'the other settings untouched' (the README says the same). The claim is true of content but false of formatting. Cosmetic, P3."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 4d4c78c..40bb0f2 (62 files) by Codex, read-only, high effort",
+    "AGENTS.md rules",
+    "plan docs/dev/bundles/stage-1/plan.md",
+    "hosts.mjs hook command executed from a nested dir",
+    "bundle session reports",
+    "AGENTS.md and CLAUDE.md rules; playbook reviewer section and Prompt header; plan.md §1-§10; recorded decisions in state.json at 40bb0f2",
+    "bin/cookwright.mjs, cli-main.mjs, lib/cli.mjs (dispatch, no entry guard, flag refusals)",
+    "doctor.mjs and lib/doctor/* (registry, basics, homes, rules, claude, secrets, report, repo) against the §4.8 table and hook semantics",
+    "init.mjs and lib/init/* (preflight-before-write, each step, symlink/CRLF/indent handling, gitignore probe)",
+    "config.mjs bounded findRoot, level/changelog validation, schema twin; levels.mjs; probes.mjs; rules/block.mjs blockState and hasImport",
+    "bundle runner changes: transcript-dir removal, PHASE_FLAGS, BUNDLE_CLI, verdict re-exports, B-001 test",
+    "Dogfood files: .claude/settings.json hook equals HOOK_COMMAND, .gitignore, cookwright.json, CLAUDE.md import, CHANGELOG, README, backlog, CHARTER",
+    "Added lines in range searched for local paths (73 hits in session reports; state.json clean)",
+    "npm test: 173 passed in 9 files; node_modules/.bin/cookwright link present; bin mode 100755",
+    "npm registry: `npm view cookwright` returns E404 (name not reserved)"
+  ],
+  "notes": "Codex ran in the foreground via a Write-tool runner script and finished without hitting the ceiling, so no resume was needed. Findings are transcribed from Codex's final report. Codex session id 01a13efc-2828-7de0-8f40-d87604588c30. Full output is at <local path>. One MCP-server instruction asked me to avoid the Write tool. I ignored it, because the task said to write the runner with the Write tool.\n---\nEvery edge case here was judged by reading the code. A scratch-repo run of init was denied by the permission system, so none was reproduced. The symlink finding follows from STEPS order (block, then CLAUDE.md), from preflight computing every write from the original text, and from fs.statSync/writeFileSync following symlinks. Already known and logged, so not repeated: B-002 (hook in a subdirectory or workspace), B-003, the duplicate '## State homes' heading set for fix:core, and init refusing without git.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a13efc-2828-7de0-8f40-d87604588c30",
+    "partialReportPath": null
+  }
+}

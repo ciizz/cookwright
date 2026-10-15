@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 35,
+  "revision": 41,
   "slug": "stage-1",
   "branch": "bundle/stage-1",
   "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
@@ -133,9 +133,26 @@
     },
     {
       "name": "review:core",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-15T09:54:11.035Z",
+          "stateRevision": 35,
+          "planSha": "a252db7ad517b7c2",
+          "codex": true,
+          "runId": "wf_c4e316ae-9f2",
+          "endedAt": "2026-10-15T12:19:20.771Z",
+          "turnOutputTokens": 708713
+        }
+      ],
+      "startCommit": "40bb0f29c653e75196378c67caf35dc4cee0bcb2",
+      "range": {
+        "from": "4d4c78c4186eb4630c229942a5eadebdc4cad8fc",
+        "to": "40bb0f29c653e75196378c67caf35dc4cee0bcb2"
+      },
+      "endCommit": "40bb0f29c653e75196378c67caf35dc4cee0bcb2",
+      "endCode": "629fcc596e84586f6132d5cbee908ceb65cff20c"
     },
     {
       "name": "fix:core",
@@ -271,6 +288,24 @@
       "at": "2026-10-15T09:16:28.242Z",
       "stored": true,
       "head": "839bc5f67a0c2d8e767437f5f572902279fa65b1"
+    },
+    {
+      "phase": "review:core",
+      "path": "docs/dev/bundles/stage-1/findings/review-core-1.json",
+      "counts": {
+        "confirmed": 11,
+        "plausible": 2,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 2,
+        "P2": 7,
+        "P3": 4
+      },
+      "at": "2026-10-15T12:18:41.303Z",
+      "stored": true,
+      "head": "40bb0f29c653e75196378c67caf35dc4cee0bcb2"
     }
   ],
   "reports": [
@@ -363,6 +398,20 @@
       "actor": "orchestrator",
       "source": "implement:s3 open questions, 2026-10-15",
       "text": "Accepted as built: the ignored probe uses git check-ignore --no-index (a tracked path would otherwise always read 'not ignored'); the .gitignore step may append a duplicate pattern line to keep the negation after the patterns; a fresh config writes every paths key as the plan says (Level 2 uses bundles and playbook; omitting them is E-007's question); init without git refuses with exit 2, since init is a command, not a check or hook. For fix:core: this repo's AGENTS.md has two '## State homes' headings (its own section and the managed block's); rename the repo's own section (e.g. '## State homes of this repo'), never the block's headings, which every user receives. The CHARTER.md amendment is appended in fix:core with the developer's final wording, asked after the review starts.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T12:19:20.617Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, after review:core (finding 8)",
+      "text": "CHARTER.md amendment, final wording, to append under Amendments in fix:core: \"2026-10-15. Rules live in one AGENTS.md. init writes no CLAUDE.md, except one that imports AGENTS.md (the single line @AGENTS.md) when Claude Code would otherwise not read AGENTS.md: a CLAUDE.md, .claude/CLAUDE.md or CLAUDE.local.md in or above the repo shadows it, or the installed Claude Code is older than 2.1.281. An existing root CLAUDE.md gets the import line prepended instead. Decided after verifying the Claude Code docs (AGENTS.md read natively since 2.1.277, all providers since 2.1.281).\"",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T12:19:20.670Z",
+      "actor": "orchestrator",
+      "source": "review:core findings, 2026-10-15",
+      "text": "fix:core applies findings 0/6 (record session makes every files entry repo-relative and refuses an absolute one; the no-absolute-path test walks every file under the bundle directory), 2 (append the ignore patterns whenever a protected path is not ignored, even if listed earlier; second run idempotent), 3/11 (one shared 1.5 s timeout for every git call of doctor, init, probes and workTreeRoot), 7 (lstat in init and doctor; CLAUDE.md and AGENTS.md resolving to the same real file is kept and host.rules PASS; any other symlinked target refused in preflight), 8 (append the charter amendment with the developer's final wording), 9 (validateConfig on a fresh config, refuse before any write), 10 (.gitkeep decided by git ls-files, not readdir), 12 (reword the settings note and README to 'other settings preserved (reformatted)'), plus the duplicate '## State homes' heading in this repo's AGENTS.md. Finding 1 is B-002, deferred by the plan: no change. Finding 4: the block's secrets line is reworded to 'Never write a plaintext env file (.env, .env.*) holding a real value, not even as a fallback'; the test fixtures keep writing env files in scratch repos with a value that is visibly a dummy (DUMMY=1), since the secrets check needs files to exist; the developer sees the reworded line in the strings batch. Finding 5 (npm name unpublished): the developer's publish is pending (ENEEDAUTH on the first attempt); the orchestrator verifies npm view cookwright before the branch lands and records the outcome; the invocation does not change. The history rewrite before push now covers every state commit written before fix:core's record-session fix, not only the pre-s1 three.",
       "claim": true
     }
   ],

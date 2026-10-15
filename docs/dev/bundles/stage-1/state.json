@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 65,
+  "revision": 68,
   "slug": "stage-1",
   "branch": "bundle/stage-1",
   "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
@@ -248,7 +248,8 @@
           "startedAt": "2026-10-15T13:59:39.272Z",
           "stateRevision": 64,
           "planSha": "a252db7ad517b7c2",
-          "codex": true
+          "codex": true,
+          "runId": "wf_d1b88e60-ede"
         }
       ],
       "startCommit": "51a196990304193e8561ab40b653fe2d56b403ba",
@@ -436,6 +437,25 @@
       "at": "2026-10-15T12:44:50.768Z",
       "stored": true,
       "head": "6c3542636c5c089d634b538ff4becbd638170b58"
+    },
+    {
+      "phase": "closeout",
+      "path": "docs/dev/bundles/stage-1/findings/closeout-1.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 11,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 4,
+        "P3": 7
+      },
+      "at": "2026-10-15T14:07:37.363Z",
+      "stored": true,
+      "head": "7dfbed9c0c16aade06fb1152042b57ee17c5a3f6",
+      "closeoutSha": "ea1b2a3a107ee823"
     }
   ],
   "reports": [
@@ -591,6 +611,13 @@
       "actor": "developer",
       "source": "npm publish, 2026-10-15 13:42Z",
       "text": "The npm name cookwright is held by the developer's own account: npm publish printed '+ cookwright@0.0.0' and the registry record (npm view, maintainers) is the developer's; the registry first shows a 2-file placeholder cookwright@0.0.0-stage ('Temporary package placeholder for staged publishing') created by npm's staged publishing while 0.0.0 is processed. Review findings review-core 5 and review-whole 1/9 (an unreserved name behind npx cookwright) are closed on this evidence; the closeout quotes the registry's dist-tags at verification time.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T14:08:19.204Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, after review:whole (findings 0 and 7)",
+      "text": "History rewrite now, before merge: git filter-repo --replace-text on the branch with a per-path replacement list, after confirming no main commit is rewritten; the recorded ids remapped with a one-off script fed by filter-repo's commit-map, not committed and not a bundle remap subcommand; one fresh gate on the new HEAD so bundle check passes on real evidence; the finding closed on that evidence, not with --accept-open; the remap backlogged as an enhancement with its real justification (a user who purges a leaked secret from history should keep their bundle evidence), built when a second need shows up; the procedure recorded in the closeout minus the developer's values; what wrote the paths and since when the fix is in recorded too.",
       "claim": true
     }
   ],

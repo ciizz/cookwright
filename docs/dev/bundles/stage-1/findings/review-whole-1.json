@@ -50,17 +50,17 @@
     {
       "file": "packages/cookwright/src/lib/bundle/scrub.mjs",
       "location": "scrub.mjs:25, scrub.mjs:28",
-      "problem": "Scrubbing recognizes only the repo root, home directory and a few temp prefixes; other absolute paths (e.g. /opt/company/private.txt, /Volumes/work/code.mjs) remain, and Windows paths are mishandled in serialized JSON.",
+      "problem": "Scrubbing recognizes only the repo root, home directory and a few temp prefixes; other absolute paths (e.g. /opt/company/private.txt, <local path>) remain, and Windows paths are mishandled in serialized JSON.",
       "severity": "P1",
       "suggested_fix": "Detect or refuse all remaining Unix and Windows absolute paths after normalization, preferably sanitizing structured values before JSON serialization and validating the final stored text. Test paths outside home/temp and Windows drive/UNC paths.",
-      "failure_scenario": "A findings note records output under /Volumes/ClientName/build.log; writeRecord commits that private machine-local path verbatim despite the claim that records contain no machine-local paths.",
+      "failure_scenario": "A findings note records output under <local path>; writeRecord commits that private machine-local path verbatim despite the claim that records contain no machine-local paths.",
       "reviewers": [
         "codex"
       ],
       "alsoReported": [],
       "index": 3,
       "verdict": "plausible",
-      "evidence": "scrub.mjs:25 lists only homedir, tmpdir, <local path> and /private/tmp. I ran scrubLocalPaths on '/Volumes/ClientName/build.log /opt/x/y' and it came back unchanged, so the literal scenario holds. The header (scrub.mjs:1-4) scopes scrubbing to the repo root, home and temp dirs, so this may be a deliberate limit and not a defect. I did not test Windows serialized-JSON paths."
+      "evidence": "scrub.mjs:25 lists only homedir, tmpdir, <local path> and /private/tmp. I ran scrubLocalPaths on '<local path> /opt/x/y' and it came back unchanged, so the literal scenario holds. The header (scrub.mjs:1-4) scopes scrubbing to the repo root, home and temp dirs, so this may be a deliberate limit and not a defect. I did not test Windows serialized-JSON paths."
     },
     {
       "file": "packages/cookwright/src/lib/hosts.mjs",
@@ -98,14 +98,14 @@
       "problem": "scrubLocalPaths runs a text regex over JSON that has already been serialized. The path pattern `[^\\s'\"`)\\]}>,;]*` stops at a quote but accepts a backslash. So for a path followed by an escaped quote (`\\\"`) inside a JSON string, the regex eats the backslash and leaves a bare `\"`, which ends the JSON string early. A path followed by a JSON-escaped newline (`\\n`) also eats the newline and the next word. saveState then renames the broken text over state.json, and writeRecord writes broken findings JSON.",
       "severity": "P1",
       "suggested_fix": "Scrub values, not serialized text. Walk the object and scrub each string, then JSON.stringify; for .md records, scrub the raw text. At minimum, keep `\\\\` out of the path character class when the input is JSON, and JSON.parse the scrubbed output before the rename, refusing when it fails. Add a test with a quoted machine path in a decision and in a finding.",
-      "failure_scenario": "Reproduced in-process: scrubLocalPaths(JSON.stringify({evidence:'codex wrote its report to \"<local path>" and stopped'}), root) returns `\"codex wrote its report to \\\"<local path>\" and stopped\"`, and JSON.parse throws 'Expected , or }'. In real use, `bundle decide` with text quoting a scratch or transcript path, or `--accept-incomplete \"<reason>\"` naming one, lets saveState overwrite state.json with invalid JSON. Every later bundle command (loadState, and saveState's own revision read) then crashes, and the rules forbid fixing the state by hand. A reviewer's findings that quote a scratchpad path (as review-core-1 did) become an invalid findings/*.json, and a later `recheckOf` re-check crashes in carryForward's JSON.parse.",
+      "failure_scenario": "Reproduced in-process: scrubLocalPaths(JSON.stringify({evidence:'codex wrote its report to \"<local path>\" and stopped'}), root) returns `\"codex wrote its report to \\\"<local path>\" and stopped\"`, and JSON.parse throws 'Expected , or }'. In real use, `bundle decide` with text quoting a scratch or transcript path, or `--accept-incomplete \"<reason>\"` naming one, lets saveState overwrite state.json with invalid JSON. Every later bundle command (loadState, and saveState's own revision read) then crashes, and the rules forbid fixing the state by hand. A reviewer's findings that quote a scratchpad path (as review-core-1 did) become an invalid findings/*.json, and a later `recheckOf` re-check crashes in carryForward's JSON.parse.",
       "reviewers": [
         "red-team"
       ],
       "alsoReported": [],
       "index": 6,
       "verdict": "confirmed",
-      "evidence": "Reproduced against scrub.mjs:36 (the char class excludes the quote but not the backslash). Input JSON.stringify({e:'wrote to \"<local path>" and stopped'}) gave {\"e\":\"wrote to \\\"<local path>\" and stopped\"}, and JSON.parse threw \"Expected ',' or '}'\". A path followed by an escaped newline also swallowed the newline and the next word ('see <local path> word'). The scrub is applied to serialized JSON at state.mjs:73 and phases.mjs:233, so saveState can write invalid state.json."
+      "evidence": "Reproduced against scrub.mjs:36 (the char class excludes the quote but not the backslash). Input JSON.stringify({e:'wrote to \"<local path>\" and stopped'}) gave {\"e\":\"wrote to \\\"<local path>\" and stopped\"}, and JSON.parse threw \"Expected ',' or '}'\". A path followed by an escaped newline also swallowed the newline and the next word ('see <local path> word'). The scrub is applied to serialized JSON at state.mjs:73 and phases.mjs:233, so saveState can write invalid state.json."
     },
     {
       "file": "docs/dev/bundles/stage-1/plan.md",
@@ -127,15 +127,15 @@
       "location": "line 36: the `<local path>` and `<local path>` patterns have no left boundary",
       "problem": "The machine-dir regex is not anchored at the start of a path. Any repo-relative path or URL that contains `<local path>` or ends in `<local path>` is rewritten to `<local path>`, including the session-report file lists that relativeFiles has just made repo-relative.",
       "severity": "P2",
-      "suggested_fix": "Require a boundary before the dir: start of text, or a character that cannot be part of a path (whitespace, a quote, a backtick, `(`, `=`, `:` not followed by `//`). Add a test with `app<local path>` and an https URL containing <local path>",
-      "failure_scenario": "Reproduced: scrubLocalPaths('- `app<local path>`\\nsee https://example.com<local path>', root) returns '- `app<local path>`' and 'https://example.com<local path>'. An implementer that touches `ios<local path>` or `scripts<local path>` gets a committed session report listing `ios<local path>`. Findings evidence that cites such a file loses its location, so the orchestrator and the closeout verifier cannot find the file the finding names.",
+      "suggested_fix": "Require a boundary before the dir: start of text, or a character that cannot be part of a path (whitespace, a quote, a backtick, `(`, `=`, `:` not followed by `//`). Add a test with `app/tmp/x.ts` and an https URL containing <local path>",
+      "failure_scenario": "Reproduced: scrubLocalPaths('- `app/tmp/cache.ts`\\nsee https://example.com/tmp/x', root) returns '- `app<local path>`' and 'https://example.com<local path>'. An implementer that touches `ios/tmp/...` or `scripts/tmp/seed.ts` gets a committed session report listing `ios<local path>`. Findings evidence that cites such a file loses its location, so the orchestrator and the closeout verifier cannot find the file the finding names.",
       "reviewers": [
         "red-team"
       ],
       "alsoReported": [],
       "index": 8,
       "verdict": "confirmed",
-      "evidence": "scrub.mjs:36 has no left boundary on the '<local path>' and '<local path>' spellings. Reproduced: '- `app<local path>`' became '- `app<local path>`' and 'https://example.com<local path>' became 'https://example.com<local path>'."
+      "evidence": "scrub.mjs:36 has no left boundary on the '<local path>' and '<local path>' spellings. Reproduced: '- `app/tmp/cache.ts`' became '- `app<local path>`' and 'https://example.com/tmp/x' became 'https://example.com<local path>'."
     },
     {
       "file": "packages/cookwright/src/lib/rules/agents-block.md",
@@ -215,7 +215,7 @@
     "README, CHANGELOG, CHARTER amendment, backlog, playbook/skill invocation changes",
     "Ran npm test (185 passed), doctor on this repo (11 PASS), in-process reproductions of scrub JSON corruption, scrub mid-path <local path> mangling, hasImport variants, npm view cookwright (E404)"
   ],
-  "notes": "Codex completed within the ceiling (exit 0), so no resume was needed. Findings transcribed from its final report with no additions. Codex session id 01a13f91-7cfa-7390-a546-3eb7500d64a3. Full output: <local path> c0322d4a..6c354263, reviewed read-only. The suite is green (185 tests) and doctor on this repo gives 11 PASS. Two findings are reproduced, not inferred. (1) fix:core's new scrubLocalPaths runs a regex over serialized JSON, so a quoted machine path in a decision or finding turns state.json or a findings file into invalid JSON; saveState renames the result over the live state. (2) The same regex has no left boundary, so repo paths like app<local path> and URLs containing <local path> are mangled to `<local path>`. The planned pre-push history rewrite now has to start at d00d0bf: six in-range commits still carry `/Users/<name>` paths. That rewrite would change every gate, phase and range commit id recorded in state.json, which contradicts the plan's 'every recorded commit id survives' and leaves bundle.gate-slice:core permanently red. The npm-name precondition of plan §2 (b) is still unmet (E404), as review:core already noted. B-002 (hook from a subdirectory) is a known deferral, so I did not re-raise it.",
+  "notes": "Codex completed within the ceiling (exit 0), so no resume was needed. Findings transcribed from its final report with no additions. Codex session id 01a13f91-7cfa-7390-a546-3eb7500d64a3. Full output: <local path>\n---\nRange c0322d4a..6c354263, reviewed read-only. The suite is green (185 tests) and doctor on this repo gives 11 PASS. Two findings are reproduced, not inferred. (1) fix:core's new scrubLocalPaths runs a regex over serialized JSON, so a quoted machine path in a decision or finding turns state.json or a findings file into invalid JSON; saveState renames the result over the live state. (2) The same regex has no left boundary, so repo paths like app/tmp/x.ts and URLs containing <local path> are mangled to `<local path>`. The planned pre-push history rewrite now has to start at d00d0bf: six in-range commits still carry `/Users/<name>` paths. That rewrite would change every gate, phase and range commit id recorded in state.json, which contradicts the plan's 'every recorded commit id survives' and leaves bundle.gate-slice:core permanently red. The npm-name precondition of plan §2 (b) is still unmet (E404), as review:core already noted. B-002 (hook from a subdirectory) is a known deferral, so I did not re-raise it.",
   "reviewers": [
     {
       "name": "codex",

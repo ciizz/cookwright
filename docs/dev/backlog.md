@@ -6,6 +6,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 
 - **B-002** (2026-10-15) The SessionStart hook command looks for `node_modules/cookwright` in `CLAUDE_PROJECT_DIR`. When a Claude session starts in a subdirectory of the repo, or the package is installed in a workspace sub-package, the hook prints "package not installed", although doctor run from there would find the root.
 - **B-003** (2026-10-15) The bundle CLI ignores unknown flags on every subcommand but the three `phase` verbs, so a mistyped or dropped flag passes silently. `init` and `doctor` refuse them through `onlyFlags` in `src/lib/cli.mjs`.
+- **B-005** (2026-10-15) README.md still says the package is not on npm; cookwright@0.0.0 was published on 2026-10-15 during stage-1 (doc drift found by the closeout verify). One line; lands with stage 2's first commit.
 
 ## Open enhancements
 

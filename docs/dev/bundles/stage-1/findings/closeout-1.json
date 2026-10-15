@@ -1,0 +1,122 @@
+{
+  "phase": "closeout",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/closeouts/stage-1.md",
+      "location": "Reviews (Plan review, round 1)",
+      "problem": "Says plan-review round 1 had \"7 of them P1\". findings/plan-review-1.json has 8 P1 issues (indices 0, 1, 2, 3, 4, 5, 6, 15), and state rev 65's findings[0].openBySeverity also gives P1: 8.",
+      "severity": "P2",
+      "suggested_fix": "Change \"7 of them P1\" to \"8 of them P1\".",
+      "failure_scenario": "A reader who checks the closeout's severity count against the findings file or the state finds a different number. That makes the rest of the review summary harder to trust.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-1.md",
+      "location": "Header paragraph (\"merged by fast-forward\")",
+      "problem": "The closeout says, in the past tense, that the branch was \"merged by fast-forward\". main is still at c0322d4 (the merge base, git merge-base main bundle/stage-1 = c0322d4a), so nothing has landed. The closeout phase is still running in state.",
+      "severity": "P2",
+      "suggested_fix": "Write it as the plan (\"to be merged by fast-forward after the closeout\"), or add the sentence only once the merge has happened.",
+      "failure_scenario": "Someone reading the closeout believes stage 1 is on main and starts stage 2 from main. main does not have the bin, init or doctor.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-1.md",
+      "location": "Decided during the stage",
+      "problem": "Says \"Three of them were the developer's\" and then lists four items: the two §9 updates, the rewrite with a throwaway remap, and the npm name. State rev 65 records six developer decisions: 08:57:25.610, 08:57:25.679, 09:12:55.751, 09:12:55.814, 12:19:20.617 and 13:43:45.822. None of them records the throwaway-remap decision. The History rewrite section also calls the throwaway script 'the developer's decision', and nothing in the state backs that; only backlog E-016 mentions the script.",
+      "severity": "P2",
+      "suggested_fix": "Give the right count (six developer decisions, as the generated list shows). Either record the throwaway-remap decision through `bundle decide`, or stop presenting it as a recorded developer decision.",
+      "failure_scenario": "An auditor reconciles the prose with the generated list and finds that the number, the items and the source of one decision all disagree. The remap procedure is cited as authorized, but no recorded decision exists for it.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-1.md",
+      "location": "The history rewrite (\"Two artifacts to know about\")",
+      "problem": "The list of two artifacts is incomplete. The stored findings record docs/dev/bundles/stage-1/findings/review-whole-1.json is not valid JSON at the range end (JSONDecodeError at line 101 col 135). It was already invalid before the rewrite (b16b6dc) and after it (b16b6dc, 6815f15, 51a1969). The serialized-JSON scrub bug that review:whole reproduced corrupted it. Its text is also mangled: 'app/tmp/x' became 'app<local path>', and a URL had its path replaced. The closeout links this file in its Review trajectory table and leaves this out.",
+      "severity": "P2",
+      "suggested_fix": "Name review-whole-1.json as a third artifact (invalid JSON, mangled quotations), or repair it once by re-recording or hand-fixing the escaping and note the repair. Open a backlog item if it stays broken.",
+      "failure_scenario": "A tool or later re-check that runs JSON.parse on the findings record (carryForward or recheckOf) crashes on the file the closeout cites as evidence.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-1.md",
+      "location": "What shipped (\"This repo eats its own cooking\")",
+      "problem": "\"The next session opened here saw the hook's line\" has no recorded evidence. QA round 3, the only record of the hook line showing up in a live session, was in the personal Expo app, not in this repo. QA round 1 (this repo) records init and doctor only. Plan §8's check that a fresh session in this repo prints the hook line is not recorded anywhere in the range.",
+      "severity": "P3",
+      "suggested_fix": "Drop the sentence or point it at the app (QA round 3). If it really was seen in this repo, record it as QA evidence.",
+      "failure_scenario": "A reader takes this repo's hook as verified live when only the app's hook was.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-1.md",
+      "location": "Device QA, round 1",
+      "problem": "\"The install also added a stray `cookwright` devDependency to the root `package.json`, reverted\" is not in qa/round-1.md, which says npm install 'reported up to date'. No commit in the range touches package.json after d60831a. The round's recorded finding, 3 audit findings (1 moderate, 2 critical) that opened E-017, is left out.",
+      "severity": "P3",
+      "suggested_fix": "Describe round 1 from its record: up to date, 3 audit findings, E-017 opened. Remove the stray-devDependency claim, or add it to the QA record.",
+      "failure_scenario": "The closeout reports a QA observation that exists only in prose and leaves out the one the record does carry.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-1.md",
+      "location": "Reviews (review:core)",
+      "problem": "Says fix:core added \"a two-second budget for every subprocess\". The code (budget.mjs: BUDGET_MS 1800, CALL_CAP_MS 1500), the 12:36:56 decision and the closeout's own What shipped section all say one shared 1.8 s budget for doctor with a 1.5 s cap per call. Outside doctor, a call is capped at 1.5 s and there is no shared budget.",
+      "severity": "P3",
+      "suggested_fix": "Say \"one shared 1.8 s budget for doctor's git and claude calls, 1.5 s cap per call elsewhere\".",
+      "failure_scenario": "The closeout contradicts itself (1.8 s vs two seconds) about a number that controls how the hook behaves on timeout.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-1.md",
+      "location": "The history rewrite (\"What wrote the paths\")",
+      "problem": "\"The fix is in since 6c35426 (records scrubbed) and hardened in 257aeb1, 624b497 and b22cb18\" puts the commits in the wrong order. b22cb18 (implement:s1, run id only) and 257aeb1 (the write-time scrub) both come before 6c35426. Only 624b497 (and 70a03d2/1d87bb9) came later as hardening. The actual write-time fix is 257aeb1; 6c35426 is the fix:core state commit that scrubbed the older records.",
+      "severity": "P3",
+      "suggested_fix": "Attribute it as: b22cb18 dropped --transcript-dir; 257aeb1 scrubs at write time; 6c35426 scrubbed the existing records; 624b497, 70a03d2 and 1d87bb9 hardened the scrub.",
+      "failure_scenario": "A reader following the commit ids to see when the fix landed gets the order backwards.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-1.md",
+      "location": "Verified by hand (hook mode \"about 75 ms\")",
+      "problem": "The ~75 ms hook-mode timing comes from implement:s2's session report (sessions/implement-s2-1.md:101), measured before the budget, scrub and fix commits. It is presented as measured \"at close\". A run now takes about 110 ms of wall time.",
+      "severity": "P3",
+      "suggested_fix": "Attribute the figure to s2, or measure it again at close.",
+      "failure_scenario": "A timing from mid-bundle is presented as a close-time measurement.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-1.md",
+      "location": "Header paragraph (commit count)",
+      "problem": "\"forty-nine commits at the start of the closeout phase (the closeout's own commits follow)\". The closeout range in state is c0322d4a..51a1969, which is 48 commits. 49 counts 557c67a, \"closeout started\", which is itself one of the closeout's own commits.",
+      "severity": "P3",
+      "suggested_fix": "Say forty-eight, or drop the parenthetical.",
+      "failure_scenario": "The commit count does not match the range the state records for the closeout phase.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-1.md",
+      "location": "What shipped (the bin) / State at close (README)",
+      "problem": "\"published by the developer with a security key\" has no support in any record. The 13:43:45 decision records only the publish output and the npm view result. The closeout also says the package is on npm while the shipped README still says \"nothing is released yet\" and \"Not on npm yet\", and State at close lists the README without noting it is out of date.",
+      "severity": "P3",
+      "suggested_fix": "Drop \"with a security key\" unless it is recorded. Note the README's \"Not on npm yet\" as doc drift, or open a backlog item for it.",
+      "failure_scenario": "Unverifiable detail in the closeout, and a README that contradicts what the closeout says shipped.",
+      "verdict": "plausible"
+    }
+  ],
+  "checked": [
+    "Generated tables (five numbers, review trajectory, gate history, decided on your behalf) checked against state.json at 557c67a (revision 65): output token sum 2606565, wall clock about 5.05 h, 5 review runs, 3 QA rounds, every gate commit, every findings count, and all 15 decisions verbatim",
+    "Commit counts: 48 in c0322d4a..51a1969; 12 fix:core commits; 8 fix:whole commits; 42 branch commits at rewrite time, 06223a0 unchanged, 41 rewritten",
+    "Pre-rewrite objects from the reflog: 77b2b68 and 77b2b68 have the same tree (HEAD byte-identical); 09297eb..e4aa407 maps to 09297eb..e4aa407; 40 ids replaced in state by 6815f15",
+    "Findings files: plan-review-1 has 31 findings (17 confirmed, 14 plausible, 8 P1); review-core 13 (11 confirmed); review-whole 13 (5 confirmed, invalid JSON); two reproduced findings in review-whole",
+    "Test counts from session reports (80/92/138/173/185/191); ran npm test: 191 tests in 11 files",
+    "Ran doctor (11 PASS, level 0 complete, next line), doctor --hook (one line), init --dry-run (all kept)",
+    "npm view cookwright: latest 0.0.0, versions 0.0.0-stage and 0.0.0, single maintainer",
+    "No machine path in any commit diff or message in the range; the three /Users/<user> placeholders are confirmed",
+    "Backlog diff (B-001/B-004 closed, B-002/B-003 open, E-004 widened, E-007 narrowed, E-010..E-017 opened), CHARTER amendment, CHANGELOG Unreleased lines, README, invocation rename, doctor registry (11 checks), hosts table, bin without entry guard",
+    "QA round 1-3 records against the Device QA section",
+    "main tip and merge base (main not yet merged)"
+  ],
+  "notes": "The task said the state is at revision 64. 51a1969 is at revision 64, 557c67a and HEAD are at 65, and the working tree is at 66 (uncommitted). The closeout's tables say revision 65, which matches 557c67a, and every generated table matches that revision. The problems are all in the hand-written prose. Most serious: the P1 count is wrong (7, actually 8); 'merged by fast-forward' is claimed but main has not moved; the developer-decision count is wrong and one decision has no record (the throwaway remap); and the 'two artifacts' list leaves out that findings/review-whole-1.json is invalid JSON and its quotations are mangled by the old scrub. The relayed user message (the hook line quoted in a session) supports QA round 3 in the app. It does not support the claim that a session in this repo saw the hook line.",
+  "timedOut": false,
+  "incomplete": [],
+  "closeoutSha": "ea1b2a3a107ee823"
+}

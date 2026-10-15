@@ -247,13 +247,20 @@ _2 commits in this release, 1 internal (docs, chore, refactor, tests, tooling)._
     expect(text).not.toMatch(/ \n/);
   });
 
-  it('is the same whatever log.showSignature says', () => {
-    const repo = repoAt();
-    commitMsg(repo, 'feat: one');
-    tag(repo, 'v1.0.0', 'released: 2026-10-15');
-    const before = generate(repo.root).text;
-    run(repo.root, 'git', ['config', 'log.showSignature', 'true']);
-    expect(generate(repo.root).text).toBe(before);
+  it('runs git log with log.showSignature off, so a signer’s setting cannot reach the render', async () => {
+    const calls = [];
+    vi.resetModules();
+    vi.doMock('./lib/changelog/tags.mjs', () => ({ git: (root, args) => calls.push(args) && '' }));
+    try {
+      const { commitsBetween } = await import('./lib/changelog/commits.mjs');
+      expect(commitsBetween('/repo', 'v2.0.0', ['v1.0.0', 'v1.1.0'])).toEqual([]);
+    } finally {
+      vi.doUnmock('./lib/changelog/tags.mjs');
+      vi.resetModules();
+    }
+    expect(calls).toEqual([
+      ['-c', 'log.showSignature=false', 'log', '--format=%H%x1f%s', 'v2.0.0', '--not', 'v1.0.0', 'v1.1.0', '--'],
+    ]);
   });
 
   it('lists a maintenance release once, under its own version, and reports it out of line', () => {

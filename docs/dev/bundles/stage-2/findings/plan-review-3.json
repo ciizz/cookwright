@@ -1,0 +1,92 @@
+{
+  "phase": "plan-review",
+  "stored": true,
+  "issues": [
+    {
+      "index": 3,
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "lines 56-60,152; planned lib/hooks/push.mjs",
+      "problem": "Pre-push reads stdin only to detect empty/deletion pushes; gate commands and changelogState() run against the current checkout, ignoring each pushed local SHA.",
+      "severity": "P1",
+      "suggested_fix": "For this stage, refuse unless the tree is clean and every non-deletion local SHA equals HEAD, explaining that the pushed ref cannot be verified; fuller fix is a temporary worktree per unique pushed SHA. Add tests for an unstaged fix masking a bad commit and for a non-HEAD refspec.",
+      "failure_scenario": "Developer commits a failing test or stale changelog, then makes an unstaged fix. `git push` tests the fixed working tree, passes, and pushes the broken commit. `git push origin other-branch:main` checks the checked-out branch instead of other-branch.",
+      "verdict": "confirmed",
+      "evidence": "Half resolved; the developer has ratified accepting the rest. Resolved: the non-HEAD refspec half. §4.1 'pre-push stdin' (line 67) now makes the gate and changelog lines `SKIP  not tested: <ref> is not the checked-out branch` instead of a PASS judged on HEAD, and §6 (line 167) tests it. Still holds: the dirty-tree half. When the pushed sha is HEAD and the tree is dirty, the checks still judge the working tree and never refuse. They only add the suffix `(judged on the working tree, N uncommitted file(s), not <sha8>)`. In the failure scenario (a bad commit masked by an unstaged fix) the gate still prints PASS, with the label, and git pushes the broken commit. The developer ratified this as an accepted risk (§2 disposition 8, line 33; state.json decision actor 'developer', 15:36:49Z), and §9 (g) backlogs the per-sha worktree. This is an accepted P1, not one the revision fixes."
+    },
+    {
+      "index": 4,
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "lines 74,80-85; planned lib/init/hooks.mjs",
+      "problem": "In a linked worktree `git config --local` writes the shared repo config, so the relative `.githooks` core.hooksPath applies to all worktrees, including ones on older branches lacking the tracked shims.",
+      "severity": "P1",
+      "suggested_fix": "Detect linked worktrees in preflight and either refuse them for Stage 2 with an actionable message, or support worktree-scoped config via extensions.worktreeConfig plus `git config --worktree`. Add a two-worktree test showing init in one cannot silently disable checks in the other.",
+      "failure_scenario": "Init runs in one linked worktree and activates .githooks. A sibling worktree on an older branch has no .githooks/pre-commit; Git silently finds no hook, so commits bypass secret and doc-sync checks without even the planned 'package not installed' line.",
+      "verdict": "confirmed",
+      "evidence": "Still holds; the developer ratified accepting it. §2 disposition 10 (line 35) and §4.3 'Linked worktrees' (line 95) add neither a preflight refusal nor worktree-scoped config. A plain `git commit` in a sibling worktree whose branch lacks .githooks/ still skips the secret scan and doc-sync, with no line printed. The only mitigation is doctor reporting `hooks.pre-commit FAIL missing` in that worktree, and only when doctor runs there. §6 (line 170) adds a two-worktree test, but it asserts that doctor FAIL, not that the bypass is prevented. The developer ratified this (state.json decision actor 'developer', 15:36:50Z: 'accept that a sibling worktree ... runs no hook'). This is an accepted P1, not one the revision fixes."
+    },
+    {
+      "index": 7,
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "lines 93,97,103; planned lib/changelog/tags.mjs and commits.mjs",
+      "problem": "Tags are sorted numerically and adjacent <prev>..<tag> ranges computed without verifying the previous tag is an ancestor of the next; --merged HEAD admits tags from merged maintenance branches.",
+      "severity": "P2",
+      "suggested_fix": "Define release ordering in ancestry terms and reject ambiguous/divergent tag graphs, or choose an explicit first-parent/topological policy. Add a maintenance-branch merge test and an out-of-order backport tag test.",
+      "failure_scenario": "Main has v2.0.0, then merges a maintenance branch tagged v1.1.1. Numeric order puts v1.1.1 before v2.0.0 though the commits are not a linear chain; sections duplicate or omit commits and --unreleased uses the numerically greatest tag rather than the most recent release in history.",
+      "verdict": "rejected",
+      "evidence": "Resolved. §4.4 Tags (line 106) and Commits (line 110) no longer use adjacent `<prev>..<tag>` ranges. A release is now `git log <tag> --not <every lower version tag>` and `--unreleased` is `HEAD --not <every tag>` (§4.4 Modes, line 118). Applied to the scenario: v1.1.1 gets {F}, v2.0.0 gets its main-line commits, v2.1.0 gets {M, B}. F is counted once, and a released F is never listed as unreleased. The non-ancestor pair still prints its stderr note. §6 (line 166) and the line 106 test assert that F appears once and that v2.1.0 is {M, B}. A wording nit that does not reopen the finding: before v2.1.0, `--unreleased` lists M and the commits after it, not 'only commits after M' as line 106 puts it."
+    },
+    {
+      "index": 9,
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "file": "docs/dev/bundles/stage-2/plan.md",
+      "location": "§4.3 preflight, §4.6 hooks.path",
+      "problem": "The plan tells local from non-local config by the origin string `file:.git/config`. Measured: from a linked worktree, and likewise for a submodule or an `include`d file, `git config --show-origin --get core.hooksPath` prints the absolute path `file:/…/.git/config` for the local config. `--show-scope` prints `local` in every case.",
+      "severity": "P2",
+      "suggested_fix": "Use `git config --show-scope --get core.hooksPath` (git 2.26+) and treat scope `local` as ours. Keep `--show-origin` only to word the reason. Add a test that runs doctor and init from a linked worktree.",
+      "failure_scenario": "A developer works in `git worktree add ../feature`. doctor there reads `hooks.path WARN core.hooksPath is .githooks (from file:<local path>): hooks are managed elsewhere`, and both file checks SKIP. Re-running init skips all three rows, though the setup is exactly cookwright's. The absolute path also lands in the readout.",
+      "verdict": "rejected",
+      "evidence": "Resolved. §4.6 (line 126) now names doctor's git call as `config --show-scope --get core.hooksPath`, 'never --show-origin, whose absolute path from a linked worktree must not reach a readout'. That matches §4.3 preflight (line 92) and the §4.6 table's '(<scope>)' wording. §4.6 (line 126) also adds a doctor test run from a linked worktree, which reads `hooks.path` PASS with no absolute path in any note, and the §6 two-worktree test (line 170) repeats it."
+    },
+    {
+      "index": 17,
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "file": "docs/dev/bundles/stage-2/state.json",
+      "location": "slices[0].sessions[0].scope (s1) vs plan §10",
+      "problem": "s1's scope includes registering the `hook` name in cli-main. The usage text is derived from `Object.keys(COMMANDS)`, so the name can't appear in it without a loader for `./hook.mjs`, and that file arrives only in s2.",
+      "severity": "P3",
+      "suggested_fix": "s1 registers `changelog` only and its usage test reads `<init|doctor|changelog|bundle>`. s2 adds `hook` and updates the test. Note this as a correction in the plan, since the state file is the CLI's to write.",
+      "failure_scenario": "Between s1 and s2, `npx cookwright hook pre-commit` crashes with ERR_MODULE_NOT_FOUND. review:changelog then reviews a dangling import, or s1 hand-edits the usage so that it lists a command that does not exist.",
+      "verdict": "rejected",
+      "evidence": "Resolved as the suggested fix asks. §10 slice changelog s1 (line 214) now registers 'cli-main registration **of `changelog` only** (the usage reads `<init|doctor|changelog|bundle>` until s2 adds `hook` with its module; the recorded split's \"and `hook` names\" is corrected here, finding 17)'. §4.1's `<init|doctor|changelog|hook|bundle>` (line 50) is the state after s2, which matches. state.json s1 scope still says '`changelog` and `hook` names'. The CLI owns that file, and the plan records the correction."
+    }
+  ],
+  "checked": [
+    "lines 56-60,152; planned lib/hooks/push.mjs",
+    "lines 74,80-85; planned lib/init/hooks.mjs",
+    "lines 93,97,103; planned lib/changelog/tags.mjs and commits.mjs",
+    "§4.3 preflight, §4.6 hooks.path",
+    "slices[0].sessions[0].scope (s1) vs plan §10"
+  ],
+  "notes": "Read-only re-check of plan.md (sha 01c77695e1359cf2) against plan-review-2.json (sha 7f89cc0910a4a535). The sha256 prefixes of AGENTS.md, CLAUDE.md, docs/playbook.md, the plan and the findings file all match the given hashes. 5 issues in plan-review-2 were not rejected: 3, 4, 7, 9 and 17.\n\nResult: 3 are resolved and 2 still hold.\n- Resolved: [7] (the ranges use --not every lower tag), [9] (§4.6 uses --show-scope and has a linked-worktree doctor test), [17] (§10 corrects the s1 scope).\n- Still hold, confirmed: [3] P1 and [4] P1. The developer has now ratified both as accepted risks (state.json decisions with actor 'developer', 15:36:49Z and 15:36:50Z). The revision narrows [3]: a non-HEAD refspec is now a SKIP. But a dirty tree that hides a bad HEAD commit still passes with a label. [4] gains a test that documents the gap and does not close it.\n\nStale text that reopens no finding:\n- state.json's disposition-12 decision (orchestrator, 15:25:08Z) still says \"a release's range is <previous version>..<tag>\". The plan now uses `<tag> --not <every lower version tag>`. An implementer who reads the decision log could build the old duplicating ranges, so a superseding `bundle decide` entry would help.\n- state.json s1 scope still names `hook`. That file is the CLI's to update.\n- Line 106 says the --unreleased test lists 'only commits after M'. By git semantics it lists M too.\n\nI could not measure the maintenance-merge ranges in a scratch repo because the Bash call was denied. Finding 7's verdict rests on git's documented `--not` semantics.",
+  "timedOut": false,
+  "incomplete": [],
+  "recheckOf": "docs/dev/bundles/stage-2/findings/plan-review-2.json"
+}

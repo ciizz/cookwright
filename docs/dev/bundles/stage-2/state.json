@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 51,
+  "revision": 54,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -335,6 +335,12 @@
       "path": "docs/dev/bundles/stage-2/sessions/fix-changelog-1.md",
       "at": "2026-10-15T16:05:16.818Z",
       "stored": true
+    },
+    {
+      "phase": "implement:s2",
+      "path": "docs/dev/bundles/stage-2/sessions/implement-s2-1.md",
+      "at": "2026-10-15T16:20:09.848Z",
+      "stored": true
     }
   ],
   "qaRounds": [],
@@ -505,6 +511,20 @@
       "actor": "orchestrator",
       "source": "fix:changelog report, 2026-10-15",
       "text": "Accepted as built, over the finding-3 disposition: the tag signature is cut off %(contents) by the length of %(contents:signature) (git splits it in every signing format), not read from %(contents:subject) plus %(contents:body), because the implementer measured that %(contents:subject) folds a one-paragraph tag body into one line and would merge 'released:' and 'note:' into one key. Unborn is now 'rev-parse --verify HEAD fails and symbolic-ref HEAD succeeds'; any other git state is a refusal. Plan §4.4's wording of both stays as hashed; the closeout records the two deviations. The two s1-fix strings (the '<file>: <code>' refusal detail and the README exit-code sentence) go to the developer with the s2 batch.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T16:20:32.402Z",
+      "actor": "orchestrator",
+      "source": "implement:s2 report, 2026-10-15",
+      "text": "Accepted as built: the pathspec validation refuses ':x' and ':(prefix:N)', accepts '::x', ':(attr:…)' and an empty magic word, with the schema pattern held to the validator on 15 samples; the gate commands run with every variable of 'git rev-parse --local-env-vars' removed (15 on git 2.52), not only the plan's six; the two config SKIP notes (no cookwright.json; cookwright.json invalid: …); every changelog-check note prefixed with the file; the timed-out and unspawnable secrets notes; runGate's progress lines above the hook's gate line; gitRun env option, runGate env option, gitleaksVersion(bin), scanStaged(root, { quiet, env, cap }); FINDINGS_EXIT in shims.mjs. For s3: the README gains the 'npx cookwright hook' line in its README pass. Backlog (s3 logs it as the next B id): withDefaults replaces a non-object 'hooks' or 'gate' with the default, so the validator's 'must be an object' never fires.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T16:20:32.781Z",
+      "actor": "orchestrator",
+      "source": "implement:s2 open question 3 (several pushed refs), 2026-10-15",
+      "text": "For fix:hooks: when a push carries several refs, the checks run if any pushed sha is HEAD, and each line then ends with 'not tested: <refs> are not the checked-out branch' for the others; both checks SKIP only when no pushed sha is HEAD. As built, one non-HEAD ref among several makes everything SKIP, so 'git push --all' would never test; that is not what the developer's refinement intends.",
       "claim": true
     }
   ],

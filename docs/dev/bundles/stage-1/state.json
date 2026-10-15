@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 9,
+  "revision": 16,
   "slug": "stage-1",
   "branch": "bundle/stage-1",
   "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
@@ -46,7 +46,7 @@
   "phases": [
     {
       "name": "plan-review",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -56,10 +56,21 @@
           "codex": true,
           "runId": "wf_760ca6d4-f81",
           "transcriptDir": "<local path>"
+        },
+        {
+          "startedAt": "2026-10-15T09:12:55.918Z",
+          "stateRevision": 9,
+          "planSha": "a252db7ad517b7c2",
+          "codex": true,
+          "runId": "wf_acd2c490-17b",
+          "endedAt": "2026-10-15T09:16:58.779Z",
+          "turnOutputTokens": 338497
         }
       ],
       "startCommit": "06223a00bd9b9d29ab2a82bb989eb1243e4ca55c",
-      "range": null
+      "range": null,
+      "endCommit": "839bc5f67a0c2d8e767437f5f572902279fa65b1",
+      "endCode": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c"
     },
     {
       "name": "implement:s1",
@@ -129,6 +140,19 @@
           "ms": 4906
         }
       ]
+    },
+    {
+      "commit": "839bc5f67a0c2d8e767437f5f572902279fa65b1",
+      "at": "2026-10-15T09:16:58.704Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 4115
+        }
+      ]
     }
   ],
   "findings": [
@@ -149,6 +173,24 @@
       "at": "2026-10-15T09:07:03.421Z",
       "stored": true,
       "head": "97b5a76b5de8df6b75187e224e5fc7aaf79bd56d"
+    },
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-1/findings/plan-review-2.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 0,
+        "rejected": 31,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      },
+      "at": "2026-10-15T09:16:28.242Z",
+      "stored": true,
+      "head": "839bc5f67a0c2d8e767437f5f572902279fa65b1"
     }
   ],
   "reports": [],
@@ -180,6 +222,20 @@
       "actor": "developer",
       "source": "chat 2026-10-15, plan-review round 1 (finding 16)",
       "text": "The npm name cookwright is reserved by the developer now (a publish, their hands), before s1's docs land; the printed invocation stays npx cookwright.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T09:16:54.454Z",
+      "actor": "orchestrator",
+      "source": "plan-review re-check notes, 2026-10-15",
+      "text": "doctor's git check when the config does not load: it judges the work tree only (PASS 'work tree; baseBranch unverified, config invalid' / FAIL not a work tree); the baseBranch half needs the config. Implemented in s2 with the §4.8 config-invalid cases.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T09:16:54.519Z",
+      "actor": "orchestrator",
+      "source": "plan-review re-check notes, 2026-10-15",
+      "text": "The CHARTER amendment quoted in plan §2 says init writes CLAUDE.md only when a shadowing file exists; §4.4 step 4 also writes it when Claude Code is older than 2.1.281 (a version that ignores AGENTS.md). s3 surfaces the amendment wording to the developer in its strings batch before appending it; the developer's wording is final.",
       "claim": true
     }
   ],

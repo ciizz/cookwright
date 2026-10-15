@@ -3,18 +3,18 @@
 _Stored as the session returned it; the orchestrator verifies before relying on it._
 
 ## Commits
-- `ae645dd fix(bundle): records and state hold no machine-local path`
-- `3add167 fix(doctor): every git and claude call shares a two-second budget`
-- `da80eae fix(init): append the env patterns after a rule that overrides them`
-- `ab8957f test: no plaintext env file on disk, not even in a scratch repo`
-- `9064f0b fix(init): validate a fresh config and --base in preflight`
-- `2c05dc9 fix(init): .gitkeep a closeouts directory git would not carry`
-- `4a91f79 fix(init): a CLAUDE.md linked to AGENTS.md is kept; no write through a link`
-- `47cf857 fix(init): the settings row says when merging re-lays out the file`
-- `835b555 fix(hosts): the SessionStart hook finds the package from a subdirectory`
-- `e060f3f revert: keep the SessionStart hook command as it was (B-002 stays open)`
-- `fef1296 docs(charter): the dated amendment on AGENTS.md and the CLAUDE.md import`
-- `9832a07 docs(rules): this repo's own state-homes section gets its own heading`
+- `257aeb1 fix(bundle): records and state hold no machine-local path`
+- `b2ab36e fix(doctor): every git and claude call shares a two-second budget`
+- `770463f fix(init): append the env patterns after a rule that overrides them`
+- `a0e12b7 test: no plaintext env file on disk, not even in a scratch repo`
+- `59e64f4 fix(init): validate a fresh config and --base in preflight`
+- `e85771a fix(init): .gitkeep a closeouts directory git would not carry`
+- `28a16f2 fix(init): a CLAUDE.md linked to AGENTS.md is kept; no write through a link`
+- `e1d9e2a fix(init): the settings row says when merging re-lays out the file`
+- `a31d247 fix(hosts): the SessionStart hook finds the package from a subdirectory`
+- `1eb68ff revert: keep the SessionStart hook command as it was (B-002 stays open)`
+- `33585ac docs(charter): the dated amendment on AGENTS.md and the CLAUDE.md import`
+- `edf4d49 docs(rules): this repo's own state-homes section gets its own heading`
 
 ## Files
 - `packages/cookwright/src/lib/bundle/scrub.mjs`
@@ -73,7 +73,7 @@ _Stored as the session returned it; the orchestrator verifies before relying on 
 | `AGENTS.md heading` | ## State homes of this repo | renamed from '## State homes' (this repo's own section, outside the managed block) |
 
 ## Open questions
-- Finding 4: the orchestrator's decision was to reword the block's secrets line ('... holding a real value') and keep the fixtures writing DUMMY=1 env files. I did something else. Tests no longer write any env file: a tracked one is an index entry only (stageOnly, via hash-object and update-index), and the root listing is an injected probe (rootFiles). That makes the reword unnecessary, so the block line is unchanged and every user keeps the stricter rule. Should the reword still happen? I recommend not. ab8957f is a clean revert if you want the decided approach instead.
+- Finding 4: the orchestrator's decision was to reword the block's secrets line ('... holding a real value') and keep the fixtures writing DUMMY=1 env files. I did something else. Tests no longer write any env file: a tracked one is an index entry only (stageOnly, via hash-object and update-index), and the root listing is an injected probe (rootFiles). That makes the reword unnecessary, so the block line is unchanged and every user keeps the stricter rule. Should the reword still happen? I recommend not. a0e12b7 is a clean revert if you want the decided approach instead.
 - Finding 5 (npm name): still open, and it is the developer's hands. `npm view cookwright` still returns E404 as of this session. Nothing changed in code: per the recorded decision the invocation stays `npx cookwright`. The developer publishes a placeholder (`npm publish` from a placeholder package named cookwright), then the orchestrator verifies it with `npm view cookwright` before the branch lands.
 - Findings 0/6, history: the committed records still hold local paths. sessions/implement-s1-1.md, implement-s2-1.md and implement-s3-1.md carry the absolute file paths, and findings/review-core-1.json's notes carry a <local path> scratchpad path. These are runner-written, so I left them alone. The history rewrite before push needs to rewrite them in every commit that touched them; `scrubLocalPaths(text, root)` from src/lib/bundle/scrub.mjs gives the clean text. New records are scrubbed at write time.
 
@@ -103,7 +103,7 @@ Per finding:
 - **12 (settings note):** deviation from the decided 'other settings preserved (reformatted)'. The note now says 'the other settings kept', and adds a layout suffix only when re-serialising the original file alone would change it.
 - **8 (charter):** amendment appended verbatim with the developer's final wording from the 2026-10-15 decision.
 - **Duplicate heading:** renamed this repo's own AGENTS.md section to '## State homes of this repo', per the fix:core decision. This changes the AGENTS.md sha.
-- **1 (B-002):** I first implemented an upward search for the bin (835b555), which updated HOOK_COMMAND, HOOK_COMMANDS_PAST, this repo's .claude/settings.json and the backlog. Then I found the orchestrator's recorded decision ('Finding 1 is B-002, deferred by the plan: no change') and reverted it in e060f3f. B-002 stays open. If wanted, cherry-pick 835b555.
+- **1 (B-002):** I first implemented an upward search for the bin (a31d247), which updated HOOK_COMMAND, HOOK_COMMANDS_PAST, this repo's .claude/settings.json and the backlog. Then I found the orchestrator's recorded decision ('Finding 1 is B-002, deferred by the plan: no change') and reverted it in 1eb68ff. B-002 stays open. If wanted, cherry-pick a31d247.
 
 **Also changed:** the fake-claude parse test in probes.test.mjs now uses a 10 s timeout. It flaked once at 1.5 s, which looks like slow first exec of a new script on macOS; the test is about parsing.
 

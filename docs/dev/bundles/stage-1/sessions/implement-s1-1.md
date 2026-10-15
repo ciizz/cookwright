@@ -3,9 +3,9 @@
 _Stored as the session returned it; the orchestrator verifies before relying on it._
 
 ## Commits
-- `63421de feat(cli): the cookwright bin dispatches init, doctor and bundle`
-- `91f8cfa feat(config): level and paths.changelog, a root bounded by the work tree, the unknown-host text`
-- `fc31612 feat(bundle): the runner stores the run id only; verdicts shared; npx cookwright in the docs`
+- `d60831a feat(cli): the cookwright bin dispatches init, doctor and bundle`
+- `d3a984d feat(config): level and paths.changelog, a root bounded by the work tree, the unknown-host text`
+- `b22cb18 feat(bundle): the runner stores the run id only; verdicts shared; npx cookwright in the docs`
 
 ## Files
 - `packages/cookwright/bin/cookwright.mjs`

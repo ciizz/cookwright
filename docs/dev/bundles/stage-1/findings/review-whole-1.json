@@ -4,8 +4,8 @@
   "issues": [
     {
       "file": "docs/dev/bundles/stage-1/state.json (history)",
-      "location": "commits 97b5a76, 839bc5f, da49f2d, 322b904, 40bb0f2, b660f62",
-      "problem": "2ee7c0c scrubs current files, but earlier commits in the range still contain absolute workstation paths; a cleanup commit does not remove them from git history, violating 'Nothing private, ever' and the plan's history-rewrite requirement.",
+      "location": "commits d00d0bf, 3c39dc3, c7438c1, b9c84dc, e4aa407, 1d8bb5c",
+      "problem": "6c35426 scrubs current files, but earlier commits in the range still contain absolute workstation paths; a cleanup commit does not remove them from git history, violating 'Nothing private, ever' and the plan's history-rewrite requirement.",
       "severity": "P1",
       "suggested_fix": "Rewrite every affected commit before publishing the branch, then verify every commit in the range (not only HEAD) for Unix and Windows absolute paths.",
       "failure_scenario": "The branch is pushed or merged; anyone fetching it can inspect earlier commits and recover the developer's username and filesystem layout.",
@@ -15,7 +15,7 @@
       "alsoReported": [],
       "index": 0,
       "verdict": "plausible",
-      "evidence": "The factual claim holds. `git show` of 97b5a76, 839bc5f, da49f2d, 322b904, 40bb0f2 and b660f62 each adds lines containing /Users/ (1, 2, 25, 20, 28 and 3 lines). 2ee7c0c only scrubs the current tree. Two things weaken the finding. First, docs/dev/bundles/stage-1/plan.md:18 schedules the rewrite: the orchestrator rewrites the pre-s1 state commits that carry the path 'before the branch is pushed'. Second, the repo has no remote and no remote branches, so nothing has been pushed and the stated scenario has not happened. This is a pending required step, not a shipped violation. It becomes a real 'Nothing private' violation only if the branch is pushed without the rewrite. The three remaining /Users/ hits at 2ee7c0c, in findings/plan-review-1.json, plan-review-2.json and review-core-1.json, are descriptive placeholders such as /Users/<user>/..., not real paths."
+      "evidence": "The factual claim holds. `git show` of d00d0bf, 3c39dc3, c7438c1, b9c84dc, e4aa407 and 1d8bb5c each adds lines containing /Users/ (1, 2, 25, 20, 28 and 3 lines). 6c35426 only scrubs the current tree. Two things weaken the finding. First, docs/dev/bundles/stage-1/plan.md:18 schedules the rewrite: the orchestrator rewrites the pre-s1 state commits that carry the path 'before the branch is pushed'. Second, the repo has no remote and no remote branches, so nothing has been pushed and the stated scenario has not happened. This is a pending required step, not a shipped violation. It becomes a real 'Nothing private' violation only if the branch is pushed without the rewrite. The three remaining /Users/ hits at 6c35426, in findings/plan-review-1.json, plan-review-2.json and review-core-1.json, are descriptive placeholders such as /Users/<user>/..., not real paths."
     },
     {
       "file": "packages/cookwright/src/lib/messages.mjs; README.md",
@@ -75,7 +75,7 @@
       "alsoReported": [],
       "index": 4,
       "verdict": "plausible",
-      "evidence": "packages/cookwright/src/lib/hosts.mjs (at 2ee7c0c): HOOK_COMMAND does `cd \"${CLAUDE_PROJECT_DIR:-.}\"` then `[ -f node_modules/cookwright/bin/cookwright.mjs ]`, with no upward search. If CLAUDE_PROJECT_DIR is a subdirectory such as packages/mobile and the package is installed at the monorepo root, the hook prints the notInstalled line and exits 0. The plan (plan.md:20,76) states CLAUDE_PROJECT_DIR is Claude's cwd, which supports the premise. A fix was attempted in 835b555 and reverted in e060f3f. docs/dev/backlog.md:7 tracks the gap as B-002 and it is still open. The host.hook check matches the command verbatim (HOOK_COMMAND and hookCommandsPast), so it would pass. I did not read the doctor code and did not run the hook. In real Claude Code, CLAUDE_PROJECT_DIR is normally the project root rather than the cwd, so the trigger is uncertain. That is why this is plausible, not confirmed."
+      "evidence": "packages/cookwright/src/lib/hosts.mjs (at 6c35426): HOOK_COMMAND does `cd \"${CLAUDE_PROJECT_DIR:-.}\"` then `[ -f node_modules/cookwright/bin/cookwright.mjs ]`, with no upward search. If CLAUDE_PROJECT_DIR is a subdirectory such as packages/mobile and the package is installed at the monorepo root, the hook prints the notInstalled line and exits 0. The plan (plan.md:20,76) states CLAUDE_PROJECT_DIR is Claude's cwd, which supports the premise. A fix was attempted in a31d247 and reverted in 1eb68ff. docs/dev/backlog.md:7 tracks the gap as B-002 and it is still open. The host.hook check matches the command verbatim (HOOK_COMMAND and hookCommandsPast), so it would pass. I did not read the doctor code and did not run the hook. In real Claude Code, CLAUDE_PROJECT_DIR is normally the project root rather than the cwd, so the trigger is uncertain. That is why this is plausible, not confirmed."
     },
     {
       "file": "packages/cookwright/src/lib/config.mjs",
@@ -110,17 +110,17 @@
     {
       "file": "docs/dev/bundles/stage-1/plan.md",
       "location": "§2 (a) (line 18) and the fix:core decisions in state.json about the history rewrite before push",
-      "problem": "The plan says the pre-fix commits are rewritten before push and that 'gate #0 on 06223a0 predates them and stays reachable, so every recorded commit id survives'. That is no longer true. The rewrite now has to start at 97b5a76, and the in-range commits 97b5a76, 839bc5f, da49f2d, 322b904, 40bb0f2 and b660f62 still hold `/Users/<name>/...` paths, so every later commit id changes with it. state.json records gates on 839bc5f, fc31612, adec668, 629fcc5 and 9832a07, plus each phase's startCommit, endCommit, endCode and review range, all descendants of 97b5a76. The CLI has no way to re-map them, and the state may be written only by the CLI.",
+      "problem": "The plan says the pre-fix commits are rewritten before push and that 'gate #0 on 06223a0 predates them and stays reachable, so every recorded commit id survives'. That is no longer true. The rewrite now has to start at d00d0bf, and the in-range commits d00d0bf, 3c39dc3, c7438c1, b9c84dc, e4aa407 and 1d8bb5c still hold `/Users/<name>/...` paths, so every later commit id changes with it. state.json records gates on 3c39dc3, b22cb18, 22a1142, 824dddc and edf4d49, plus each phase's startCommit, endCommit, endCode and review range, all descendants of d00d0bf. The CLI has no way to re-map them, and the state may be written only by the CLI.",
       "severity": "P2",
       "suggested_fix": "Decide this before the rewrite. Either rewrite only the record files' blobs and accept that the bundle restarts its evidence (re-gate, and reopen fix:core so its endCommit is re-recorded), or add a runner command that maps old ids to new ones after a filter-repo. Correct the plan's 'every recorded commit id survives' claim. Log the pending rewrite as a backlog item rather than only as a state decision, since B-001 is already marked Closed while the paths are still in history.",
-      "failure_scenario": "The developer runs the planned history rewrite and pushes. `bundle check` computes lastCode on the new history. bundle.gate-latest fails because isAncestor(newLastCode, old 9832a07) is false. bundle.gate-slice:core then fails permanently with 'no passing gate on the slice end': fix:core's endCode and endCommit are old ids, and no gate on the new history descends from them. On a fresh clone the old objects do not exist at all. The bundle cannot land without hand-editing state.json, which the rules forbid. If the developer skips the rewrite instead, the developer's username and home layout ship in the pushed history.",
+      "failure_scenario": "The developer runs the planned history rewrite and pushes. `bundle check` computes lastCode on the new history. bundle.gate-latest fails because isAncestor(newLastCode, old edf4d49) is false. bundle.gate-slice:core then fails permanently with 'no passing gate on the slice end': fix:core's endCode and endCommit are old ids, and no gate on the new history descends from them. On a fresh clone the old objects do not exist at all. The bundle cannot land without hand-editing state.json, which the rules forbid. If the developer skips the rewrite instead, the developer's username and home layout ship in the pushed history.",
       "reviewers": [
         "red-team"
       ],
       "alsoReported": [],
       "index": 7,
       "verdict": "plausible",
-      "evidence": "Premise holds. plan.md:18 says gate #0 on 06223a0 'predates them and stays reachable, so every recorded commit id survives'. But 97b5a76 (the first commit after 06223a0) still holds <local path> at state.json:58, and 839bc5f, da49f2d, 322b904, 40bb0f2 and b660f62 still hold local paths in their trees (confirmed by git grep). Any rewrite starting at 97b5a76 changes every descendant id. Those descendants include the gate commits and phase ranges recorded in state.json (fc31612, adec668, 629fcc5 and 9832a07 are all after 97b5a76). state.json:425 and :467 name the rewrite but give no re-mapping route. I did not confirm the CLI has no re-map route, and I did not run `bundle check` on rewritten history. The gate-latest and gate-slice failure chain is therefore unreproduced. Packages/cookwright/src/bundle.test.mjs:364-399 shows gateChecks uses isAncestor, which is consistent with the claim. The claim that the bundle cannot land without hand-editing state.json is plausible, not proven."
+      "evidence": "Premise holds. plan.md:18 says gate #0 on 06223a0 'predates them and stays reachable, so every recorded commit id survives'. But d00d0bf (the first commit after 06223a0) still holds <local path> at state.json:58, and 3c39dc3, c7438c1, b9c84dc, e4aa407 and 1d8bb5c still hold local paths in their trees (confirmed by git grep). Any rewrite starting at d00d0bf changes every descendant id. Those descendants include the gate commits and phase ranges recorded in state.json (b22cb18, 22a1142, 824dddc and edf4d49 are all after d00d0bf). state.json:425 and :467 name the rewrite but give no re-mapping route. I did not confirm the CLI has no re-map route, and I did not run `bundle check` on rewritten history. The gate-latest and gate-slice failure chain is therefore unreproduced. Packages/cookwright/src/bundle.test.mjs:364-399 shows gateChecks uses isAncestor, which is consistent with the claim. The claim that the bundle cannot land without hand-editing state.json is plausible, not proven."
     },
     {
       "file": "packages/cookwright/src/lib/bundle/scrub.mjs",
@@ -200,11 +200,11 @@
   ],
   "incomplete": [],
   "checked": [
-    "git diff c0322d4..2ee7c0c via Codex by file reference (high effort, read-only, foreground)",
+    "git diff c0322d4..6c35426 via Codex by file reference (high effort, read-only, foreground)",
     "AGENTS.md rules",
     "plan sections 2 and 4",
     "AGENTS.md, CLAUDE.md, docs/playbook.md (reviewer role, prompt header), plan.md, state.json decisions/phases/gates",
-    "git diff c0322d4a..2ee7c0cd stat and every commit; history grep for local paths",
+    "git diff c0322d4a..6c354263 stat and every commit; history grep for local paths",
     "bin/cookwright.mjs, cli-main.mjs, lib/cli.mjs, doctor.mjs, budget.mjs, probes.mjs, hosts.mjs, levels.mjs, verdict.mjs",
     "lib/doctor/* (basics, claude, homes, registry, repo, report, rules, secrets)",
     "init.mjs and lib/init/* (claude, config, files, gitignore, homes, repo, rules, steps)",
@@ -215,7 +215,7 @@
     "README, CHANGELOG, CHARTER amendment, backlog, playbook/skill invocation changes",
     "Ran npm test (185 passed), doctor on this repo (11 PASS), in-process reproductions of scrub JSON corruption, scrub mid-path <local path> mangling, hasImport variants, npm view cookwright (E404)"
   ],
-  "notes": "Codex completed within the ceiling (exit 0), so no resume was needed. Findings transcribed from its final report with no additions. Codex session id 01a13f91-7cfa-7390-a546-3eb7500d64a3. Full output: <local path> c0322d4a..2ee7c0cd, reviewed read-only. The suite is green (185 tests) and doctor on this repo gives 11 PASS. Two findings are reproduced, not inferred. (1) fix:core's new scrubLocalPaths runs a regex over serialized JSON, so a quoted machine path in a decision or finding turns state.json or a findings file into invalid JSON; saveState renames the result over the live state. (2) The same regex has no left boundary, so repo paths like app<local path> and URLs containing <local path> are mangled to `<local path>`. The planned pre-push history rewrite now has to start at 97b5a76: six in-range commits still carry `/Users/<name>` paths. That rewrite would change every gate, phase and range commit id recorded in state.json, which contradicts the plan's 'every recorded commit id survives' and leaves bundle.gate-slice:core permanently red. The npm-name precondition of plan §2 (b) is still unmet (E404), as review:core already noted. B-002 (hook from a subdirectory) is a known deferral, so I did not re-raise it.",
+  "notes": "Codex completed within the ceiling (exit 0), so no resume was needed. Findings transcribed from its final report with no additions. Codex session id 01a13f91-7cfa-7390-a546-3eb7500d64a3. Full output: <local path> c0322d4a..6c354263, reviewed read-only. The suite is green (185 tests) and doctor on this repo gives 11 PASS. Two findings are reproduced, not inferred. (1) fix:core's new scrubLocalPaths runs a regex over serialized JSON, so a quoted machine path in a decision or finding turns state.json or a findings file into invalid JSON; saveState renames the result over the live state. (2) The same regex has no left boundary, so repo paths like app<local path> and URLs containing <local path> are mangled to `<local path>`. The planned pre-push history rewrite now has to start at d00d0bf: six in-range commits still carry `/Users/<name>` paths. That rewrite would change every gate, phase and range commit id recorded in state.json, which contradicts the plan's 'every recorded commit id survives' and leaves bundle.gate-slice:core permanently red. The npm-name precondition of plan §2 (b) is still unmet (E404), as review:core already noted. B-002 (hook from a subdirectory) is a known deferral, so I did not re-raise it.",
   "reviewers": [
     {
       "name": "codex",

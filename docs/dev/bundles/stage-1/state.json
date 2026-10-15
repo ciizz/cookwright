@@ -68,7 +68,7 @@
       ],
       "startCommit": "06223a00bd9b9d29ab2a82bb989eb1243e4ca55c",
       "range": null,
-      "endCommit": "839bc5f67a0c2d8e767437f5f572902279fa65b1",
+      "endCommit": "3c39dc3bb402f5335b3825580c72c1b873a2447f",
       "endCode": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c"
     },
     {
@@ -86,10 +86,10 @@
           "turnOutputTokens": 175854
         }
       ],
-      "startCommit": "4d4c78c4186eb4630c229942a5eadebdc4cad8fc",
+      "startCommit": "09297eb5229e519d2e202f540af1d5572c6a74ff",
       "range": null,
-      "endCommit": "fc316122f21eaf6b74c7362c698a52c47d5d06d5",
-      "endCode": "fc316122f21eaf6b74c7362c698a52c47d5d06d5"
+      "endCommit": "b22cb18d00320ca6230bc3ecfc5645e5542d594a",
+      "endCode": "b22cb18d00320ca6230bc3ecfc5645e5542d594a"
     },
     {
       "name": "implement:s2",
@@ -106,10 +106,10 @@
           "turnOutputTokens": 168597
         }
       ],
-      "startCommit": "da49f2d9a035fa0cfc1a2520db347ef5dd353d04",
+      "startCommit": "c7438c196c1c625b3ef10398d867c2badfbc0185",
       "range": null,
-      "endCommit": "adec668f8c605a9f563f5791dba6dab744d36245",
-      "endCode": "adec668f8c605a9f563f5791dba6dab744d36245"
+      "endCommit": "22a1142a27f015224657c427aff346349a845ad7",
+      "endCode": "22a1142a27f015224657c427aff346349a845ad7"
     },
     {
       "name": "implement:s3",
@@ -126,10 +126,10 @@
           "turnOutputTokens": 188180
         }
       ],
-      "startCommit": "322b90438977f2e234927e22218ebd4b90153d6f",
+      "startCommit": "b9c84dc9c2dd1be02a3661b1655eab26ee89d256",
       "range": null,
-      "endCommit": "629fcc596e84586f6132d5cbee908ceb65cff20c",
-      "endCode": "629fcc596e84586f6132d5cbee908ceb65cff20c"
+      "endCommit": "824dddc496f7725845f9b1a9088b466667937728",
+      "endCode": "824dddc496f7725845f9b1a9088b466667937728"
     },
     {
       "name": "review:core",
@@ -146,13 +146,13 @@
           "turnOutputTokens": 708713
         }
       ],
-      "startCommit": "40bb0f29c653e75196378c67caf35dc4cee0bcb2",
+      "startCommit": "e4aa4072c90511e3a36f3ece773d2e928cdf77b7",
       "range": {
-        "from": "4d4c78c4186eb4630c229942a5eadebdc4cad8fc",
-        "to": "40bb0f29c653e75196378c67caf35dc4cee0bcb2"
+        "from": "09297eb5229e519d2e202f540af1d5572c6a74ff",
+        "to": "e4aa4072c90511e3a36f3ece773d2e928cdf77b7"
       },
-      "endCommit": "40bb0f29c653e75196378c67caf35dc4cee0bcb2",
-      "endCode": "629fcc596e84586f6132d5cbee908ceb65cff20c"
+      "endCommit": "e4aa4072c90511e3a36f3ece773d2e928cdf77b7",
+      "endCode": "824dddc496f7725845f9b1a9088b466667937728"
     },
     {
       "name": "fix:core",
@@ -169,10 +169,10 @@
           "turnOutputTokens": 216180
         }
       ],
-      "startCommit": "b660f62522838533f9cd2a51627812195c2bdae5",
+      "startCommit": "1d8bb5c7733e251f4665a1e5dc7a2c99bbdf141f",
       "range": null,
-      "endCommit": "9832a071659b9cc835f79e9faa30055afb6f8071",
-      "endCode": "9832a071659b9cc835f79e9faa30055afb6f8071"
+      "endCommit": "edf4d49f8e2c1be680c70d7838088fba3c3a5275",
+      "endCode": "edf4d49f8e2c1be680c70d7838088fba3c3a5275"
     },
     {
       "name": "review:whole",
@@ -189,13 +189,13 @@
           "turnOutputTokens": 668974
         }
       ],
-      "startCommit": "2ee7c0cd769e7509a0053ca8f3c3c92f81f9b631",
+      "startCommit": "6c3542636c5c089d634b538ff4becbd638170b58",
       "range": {
         "from": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
-        "to": "2ee7c0cd769e7509a0053ca8f3c3c92f81f9b631"
+        "to": "6c3542636c5c089d634b538ff4becbd638170b58"
       },
-      "endCommit": "2ee7c0cd769e7509a0053ca8f3c3c92f81f9b631",
-      "endCode": "9832a071659b9cc835f79e9faa30055afb6f8071"
+      "endCommit": "6c3542636c5c089d634b538ff4becbd638170b58",
+      "endCode": "edf4d49f8e2c1be680c70d7838088fba3c3a5275"
     },
     {
       "name": "fix:whole",
@@ -212,10 +212,10 @@
           "turnOutputTokens": 141570
         }
       ],
-      "startCommit": "f76b43a65847658293a4c160ef68abdb0f3966c9",
+      "startCommit": "b16b6dc64774b8a04324a80e96951c79e7252916",
       "range": null,
-      "endCommit": "a794aa49e8a3582529575e237c8e9ffc9dfce136",
-      "endCode": "8558ff9fa8663cd6b2761d58e4b4221c4b0f28ba"
+      "endCommit": "8fb7b7a34f310a0121c3d2c64e38ad58a6b9d0eb",
+      "endCode": "0c782154e1010855ba06e24390c96257e56e20f1"
     },
     {
       "name": "qa",
@@ -245,7 +245,7 @@
       ]
     },
     {
-      "commit": "839bc5f67a0c2d8e767437f5f572902279fa65b1",
+      "commit": "3c39dc3bb402f5335b3825580c72c1b873a2447f",
       "at": "2026-10-15T09:16:58.704Z",
       "slice": null,
       "passed": true,
@@ -258,7 +258,7 @@
       ]
     },
     {
-      "commit": "fc316122f21eaf6b74c7362c698a52c47d5d06d5",
+      "commit": "b22cb18d00320ca6230bc3ecfc5645e5542d594a",
       "at": "2026-10-15T09:27:31.443Z",
       "slice": "core",
       "passed": true,
@@ -271,7 +271,7 @@
       ]
     },
     {
-      "commit": "adec668f8c605a9f563f5791dba6dab744d36245",
+      "commit": "22a1142a27f015224657c427aff346349a845ad7",
       "at": "2026-10-15T09:39:43.554Z",
       "slice": "core",
       "passed": true,
@@ -284,7 +284,7 @@
       ]
     },
     {
-      "commit": "629fcc596e84586f6132d5cbee908ceb65cff20c",
+      "commit": "824dddc496f7725845f9b1a9088b466667937728",
       "at": "2026-10-15T09:54:10.795Z",
       "slice": "core",
       "passed": true,
@@ -297,7 +297,7 @@
       ]
     },
     {
-      "commit": "9832a071659b9cc835f79e9faa30055afb6f8071",
+      "commit": "edf4d49f8e2c1be680c70d7838088fba3c3a5275",
       "at": "2026-10-15T12:37:10.596Z",
       "slice": "core",
       "passed": true,
@@ -310,7 +310,7 @@
       ]
     },
     {
-      "commit": "a794aa49e8a3582529575e237c8e9ffc9dfce136",
+      "commit": "8fb7b7a34f310a0121c3d2c64e38ad58a6b9d0eb",
       "at": "2026-10-15T13:30:12.868Z",
       "slice": null,
       "passed": true,
@@ -340,7 +340,7 @@
       },
       "at": "2026-10-15T09:07:03.421Z",
       "stored": true,
-      "head": "97b5a76b5de8df6b75187e224e5fc7aaf79bd56d"
+      "head": "d00d0bf3bfe6a8ae93a7cd7e5f4fb8f1b06f06dd"
     },
     {
       "phase": "plan-review",
@@ -358,7 +358,7 @@
       },
       "at": "2026-10-15T09:16:28.242Z",
       "stored": true,
-      "head": "839bc5f67a0c2d8e767437f5f572902279fa65b1"
+      "head": "3c39dc3bb402f5335b3825580c72c1b873a2447f"
     },
     {
       "phase": "review:core",
@@ -376,7 +376,7 @@
       },
       "at": "2026-10-15T12:18:41.303Z",
       "stored": true,
-      "head": "40bb0f29c653e75196378c67caf35dc4cee0bcb2"
+      "head": "e4aa4072c90511e3a36f3ece773d2e928cdf77b7"
     },
     {
       "phase": "review:whole",
@@ -394,7 +394,7 @@
       },
       "at": "2026-10-15T12:44:50.768Z",
       "stored": true,
-      "head": "2ee7c0cd769e7509a0053ca8f3c3c92f81f9b631"
+      "head": "6c3542636c5c089d634b538ff4becbd638170b58"
     }
   ],
   "reports": [
@@ -477,7 +477,7 @@
       "at": "2026-10-15T09:27:26.325Z",
       "actor": "orchestrator",
       "source": "after implement:s1, 2026-10-15",
-      "text": "The leftover transcriptDir on plan-review run 0 was removed from state.json by hand (one key deleted, nothing else touched): the CLI refuses to re-record a done phase, so the re-record route of plan §2 (a) was not available. The pre-s1 state commits that still carry the path (97b5a76, 839bc5f, 4d4c78c) are rewritten before the branch is pushed, per the developer's decision.",
+      "text": "The leftover transcriptDir on plan-review run 0 was removed from state.json by hand (one key deleted, nothing else touched): the CLI refuses to re-record a done phase, so the re-record route of plan §2 (a) was not available. The pre-s1 state commits that still carry the path (d00d0bf, 3c39dc3, 09297eb) are rewritten before the branch is pushed, per the developer's decision.",
       "claim": true
     },
     {
@@ -519,7 +519,7 @@
       "at": "2026-10-15T12:36:56.283Z",
       "actor": "orchestrator",
       "source": "fix:core report, 2026-10-15",
-      "text": "Accepted as built, over the earlier dispositions: tests write no env file at all (index entries and an injected root listing), so the block's secrets line keeps its stricter wording unchanged; doctor runs inside one 1.8 s total budget with a 1.5 s cap per call rather than a per-call timeout alone; .gitkeep is decided by git ls-files --cached --others --exclude-standard; the settings row says 'the other settings kept' with a layout suffix only when re-serialising changes the layout; the B-002 attempt (835b555) stays reverted (e060f3f), B-002 open. The six records committed before the scrub landed (three implement session reports, the three findings files) are scrubbed once in the working tree with the runner's own scrubLocalPaths and committed with this state; the history rewrite before push removes the paths from the earlier commits.",
+      "text": "Accepted as built, over the earlier dispositions: tests write no env file at all (index entries and an injected root listing), so the block's secrets line keeps its stricter wording unchanged; doctor runs inside one 1.8 s total budget with a 1.5 s cap per call rather than a per-call timeout alone; .gitkeep is decided by git ls-files --cached --others --exclude-standard; the settings row says 'the other settings kept' with a layout suffix only when re-serialising changes the layout; the B-002 attempt (a31d247) stays reverted (1eb68ff), B-002 open. The six records committed before the scrub landed (three implement session reports, the three findings files) are scrubbed once in the working tree with the runner's own scrubLocalPaths and committed with this state; the history rewrite before push removes the paths from the earlier commits.",
       "claim": true
     },
     {

@@ -15,7 +15,7 @@
       "alsoReported": [],
       "index": 0,
       "verdict": "confirmed",
-      "evidence": "docs/dev/bundles/stage-1/sessions/implement-s1-1.md:11-15, implement-s2-1.md:11-15 and implement-s3-1.md:13-17 are tracked at 40bb0f2 (committed in da49f2d and later) and list absolute paths such as packages/cookwright/.... AGENTS.md:18 and CLAUDE.md:14 forbid committed local paths. recordReport (packages/cookwright/src/lib/bundle/phases.mjs:359-372) only checks that commits and files are arrays, then renders the report through renderReport and writes it with writeRecord. It does not reject or relativize absolute entries. The paths are in git history, so a later cleanup commit would not remove them."
+      "evidence": "docs/dev/bundles/stage-1/sessions/implement-s1-1.md:11-15, implement-s2-1.md:11-15 and implement-s3-1.md:13-17 are tracked at e4aa407 (committed in c7438c1 and later) and list absolute paths such as packages/cookwright/.... AGENTS.md:18 and CLAUDE.md:14 forbid committed local paths. recordReport (packages/cookwright/src/lib/bundle/phases.mjs:359-372) only checks that commits and files are arrays, then renders the report through renderReport and writes it with writeRecord. It does not reject or relativize absolute entries. The paths are in git history, so a later cleanup commit would not remove them."
     },
     {
       "file": "packages/cookwright/src/lib/hosts.mjs",
@@ -95,7 +95,7 @@
     {
       "file": "docs/dev/bundles/stage-1/sessions/implement-s3-1.md",
       "location": "'## Files' sections of implement-s1-1.md, implement-s2-1.md, implement-s3-1.md (73 added lines); renderer packages/cookwright/src/lib/bundle/phases.mjs renderReport",
-      "problem": "The committed session reports list every file as an absolute machine-local path (`/Users/<user>/Programming/cookwright/...`). That breaks the rules file's 'Nothing private, ever … Never commit a local path'. This bundle closes B-001 as 'committed state never holds a local path', yet `record session` writes `r.files` verbatim, and the new test walks only state.json, not the session reports beside it. The plan's history rewrite covers only the pre-s1 commits (97b5a76, 839bc5f, 4d4c78c), not these three post-s1 commits.",
+      "problem": "The committed session reports list every file as an absolute machine-local path (`/Users/<user>/Programming/cookwright/...`). That breaks the rules file's 'Nothing private, ever … Never commit a local path'. This bundle closes B-001 as 'committed state never holds a local path', yet `record session` writes `r.files` verbatim, and the new test walks only state.json, not the session reports beside it. The plan's history rewrite covers only the pre-s1 commits (d00d0bf, 3c39dc3, 09297eb), not these three post-s1 commits.",
       "severity": "P2",
       "suggested_fix": "In `record session`, make each path in `files` relative to the repo root, or refuse an absolute one. Extend the B-001 test to walk every file under the bundle directory. Rewrite or amend the three report commits before push, in the same history rewrite the plan already schedules.",
       "failure_scenario": "The branch is pushed as planned after the pre-s1 rewrite. docs/dev/bundles/stage-1/sessions/*.md still publish the developer's username and home layout in 73 lines. Every later bundle repeats it, because the renderer still stores absolute paths.",
@@ -105,7 +105,7 @@
       "alsoReported": [],
       "index": 6,
       "verdict": "confirmed",
-      "evidence": "At 40bb0f2 the three session reports hold 25 (implement-s1-1.md), 20 (implement-s2-1.md) and 28 (implement-s3-1.md) lines with ... paths. That totals 73, matching the finding. The renderer at packages/cookwright/src/lib/bundle/phases.mjs:408 writes r.files verbatim (`bullets(r.files, (f) => ...)`), and recordSession (:364-369) does no normalization. AGENTS.md:14 and :18 forbid committing local paths. plan.md:18 and :173 scope the history rewrite to the pre-s1 state commits and the no-absolute-path test to persisted state, so the post-s1 session reports are not covered. The three report files were added in the range (278 insertions)."
+      "evidence": "At e4aa407 the three session reports hold 25 (implement-s1-1.md), 20 (implement-s2-1.md) and 28 (implement-s3-1.md) lines with ... paths. That totals 73, matching the finding. The renderer at packages/cookwright/src/lib/bundle/phases.mjs:408 writes r.files verbatim (`bullets(r.files, (f) => ...)`), and recordSession (:364-369) does no normalization. AGENTS.md:14 and :18 forbid committing local paths. plan.md:18 and :173 scope the history rewrite to the pre-s1 state commits and the no-absolute-path test to persisted state, so the post-s1 session reports are not covered. The three report files were added in the range (278 insertions)."
     },
     {
       "file": "packages/cookwright/src/lib/init/claude.mjs",
@@ -135,7 +135,7 @@
       "alsoReported": [],
       "index": 8,
       "verdict": "confirmed",
-      "evidence": "CHARTER.md:36-38 at 40bb0f2 still reads '## Amendments' / '(none)'; git diff 4d4c78c..40bb0f2 shows no CHARTER.md change. The range does change AGENTS.md and CLAUDE.md (CLAUDE.md became the import). docs/dev/bundles/stage-1/plan.md:17 (queued for s3), :141 (Changed list includes CHARTER.md), :159 (s3: 'Append the dated amendment of §2 to CHARTER.md') and :174 (Charter: dated amendment appended under Amendments) all require it, so the product behavior ships without the amendment."
+      "evidence": "CHARTER.md:36-38 at e4aa407 still reads '## Amendments' / '(none)'; git diff 09297eb..e4aa407 shows no CHARTER.md change. The range does change AGENTS.md and CLAUDE.md (CLAUDE.md became the import). docs/dev/bundles/stage-1/plan.md:17 (queued for s3), :141 (Changed list includes CHARTER.md), :159 (s3: 'Append the dated amendment of §2 to CHARTER.md') and :174 (Charter: dated amendment appended under Amendments) all require it, so the product behavior ships without the amendment."
     },
     {
       "file": "packages/cookwright/src/lib/init/config.mjs",
@@ -200,12 +200,12 @@
   ],
   "incomplete": [],
   "checked": [
-    "git diff 4d4c78c..40bb0f2 (62 files) by Codex, read-only, high effort",
+    "git diff 09297eb..e4aa407 (62 files) by Codex, read-only, high effort",
     "AGENTS.md rules",
     "plan docs/dev/bundles/stage-1/plan.md",
     "hosts.mjs hook command executed from a nested dir",
     "bundle session reports",
-    "AGENTS.md and CLAUDE.md rules; playbook reviewer section and Prompt header; plan.md §1-§10; recorded decisions in state.json at 40bb0f2",
+    "AGENTS.md and CLAUDE.md rules; playbook reviewer section and Prompt header; plan.md §1-§10; recorded decisions in state.json at e4aa407",
     "bin/cookwright.mjs, cli-main.mjs, lib/cli.mjs (dispatch, no entry guard, flag refusals)",
     "doctor.mjs and lib/doctor/* (registry, basics, homes, rules, claude, secrets, report, repo) against the §4.8 table and hook semantics",
     "init.mjs and lib/init/* (preflight-before-write, each step, symlink/CRLF/indent handling, gitignore probe)",

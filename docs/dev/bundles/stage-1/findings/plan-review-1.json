@@ -364,7 +364,7 @@
     },
     {
       "file": "docs/dev/bundles/stage-1/state.json",
-      "location": "phases[plan-review].runs[0].transcriptDir; commit 97b5a76 on bundle/stage-1",
+      "location": "phases[plan-review].runs[0].transcriptDir; commit d00d0bf on bundle/stage-1",
       "problem": "The bundle state committed on this branch holds an absolute local path, `/Users/<user>/.claude/projects/-Users-<user>-Programming-cookwright/...`, written by the runner from `--transcript-dir`. CLAUDE.md says \"No local paths … in anything committed\". The plan's own bundle will add one such path per phase run, and none of the plan's sections addresses it. This is a pre-existing stage-0 runner behavior that this bundle propagates.",
       "severity": "P2",
       "suggested_fix": "Before merge, have the runner store transcriptDir relative to the host's project home (for example `~/.claude/...`) or keep it out of committed state in a gitignored sidecar. Log it as a backlog bug, and rewrite the affected commits before the branch is pushed.",
@@ -375,7 +375,7 @@
       "alsoReported": [],
       "index": 24,
       "verdict": "confirmed",
-      "evidence": "Same defect as [0]. state.json:58 is committed in 97b5a76 on bundle/stage-1 and contains the absolute path with the username and Claude project layout. CLAUDE.md forbids local paths in anything committed. The plan does not address it, and each new phase run adds another such path."
+      "evidence": "Same defect as [0]. state.json:58 is committed in d00d0bf on bundle/stage-1 and contains the absolute path with the username and Claude project layout. CLAUDE.md forbids local paths in anything committed. The plan does not address it, and each new phase run adds another such path."
     },
     {
       "file": "docs/dev/bundles/stage-1/plan.md",
@@ -480,7 +480,7 @@
     "CLAUDE.md rules (sha 116ca31e048402a1 verified) applied to the plan",
     "docs/playbook.md reviewer role and prompt header (sha 3d82de78b219492e verified)",
     "plan.md (sha 78b8a834d66ff43b verified) all sections",
-    "state.json and its uncommitted diff, plus commit 97b5a76 on the branch",
+    "state.json and its uncommitted diff, plus commit d00d0bf on the branch",
     "CHARTER.md properties and decisions",
     "packages/cookwright/src/lib/config.mjs (loader throws on unknown host; findRoot unbounded; import of hosts.mjs)",
     "packages/cookwright/src/lib/hosts.mjs (rules list hashed into prompts)",
@@ -493,7 +493,7 @@
     "workspace symlink node_modules/cookwright and .bin contents",
     "npm registry: `cookwright` is unpublished (404)"
   ],
-  "notes": "Codex (gpt-5.6-sol, high effort) ran in the foreground and finished on its own after 14 read-only commands, so no resume was needed. Findings are transcribed as Codex wrote them. Session 01a13ec7-6cbb-77a3-8f06-b0ba6608f5e1. Full output is at <local path> plan is well specified overall. One P1: the multi-path `git check-ignore -q` probe reports a repo as covered when only one of `.env`/`.env.local` is ignored, which defeats the secrets check in exactly the common Expo case. The P2s fall in two groups. Some contradict the plan's own \"all PASS\" claims: an unborn HEAD gives a `git` WARN; this repo's backlog gives a `backlog.ids` WARN; `.env*` matches `.envrc`. Others are implementation traps the plan's in-process tests cannot catch: the hook is detected only through the echo text; the bin's entry guard fails through symlinks; a config↔messages import cycle; checks are unspecified when the config does not load; and findRoot is not bounded by the git toplevel. The `npx cookwright` finding is a supply-chain point: the name is unpublished and npx assumes --yes in a non-TTY shell. One finding is outside the plan but breaks the first rule of the rules file: the runner commits an absolute local transcriptDir into state.json, already on this branch in commit 97b5a76. I could not run the check-ignore scratch test (the sandbox denied it); that finding rests on git's documented exit status (0 when one or more of the given paths is ignored). The claim that Claude Code reads AGENTS.md natively since 2.1.277/2.1.281 was not independently verified.",
+  "notes": "Codex (gpt-5.6-sol, high effort) ran in the foreground and finished on its own after 14 read-only commands, so no resume was needed. Findings are transcribed as Codex wrote them. Session 01a13ec7-6cbb-77a3-8f06-b0ba6608f5e1. Full output is at <local path> plan is well specified overall. One P1: the multi-path `git check-ignore -q` probe reports a repo as covered when only one of `.env`/`.env.local` is ignored, which defeats the secrets check in exactly the common Expo case. The P2s fall in two groups. Some contradict the plan's own \"all PASS\" claims: an unborn HEAD gives a `git` WARN; this repo's backlog gives a `backlog.ids` WARN; `.env*` matches `.envrc`. Others are implementation traps the plan's in-process tests cannot catch: the hook is detected only through the echo text; the bin's entry guard fails through symlinks; a config↔messages import cycle; checks are unspecified when the config does not load; and findRoot is not bounded by the git toplevel. The `npx cookwright` finding is a supply-chain point: the name is unpublished and npx assumes --yes in a non-TTY shell. One finding is outside the plan but breaks the first rule of the rules file: the runner commits an absolute local transcriptDir into state.json, already on this branch in commit d00d0bf. I could not run the check-ignore scratch test (the sandbox denied it); that finding rests on git's documented exit status (0 when one or more of the given paths is ignored). The claim that Claude Code reads AGENTS.md natively since 2.1.277/2.1.281 was not independently verified.",
   "reviewers": [
     {
       "name": "codex",

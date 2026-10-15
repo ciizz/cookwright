@@ -3,9 +3,9 @@
 _Stored as the session returned it; the orchestrator verifies before relying on it._
 
 ## Commits
-- `da76f31 feat(doctor): the check registry, probes, the managed block and the host table's hook fields`
-- `a7ef6ae test(doctor): every row of the §4.8 table, the unknown-host config FAIL included`
-- `adec668 feat(doctor): the readout, the level line and --hook mode`
+- `b5d37a3 feat(doctor): the check registry, probes, the managed block and the host table's hook fields`
+- `a57dfa5 test(doctor): every row of the §4.8 table, the unknown-host config FAIL included`
+- `22a1142 feat(doctor): the readout, the level line and --hook mode`
 
 ## Files
 - `packages/cookwright/src/doctor.mjs`

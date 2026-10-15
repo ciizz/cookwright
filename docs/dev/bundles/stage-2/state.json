@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 23,
+  "revision": 24,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -175,6 +175,24 @@
       "at": "2026-10-15T15:19:38.361Z",
       "stored": true,
       "head": "a2f1127e6f51094d60dd04f5e2e14caa3f0f9f13"
+    },
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-2/findings/plan-review-2.json",
+      "counts": {
+        "confirmed": 4,
+        "plausible": 1,
+        "rejected": 19,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 2,
+        "P2": 2,
+        "P3": 1
+      },
+      "at": "2026-10-15T15:28:35.658Z",
+      "stored": true,
+      "head": "afc8f4013ae2a2fef3ffb2cd00b1fa38cab50775"
     }
   ],
   "reports": [],

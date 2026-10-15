@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 91,
+  "revision": 92,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -277,21 +277,25 @@
     },
     {
       "name": "qa",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
           "startedAt": "2026-10-15T17:14:33.584Z",
           "stateRevision": 87,
           "planSha": "825bfd5edc1f9ee2",
-          "codex": true
+          "codex": true,
+          "endedAt": "2026-10-15T17:23:56.208Z",
+          "turnOutputTokens": 0
         }
       ],
       "startCommit": "e30d8b56579478b60813709f4ba3006cf2efc02f",
       "range": {
         "from": "e30d8b56579478b60813709f4ba3006cf2efc02f",
         "to": "HEAD"
-      }
+      },
+      "endCommit": "019ad03c25016e7bc67dc1ea04efdb4bfb86aef9",
+      "endCode": "f9a96f9d83d4cefeefec16d184e825ef0b9ee612"
     },
     {
       "name": "closeout",

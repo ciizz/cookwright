@@ -123,7 +123,7 @@ describe('tag metadata', () => {
 
 describe('the render', () => {
   it('is the template, byte for byte, at zero tags: unborn, and with commits', () => {
-    expect(renderChangelog([])).toBe(fs.readFileSync(TEMPLATE_FILE, 'utf8'));
+    expect(renderChangelog([])).toBe(fs.readFileSync(TEMPLATE_FILE, 'utf8').replace(/\r\n/g, '\n'));
     expect(TEMPLATE).toMatch(/^# Changelog\n\n<!-- cookwright:changelog -->\n\n[^\n]+\n\n---\n$/);
     expect(hasMarker(TEMPLATE)).toBe(true);
     const repo = repoAt();
@@ -263,6 +263,30 @@ describe('the changelog state', () => {
     write(repo, text.replace(/\n/g, '\r\n'));
     expect(changelogState(repo).state).toBe('current');
     expect(hasMarker(`x\n  ${MARKER}  \ny`)).toBe(true);
+  });
+
+  it('reads a CRLF template (a Windows autocrlf checkout) as LF, so the file init seeds is current', async () => {
+    const crlf = fs.readFileSync(TEMPLATE_FILE, 'utf8').replace(/\r?\n/g, '\r\n');
+    const readFileSync = fs.readFileSync;
+    let served = false;
+    const spy = vi.spyOn(fs, 'readFileSync').mockImplementation((p, ...rest) => {
+      if (!String(p).endsWith('/templates/CHANGELOG.md')) return readFileSync(p, ...rest);
+      served = true;
+      return crlf;
+    });
+    try {
+      vi.resetModules();
+      const fresh = await import('./lib/changelog/state.mjs');
+      const render = await import('./lib/changelog/render.mjs');
+      expect(served).toBe(true);
+      expect(render.TEMPLATE).toBe(TEMPLATE);
+      const repo = repoAt();
+      write(repo, crlf);
+      expect(fresh.changelogState(repo).state).toBe('current');
+    } finally {
+      spy.mockRestore();
+      vi.resetModules();
+    }
   });
 });
 

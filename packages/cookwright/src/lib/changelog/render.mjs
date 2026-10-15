@@ -12,8 +12,14 @@ import { SECTIONS, classify } from './commits.mjs';
 /** The line that says a changelog is generated: doctor and --check look for it. */
 export const MARKER = '<!-- cookwright:changelog -->';
 
-/** The generated file's header, and the whole file when no release tag exists. */
-export const TEMPLATE = fs.readFileSync(new URL('../templates/CHANGELOG.md', import.meta.url), 'utf8');
+/**
+ * The generated file's header, and the whole file when no release tag exists.
+ * LF whatever the checkout did to the template (a Windows `core.autocrlf` gives it
+ * CRLF), since the file is compared LF-normalised against the render.
+ */
+export const TEMPLATE = fs
+  .readFileSync(new URL('../templates/CHANGELOG.md', import.meta.url), 'utf8')
+  .replace(/\r\n/g, '\n');
 
 /** True when `text` (LF) carries the marker as a line of its own. */
 export const hasMarker = (text) => text.split('\n').some((l) => l.trim() === MARKER);

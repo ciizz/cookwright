@@ -10,7 +10,12 @@ import { commit, run, scratchRepo, scratchRoot } from '../../test-helpers.mjs';
 import { stagedMatching, unmetRules } from './docsync.mjs';
 
 const TMP = scratchRoot('cookwright-docsync-');
-const ENV = { PATH: process.env.PATH, HOME: process.env.HOME };
+const ENV = {
+  PATH: process.env.PATH,
+  HOME: process.env.HOME,
+  GIT_CONFIG_GLOBAL: process.env.GIT_CONFIG_GLOBAL,
+  GIT_CONFIG_NOSYSTEM: '1',
+};
 let n = 0;
 const repoAt = () => scratchRepo(TMP, `r${(n += 1)}`);
 

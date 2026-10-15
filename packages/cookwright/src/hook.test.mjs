@@ -37,7 +37,12 @@ afterEach(() => {
 });
 
 /** The suite may itself run under a hook: nothing of the caller's git or COOKWRIGHT_SKIP leaks in. */
-const ENV = { PATH: process.env.PATH, HOME: process.env.HOME };
+const ENV = {
+  PATH: process.env.PATH,
+  HOME: process.env.HOME,
+  GIT_CONFIG_GLOBAL: process.env.GIT_CONFIG_GLOBAL,
+  GIT_CONFIG_NOSYSTEM: '1',
+};
 const RULE = { name: 'docs', code: ['src/*', ':!*.test.mjs'], docs: ['docs/guide.md'] };
 
 let n = 0;

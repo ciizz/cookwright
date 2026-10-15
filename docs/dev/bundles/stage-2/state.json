@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 30,
+  "revision": 32,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -88,9 +88,18 @@
     },
     {
       "name": "implement:s1",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-15T15:38:44.680Z",
+          "stateRevision": 30,
+          "planSha": "825bfd5edc1f9ee2",
+          "codex": true
+        }
+      ],
+      "startCommit": "40300c470e8a784dce45ec571b3169304956d7ec",
+      "range": null
     },
     {
       "name": "review:changelog",
@@ -358,6 +367,13 @@
       "actor": "orchestrator",
       "source": "phase done plan-review --accept-open",
       "text": "closed plan-review with findings open: Findings 3 and 4 (Codex P1s) are accepted as design by the developer, ratified in chat on 2026-10-15 and recorded as developer decisions: pre-push judges the working tree with the SKIP and labelled forms, never a refusal, the per-sha worktree backlogged; a linked worktree whose branch lacks .githooks/ runs no hook, doctor reports it there, with the two-worktree test and the README line.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:38:55.315Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 17; plan §10",
+      "text": "The recorded s1 scope says 'cli-main registration of changelog and hook names in the usage'; corrected by plan §10: s1 registers changelog only, the usage reads <init|doctor|changelog|bundle>, and s2 adds hook with its module. The state's split text is the CLI's and stays as recorded.",
       "claim": true
     }
   ],

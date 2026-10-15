@@ -106,6 +106,8 @@ const init = {
   notAFile: (rel) => `${rel} exists and is not a file; move it aside, then rerun`,
   notADir: (rel) => `${rel} exists and is not a directory; move it aside, then rerun`,
   gitFailed: (what, detail) => `git ${what} failed: ${detail}`,
+  badBase: (base) => `--base ${JSON.stringify(base)} is not a valid branch name`,
+  freshInvalid: (problems) => `the ${CONFIG_FILE} init would write is invalid: ${problems.join('; ')}`,
   settingsInvalid: (file, detail) => `${file} is not valid JSON (${detail}); fix it by hand, then rerun`,
   settingsShape: (file, key) =>
     `${key ? `${file}: ${key}` : file} is not the shape Claude Code reads (an object, its hooks an object, hooks.SessionStart a list); fix it by hand, then rerun`,

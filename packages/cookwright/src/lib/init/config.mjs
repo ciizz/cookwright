@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { Refusal } from '../cli.mjs';
-import { CONFIG_FILE, DEFAULTS, loadConfig, withDefaults } from '../config.mjs';
+import { CONFIG_FILE, DEFAULTS, loadConfig, validateConfig, withDefaults } from '../config.mjs';
 import { messages } from '../messages.mjs';
 import { KEPT, WROTE, readTarget, row } from './files.mjs';
 import { detectBase } from './repo.mjs';
@@ -74,5 +74,9 @@ export function configStep(repo, io) {
   }
   const { raw, note } = freshConfig(repo.root, io.base);
   repo.config = withDefaults(raw);
+  // The same validation as a loaded config, in preflight: init never writes a
+  // config that doctor and every later run would refuse.
+  const problems = validateConfig(repo.config);
+  if (problems.length) throw new Refusal(messages.init.freshInvalid(problems));
   return row(WROTE, CONFIG_FILE, note, [{ rel: CONFIG_FILE, content: `${JSON.stringify(raw, null, 2)}\n` }]);
 }

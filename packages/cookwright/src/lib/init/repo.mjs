@@ -40,11 +40,14 @@ function gitAsks(root, args) {
 }
 
 /**
- * `--base`, else an existing `main`, else `master`, else the checked-out branch
+ * `--base` (refused unless git takes it as a branch name), else an existing `main`, else `master`, else the checked-out branch
  * (symbolic-ref works on an unborn HEAD), else `main`.
  */
 export function detectBase(root, flag) {
-  if (flag !== undefined) return flag;
+  if (flag !== undefined) {
+    if (gitRun(root, ['check-ref-format', '--branch', flag]).status !== 0) throw new Refusal(m.badBase(flag));
+    return flag;
+  }
   for (const name of ['main', 'master']) {
     if (gitAsks(root, ['show-ref', '--verify', '--quiet', `refs/heads/${name}`]).status === 0) return name;
   }

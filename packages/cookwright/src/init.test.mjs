@@ -211,6 +211,15 @@ describe('refusals', () => {
     expect(tree(root)).toEqual(before);
   });
 
+  it('refuses a --base git would not take as a branch name, before any write', () => {
+    for (const base of ['', '  ', 'a b', 'x..y']) {
+      const root = fresh();
+      expect(init(root, ['--base', base]).code).toBe(2);
+      expect(err[0]).toBe(m.refused(m.badBase(base)));
+      expect(tree(root)).toEqual({});
+    }
+  });
+
   it('refuses when the ignore probe errors, before any write', () => {
     const root = fresh();
     const ignored = () => {

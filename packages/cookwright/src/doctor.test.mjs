@@ -63,10 +63,18 @@ function writeAll(root, files) {
   }
 }
 
+/** The package's bin at `dir`, as npm installs it there: untracked, git told to ignore it. */
+function installPackage(dir) {
+  writeAll(dir, { 'node_modules/cookwright/bin/cookwright.mjs': '' });
+  const exclude = run(dir, 'git', ['rev-parse', '--git-path', 'info/exclude']);
+  fs.mkdirSync(path.dirname(path.resolve(dir, exclude)), { recursive: true });
+  fs.appendFileSync(path.resolve(dir, exclude), 'node_modules\n');
+}
+
 let n = 0;
 /**
  * A healthy Level 0 repo, `files` overriding (null deletes) before the commit, with
- * core.hooksPath set locally to `hooksPath` (null: unset).
+ * core.hooksPath set locally to `hooksPath` (null: unset) and the package installed.
  */
 function level0(files = {}, config = null, { hooksPath = '.githooks' } = {}) {
   const repo = scratchRepo(TMP, `r${(n += 1)}`);
@@ -74,6 +82,7 @@ function level0(files = {}, config = null, { hooksPath = '.githooks' } = {}) {
   if (config) all['cookwright.json'] = JSON.stringify({ version: 1, ...config });
   writeAll(repo.root, all);
   commit(repo, {}, 'level 0');
+  installPackage(repo.root);
   if (hooksPath) run(repo.root, 'git', ['config', '--local', 'core.hooksPath', hooksPath]);
   return repo.root;
 }
@@ -411,6 +420,15 @@ describe('git hooks', () => {
     expect(hooks(root)[1]).toEqual({ status: 'FAIL', note: m.hooks.notExecutable('.githooks/pre-commit') });
   });
 
+  it('WARNs a hook whose package is not installed where it runs: it would print not-installed and check nothing', () => {
+    const root = level0();
+    fs.rmSync(path.join(root, 'node_modules'), { recursive: true });
+    expect(hooks(root).slice(1)).toEqual([
+      { status: 'WARN', note: m.hooks.notInstalled('.githooks/pre-commit') },
+      { status: 'WARN', note: m.hooks.notInstalled('.githooks/pre-push') },
+    ]);
+  });
+
   it('PASSes a user’s own hook that calls cookwright', () => {
     const body = '#!/bin/sh\necho mine\nexec node node_modules/cookwright/bin/cookwright.mjs hook pre-commit "$@"\n';
     expect(hooks(level0({ '.githooks/pre-commit': body }))[1]).toEqual({
@@ -459,6 +477,7 @@ describe('git hooks', () => {
     const config = JSON.stringify({ version: 1 });
     writeAll(app, { ...rest, 'cookwright.json': config, '.githooks/pre-commit': a, '.githooks/pre-push': b }); // B-007's place
     commit({ root: top }, {}, 'level 0 in apps/mobile');
+    installPackage(app);
     run(top, 'git', ['config', '--local', 'core.hooksPath', '.githooks']);
     expect(hooks(app).slice(1)).toEqual([
       { status: 'FAIL', note: m.hooks.missing('../../.githooks/pre-commit') },
@@ -495,6 +514,7 @@ describe('git hooks', () => {
     const base = commit(repo, {}, 'level 0 without the hooks');
     writeAll(repo.root, { '.githooks/pre-commit': a, '.githooks/pre-push': b });
     commit(repo, {}, 'the hooks');
+    installPackage(repo.root);
     run(repo.root, 'git', ['config', '--local', 'core.hooksPath', '.githooks']);
     expect(hooks(repo.root)).toEqual(ok);
     const sibling = path.join(TMP, `wt-sibling-${n}`);

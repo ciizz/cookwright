@@ -20,7 +20,8 @@ export const HOOK_NAMES = Object.freeze(['pre-commit', 'pre-push']);
 /** The exit code `cookwright hook` uses for a FAILed check, and only for that. */
 export const FINDINGS_EXIT = 10;
 
-const BIN = 'node_modules/cookwright/bin/cookwright.mjs';
+/** The package's bin, from the directory the hook runs in (the config root). */
+export const BIN = 'node_modules/cookwright/bin/cookwright.mjs';
 
 /** What git is doing when the hook runs: the thing that goes through unchecked. */
 const subject = (name) => (name === 'pre-push' ? 'push' : 'commit');

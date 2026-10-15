@@ -99,6 +99,7 @@ function init(cwd, argv = [], { version = '2.1.281', probes = {} } = {}) {
 describe('a fresh repo', () => {
   it('writes every piece but the import, and doctor passes with no commits yet', () => {
     const root = fresh();
+    write(root, 'node_modules/cookwright/bin/cookwright.mjs', ''); // the package, as npm installs it
     const { code, rows } = init(root);
     expect(code).toBe(0);
     expect(Object.fromEntries(Object.entries(rows).map(([t, r]) => [t, r.action]))).toEqual({

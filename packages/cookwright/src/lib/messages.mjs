@@ -91,6 +91,8 @@ const doctor = {
     notExecutable: (rel) => `${rel} is not executable (${RUN_INIT}, which fixes the mode)`,
     shim: (rel) => `${rel}: the managed shim`,
     calls: (rel) => `${rel} calls cookwright; the rest is yours`,
+    notInstalled: (rel) =>
+      `${rel}: node_modules/cookwright is not installed here, so the hook prints not-installed and checks nothing (npm install)`,
   },
   gitleaks: {
     absent: 'skipped, needs gitleaks, run setup (brew install gitleaks): the pre-commit secret scan does not run',

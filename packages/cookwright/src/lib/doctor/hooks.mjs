@@ -17,10 +17,10 @@ import path from 'node:path';
 
 import { TimedOut } from '../budget.mjs';
 import { scriptProblems } from '../bundle/gate.mjs';
-import { HOOKS_DIR, HOOK_NAMES, callsCookwright, shimText } from '../hooks/shims.mjs';
+import { BIN, HOOKS_DIR, HOOK_NAMES, callsCookwright, shimText } from '../hooks/shims.mjs';
 import { messages } from '../messages.mjs';
 import { fail, pass, skip, warn } from '../verdict.mjs';
-import { gitRun, isLink } from './repo.mjs';
+import { gitRun, isFile, isLink } from './repo.mjs';
 
 const firstLine = (r) => (r.stderr || '').trim().split('\n')[0] || `exit ${r.status}`;
 
@@ -175,7 +175,11 @@ export function checkHooksPath(repo) {
   return s.configured ? pass(m.hooks.pathOk(HOOKS_DIR)) : fail(m.hooks.pathUnset);
 }
 
-/** `hooks.pre-commit`, `hooks.pre-push`: the file calls cookwright and is executable. */
+/**
+ * `hooks.pre-commit`, `hooks.pre-push`: the file calls cookwright and is executable,
+ * and the package's bin is where the call looks for it (the config root): without
+ * it the hook prints the not-installed line and checks nothing, a WARN.
+ */
 export const checkHookFile = (name) => (repo) => {
   if (!repo.workTree) return skip(m.hooks.notWorkTree);
   const s = setupOf(repo);
@@ -184,6 +188,7 @@ export const checkHookFile = (name) => (repo) => {
   if (f.kind === 'none') return fail(m.hooks.missing(f.rel));
   if (f.kind !== 'file') return fail(m.hooks.notAFile(f.rel));
   if (!f.executable) return fail(m.hooks.notExecutable(f.rel));
+  if (!isFile(path.join(repo.root, BIN))) return warn(m.hooks.notInstalled(f.rel));
   return pass(f.ours ? m.hooks.shim(f.rel) : m.hooks.calls(f.rel));
 };
 

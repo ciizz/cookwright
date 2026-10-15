@@ -16,7 +16,7 @@
 // WHERE: run from anywhere inside a repo that has a cookwright.json; the CLI walks up
 //   to it and treats that directory as the root.
 //
-// USAGE (CLI = node packages/cookwright/src/bundle.mjs)
+// USAGE (CLI = npx cookwright bundle; the `cookwright` bin dispatches here)
 //   CLI init <slug> --plan <path> --split <file.json>
 //   CLI status [slug]
 //   CLI args <slug> <phase>
@@ -78,51 +78,14 @@ import {
   statePath,
   validateSplit,
 } from './lib/bundle/state.mjs';
+import { Refusal, need, numberFlag, parseArgv, stringFlag } from './lib/cli.mjs';
 import { findRoot, loadConfig } from './lib/config.mjs';
 import { workflowScript } from './lib/hosts.mjs';
 
 const now = () => new Date().toISOString();
 
-export class Refusal extends Error {}
-
-// ── argv ─────────────────────────────────────────────────────────────────────
-
-/** Positionals and `--flag [value]` pairs; a flag followed by another flag is boolean. */
-export function parseArgv(argv) {
-  const pos = [];
-  const flags = {};
-  for (let i = 0; i < argv.length; i += 1) {
-    const a = argv[i];
-    if (!a.startsWith('--')) {
-      pos.push(a);
-      continue;
-    }
-    const key = a.slice(2);
-    const next = argv[i + 1];
-    if (next === undefined || next.startsWith('--')) flags[key] = true;
-    else {
-      flags[key] = next;
-      i += 1;
-    }
-  }
-  return { pos, flags };
-}
-
-const need = (value, what) => {
-  if (value === undefined || value === true) throw new Refusal(`missing ${what}`);
-  return value;
-};
-
-/** A flag that must carry a finite number, or undefined when absent. */
-function numberFlag(flags, name) {
-  if (flags[name] === undefined) return undefined;
-  const n = Number(need(flags[name], `--${name} <number>`));
-  if (!Number.isFinite(n)) throw new Refusal(`--${name} must be a number`);
-  return n;
-}
-
-const stringFlag = (flags, name) =>
-  flags[name] === undefined ? undefined : need(flags[name], `--${name} <value>`);
+// The shared argv pieces live in lib/cli.mjs; re-exported for the tests.
+export { parseArgv, Refusal };
 
 const readStdin = () => fs.readFileSync(0, 'utf8');
 

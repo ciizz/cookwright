@@ -9,9 +9,7 @@
 // Importing src/bundle.mjs is safe: `main()` runs only when it is the process entry
 // point, and under vitest `process.argv[1]` is the vitest binary.
 
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -47,7 +45,6 @@ import {
   saveState,
   validateSplit,
 } from './lib/bundle/state.mjs';
-import { CONFIG_FILE, loadConfig } from './lib/config.mjs';
 import {
   RigLockBusyError,
   TOKEN_ENV,
@@ -56,34 +53,10 @@ import {
   lockPath,
   probePid,
 } from './lib/rig-lock.mjs';
+import { commit, run, scratchRepo as scratchRepoIn, scratchRoot } from './test-helpers.mjs';
 
-const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'bundle-test-'));
-afterAll(() => fs.rmSync(TMP, { recursive: true, force: true }));
-
-const run = (cwd, cmd, args) => execFileSync(cmd, args, { cwd, encoding: 'utf8' }).trim();
-
-/** A scratch git repo with a cookwright.json (defaults unless overridden), as `repo`. */
-function scratchRepo(name, config = {}) {
-  const dir = path.join(TMP, name);
-  fs.mkdirSync(dir, { recursive: true });
-  run(dir, 'git', ['init', '-q', '-b', 'main']);
-  run(dir, 'git', ['config', 'user.email', 't@example.invalid']);
-  run(dir, 'git', ['config', 'user.name', 'test']);
-  run(dir, 'git', ['config', 'commit.gpgsign', 'false']);
-  fs.writeFileSync(path.join(dir, CONFIG_FILE), JSON.stringify({ version: 1, ...config }));
-  return { root: dir, config: loadConfig(dir) };
-}
-
-function commit(repo, files, msg) {
-  const dir = repo.root;
-  for (const [rel, body] of Object.entries(files)) {
-    fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
-    fs.writeFileSync(path.join(dir, rel), body);
-  }
-  run(dir, 'git', ['add', '-A']);
-  run(dir, 'git', ['commit', '-q', '--no-verify', '-m', msg]);
-  return run(dir, 'git', ['rev-parse', 'HEAD']);
-}
+const TMP = scratchRoot('bundle-test-');
+const scratchRepo = (name, config) => scratchRepoIn(TMP, name, config);
 
 const SPLIT = {
   slices: [
@@ -291,7 +264,7 @@ describe('phases and the args invariant', () => {
     expect(args.playbook.path).toBe('docs/playbook.md');
     expect(args.rules).toEqual([{ path: 'CLAUDE.md', sha: expect.stringMatching(/^[0-9a-f]{16}$/) }]);
     expect(args.state).toBe('docs/bundles/demo/state.json');
-    expect(args.cli).toBe('node packages/cookwright/src/bundle.mjs');
+    expect(args.cli).toBe('npx cookwright bundle');
     expect(args.codex).toBe(true); // frozen at phase start, a measured fact
   });
 
@@ -1071,7 +1044,7 @@ describe('the CLI', () => {
     expect(main(['status'], { cwd: bare })).toBe(2);
     expect(errors.join('\n')).toMatch(/no cookwright\.json here or in any parent directory/);
     expect(main(['bogus'], { cwd: repo.root })).toBe(2);
-    expect(errors.join('\n')).toMatch(/usage: node packages\/cookwright\/src\/bundle\.mjs </);
+    expect(errors.join('\n')).toMatch(/usage: npx cookwright bundle </);
   });
 
   it('inits a bundle, gates it with the configured checks, starts a phase and emits args', () => {
@@ -1175,6 +1148,6 @@ describe('the CLI', () => {
     expect(s.decisions.at(-1)).toMatchObject({ text: 'kept the P3', claim: true });
     expect(s.costs).toEqual([{ at: expect.any(String), usd: 1.5, note: 'plan review', entered: true }]);
     expect(cli('status')).toBe(0);
-    expect(logs.at(-1)).toMatch(/next     : node packages\/cookwright\/src\/bundle\.mjs phase rt start implement:s1/);
+    expect(logs.at(-1)).toMatch(/next     : npx cookwright bundle phase rt start implement:s1/);
   });
 });

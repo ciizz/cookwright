@@ -4,12 +4,13 @@
 // live beside the check that produces them (backlog E-004 moves the rest).
 
 import { CONFIG_FILE } from '../config.mjs';
+import { CLI } from '../messages.mjs';
 
-/** How this CLI is invoked, as every printed command names it. */
-export const CLI = 'node packages/cookwright/src/bundle.mjs';
+/** How the bundle runner is invoked, as every printed command names it. */
+export const BUNDLE_CLI = `${CLI} bundle`;
 
 export const messages = {
-  usage: (commands) => `usage: ${CLI} <${commands.join('|')}> …`,
+  usage: (commands) => `usage: ${BUNDLE_CLI} <${commands.join('|')}> …`,
   noConfig: `no ${CONFIG_FILE} here or in any parent directory — run from inside a cookwright repo`,
 
   // gate
@@ -39,18 +40,18 @@ export const messages = {
   // next actions
   next: {
     allDone: 'every phase done — `bundle check`, then merge',
-    start: (slug, phase) => `${CLI} phase ${slug} start ${phase}`,
+    start: (slug, phase) => `${BUNDLE_CLI} phase ${slug} start ${phase}`,
     qaRound: (slug) =>
       `record a QA round (\`record ${slug} qa\` with your notes on stdin), or \`phase ${slug} done qa --no-device "<why>"\``,
     outsideWorkflow: (slug, phase) =>
       `${phase} runs outside the Workflow — finish it, then \`phase ${slug} done ${phase}\``,
     resume: (script, runId, slug, phase) =>
       `Workflow({ scriptPath: '${script}', resumeFromRunId: '${runId}', args: ` +
-      `<output of \`${CLI} args ${slug} ${phase}\`> })`,
+      `<output of \`${BUNDLE_CLI} args ${slug} ${phase}\`> })`,
     afterRun: (slug, phase) =>
       `record the run's results, gate, \`phase ${slug} done ${phase}\` — or a rerun: \`phase ${slug} start ${phase}\``,
     launch: (script, slug, phase) =>
       `Workflow({ scriptPath: '${script}', args: <output of ` +
-      `\`${CLI} args ${slug} ${phase}\`> }), then \`phase ${slug} run ${phase} --run-id <id>\``,
+      `\`${BUNDLE_CLI} args ${slug} ${phase}\`> }), then \`phase ${slug} run ${phase} --run-id <id>\``,
   },
 };

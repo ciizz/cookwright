@@ -7,9 +7,15 @@
   "engines": {
     "node": ">=20"
   },
+  "bin": {
+    "cookwright": "bin/cookwright.mjs"
+  },
   "files": [
+    "bin",
     "src",
-    "schema"
+    "schema",
+    "!src/**/*.test.mjs",
+    "!src/test-helpers.mjs"
   ],
   "scripts": {
     "test": "vitest run"

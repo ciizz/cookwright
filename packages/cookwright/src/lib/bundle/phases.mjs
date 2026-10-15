@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { rulesFiles } from '../hosts.mjs';
-import { CLI } from './messages.mjs';
+import { BUNDLE_CLI } from './messages.mjs';
 import { bundleDir, bundleRel, findPhase, sha256File, sliceOfPhase } from './state.mjs';
 
 /** Kinds that run through the Workflow script; the rest are shell or the developer's hands. */
@@ -156,7 +156,7 @@ export function workflowArgs(state, name, repo) {
     name,
     slug: state.slug,
     branch: state.branch,
-    cli: CLI,
+    cli: BUNDLE_CLI,
     codex: phase.runs.at(-1).codex ?? false,
     state: bundleRel(repo, state.slug, 'state.json'),
     plan: pointer(repo, state.plan.path),

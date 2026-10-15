@@ -1,0 +1,514 @@
+{
+  "phase": "plan-review",
+  "stored": true,
+  "issues": [
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-1/state.json",
+      "location": "runs[0].transcriptDir (state.json:58); bundle.mjs:272 phaseRun; lib/bundle/phases.mjs:106 setRunId",
+      "problem": "A committed bundle-state file contains an absolute machine-local path, deliberately persisted by the runner. Violates CLAUDE.md 'No local paths in anything committed'.",
+      "failure_scenario": "Every phase recorded with --transcript-dir leaks a username, checkout path and Claude project layout into Git history; a later removal does not erase it.",
+      "suggested_fix": "Stop persisting absolute transcript paths (keep run ID or basename only). Scrub current state and rewrite affected branch commits before merge. Add a test rejecting absolute paths in persisted bundle state.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "docs/dev/bundles/stage-1/state.json:58 holds an absolute <local path> transcriptDir. The file is git-tracked and not ignored. packages/cookwright/src/lib/bundle/phases.mjs:116 and :130 persist the field, and bundle.mjs:275 and :306 pass it in from --transcript-dir. This breaks CLAUDE.md 'Nothing private, ever. No local paths'. plan.md has no section that addresses it."
+    },
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-1/state.json",
+      "location": "decisions lines 137-150; plan sections 3 and 9; CHARTER.md:36",
+      "problem": "The plan is stale relative to two recorded developer decisions queued for implement:s3: Codex skill pointers written by init, and a dated CHARTER amendment. The plan puts skill delivery out of scope and omits CHARTER.md from changed files.",
+      "failure_scenario": "Implementers follow the approved plan, omit both decisions, and finish s3 and closeout; the charter stays unamended while bundle state claims acceptance.",
+      "suggested_fix": "Fold both decisions into sections 3-7, the file list, tests, s3 scope and section 9. If deferred intentionally, record a new developer decision in bundle state.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "plausible",
+      "evidence": "plan.md:24 puts skill delivery out of scope, and plan.md:131 (changed files) omits CHARTER.md. CHARTER.md:36 says 'Amendments (none)'. state.json:137-150 holds two developer decisions, with source text saying 'addendum for plan §9, queued for implement:s3'. The decisions are explicitly queued for s3, so the gap may be handled by the runner surfacing them to the implementer. I could not confirm that. plan.md:148 already covers the AGENTS.md and CLAUDE.md-import half. Only the Codex skill pointers and the charter amendment are missing from the plan text."
+    },
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 67, section 4.4 step 6",
+      "problem": "The probe `git check-ignore -q .env .env.local` is invalid: git exits 128 with 'fatal: --quiet is only valid with a single pathname'.",
+      "failure_scenario": "Init reads the error as 'not ignored' and appends the same patterns on every run, breaking byte-idempotence; doctor cannot reliably establish ignore coverage.",
+      "suggested_fix": "Probe each path separately or use non-quiet `git check-ignore --stdin` and validate both paths. Distinguish exit 128 from 'not ignored'. Test partial coverage (.env ignored, .env.local not).",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "plan.md:67 uses `git check-ignore -q .env .env.local`; git rejects -q with multiple pathnames (fatal, exit 128). I could not run it here (Bash denied), so this rests on git's documented behavior."
+    },
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 111, section 4.8 host.rules row; section 4.3 required-check semantics",
+      "problem": "Claude Code 2.1.280 is classified WARN though the plan says it may ignore AGENTS.md; WARN never counts as drift, so Level 0 is declared complete with rules not loaded.",
+      "failure_scenario": "User on 2.1.280 with no legacy rules file runs init; init skips CLAUDE.md, doctor says 'complete, weak', and the next Claude session runs without cookwright's rules.",
+      "suggested_fix": "For versions below 2.1.281 init must create the import, or host.rules must FAIL and count as drift. Add an end-to-end test that 'level complete' implies rules are loadable.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "plausible",
+      "evidence": "plan.md:111 (host.rules WARN) and plan.md:46 (only FAIL in requires is drift) match the finding. The weak state is reported in the level line, so it is not silent. This is a design tradeoff."
+    },
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 99, section 4.8 host.rules PASS case; CLAUDE.md:20",
+      "problem": "Missing `claude` is reported as PASS ('version unverified'), contrary to the rule that a check needing an absent tool reports 'skipped, needs X, run setup' and exits 0.",
+      "failure_scenario": "An old Claude not on the current PATH is treated as verified and Level 0 complete although native AGENTS.md support is unknown.",
+      "suggested_fix": "Return SKIP with the mandated wording when the binary is absent; define SKIP's effect on level completeness or defensively create the import when version cannot be proven. Apply the same to git probes.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "plausible",
+      "evidence": "plan.md:111 PASS case 'or claude not on PATH (note: version unverified)' against CLAUDE.md:20; a SKIP status exists in the table."
+    },
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 18, section 2 'working directory' approximation; section 9 deferred backlog item",
+      "problem": "The plan scans the repo root and ancestors instead of the invocation cwd and its ancestors, though init is promised to work from a subdirectory; shadowing rules files between cwd and root are missed.",
+      "failure_scenario": "Claude starts in packages/mobile/ containing its own CLAUDE.md; init scans from root, skips the root import, doctor PASSes while Claude ignores root AGENTS.md.",
+      "suggested_fix": "Preserve the original cwd and scan upward from it through the repo and external ancestors; do not defer while host.rules is a required Level-0 check.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "plausible",
+      "evidence": "plan.md:18 and plan.md:25 say init works from a subdirectory, but host.rules scans from the root. plan.md:161 defers 'host.rules reading Claude's actual cwd' to the backlog, so it is a known gap."
+    },
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 60, section 4.4 step 5; section 4.8 host.hook",
+      "problem": "Hook presence is a substring search for 'cookwright doctor', not verification of an executable doctor hook.",
+      "failure_scenario": "A SessionStart command like `echo \"run cookwright doctor manually\"` or `false # cookwright doctor` makes init keep the file and doctor PASS while no doctor ever runs.",
+      "suggested_fix": "Match a canonical hook object/command exactly or use a cookwright-owned marker with command-structure validation. Test misleading comments and echo commands.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "plan.md:60 and plan.md:112 test only that a command contains the substring 'cookwright doctor'. No check that the command executes doctor."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 113, section 4.8 secrets.env",
+      "problem": "Secret-file detection is root-only; a cheap git-index scan could detect tracked .env* anywhere.",
+      "failure_scenario": "An Expo monorepo commits apps/mobile/.env and doctor reports nothing.",
+      "suggested_fix": "Scan tracked paths repo-wide with git pathspecs for .env/.env.*, keeping example/template exemptions; define a bounded strategy for untracked files.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "plausible",
+      "evidence": "plan.md:114 says secrets.env looks at the root only. It is a deliberate scope limit, so this is an enhancement rather than a defect."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 99, section 4.8 performance budget",
+      "problem": "Doctor promises under two seconds while allowing `claude --version` to block five seconds.",
+      "failure_scenario": "A hanging Claude shim delays every SessionStart by five seconds while conforming to the stated timeout.",
+      "suggested_fix": "Fit subprocess timeouts inside the total budget (shared deadline), or replace the hard 2s criterion with a measured percentile.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "plausible",
+      "evidence": "plan.md:99 states a budget under two seconds and a five-second claude --version timeout. The spawn happens only 'when its answer matters', which limits the exposure."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 141, section 6 init tests; section 8 scratch verification",
+      "problem": "Fresh-repo acceptance contradicts the design: with no Claude rules files the host-import step is 'skipped' not 'wrote', and an unborn repo has no resolvable base-branch commit though section 8 requires all PASS with no commit.",
+      "failure_scenario": "A correct implementation fails 'every row wrote', or checks are weakened to satisfy the test.",
+      "suggested_fix": "Specify expected status per init row; define an unborn symbolic base branch as valid or require an initial commit and expect WARN until then.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 9,
+      "verdict": "confirmed",
+      "evidence": "plan.md:141 expects every row to be 'wrote' on a fresh repo, but step 4 (plan.md:59) is 'skipped' with no CLAUDE.md. The unborn-HEAD baseBranch problem is the same as finding 18."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 46, section 4.3 level semantics; section 4.8 rules.block",
+      "problem": "A stale or malformed required rules block is WARN and only FAIL counts as drift, so Level 0 is 'complete' even with managed content deleted between intact markers.",
+      "failure_scenario": "Secrets and state-home rules are removed; doctor says 'complete, weak' while the required rules surface is effectively absent.",
+      "suggested_fix": "Treat stale and malformed required blocks as drift/FAIL; a 'newer' block may stay WARN.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 10,
+      "verdict": "confirmed",
+      "evidence": "plan.md:46 counts only FAIL among requires as drift. plan.md:82 gives stale/malformed rules.block a WARN, so a gutted block reads 'complete, weak'."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 143, section 4.9 and section 6 strings test; bundle.mjs:111",
+      "problem": "The proposed repo-wide string grep cannot pass without absorbing E-004: existing bundle modules contain many user-facing literals and the extracted cli.mjs adds more outside messages.mjs.",
+      "failure_scenario": "The test fails immediately on existing literals, or s1 expands into an unplanned migration of the whole bundle CLI.",
+      "suggested_fix": "Restrict enforcement to new init/doctor/bin modules and route shared CLI errors through messages, or bring E-004 into scope and update the slice split.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 11,
+      "verdict": "confirmed",
+      "evidence": "plan.md:143 greps src/ for literals, excluding only messages.mjs, bundle/messages.mjs and hosts.mjs. bundle.mjs has about 28 template-literal prints and throws (e.g. line 111 'missing ${what}'). The plan moves those helpers into cli.mjs and lists no migration."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 131, section 5 changed files; package-lock.json:1604",
+      "problem": "The plan adds `bin` to package metadata but omits package-lock.json, whose workspace entry has no bin.",
+      "failure_scenario": "The lock stays out of sync with the manifest; clean-install and bin-link behavior differs from the developer's node_modules.",
+      "suggested_fix": "Include the lockfile in s1's surface, regenerate via npm, and verify `npm ci` from clean leaves the tree clean and creates the bin link.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 12,
+      "verdict": "confirmed",
+      "evidence": "plan.md:131 omits package-lock.json. package-lock.json:1604 workspace entry has no bin."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 54, section 4.4 ordered init steps and refusal tests",
+      "problem": "Refusal is not atomic: malformed rules/settings are found after config, homes and other files are already written, despite tests calling refused files 'untouched'.",
+      "failure_scenario": "Malformed .claude/settings.json yields exit 2 after cookwright.json, backlog, changelog were created and AGENTS.md modified, leaving a partial setup.",
+      "suggested_fix": "Add a read-only preflight that parses and validates every existing target before any write; test the whole tree, not only the malformed file.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 13,
+      "verdict": "confirmed",
+      "evidence": "plan.md:54 orders config and homes (steps 1-2) before the rules-block and settings refusals (steps 3 and 5). Nothing says the checks run first, so a refusal leaves earlier writes in place."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "line 57, section 4.4 step 2",
+      "problem": "An existing empty closeouts directory is kept with no tracked sentinel; git cannot preserve empty directories.",
+      "failure_scenario": "Init passes locally, user commits, a fresh clone lacks the directory, and doctor reports Level-0 drift.",
+      "suggested_fix": "Ensure .gitkeep exists whenever the directory has no tracked content; add a clone-equivalent test for an initially empty directory.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 14,
+      "verdict": "confirmed",
+      "evidence": "plan.md:57: .gitkeep is created only when closeouts is absent; a present directory is 'kept'. An empty tracked-less directory does not survive clone."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.4 step 6 (line 67), §4.8 secrets.env row (line 113)",
+      "problem": "The probe `git check-ignore -q .env .env.local` exits 0 when ANY listed path is ignored (git docs: exit 0 means \"one or more of the provided paths is ignored\"). If one path is covered and the other is not, init reports `kept` and doctor PASSes while `.env.local` can still be committed.",
+      "severity": "P1",
+      "suggested_fix": "Probe each path separately (one `git check-ignore -q <path>` per name), or run without -q and require that every name appears in the output. Write the probe once and share it between init step 6 and doctor's secrets.env. Add a test: a .gitignore holding only `.env` gives init `updated` and doctor WARN.",
+      "failure_scenario": "An Expo app whose .gitignore holds only `.env`, a common setup. init runs the probe, gets exit 0 and reports `.gitignore kept`. doctor's secrets.env reports PASS. The developer later creates `.env.local` (Expo's own convention) with Supabase keys, `git add .` stages it, and the secret lands in a commit while the harness reported Level 0 complete. This breaks the charter's secrets property and the rule \"Secrets never touch disk in plaintext\".",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 15,
+      "verdict": "plausible",
+      "evidence": "plan.md:67 and plan.md:113. With -q and two paths git errors (finding 2) rather than exiting 0 on any ignored path. The underlying flaw, that one probe does not prove both paths are covered, holds either way."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.1 'The invocation is npx cookwright' (line 34), every printed next-action line and doc",
+      "problem": "Every printed command and doc becomes `npx cookwright …`, but the npm name `cookwright` is unpublished (`npm view cookwright` returns 404 today). npm exec assumes --yes when stdin is not a TTY, and an agent's Bash tool is not a TTY. So wherever the package is not installed locally, `npx cookwright` downloads and runs whatever package someone publishes under that name.",
+      "severity": "P2",
+      "suggested_fix": "Before any doc or message ships the `npx cookwright` string, the developer reserves the npm name (their hands: a publish). Until then, print `npx --no cookwright …`, which refuses rather than installs. Record the decision in §2.",
+      "failure_scenario": "A user clones their repo on a new machine and has not run `npm install` yet. The agent follows the rules block or the bundle skill and runs `npx cookwright doctor` or `npx cookwright bundle status`. In the non-TTY shell npx auto-installs the registry's `cookwright` and runs a squatter's code with the developer's credentials. The plan already measured that npx contacts the registry, but only for the hook.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 16,
+      "verdict": "plausible",
+      "evidence": "plan.md:34 makes the invocation npx cookwright everywhere. Whether the name is unpublished could not be checked offline."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.4 step 5 and §4.8 host.hook row (lines 60-63, 112)",
+      "problem": "The planned HOOK_COMMAND runs `node node_modules/cookwright/bin/cookwright.mjs doctor --hook`, which does not contain the substring `cookwright doctor` that init and doctor test for. It matches only through the echo text `cookwright doctor skipped: package not installed`, a user-facing string. Idempotence and the host.hook verdict depend on that string's wording by accident.",
+      "severity": "P2",
+      "suggested_fix": "Detect the hook by comparing against HOOK_COMMAND exactly (or a constant marker exported from hosts.mjs), or by a regex such as /cookwright(\\.mjs)?\\s+doctor/ on the node part. Add a test that rewords the not-installed line and checks that init's second run still reports `kept`.",
+      "failure_scenario": "A later session rewords the not-installed line, for example to \"cookwright: doctor skipped, package not installed\". From then on, init's step 5 finds no `cookwright doctor` and appends a second SessionStart entry on every rerun, breaking \"second run changes no byte\". doctor's host.hook reports FAIL (\"doctor runs only by hand\") on a repo where the hook is installed and working.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 17,
+      "verdict": "confirmed",
+      "evidence": "plan.md:63 HOOK_COMMAND contains 'cookwright/bin/cookwright.mjs doctor', not 'cookwright doctor'. Only the echo text 'cookwright doctor skipped' matches the substring test in plan.md:60 and plan.md:112."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.8 git row (line 104) vs §8 scratch-repo step (line 154) and §6 init 'fresh repo … doctor passes' (line 141)",
+      "problem": "In a repo with no commits yet, `baseBranch` has no ref, so by the table the `git` check is WARN (\"baseBranch does not exist\"). §8 expects doctor all PASS on the first run with no commit after `git init; npm init -y`, and §6 expects \"doctor passes\" on a fresh repo. The test helper `scratchRepo` also creates repos with no commit. The verdict for an unborn HEAD is contradictory.",
+      "severity": "P2",
+      "suggested_fix": "Choose one: treat a baseBranch equal to the unborn HEAD's symbolic ref as PASS (note: no commits yet), or change §8 and §6 to expect WARN until the first commit. State the choice in the table.",
+      "failure_scenario": "s2 implements the table literally (`git rev-parse --verify main` fails, so WARN). s3's fresh-repo init test asserting all PASS goes red, or the implementer quietly loosens the check. The §8 hand verification then cannot read all PASS as written, and the closeout either misreports it or stalls.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 18,
+      "verdict": "confirmed",
+      "evidence": "plan.md:104 says an unborn HEAD is fine only if baseBranch resolves. Step 1 sets baseBranch to the unborn branch name (symbolic-ref), which does not resolve. Contradicts the all-PASS expectation at plan.md:154 and plan.md:141."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.8 backlog.ids row (line 108), §7 'doctor all PASS' (line 148), §9 'close E-007's CLI half … adapter half stays as E-007' (line 160)",
+      "problem": "\"Every B-nnn/E-nnn id once\" does not say which occurrences count. This repo's own backlog already mentions E-001 twice: its own line, plus \"E-006 Folded into E-001\". §9 also plans to close E-007's CLI half while E-007 stays open, which puts E-007 in both Open and Closed.",
+      "severity": "P2",
+      "suggested_fix": "Define an id occurrence as the leading `- **X-nnn**` of an item line only, so cross-references in prose do not count. State how a partly closed item is recorded, for example a new id for the closed half or a note on the open line. Add a test where a cross-reference is not a duplicate.",
+      "failure_scenario": "A literal implementation (regex over the whole file) gives WARN \"duplicate id(s): E-001, E-007\" on this repo. §7's \"npx cookwright doctor reads all PASS\", quoted in the closeout, is then false, and every user who cross-references ids gets a permanent WARN.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 19,
+      "verdict": "confirmed",
+      "evidence": "docs/dev/backlog.md:9 and :20 both mention E-001 ('E-006 Folded into E-001'). plan.md:108 says 'every id once' without defining the occurrence. plan.md:160 leaves E-007 in both Open and Closed."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.8 secrets.env row and note (lines 113-115)",
+      "problem": "The pattern `.env*` also matches `.envrc`, `.envrc.local`, `.environment` and similar names. The plan says `.envrc` is Level 2's concern, but as written secrets.env flags it, and init's ignore rules (`.env`, `.env.*`) do not cover it.",
+      "severity": "P2",
+      "suggested_fix": "Match exactly `.env` and `.env.*` (the same patterns init writes to .gitignore), minus the three exemptions. Add a test where a tracked `.envrc` gives PASS.",
+      "failure_scenario": "A direnv user commits `.envrc` (commonly `use nvm` or `dotenv`, often with no secret). doctor reports FAIL \"a tracked .env*\" at every session start and exits 1 by hand. The rules block tells the agent a FAIL is dealt with before other work, so the agent tries to untrack or delete the developer's direnv file.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 20,
+      "verdict": "confirmed",
+      "evidence": "plan.md:113 uses the pattern '.env*', which matches .envrc. The note at plan.md:115 says .envrc is Level 2's concern, but the check as written would flag a tracked .envrc."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.8 config row (line 103), §6 doctor unknown-host test (line 140)",
+      "problem": "loadConfig() throws on any problem, unknown hosts included (config.mjs validateTop), so no repo object exists when config fails. The plan has the other checks run with only the host checks SKIP, and \"the loader's unknown-host message becomes that text\", but it never says what homes.*, rules.block (which renders with config.paths) or the level line do when the config does not load. Moving the message into messages.mjs also risks a cycle: messages.mjs would import CONFIG_FILE from config.mjs (as bundle/messages.mjs does today) while config.mjs imports the text from messages.mjs. That throws a TDZ ReferenceError at module load.",
+      "severity": "P2",
+      "suggested_fix": "Specify it: on a config FAIL, every check that needs the config is SKIP (note: config invalid), and the level line reads \"level unknown: config invalid\". For the unknown-host case, either load paths leniently or SKIP everything. Keep the loader's messages inside config.mjs, or put CONFIG_FILE in a leaf module that both import. State the import direction next to the existing hosts.mjs cycle note.",
+      "failure_scenario": "In s2 the implementer adds `import { messages } from './messages.mjs'` to config.mjs for the unknown-host text, and messages.mjs already does `import { CONFIG_FILE } from './config.mjs'` for the \"run npx cookwright init\" line. Importing config.mjs first (bundle.mjs does) throws \"Cannot access 'CONFIG_FILE' before initialization\", so every CLI command crashes. Separately, a cookwright.json with a typo key gives doctor no paths, and checks either throw (in --hook, the one-line thrown-probe output hides the rest of the readout) or are reported inconsistently.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 21,
+      "verdict": "plausible",
+      "evidence": "config.mjs:116 builds the unknown-host message and loadConfig throws. lib/bundle/messages.mjs:6 imports CONFIG_FILE from config.mjs and uses it at module top level (lines 13, 18), so config.mjs importing messages.mjs would risk a TDZ cycle. The plan does not say what the other checks do when the config does not load."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.1 bin (line 30), §4.4 step 5 hook command (line 63), §7 workspace symlink",
+      "problem": "The plan asks for a bin whose dispatcher tests call without a process, so the implementer is likely to copy bundle.mjs's entry guard (`import.meta.url === pathToFileURL(process.argv[1]).href`). That guard is false whenever the bin is reached through a symlink: `node_modules/.bin/cookwright` for npx, and in this repo `node_modules/cookwright` → `packages/cookwright` for the hook. Node resolves the main module's realpath for import.meta.url but leaves argv[1] unresolved. The bin then exits 0 having done nothing, and in-process tests cannot see it.",
+      "severity": "P2",
+      "suggested_fix": "Specify that the bin has no guard and always runs `process.exitCode = await dispatch(...)`, with the dispatcher in a separate importable module (for example src/cli-main.mjs). Alternatively compare `fs.realpathSync(process.argv[1])`. Add one spawned test through a symlinked path.",
+      "failure_scenario": "In this repo, the hook command `node node_modules/cookwright/bin/cookwright.mjs doctor --hook` runs through the workspace symlink. The guard compares /repo/node_modules/... to /repo/packages/... and is false, so the hook prints nothing and exits 0. Each session silently has no doctor line, while host.hook still reports PASS because the settings entry exists.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 22,
+      "verdict": "plausible",
+      "evidence": "bundle.mjs:525 uses the guard import.meta.url === pathToFileURL(process.argv[1]).href. The plan does not specify the bin's entry mechanism, and the hook runs through the node_modules/cookwright symlink (plan.md:63, plan.md:127)."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.4 'Root: the directory holding cookwright.json found upward from cwd' (line 52)",
+      "problem": "findRoot walks to the filesystem root and does not stop at the git work tree. So init and doctor can bind to a cookwright.json that belongs to an enclosing directory or repo rather than the repo they were run in.",
+      "severity": "P2",
+      "suggested_fix": "Stop the upward search at `git rev-parse --show-toplevel`: take cookwright.json only from directories inside the current work tree, else the toplevel. Add a test with a nested repo under a directory that holds a cookwright.json.",
+      "failure_scenario": "The developer follows §8 and creates the scratch repo inside the cookwright checkout (for example ./tmp/scratch, then `git init`), or a user keeps apps under a parent folder with a cookwright.json. Running `npx cookwright init` in the new repo finds the parent's cookwright.json, treats the parent as root, and reports `kept` everywhere. The new repo gets nothing, yet doctor reads PASS against the parent repo.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 23,
+      "verdict": "confirmed",
+      "evidence": "config.mjs:42-50 findRoot walks up to the filesystem root with no git boundary. plan.md:52 builds init's Root on it."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/state.json",
+      "location": "phases[plan-review].runs[0].transcriptDir; commit 97b5a76 on bundle/stage-1",
+      "problem": "The bundle state committed on this branch holds an absolute local path, `/Users/<user>/.claude/projects/-Users-<user>-Programming-cookwright/...`, written by the runner from `--transcript-dir`. CLAUDE.md says \"No local paths … in anything committed\". The plan's own bundle will add one such path per phase run, and none of the plan's sections addresses it. This is a pre-existing stage-0 runner behavior that this bundle propagates.",
+      "severity": "P2",
+      "suggested_fix": "Before merge, have the runner store transcriptDir relative to the host's project home (for example `~/.claude/...`) or keep it out of committed state in a gitignored sidecar. Log it as a backlog bug, and rewrite the affected commits before the branch is pushed.",
+      "failure_scenario": "bundle/stage-1 merges to main and is pushed to the public repo, publishing the developer's home path and project layout in docs/dev/bundles/stage-1/state.json and its history. That directly breaks the first rule of the rules file.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 24,
+      "verdict": "confirmed",
+      "evidence": "Same defect as [0]. state.json:58 is committed in 97b5a76 on bundle/stage-1 and contains the absolute path with the username and Claude project layout. CLAUDE.md forbids local paths in anything committed. The plan does not address it, and each new phase run adds another such path."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.4 steps / §4.1 dispatch (lines 30, 50)",
+      "problem": "`cookwright init` (harness init) and `cookwright bundle init <slug> --plan … --split …` now share a verb one word apart. The plan does not say that harness init rejects unexpected positionals and flags.",
+      "severity": "P3",
+      "suggested_fix": "init and doctor refuse unknown positionals and flags (exit 2, usage) and name `bundle init` in the refusal when `--plan` or `--split` is present.",
+      "failure_scenario": "An agent drops the `bundle` word and runs `npx cookwright init stage-2 --plan docs/… --split s.json`. Harness init ignores the arguments, runs its steps (possibly prepending `@AGENTS.md` to CLAUDE.md or appending to .gitignore), and returns doctor's exit code. The bundle is never initialized and nothing tells the agent why.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 25,
+      "verdict": "plausible",
+      "evidence": "plan.md:30 and :50. The plan says nothing about init rejecting extra positionals or flags."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.4 intro and §6 init bullet (lines 50, 141)",
+      "problem": "The idempotence contract says a second run reports `kept` everywhere, and §6 says a fresh repo gives `wrote` in every row. But step 4 reports `skipped` on a fresh repo with no CLAUDE.md, and stays `skipped` on rerun. The plan also does not say whether a refusal at step 3 (malformed block) or step 5 (unparseable settings) aborts the later steps or continues.",
+      "severity": "P3",
+      "suggested_fix": "Word the contract as \"no row is wrote or updated and no byte changes\". State that a refusal stops init after reporting the rows done so far, exit 2, with no doctor run.",
+      "failure_scenario": "The s3 tests assert `every row kept` and fail on the `skipped` host-import row. The implementer then either weakens the test or makes step 4 report `kept` for a file it never touched. Separately, a malformed block may or may not still get the hook and .gitignore written, depending on the session.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 26,
+      "verdict": "confirmed",
+      "evidence": "plan.md:50 says a second run is 'kept everywhere' and plan.md:141 says every row is 'wrote'. Step 4 (plan.md:59) can be 'skipped'. The plan does not say whether a refusal aborts the later steps."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.4 step 5 hook command (line 63); §4.8 git check",
+      "problem": "The `||` fallback prints \"package not installed (npm install)\" for any non-zero result: node missing from PATH, or doctor crashing on a Node older than engines or on a broken update. Missing git also gives `git` FAIL and exit 1, and init refuses. CLAUDE.md requires absence of a tool to read \"skipped, needs X, run setup\" with exit 0.",
+      "severity": "P3",
+      "suggested_fix": "Split the fallback: `command -v node >/dev/null || { echo 'cookwright doctor skipped, needs node, run setup'; exit 0; }`, keep the file-exists test for not installed, and print a distinct \"doctor crashed\" line otherwise. Give doctor a `hasTool('git')` SKIP row (\"skipped, needs git, run setup\").",
+      "failure_scenario": "After an upgrade, doctor throws a SyntaxError on the user's Node 18. Every session start says \"package not installed (npm install)\". The agent runs npm install, which changes nothing, and the real cause stays hidden.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 27,
+      "verdict": "plausible",
+      "evidence": "plan.md:63 '||' prints 'package not installed' for any non-zero exit, which would mask a crash. CLAUDE.md:20 requires 'skipped, needs X, run setup'."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§2 / §3 Changed files (line 131); §8 'ls node_modules/.bin/cookwright exists after npm ci'",
+      "problem": "Adding `bin` to the workspace package changes package-lock.json (the workspace entry records `bin`). §5 does not list package-lock.json, and the implementer stages named paths only.",
+      "severity": "P3",
+      "suggested_fix": "Add package-lock.json to the s1 changed files. The checkpoint runs `npm install` once, commits the lock, then verifies with a clean `npm ci`.",
+      "failure_scenario": "s1 edits package.json and commits it without the lockfile. On a clean `npm ci` (the gate machine, a fresh clone), the lock carries no bin for the workspace, `node_modules/.bin/cookwright` may not be created, and `npx cookwright` falls through to the registry (see the npx finding).",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 28,
+      "verdict": "plausible",
+      "evidence": "plan.md:131 omits package-lock.json; package-lock.json:1604 has no bin. Whether npm ci then skips the bin link could not be checked."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.4 step 1 gate.checks (line 56)",
+      "problem": "init writes `gate.checks: [{run: \"npm test\"}]` whenever `test` is not npm's placeholder, and never edits the config again. Expo templates often define `\"test\": \"jest --watchAll\"`, which never exits.",
+      "severity": "P3",
+      "suggested_fix": "Skip watch-mode scripts (`--watch`, `--watchAll`) and leave gate.checks empty with a note, or defer writing gate.checks until the level that uses the gate.",
+      "failure_scenario": "The personal Expo app (the QA test bed) gets `npm test` → `jest --watchAll` frozen into cookwright.json. When the user reaches the bundle runner, `bundle gate` hangs forever on its first check.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 29,
+      "verdict": "plausible",
+      "evidence": "plan.md:56 writes gate.checks from any non-placeholder test script. It does not guard against watch-mode scripts."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§4.5 (line 76) 'The block's version and hash, refreshed by init'",
+      "problem": "The plan names no hash. The marker carries only `v1`, and staleness is a content comparison against the render, so this claims more than the design delivers.",
+      "severity": "P3",
+      "suggested_fix": "Drop \"and hash\", or define it (for example a hash in the begin marker used to tell user edits apart from an old package render).",
+      "failure_scenario": "An implementer adds a hash nobody reads, or a reviewer flags the missing hash as a broken promise in review:core. Either way a review round is spent on the plan's wording.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 30,
+      "verdict": "confirmed",
+      "evidence": "plan.md:76 says 'The block's version and hash, refreshed by init'. The marker carries only v1 and staleness is a content comparison (plan.md:46 area), so no hash is stored."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "CLAUDE.md",
+    "CHARTER.md",
+    "docs/dev/bundles/stage-1/plan.md",
+    "docs/dev/bundles/stage-1/state.json",
+    "packages/cookwright/src/bundle.mjs",
+    "packages/cookwright/src/lib/bundle/phases.mjs",
+    "package-lock.json",
+    "CLAUDE.md rules (sha 116ca31e048402a1 verified) applied to the plan",
+    "docs/playbook.md reviewer role and prompt header (sha 3d82de78b219492e verified)",
+    "plan.md (sha 78b8a834d66ff43b verified) all sections",
+    "state.json and its uncommitted diff, plus commit 97b5a76 on the branch",
+    "CHARTER.md properties and decisions",
+    "packages/cookwright/src/lib/config.mjs (loader throws on unknown host; findRoot unbounded; import of hosts.mjs)",
+    "packages/cookwright/src/lib/hosts.mjs (rules list hashed into prompts)",
+    "packages/cookwright/src/lib/bundle/messages.mjs (imports CONFIG_FILE from config.mjs: cycle risk)",
+    "packages/cookwright/src/bundle.mjs entry guard and main()",
+    "phases.mjs args.cli and rules pointers; bundle-phase.js header",
+    "bundle.test.mjs scratchRepo/commit helpers (unborn HEAD); config.test.mjs schema parity",
+    "docs/dev/backlog.md (E-001 cross-referenced twice; headings present)",
+    "every remaining reference to the old bundle invocation (README, playbook, SKILL.md, backlog, bundle.test.mjs)",
+    "workspace symlink node_modules/cookwright and .bin contents",
+    "npm registry: `cookwright` is unpublished (404)"
+  ],
+  "notes": "Codex (gpt-5.6-sol, high effort) ran in the foreground and finished on its own after 14 read-only commands, so no resume was needed. Findings are transcribed as Codex wrote them. Session 01a13ec7-6cbb-77a3-8f06-b0ba6608f5e1. Full output is at <local path>.\n---\nThe plan is well specified overall. One P1: the multi-path `git check-ignore -q` probe reports a repo as covered when only one of `.env`/`.env.local` is ignored, which defeats the secrets check in exactly the common Expo case. The P2s fall in two groups. Some contradict the plan's own \"all PASS\" claims: an unborn HEAD gives a `git` WARN; this repo's backlog gives a `backlog.ids` WARN; `.env*` matches `.envrc`. Others are implementation traps the plan's in-process tests cannot catch: the hook is detected only through the echo text; the bin's entry guard fails through symlinks; a config↔messages import cycle; checks are unspecified when the config does not load; and findRoot is not bounded by the git toplevel. The `npx cookwright` finding is a supply-chain point: the name is unpublished and npx assumes --yes in a non-TTY shell. One finding is outside the plan but breaks the first rule of the rules file: the runner commits an absolute local transcriptDir into state.json, already on this branch in commit 97b5a76. I could not run the check-ignore scratch test (the sandbox denied it); that finding rests on git's documented exit status (0 when one or more of the given paths is ignored). The claim that Claude Code reads AGENTS.md natively since 2.1.277/2.1.281 was not independently verified.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a13ec7-6cbb-77a3-8f06-b0ba6608f5e1",
+    "partialReportPath": null
+  }
+}

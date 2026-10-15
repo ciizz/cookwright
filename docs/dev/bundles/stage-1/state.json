@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 6,
+  "revision": 9,
   "slug": "stage-1",
   "branch": "bundle/stage-1",
   "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
@@ -131,7 +131,26 @@
       ]
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-1/findings/plan-review-1.json",
+      "counts": {
+        "confirmed": 17,
+        "plausible": 14,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 8,
+        "P2": 17,
+        "P3": 6
+      },
+      "at": "2026-10-15T09:07:03.421Z",
+      "stored": true,
+      "head": "97b5a76b5de8df6b75187e224e5fc7aaf79bd56d"
+    }
+  ],
   "reports": [],
   "qaRounds": [],
   "decisions": [
@@ -147,6 +166,20 @@
       "actor": "developer",
       "source": "chat 2026-10-15, addendum for plan §9, queued for implement:s3",
       "text": "CHARTER.md amendment, dated 2026-10-15: \"Rules live in one AGENTS.md. init writes no CLAUDE.md except a one-line @AGENTS.md import when a CLAUDE.md, .claude/CLAUDE.md or CLAUDE.local.md in or above the repo would otherwise shadow it. Decided after verifying the Claude Code docs (AGENTS.md read natively since 2.1.277, all providers since 2.1.281).\"",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T09:12:55.751Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, plan-review round 1 (findings 0 and 24)",
+      "text": "The runner's persisted --transcript-dir (an absolute local path in committed bundle state) is fixed in s1: the state keeps the run id only, the flag is dropped; after s1 lands the current runs are re-recorded without the path and the pre-fix state commits are rewritten before the branch is pushed (gate #0 on 06223a0 predates them and stays reachable). Logged as a backlog bug closed by this bundle.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T09:12:55.814Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, plan-review round 1 (finding 16)",
+      "text": "The npm name cookwright is reserved by the developer now (a publish, their hands), before s1's docs land; the printed invocation stays npx cookwright.",
       "claim": true
     }
   ],

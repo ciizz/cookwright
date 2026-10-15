@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 12,
+  "revision": 14,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -54,9 +54,19 @@
   "phases": [
     {
       "name": "plan-review",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-15T15:09:12.873Z",
+          "stateRevision": 12,
+          "planSha": "324abc3c1708885e",
+          "codex": true,
+          "runId": "wf_f732bc94-044"
+        }
+      ],
+      "startCommit": "754041686d12193c2e95e3d0c1281789c0848136",
+      "range": null
     },
     {
       "name": "implement:s1",

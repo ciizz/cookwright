@@ -6,6 +6,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 
 - **B-002** (2026-10-15) The SessionStart hook command looks for `node_modules/cookwright` in `CLAUDE_PROJECT_DIR`. When a Claude session starts in a subdirectory of the repo, or the package is installed in a workspace sub-package, the hook prints "package not installed", although doctor run from there would find the root.
 - **B-003** (2026-10-15) The bundle CLI ignores unknown flags on every subcommand but the three `phase` verbs, so a mistyped or dropped flag passes silently. `init` and `doctor` refuse them through `onlyFlags` in `src/lib/cli.mjs`.
+- **B-004** (2026-10-15) Six commits on `bundle/stage-1` before B-001's fix (`97b5a76` to `b660f62`) still carry absolute machine-local paths in bundle state and records; B-001 fixed the runner, not the history. Rewriting them before push changes every later commit id, including the gate, phase-range and slice-end ids the stage-1 state records, and the bundle CLI has no command to re-map recorded ids, so `bundle check` would fail on the rewritten history. Skipping the rewrite pushes the paths. The stage-1 plan's "every recorded commit id survives" no longer holds.
 
 ## Open enhancements
 

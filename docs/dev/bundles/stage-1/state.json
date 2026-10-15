@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 41,
+  "revision": 47,
   "slug": "stage-1",
   "branch": "bundle/stage-1",
   "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
@@ -156,9 +156,23 @@
     },
     {
       "name": "fix:core",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-15T12:19:20.870Z",
+          "stateRevision": 41,
+          "planSha": "a252db7ad517b7c2",
+          "codex": true,
+          "runId": "wf_0e3b8578-359",
+          "endedAt": "2026-10-15T12:37:10.762Z",
+          "turnOutputTokens": 216180
+        }
+      ],
+      "startCommit": "b660f62522838533f9cd2a51627812195c2bdae5",
+      "range": null,
+      "endCommit": "9832a071659b9cc835f79e9faa30055afb6f8071",
+      "endCode": "9832a071659b9cc835f79e9faa30055afb6f8071"
     },
     {
       "name": "review:whole",
@@ -250,6 +264,19 @@
           "ms": 9292
         }
       ]
+    },
+    {
+      "commit": "9832a071659b9cc835f79e9faa30055afb6f8071",
+      "at": "2026-10-15T12:37:10.596Z",
+      "slice": "core",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 14174
+        }
+      ]
     }
   ],
   "findings": [
@@ -325,6 +352,12 @@
       "phase": "implement:s3",
       "path": "docs/dev/bundles/stage-1/sessions/implement-s3-1.md",
       "at": "2026-10-15T09:53:38.191Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:core",
+      "path": "docs/dev/bundles/stage-1/sessions/fix-core-1.md",
+      "at": "2026-10-15T12:36:29.754Z",
       "stored": true
     }
   ],
@@ -412,6 +445,13 @@
       "actor": "orchestrator",
       "source": "review:core findings, 2026-10-15",
       "text": "fix:core applies findings 0/6 (record session makes every files entry repo-relative and refuses an absolute one; the no-absolute-path test walks every file under the bundle directory), 2 (append the ignore patterns whenever a protected path is not ignored, even if listed earlier; second run idempotent), 3/11 (one shared 1.5 s timeout for every git call of doctor, init, probes and workTreeRoot), 7 (lstat in init and doctor; CLAUDE.md and AGENTS.md resolving to the same real file is kept and host.rules PASS; any other symlinked target refused in preflight), 8 (append the charter amendment with the developer's final wording), 9 (validateConfig on a fresh config, refuse before any write), 10 (.gitkeep decided by git ls-files, not readdir), 12 (reword the settings note and README to 'other settings preserved (reformatted)'), plus the duplicate '## State homes' heading in this repo's AGENTS.md. Finding 1 is B-002, deferred by the plan: no change. Finding 4: the block's secrets line is reworded to 'Never write a plaintext env file (.env, .env.*) holding a real value, not even as a fallback'; the test fixtures keep writing env files in scratch repos with a value that is visibly a dummy (DUMMY=1), since the secrets check needs files to exist; the developer sees the reworded line in the strings batch. Finding 5 (npm name unpublished): the developer's publish is pending (ENEEDAUTH on the first attempt); the orchestrator verifies npm view cookwright before the branch lands and records the outcome; the invocation does not change. The history rewrite before push now covers every state commit written before fix:core's record-session fix, not only the pre-s1 three.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T12:36:56.283Z",
+      "actor": "orchestrator",
+      "source": "fix:core report, 2026-10-15",
+      "text": "Accepted as built, over the earlier dispositions: tests write no env file at all (index entries and an injected root listing), so the block's secrets line keeps its stricter wording unchanged; doctor runs inside one 1.8 s total budget with a 1.5 s cap per call rather than a per-call timeout alone; .gitkeep is decided by git ls-files --cached --others --exclude-standard; the settings row says 'the other settings kept' with a layout suffix only when re-serialising changes the layout; the B-002 attempt (835b555) stays reverted (e060f3f), B-002 open. The six records committed before the scrub landed (three implement session reports, the three findings files) are scrubbed once in the working tree with the runner's own scrubLocalPaths and committed with this state; the history rewrite before push removes the paths from the earlier commits.",
       "claim": true
     }
   ],

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 52,
+  "revision": 57,
   "slug": "stage-1",
   "branch": "bundle/stage-1",
   "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
@@ -199,9 +199,23 @@
     },
     {
       "name": "fix:whole",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-15T12:45:35.233Z",
+          "stateRevision": 52,
+          "planSha": "a252db7ad517b7c2",
+          "codex": true,
+          "runId": "wf_223dcfb1-e47",
+          "endedAt": "2026-10-15T13:30:13.125Z",
+          "turnOutputTokens": 141570
+        }
+      ],
+      "startCommit": "f76b43a65847658293a4c160ef68abdb0f3966c9",
+      "range": null,
+      "endCommit": "a794aa49e8a3582529575e237c8e9ffc9dfce136",
+      "endCode": "8558ff9fa8663cd6b2761d58e4b4221c4b0f28ba"
     },
     {
       "name": "qa",
@@ -292,6 +306,19 @@
           "name": "test",
           "result": "pass",
           "ms": 14174
+        }
+      ]
+    },
+    {
+      "commit": "a794aa49e8a3582529575e237c8e9ffc9dfce136",
+      "at": "2026-10-15T13:30:12.868Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 21253
         }
       ]
     }
@@ -394,6 +421,12 @@
       "path": "docs/dev/bundles/stage-1/sessions/fix-core-1.md",
       "at": "2026-10-15T12:36:29.754Z",
       "stored": true
+    },
+    {
+      "phase": "fix:whole",
+      "path": "docs/dev/bundles/stage-1/sessions/fix-whole-1.md",
+      "at": "2026-10-15T13:29:51.473Z",
+      "stored": true
     }
   ],
   "qaRounds": [],
@@ -493,7 +526,7 @@
       "at": "2026-10-15T12:45:34.997Z",
       "actor": "orchestrator",
       "source": "review:whole findings, 2026-10-15",
-      "text": "fix:whole applies findings 2/12 (refuse a write when any path component between the root and the target is a symlink, by comparing realpath(dirname) with the real root; README sentence made true), 3 (scrub structured values, not serialized text: walk the object and scrub each string before JSON.stringify, scrub raw text for .md; a local path is one under the repo root (made relative), the home dir, os.tmpdir(), <local path>, <local path>, /Volumes, /Users/*, /home/*, or a Windows drive or UNC path; JSON.parse the result before any rename and refuse on failure), 6 (same fix), 8 (a left boundary before every machine-dir pattern; app<local path> and URLs untouched; tests), 5 (changelog and playbook join the overlap check: neither may equal or nest inside bundles, closeouts or backlog, nor equal each other; tests refuse before any write), 10 (a TimedOut check is SKIP 'unverified: <what> did not answer in time', never drift), 11 (hasImport accepts @./AGENTS.md as the same import). Finding 4 is B-002, deferred: no change. Findings 1/9 (npm name) stay the developer's landing precondition. Findings 0/7 (the history rewrite and the commit ids it changes) are decided by the developer before any rewrite; the plan's 'every recorded commit id survives' claim is corrected in the closeout, not in plan.md.",
+      "text": "fix:whole applies findings 2/12 (refuse a write when any path component between the root and the target is a symlink, by comparing realpath(dirname) with the real root; README sentence made true), 3 (scrub structured values, not serialized text: walk the object and scrub each string before JSON.stringify, scrub raw text for .md; a local path is one under the repo root (made relative), the home dir, os.tmpdir(), <local path>, <local path>, /Volumes, <local path>, /home/*, or a Windows drive or UNC path; JSON.parse the result before any rename and refuse on failure), 6 (same fix), 8 (a left boundary before every machine-dir pattern; app<local path> and URLs untouched; tests), 5 (changelog and playbook join the overlap check: neither may equal or nest inside bundles, closeouts or backlog, nor equal each other; tests refuse before any write), 10 (a TimedOut check is SKIP 'unverified: <what> did not answer in time', never drift), 11 (hasImport accepts @./AGENTS.md as the same import). Finding 4 is B-002, deferred: no change. Findings 1/9 (npm name) stay the developer's landing precondition. Findings 0/7 (the history rewrite and the commit ids it changes) are decided by the developer before any rewrite; the plan's 'every recorded commit id survives' claim is corrected in the closeout, not in plan.md.",
       "claim": true
     }
   ],

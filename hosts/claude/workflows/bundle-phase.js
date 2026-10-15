@@ -1,22 +1,22 @@
 /* global agent, parallel, pipeline, phase, log, args, budget */
 // ^ injected by the Claude Code Workflow runtime — this file is a workflow
-//   script, not application code. It never runs inside the app bundle, and it
+//   script, not application code. It never runs inside an app bundle, and it
 //   is written in the Workflow dialect (top-level await + top-level return in
 //   a .js file): do not validate it with a raw `node --check`-style ESM parse.
 
 export const meta = {
   name: 'bundle-phase',
   description:
-    'Run ONE phase of a Leeka feature bundle (plan review, implement, review, fix, closeout verify)',
+    'Run ONE phase of a cookwright bundle (plan review, implement, review, fix, QA round, closeout verify)',
   whenToUse:
-    "Only from the /bundle skill, with args emitted by `node scripts/bundle.mjs args <slug> <phase>` — never hand-written args. One run per phase; the gate, the atlas and Cesar's operator block run between runs, in the orchestrator's shell.",
+    'Only from the /bundle skill, with args emitted by the bundle CLI (`bundle args <slug> <phase>`) — never hand-written args. One run per phase; the gate and the developer\'s own steps run between runs, in the orchestrator\'s shell.',
   phases: [
     {
       title: 'Plan review',
-      detail: 'Codex + a fresh red-team on the plan, then adversarial verify',
+      detail: 'A fresh red-team on the plan (plus Codex when installed), then adversarial verify',
     },
     { title: 'Implement', detail: 'one implementer session, pinned to its plan sections' },
-    { title: 'Review', detail: 'Codex + a fresh red-team on a frozen commit range' },
+    { title: 'Review', detail: 'A fresh red-team (plus Codex when installed) on a frozen commit range' },
     { title: 'Verify', detail: 'one skeptic per file group: confirmed / plausible / rejected' },
     {
       title: 'Fix',
@@ -29,15 +29,15 @@ export const meta = {
   ],
 };
 
-// The Claude adapter of the bundle workflow v1 (agent operating model §7). The
-// procedure is ops/PLAYBOOK.md; the state and every fact are scripts/bundle.mjs's.
-// This script fixes only what a model must not choose: which phase runs which
-// roles, in what order, at which tier, returning which schema.
+// The Claude adapter of the cookwright bundle workflow. The procedure is the
+// playbook; the state and every fact are the bundle CLI's. This script fixes only
+// what a model must not choose: which phase runs which roles, in what order, at
+// which tier, returning which schema.
 //
-// Prompts are POINTERS, not paste: a session reads the playbook, the plan and the
-// state itself. Each prompt carries the content hashes `bundle args` computed, so an
-// edited plan or findings file changes the prompt and misses the resume cache
-// instead of replaying a result produced against the old text.
+// Prompts are POINTERS, not paste: a session reads the rules file, the playbook,
+// the plan and the state itself. Each prompt carries the content hashes `bundle
+// args` computed, so an edited plan or findings file changes the prompt and misses
+// the resume cache instead of replaying a result produced against the old text.
 //
 // Tiers, the only place a model name lives. Every agent() call sets one, so a
 // session the orchestrator started on a smaller model still implements on the
@@ -49,7 +49,7 @@ const TIERS = {
 
 // ── schemas ──────────────────────────────────────────────────────────────────
 
-// docs-audit's ISSUES item, plus the failure scenario a reviewer must name.
+// A reviewer's issue, with the failure scenario it must name.
 const ISSUE = {
   type: 'object',
   additionalProperties: false,
@@ -72,8 +72,8 @@ const REVIEW = {
     issues: { type: 'array', items: ISSUE },
     checked: { type: 'array', items: { type: 'string' } },
     notes: { type: 'string' },
-    // Codex only: a run that hit the 600 s ceiling reports it instead of
-    // returning an empty list that reads as "clean" (the playbook's resume recipe).
+    // Codex only: a run that hit its time ceiling reports it instead of returning
+    // an empty list that reads as "clean" (the playbook's resume recipe).
     timedOut: { type: 'boolean' },
     codexSessionId: { type: 'string' },
     partialReportPath: { type: 'string' },
@@ -129,22 +129,22 @@ const RECHECK = {
 const IMPL = {
   type: 'object',
   additionalProperties: false,
-  required: ['commits', 'files', 'open_questions', 'strings', 'notes'],
+  required: ['commits', 'files', 'open_questions', 'notes'],
   properties: {
     commits: { type: 'array', items: { type: 'string' } },
     files: { type: 'array', items: { type: 'string' } },
     open_questions: { type: 'array', items: { type: 'string' } },
-    // Every user-facing string added or changed, for Cesar in one batch.
+    // Every user-facing string added or changed, so the developer reviews them in
+    // one batch. Where they live in the code is the rules file's call.
     strings: {
       type: 'array',
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['key', 'en', 'fr', 'context'],
+        required: ['key', 'text', 'context'],
         properties: {
           key: { type: 'string' },
-          en: { type: 'string' },
-          fr: { type: 'string' },
+          text: { type: 'string' },
           context: { type: 'string' },
         },
       },
@@ -155,33 +155,37 @@ const IMPL = {
 
 // ── prompts ──────────────────────────────────────────────────────────────────
 
-if (!args || typeof args !== 'object' || !args.phase || !args.plan || !args.playbook) {
-  throw new Error('bundle-phase needs the args of `node scripts/bundle.mjs args <slug> <phase>`');
+if (!args || typeof args !== 'object' || !args.phase || !args.plan || !args.playbook || !args.cli) {
+  throw new Error('bundle-phase needs the args of `bundle args <slug> <phase>` (see the /bundle skill)');
 }
 
 const RANGE = args.range ? `${args.range.from}..${args.range.to}` : null;
+const CODEX = Boolean(args.codex);
 
 function header(role) {
-  return `You are the ${role} of the Leeka feature bundle "${args.slug}" (branch ${args.branch}, phase ${args.name}).
+  const rules = args.rules
+    ? `- the repo's rules file ${args.rules.path} (sha ${args.rules.sha}): every rule in it applies to you.\n`
+    : '';
+  return `You are the ${role} of the cookwright bundle "${args.slug}" (branch ${args.branch}, phase ${args.name}).
 Before acting, read these yourself — they are not pasted here:
-- ops/PLAYBOOK.md (sha ${args.playbook.sha}): the "${role}" role section and "Prompt header".
+${rules}- the playbook ${args.playbook.path} (sha ${args.playbook.sha}): the "${role}" role section and "Prompt header".
 - the plan ${args.plan.path} (sha ${args.plan.sha}).
-- the bundle state ${args.state} — written ONLY by scripts/bundle.mjs; never edit it.
+- the bundle state ${args.state} — written ONLY by the bundle CLI (${args.cli}); never edit it.
 Your final message is consumed by the orchestrator: return the structured result only.`;
 }
 
 function codexReviewer(target) {
   return `${header('reviewer')}
 
-You are the CODEX reviewer. Do not review yourself: run Codex, exactly as ops/PLAYBOOK.md "Codex by file reference" says — a runner script written with the Write tool, GSTACK_CODEX_MODEL=gpt-5.6-sol, run in the FOREGROUND with a Bash timeout of 600000, the target named by reference (never inlined), a capped command budget. Target: ${target}.
-Transcribe Codex's findings into the schema faithfully; add none of your own. If the run hits the ceiling, do the playbook's recovery YOURSELF before returning: \`codex exec resume <session-id> "Stop investigating now. Write the full report from what you have already read."\` at medium effort. Set timedOut=true (with the session id and the partial output path) only if that also fails — a returned timeout is cached, and a resumed Workflow would replay it.`;
+You are the CODEX reviewer. Do not review yourself: run Codex, exactly as the playbook's "Codex by file reference" says — a runner script written with the Write tool, run in the FOREGROUND with a Bash timeout of 600000, the target named by reference (never inlined), a capped command budget. Target: ${target}.
+Transcribe Codex's findings into the schema faithfully; add none of your own. If the run hits the ceiling, do the playbook's recovery YOURSELF before returning: \`codex exec resume <session-id> "Stop investigating now. Write the full report from what you have already read."\`. Set timedOut=true (with the session id and the partial output path) only if that also fails — a returned timeout is cached, and a resumed Workflow would replay it.`;
 }
 
 function redTeam(target) {
   return `${header('reviewer')}
 
-You are the fresh-context RED-TEAM reviewer, read-only: no file edits, no git writes, no supabase/psql/docker. Target: ${target}.
-Try to refute the work: correctness, security (RLS, grants, SECURITY DEFINER, secrets in output), what the plan promised and the code does not deliver, claims wider than the code. Every issue names a concrete failure scenario. Set timedOut=false.`;
+You are the fresh-context RED-TEAM reviewer, read-only: no file edits, no git writes, no database or container commands. Target: ${target}.
+Try to refute the work: correctness, security (authentication, data access rules, secrets in output or on disk), what the plan promised and the code does not deliver, claims wider than the code, rules in the rules file the change breaks. Every issue names a concrete failure scenario. Set timedOut=false.`;
 }
 
 function reviewTarget(fixed) {
@@ -200,25 +204,22 @@ function reviewTarget(fixed) {
 const keyOf = (i) => `${i.file}::${i.location}`.toLowerCase();
 
 /**
- * Both reviewers' issues. Two issues from the SAME reviewer are never merged — one
+ * Every reviewer's issues. Two issues from the SAME reviewer are never merged — one
  * location can carry two defects. Across reviewers, the first issue at a location
  * absorbs the other's, keeping its text in `alsoReported` so nothing is dropped.
  */
-function merge(codex, red) {
+function merge(results) {
   const out = [];
   const byKey = new Map();
-  for (const [reviewer, result] of [
-    ['codex', codex],
-    ['red-team', red],
-  ]) {
+  for (const [reviewer, result] of results) {
     for (const issue of result?.issues ?? []) {
       const k = keyOf(issue);
       const prior = byKey.get(k);
       if (prior && !prior.reviewers.includes(reviewer)) {
         prior.reviewers.push(reviewer);
         prior.alsoReported.push({ reviewer, severity: issue.severity, problem: issue.problem });
-        // The merged finding carries the HIGHEST severity either reviewer gave it:
-        // a Codex P3 must not hide a red-team P1 below the blocking line.
+        // The merged finding carries the HIGHEST severity any reviewer gave it:
+        // one reviewer's P3 must not hide another's P1 below the blocking line.
         if (issue.severity < prior.severity) prior.severity = issue.severity;
         continue;
       }
@@ -266,24 +267,40 @@ ${list}`;
 
 // ── phases ───────────────────────────────────────────────────────────────────
 
+/** The reviewers of a review run: the red-team always, Codex when it is installed. */
+function reviewers(title, target) {
+  const red = () =>
+    agent(redTeam(target), { label: 'red-team', phase: title, schema: REVIEW, ...TIERS.strong });
+  if (!CODEX) return [['red-team', red]];
+  const codex = () =>
+    agent(codexReviewer(target), { label: 'codex', phase: title, schema: REVIEW, ...TIERS.standard });
+  return [
+    ['codex', codex],
+    ['red-team', red],
+  ];
+}
+
+/** Why a review run is NOT a clean review: a reviewer that never finished. */
+function incompleteness(named) {
+  const out = [];
+  for (const [name, result] of named) {
+    if (!result) out.push(`the ${name} reviewer returned nothing`);
+    else if (result.timedOut) out.push(`${name} hit its ceiling (resume per the playbook)`);
+  }
+  return out;
+}
+
 async function review(title, fixed) {
   phase(title);
   const target = reviewTarget(fixed);
-  const [codex, red] = await parallel([
-    () =>
-      agent(codexReviewer(target), {
-        label: 'codex',
-        phase: title,
-        schema: REVIEW,
-        ...TIERS.standard,
-      }),
-    () =>
-      agent(redTeam(target), { label: 'red-team', phase: title, schema: REVIEW, ...TIERS.strong }),
-  ]);
-  const issues = merge(codex, red).map((x, index) => ({ ...x, index }));
+  const who = reviewers(title, target);
+  const results = await parallel(who.map(([, start]) => start));
+  const named = who.map(([name], n) => [name, results[n]]);
+  const issues = merge(named).map((x, index) => ({ ...x, index }));
   log(
-    `${issues.length} distinct issue(s): codex ${codex?.issues?.length ?? 'none'}, red-team ${red?.issues?.length ?? 'none'}`,
+    `${issues.length} distinct issue(s): ${named.map(([n, r]) => `${n} ${r?.issues?.length ?? 'none'}`).join(', ')}`,
   );
+  const codex = CODEX ? results[0] : null;
   if (codex?.timedOut)
     log(`codex hit its ceiling — session ${codex.codexSessionId ?? '?'}; resume per the playbook`);
 
@@ -307,23 +324,19 @@ async function review(title, fixed) {
 
   // A review where a reviewer never finished is NOT a clean review: say so, and
   // `bundle record findings` refuses it unless the orchestrator accepts it by name.
-  const incomplete = [];
-  if (!codex) incomplete.push('the Codex reviewer returned nothing');
-  else if (codex.timedOut) incomplete.push('Codex hit its ceiling (resume per the playbook)');
-  if (!red) incomplete.push('the red-team reviewer returned nothing');
-
   return {
     issues: verified.sort((a, b) => a.index - b.index),
-    incomplete,
-    checked: [...(codex?.checked ?? []), ...(red?.checked ?? [])],
-    notes: [codex?.notes, red?.notes].filter(Boolean).join('\n---\n'),
+    incomplete: incompleteness(named),
+    checked: results.flatMap((r) => r?.checked ?? []),
+    notes: results.map((r) => r?.notes).filter(Boolean).join('\n---\n'),
+    reviewers: named.map(([name, r]) => ({ name, returned: Boolean(r) })),
     codex: {
+      installed: CODEX,
       returned: Boolean(codex),
       timedOut: Boolean(codex?.timedOut),
       sessionId: codex?.codexSessionId ?? null,
       partialReportPath: codex?.partialReportPath ?? null,
     },
-    redTeamReturned: Boolean(red),
   };
 }
 
@@ -364,10 +377,9 @@ async function implement() {
   const s = args.session;
   const prompt = `${header('implementer')}
 
-Your session: ${s.id} — ${s.scope}.
-Slice ${args.slice.id}${args.slice.sql ? ' (a SCHEMA slice: you also write the deploy log\'s "Next deploy (queued)" block for Cesar\'s hands; you never apply anything to a hosted database)' : ''}.
+Your session: ${s.id} — ${s.scope}. Slice ${args.slice.id}.
 Checkpoints — stop and commit at each, staging NAMED paths only, never \`git add -A\`: ${s.checkpoints.length ? s.checkpoints.join('; ') : 'one commit at the end of your scope'}.
-Stay inside your scope; anything outside it goes in open_questions, not the diff. List every user-facing string you added or changed in \`strings\`.`;
+Stay inside your scope; anything outside it goes in open_questions, not the diff. Anything that leaves the repo (a deploy, a publish, a store action) is the developer's hands: name the command in notes, never run it. List every user-facing string you added or changed in \`strings\`; where strings live in the code is the rules file's call.`;
   return agent(prompt, {
     label: `implement:${s.id}`,
     phase: 'Implement',
@@ -381,7 +393,7 @@ async function fix() {
   const files = args.findings.map((f) => `${f.path} (sha ${f.sha})`).join(', ');
   const what =
     args.phase === 'qa'
-      ? `${files}. The first is Cesar's LATEST device-QA round: fix every issue he reported. Any further file is the previous round's review findings: fix every one not "rejected" (a defaulted verdict counts as plausible). Anything that is a product call goes in open_questions.`
+      ? `${files}. The first is the developer's LATEST QA round: fix every issue it reports. Any further file is the previous round's review findings: fix every one not "rejected" (a defaulted verdict counts as plausible). Anything that is a product call goes in open_questions.`
       : `the findings files ${files}. Fix every "confirmed" and "plausible" finding (a defaulted verdict counts as plausible); for any you decline, say why in notes (a finding that is really a product call goes in open_questions). Leave "rejected" ones alone.`;
   const prompt = `${header('implementer')}
 

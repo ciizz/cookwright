@@ -35,4 +35,4 @@ Bootstrapping like a compiler. Stage 0 copies Leeka's bundle runner verbatim and
 
 ## Amendments
 
-(none)
+- 2026-10-15. Rules live in one AGENTS.md. init writes no CLAUDE.md, except one that imports AGENTS.md (the single line @AGENTS.md) when Claude Code would otherwise not read AGENTS.md: a CLAUDE.md, .claude/CLAUDE.md or CLAUDE.local.md in or above the repo shadows it, or the installed Claude Code is older than 2.1.281. An existing root CLAUDE.md gets the import line prepended instead. Decided after verifying the Claude Code docs (AGENTS.md read natively since 2.1.277, all providers since 2.1.281).

@@ -6,6 +6,7 @@
 // the hook adds to the session's context, and ALWAYS exit 0, whatever happened: a
 // hook never fails a session.
 
+import { TimedOut, withBudget } from './lib/budget.mjs';
 import { Refusal, onlyFlags, parseArgv } from './lib/cli.mjs';
 import { openDoctorRepo } from './lib/doctor/repo.mjs';
 import { runChecks } from './lib/doctor/registry.mjs';
@@ -34,12 +35,13 @@ function doctor(argv, { cwd = process.cwd(), probes: over = {}, home } = {}) {
 export function main(argv = [], io = {}) {
   const hook = argv.includes('--hook');
   try {
-    const code = doctor(argv, io);
+    const code = withBudget(() => doctor(argv, io));
     return hook ? 0 : code;
   } catch (err) {
-    const detail = String(err?.message ?? err).split('\n')[0];
+    const timedOut = err instanceof TimedOut;
+    const detail = timedOut ? messages.timedOut(err.what) : String(err?.message ?? err).split('\n')[0];
     if (hook) {
-      console.log(err instanceof Refusal ? m.hookLine(detail) : m.crashed(detail));
+      console.log(err instanceof Refusal || timedOut ? m.hookLine(detail) : m.crashed(detail));
       return 0;
     }
     console.error(m.refused(detail));

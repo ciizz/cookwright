@@ -2,19 +2,23 @@
 // cwd, the config (or why it did not load), and whether git is here at all.
 //
 // No network, no npm, no stdin, no recursive walk: every read is a named file, and
-// every git call is short and bounded by a timeout that fits doctor's budget.
+// every git call is bounded by doctor's shared budget (budget.mjs).
 
-import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { TimedOut, runBounded } from '../budget.mjs';
 import { findRoot, loadConfig, workTreeRoot } from '../config.mjs';
 
-/** git's exit status and output, never a throw: a check decides what a failure means. */
+/**
+ * git's exit status and output: a check decides what a failure means. The one throw
+ * is TimedOut, when git outlasts the shared budget (budget.mjs).
+ */
 export function gitRun(root, args) {
-  const r = spawnSync('git', args, { cwd: root, encoding: 'utf8', timeout: 5000 });
-  return { status: r.error ? null : r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
+  const r = runBounded('git', args, { cwd: root });
+  if (r.timedOut) throw new TimedOut(`git ${args[0]}`);
+  return { status: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
 const stat = (p) => {

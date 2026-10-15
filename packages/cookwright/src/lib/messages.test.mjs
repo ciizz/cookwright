@@ -33,7 +33,7 @@ const ALLOWED = {
   'src/lib/init/config.mjs': ["'npm test'"], // the gate command written into the config
   'src/lib/doctor/homes.mjs': ["'Open bugs'", "'Open enhancements'"], // the backlog's headings: content
   'src/lib/doctor/secrets.mjs': ["'git ls-files'"], // the command a probe failure names
-  'src/lib/probes.mjs': ['`git check-ignore ${rel}`'], // the command a probe failure names
+  'src/lib/probes.mjs': ['`git check-ignore ${rel}`', "'git check-ignore'"], // the command a probe failure names
   'src/lib/rules/block.mjs': ['`<!-- cookwright:begin rules v${version} -->`'], // the marker: content
 };
 

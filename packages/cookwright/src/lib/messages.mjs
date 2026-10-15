@@ -186,6 +186,8 @@ export const messages = {
 
   // probes.mjs, rules/block.mjs
   probeFailed: (what, detail) => `${what} failed: ${detail}`,
+  // budget.mjs: a subprocess that outlasted its share of the time budget
+  timedOut: (what) => `${what} did not answer in time (is git stalled?)`,
   templateValue: (key) => `agents-block.md: no value for {{${key}}} (a packaging bug)`,
 
   doctor,

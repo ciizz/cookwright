@@ -10,10 +10,10 @@
 // messages live here, not in messages.mjs: messages.mjs imports this file, so the
 // reverse import would close a cycle.
 
-import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { TimedOut, runBounded } from './budget.mjs';
 import { KNOWN_HOSTS } from './hosts.mjs';
 import { KNOWN_LEVELS } from './levels.mjs';
 
@@ -44,9 +44,13 @@ export const KNOWN_KEYS = Object.freeze({
   ci: ['workflow'],
 });
 
-/** The git work tree's top directory containing `cwd`, or null (not a work tree, no git). */
+/**
+ * The git work tree's top directory containing `cwd`, or null (not a work tree, no
+ * git). Bounded by the shared budget (budget.mjs); a stalled git throws TimedOut.
+ */
 export function workTreeRoot(cwd = process.cwd()) {
-  const out = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd, encoding: 'utf8' });
+  const out = runBounded('git', ['rev-parse', '--show-toplevel'], { cwd });
+  if (out.timedOut) throw new TimedOut('git rev-parse');
   return out.status === 0 ? out.stdout.trim() : null;
 }
 

@@ -2,12 +2,12 @@
 // on PATH, which Claude Code is installed, does git ignore a path.
 //
 // They are injected (doctor's `probes`), so the tests need no Claude binary and can
-// play a machine without git. Each answers fast: doctor's budget is two seconds.
+// play a machine without git. Each is bounded by doctor's shared budget (budget.mjs).
 
-import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { TimedOut, runBounded } from './budget.mjs';
 import { messages } from './messages.mjs';
 
 /** True when `bin` is an executable file in a PATH directory. No subprocess. */
@@ -40,11 +40,12 @@ export function atLeast(a, b) {
 
 /**
  * Claude Code's version (`x.y.z`), or null when it is not on PATH, fails, or takes
- * longer than `timeout` ms: an unverified version reads as not installed.
+ * longer than `timeout` ms or than the shared budget has left: an unverified version
+ * reads as not installed.
  */
 export function claudeVersion({ bin = 'claude', timeout = 1500 } = {}) {
-  const r = spawnSync(bin, ['--version'], { encoding: 'utf8', timeout });
-  if (r.error || r.status !== 0) return null;
+  const r = runBounded(bin, ['--version'], {}, timeout);
+  if (r.status !== 0) return null;
   return parseVersion(r.stdout);
 }
 
@@ -57,11 +58,8 @@ export function claudeVersion({ bin = 'claude', timeout = 1500 } = {}) {
  * never "not ignored".
  */
 export function ignored(root, rel) {
-  const r = spawnSync('git', ['check-ignore', '-q', '--no-index', '--', rel], {
-    cwd: root,
-    encoding: 'utf8',
-    timeout: 5000,
-  });
+  const r = runBounded('git', ['check-ignore', '-q', '--no-index', '--', rel], { cwd: root });
+  if (r.timedOut) throw new TimedOut('git check-ignore');
   if (r.status === 0) return true;
   if (r.status === 1) return false;
   const detail = (r.stderr || r.error?.message || '').trim();

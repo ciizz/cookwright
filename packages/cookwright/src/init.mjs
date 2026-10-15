@@ -6,6 +6,7 @@
 // anywhere exits 2 before a single write, so a refused tree is untouched as a whole.
 // Then the writes, in order, then doctor, whose exit code is init's.
 
+import { TimedOut } from './lib/budget.mjs';
 import { Refusal, onlyFlags, parseArgv, stringFlag } from './lib/cli.mjs';
 import { applyRows } from './lib/init/files.mjs';
 import { openInitRepo } from './lib/init/repo.mjs';
@@ -50,6 +51,7 @@ function init({ base, dry }, { cwd = process.cwd(), probes: over = {}, home } = 
 
 /** A refusal on stderr, exit 2; with `usage`, the usage follows the reason. */
 function refuse(err, usage) {
+  if (err instanceof TimedOut) err = new Refusal(messages.timedOut(err.what));
   if (!(err instanceof Refusal)) throw err;
   console.error(m.refused(err.message));
   if (usage && err.message !== m.usage) console.error(m.usage);

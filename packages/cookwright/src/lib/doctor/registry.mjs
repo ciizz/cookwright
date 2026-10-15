@@ -6,6 +6,7 @@
 // throws is a FAIL naming why, never a crash of doctor: the hook must always exit 0.
 // levels.mjs names checks from this table; a test holds the two together.
 
+import { TimedOut } from '../budget.mjs';
 import { messages } from '../messages.mjs';
 import { fail, skip } from '../verdict.mjs';
 import { checkConfig, checkGit } from './basics.mjs';
@@ -46,6 +47,7 @@ function runOne(check, repo, probes) {
   try {
     return check.run(repo, probes);
   } catch (err) {
+    if (err instanceof TimedOut) return fail(m.checkThrew(messages.timedOut(err.what)));
     return fail(m.checkThrew(firstLine(err?.message ?? err)));
   }
 }

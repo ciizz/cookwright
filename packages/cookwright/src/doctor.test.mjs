@@ -1,13 +1,16 @@
 // src/doctor.test.mjs — doctor: every row of plan §4.8's table, on scratch repos,
 // with the probes injected (no Claude binary; git played absent where it matters).
 
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { dispatch } from './cli-main.mjs';
 import { main } from './doctor.mjs';
+import { BUDGET_MS } from './lib/budget.mjs';
 import { DEFAULTS } from './lib/config.mjs';
 import { checkClaudeHook } from './lib/doctor/claude.mjs';
 import { openDoctorRepo } from './lib/doctor/repo.mjs';
@@ -418,5 +421,28 @@ describe('--hook', () => {
     const root = level0({ 'src/x.txt': 'x' });
     expect(await dispatch(['doctor', '--hook'], { cwd: path.join(root, 'src'), home: TMP, probes: probes() })).toBe(0);
     expect(out).toEqual(['cookwright doctor: level 0 complete']);
+  });
+});
+
+describe('a stalled git', () => {
+  const BIN = path.join(path.dirname(fileURLToPath(import.meta.url)), '../bin/cookwright.mjs');
+
+  it('times out inside the two-second budget and the hook still prints one line', () => {
+    const root = level0();
+    const shims = path.join(TMP, 'stalled-git-bin');
+    fs.mkdirSync(shims, { recursive: true });
+    fs.writeFileSync(path.join(shims, 'git'), '#!/bin/sh\nexec /bin/sleep 30\n', { mode: 0o755 });
+    const PATH = [shims, path.dirname(process.execPath)].join(path.delimiter);
+    const started = Date.now();
+    const r = spawnSync(process.execPath, [BIN, 'doctor', '--hook'], {
+      cwd: root,
+      env: { ...process.env, PATH },
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
+    const elapsed = Date.now() - started;
+    expect(r.status).toBe(0);
+    expect(r.stdout.trim().split('\n')).toEqual([m.hookLine(messages.timedOut('git rev-parse'))]);
+    expect(elapsed).toBeLessThan(BUDGET_MS + 1500); // the budget plus node's own startup
   });
 });

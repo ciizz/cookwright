@@ -5,7 +5,7 @@
 //
 // Exit 0; 1 when --check finds the file missing, unmarked or stale; 2 when refused
 // (a bad argument, not a work tree, no config, a git failure, a link on the path, a
-// hand-kept changelog without --adopt).
+// hand-kept changelog without --adopt, a file that cannot be read or written).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -53,6 +53,20 @@ function printNotes({ skipped, notAncestors = [] }) {
   for (const [lower, next] of notAncestors) console.error(m.notAncestor(lower, next));
 }
 
+/**
+ * `fn()`, where an fs error (EACCES, EROFS, …) is a refusal naming `rel` and its
+ * code: exit 2, a harness failure, never the exit 1 that --check keeps for drift.
+ * Only file work goes through it, never git, which refuses on its own.
+ */
+function onFile(rel, fn) {
+  try {
+    return fn();
+  } catch (err) {
+    if (err instanceof Refusal || typeof err?.code !== 'string') throw err;
+    throw new Refusal(m.fileFailed(rel, err.code));
+  }
+}
+
 /** Default and --adopt: write the generated file, never through a link. */
 function writeMode(repo, adopt) {
   const rel = repo.config.paths.changelog;
@@ -63,11 +77,13 @@ function writeMode(repo, adopt) {
   if (kind !== 'none' && kind !== 'file') throw new Refusal(m.notAFile(rel));
   const g = generate(repo.root);
   printNotes(g);
-  if (changelogState(repo, g).state === 'unmarked' && !adopt) throw new Refusal(m.unmarkedRefused(rel));
-  if (kind === 'none' || fs.readFileSync(abs, 'utf8') !== g.text) {
-    fs.mkdirSync(path.dirname(abs), { recursive: true });
-    fs.writeFileSync(abs, g.text);
-  }
+  onFile(rel, () => {
+    if (changelogState(repo, g).state === 'unmarked' && !adopt) throw new Refusal(m.unmarkedRefused(rel));
+    if (kind === 'none' || fs.readFileSync(abs, 'utf8') !== g.text) {
+      fs.mkdirSync(path.dirname(abs), { recursive: true });
+      fs.writeFileSync(abs, g.text);
+    }
+  });
   console.log(m.regenerated(rel, g.tags.length));
   return 0;
 }
@@ -77,7 +93,7 @@ function checkMode(repo) {
   const rel = repo.config.paths.changelog;
   const g = generate(repo.root);
   printNotes(g);
-  const { state, tags } = changelogState(repo, g);
+  const { state, tags } = onFile(rel, () => changelogState(repo, g));
   const line = m.check[state](rel, tags);
   if (state === 'current') console.log(line);
   else console.error(line);

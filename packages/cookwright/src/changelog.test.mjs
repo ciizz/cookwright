@@ -463,6 +463,26 @@ describe('npx cookwright changelog', () => {
     expect(fs.existsSync(path.join(repo.root, 'CHANGELOG.md'))).toBe(false);
   });
 
+  const superuser = process.getuid?.() === 0; // root reads and writes whatever the mode says
+  it.skipIf(superuser)('refuses, exit 2 and never the drift exit 1, a file it cannot read or write', () => {
+    const repo = repoAt();
+    commitMsg(repo, 'feat: one');
+    tag(repo, 'v1.0.0');
+    const file = path.join(repo.root, 'CHANGELOG.md');
+    write(repo, TEMPLATE);
+    try {
+      fs.chmodSync(file, 0o444);
+      expect(cl(repo)).toBe(2);
+      expect(err).toEqual([m.refused(m.fileFailed('CHANGELOG.md', 'EACCES'))]);
+      fs.chmodSync(file, 0o000);
+      expect(cl(repo, '--check')).toBe(2);
+      expect(err).toEqual([m.refused(m.fileFailed('CHANGELOG.md', 'EACCES'))]);
+    } finally {
+      fs.chmodSync(file, 0o644);
+    }
+    expect(read(repo)).toBe(TEMPLATE);
+  });
+
   it('refuses outside a work tree and without a config', () => {
     const bare = path.join(TMP, `plain${(n += 1)}`);
     fs.mkdirSync(bare);

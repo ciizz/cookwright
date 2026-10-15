@@ -180,6 +180,7 @@ const changelog = {
   noConfig: (cwd) => `no ${CONFIG_FILE} at or above ${cwd}; ${RUN_INIT}`,
   gitFailed: (what, detail) => `git ${what} failed: ${detail}`,
   notAFile: (rel) => `${rel} exists and is not a file; move it aside, then rerun`,
+  fileFailed: (rel, code) => `${rel}: ${code}`,
   symlink: (rel) =>
     `${rel} is a symbolic link and the changelog is not written through one; replace it with the real file or directory, then rerun`,
   unmarkedRefused: (file) =>

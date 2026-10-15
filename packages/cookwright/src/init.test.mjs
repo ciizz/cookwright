@@ -133,7 +133,8 @@ describe('a fresh repo', () => {
     expect(config.hooks).toEqual({ docSync: [] });
     const hook = JSON.parse(read(root, '.claude/settings.json')).hooks.SessionStart;
     expect(hook).toEqual([{ hooks: [{ type: 'command', command: HOOK_COMMAND, timeout: 10 }] }]);
-    expect(out).toContain(`PASS  git              ${messages.doctor.git.unborn('main')}`);
+    expect(out).toContain(`PASS  ${'git'.padEnd('hooks.pre-commit'.length)}  ${messages.doctor.git.unborn('main')}`);
+    expect(out).toContain('16 checks — 16 PASS, 0 FAIL, 0 WARN, 0 SKIP');
     expect(out.filter((l) => /^(FAIL|WARN|SKIP) /.test(l))).toEqual([]);
   });
 

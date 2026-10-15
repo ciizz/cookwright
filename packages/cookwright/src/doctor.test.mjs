@@ -11,15 +11,18 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { dispatch } from './cli-main.mjs';
 import { main } from './doctor.mjs';
 import { BUDGET_MS, TimedOut } from './lib/budget.mjs';
+import { messages as bundleMessages } from './lib/bundle/messages.mjs';
+import { TEMPLATE as CHANGELOG } from './lib/changelog/render.mjs';
 import { DEFAULTS } from './lib/config.mjs';
 import { checkClaudeHook } from './lib/doctor/claude.mjs';
 import { openDoctorRepo } from './lib/doctor/repo.mjs';
 import { runChecks } from './lib/doctor/registry.mjs';
+import { shimText } from './lib/hooks/shims.mjs';
 import { HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { PROBES } from './lib/probes.mjs';
-import { renderBlock } from './lib/rules/block.mjs';
-import { commit, gitInit, scratchRepo, scratchRoot, stageOnly } from './test-helpers.mjs';
+import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
+import { commit, gitInit, run, scratchRepo, scratchRoot, stageOnly } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-doctor-');
 const m = messages.doctor;
@@ -32,23 +35,46 @@ const SETTINGS = (command = HOOK_COMMAND) =>
 const LEVEL0_FILES = {
   'docs/backlog.md': BACKLOG,
   'docs/closeouts/.gitkeep': '',
-  'CHANGELOG.md': '# Changelog\n\n## Unreleased\n',
+  'CHANGELOG.md': CHANGELOG,
   'AGENTS.md': `# Rules\n\n${renderBlock(DEFAULTS)}\n`,
   '.claude/settings.json': SETTINGS(),
   '.gitignore': '.env\n.env.*\n!.env.example\n',
+  '.githooks/pre-commit': shimText('pre-commit'),
+  '.githooks/pre-push': shimText('pre-push'),
 };
 
-/** Probes for a machine with git and Claude Code 2.1.281; override any of them. */
-const probes = (over = {}) => ({ ...PROBES, claudeVersion: () => '2.1.281', ...over });
+/** gitleaks on PATH, its dry run exiting `status`, its version 8.30.1. */
+const gitleaks = (status = 0, over = {}) => ({
+  hasTool: (bin) => bin === 'gitleaks' || PROBES.hasTool(bin),
+  scanStaged: () => ({ status, timedOut: false, stderr: '' }),
+  gitleaksVersion: () => '8.30.1',
+  ...over,
+});
+
+/** Probes for a machine with git, gitleaks and Claude Code 2.1.281; override any of them. */
+const probes = (over = {}) => ({ ...PROBES, ...gitleaks(), claudeVersion: () => '2.1.281', ...over });
+
+/** Write `files` (null skips), the .githooks ones executable. */
+function writeAll(root, files) {
+  for (const [rel, body] of Object.entries(files)) {
+    if (body === null) continue;
+    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+    fs.writeFileSync(path.join(root, rel), body, { mode: rel.startsWith('.githooks/') ? 0o755 : 0o644 });
+  }
+}
 
 let n = 0;
-/** A healthy Level 0 repo, `files` overriding (null deletes) before the commit. */
-function level0(files = {}, config = null) {
+/**
+ * A healthy Level 0 repo, `files` overriding (null deletes) before the commit, with
+ * core.hooksPath set locally to `hooksPath` (null: unset).
+ */
+function level0(files = {}, config = null, { hooksPath = '.githooks' } = {}) {
   const repo = scratchRepo(TMP, `r${(n += 1)}`);
   const all = { ...LEVEL0_FILES, ...files };
   if (config) all['cookwright.json'] = JSON.stringify({ version: 1, ...config });
-  for (const [rel, body] of Object.entries(all)) if (body === null) delete all[rel];
-  commit(repo, all, 'level 0');
+  writeAll(repo.root, all);
+  commit(repo, {}, 'level 0');
+  if (hooksPath) run(repo.root, 'git', ['config', '--local', 'core.hooksPath', hooksPath]);
   return repo.root;
 }
 
@@ -81,13 +107,16 @@ describe('config', () => {
     expect(rows.config.note).toBe(
       'cookwright.json: hosts: host "codex" is not available in this version of cookwright (known: claude)',
     );
-    const needConfig = ['homes.backlog', 'homes.closeouts', 'homes.changelog', 'backlog.ids'];
+    const needConfig = ['homes.backlog', 'homes.closeouts', 'homes.changelog', 'backlog.ids', 'gate.scripts'];
     for (const name of [...needConfig, 'rules.block', 'host.rules', 'host.hook']) {
       expect(rows[name]).toEqual({ status: 'SKIP', note: m.configInvalid });
     }
     expect(rows.git).toEqual({ status: 'PASS', note: m.git.configInvalid });
     expect(rows['rules.size'].status).toBe('PASS');
     expect(rows['secrets.env'].status).toBe('PASS');
+    for (const name of ['hooks.path', 'hooks.pre-commit', 'hooks.pre-push', 'tools.gitleaks']) {
+      expect([name, rows[name].status]).toEqual([name, 'PASS']); // none needs the config
+    }
   });
 
   it('joins several loader problems on one line', () => {
@@ -168,9 +197,9 @@ describe('rules', () => {
       status: 'FAIL',
       note: m.block.malformed('AGENTS.md', 'noEnd'),
     });
-    expect(state(block.replace('rules v1', 'rules v9'))).toEqual({
+    expect(state(block.replace(beginMarker(), beginMarker(RULES_VERSION + 7)))).toEqual({
       status: 'WARN',
-      note: m.block.newer('AGENTS.md', 9),
+      note: m.block.newer('AGENTS.md', RULES_VERSION + 7),
     });
   });
 
@@ -331,6 +360,154 @@ describe('secrets.env', () => {
   });
 });
 
+describe('homes.changelog', () => {
+  it('PASSes the generated file, WARNs one without the marker', () => {
+    expect(doctor(level0())['homes.changelog']).toEqual({ status: 'PASS', note: m.homes.fileOk('CHANGELOG.md') });
+    expect(doctor(level0({ 'CHANGELOG.md': '# Changelog\n\n## Unreleased\n' }))['homes.changelog']).toEqual({
+      status: 'WARN',
+      note: m.homes.unmarked('CHANGELOG.md'),
+    });
+  });
+});
+
+describe('git hooks', () => {
+  const HOOKS = ['hooks.path', 'hooks.pre-commit', 'hooks.pre-push'];
+  const f = messages.foreignHooks;
+  const hooks = (root, opts) => {
+    const rows = doctor(root, opts);
+    return HOOKS.map((name) => rows[name]);
+  };
+  const ok = [
+    { status: 'PASS', note: m.hooks.pathOk('.githooks') },
+    { status: 'PASS', note: m.hooks.shim('.githooks/pre-commit') },
+    { status: 'PASS', note: m.hooks.shim('.githooks/pre-push') },
+  ];
+  const elsewhere = (note) => [{ status: 'WARN', note }, ...[1, 2].map(() => ({ status: 'SKIP', note: m.hooks.elsewhere }))];
+
+  it('PASSes the shims with core.hooksPath .githooks from the local scope', () => {
+    expect(hooks(level0())).toEqual(ok);
+  });
+
+  it('FAILs core.hooksPath unset with nothing foreign, a missing shim, a shim not executable', () => {
+    expect(hooks(level0({}, null, { hooksPath: null }))[0]).toEqual({ status: 'FAIL', note: m.hooks.pathUnset });
+    expect(hooks(level0({ '.githooks/pre-push': null }))[2]).toEqual({
+      status: 'FAIL',
+      note: m.hooks.missing('.githooks/pre-push'),
+    });
+    const root = level0();
+    fs.mkdirSync(path.join(root, '.githooks/pre-push.d'));
+    fs.rmSync(path.join(root, '.githooks/pre-push'));
+    fs.symlinkSync('nowhere', path.join(root, '.githooks/pre-push'));
+    expect(hooks(root)[2]).toEqual({ status: 'FAIL', note: m.hooks.notAFile('.githooks/pre-push') });
+  });
+
+  it.skipIf(process.platform === 'win32')('FAILs a shim that is not executable', () => {
+    const root = level0();
+    fs.chmodSync(path.join(root, '.githooks/pre-commit'), 0o644);
+    expect(hooks(root)[1]).toEqual({ status: 'FAIL', note: m.hooks.notExecutable('.githooks/pre-commit') });
+  });
+
+  it('PASSes a user’s own hook that calls cookwright', () => {
+    const body = '#!/bin/sh\necho mine\nexec node node_modules/cookwright/bin/cookwright.mjs hook pre-commit "$@"\n';
+    expect(hooks(level0({ '.githooks/pre-commit': body }))[1]).toEqual({
+      status: 'PASS',
+      note: m.hooks.calls('.githooks/pre-commit'),
+    });
+  });
+
+  it('WARNs a foreign setup and SKIPs the two files: local elsewhere, global, user hooks, a .githooks file of theirs', () => {
+    expect(hooks(level0({}, null, { hooksPath: '.husky/_' }))).toEqual(elsewhere(f.path('.husky/_', 'local')));
+    const global = path.join(TMP, 'global-hooks-config');
+    fs.writeFileSync(global, '[core]\n\thooksPath = .githooks\n');
+    const unsetLocally = level0({}, null, { hooksPath: null });
+    vi.stubEnv('GIT_CONFIG_GLOBAL', global);
+    try {
+      expect(hooks(unsetLocally)).toEqual(elsewhere(f.path('.githooks', 'global')));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    const userHooks = level0({}, null, { hooksPath: null });
+    writeAll(userHooks, { '.git/hooks/pre-commit': '#!/bin/sh\n', '.git/hooks/pre-push.sample': '' });
+    expect(hooks(userHooks)).toEqual(elsewhere(f.dir('.git/hooks', ['pre-commit'])));
+    const theirs = level0({ '.githooks/pre-commit': '#!/bin/sh\nnpm run lint\n' });
+    expect(hooks(theirs)).toEqual(elsewhere(f.file('.githooks/pre-commit')));
+  });
+
+  it('reads a linked worktree whose branch lacks .githooks/ as the path PASS and the files missing', () => {
+    const repo = scratchRepo(TMP, `wt-main-${(n += 1)}`);
+    const { '.githooks/pre-commit': a, '.githooks/pre-push': b, ...rest } = LEVEL0_FILES;
+    writeAll(repo.root, rest);
+    const base = commit(repo, {}, 'level 0 without the hooks');
+    writeAll(repo.root, { '.githooks/pre-commit': a, '.githooks/pre-push': b });
+    commit(repo, {}, 'the hooks');
+    run(repo.root, 'git', ['config', '--local', 'core.hooksPath', '.githooks']);
+    expect(hooks(repo.root)).toEqual(ok);
+    const sibling = path.join(TMP, `wt-sibling-${n}`);
+    run(repo.root, 'git', ['worktree', 'add', '-q', '-b', 'side', sibling, base]);
+    const rows = doctor(sibling);
+    expect(HOOKS.map((name) => rows[name])).toEqual([
+      ok[0],
+      { status: 'FAIL', note: m.hooks.missing('.githooks/pre-commit') },
+      { status: 'FAIL', note: m.hooks.missing('.githooks/pre-push') },
+    ]);
+    for (const [name, r] of Object.entries(rows)) expect([name, r.note]).not.toEqual([name, expect.stringMatching(/(^|\s)\//)]);
+  });
+});
+
+describe('tools.gitleaks', () => {
+  const tool = (over) => doctor(level0(), { probes: probes(over) })['tools.gitleaks'];
+
+  it('PASSes on PATH when the dry run exits 0 or 3, naming the version', () => {
+    const calls = [];
+    const scanStaged = (root, opts) => {
+      calls.push(opts);
+      return { status: 3, timedOut: false, stderr: '' };
+    };
+    expect(tool({ scanStaged })).toEqual({ status: 'PASS', note: m.gitleaks.ok('8.30.1') });
+    expect(calls).toEqual([{ quiet: true }]);
+    expect(tool({ gitleaksVersion: () => null })).toEqual({ status: 'PASS', note: m.gitleaks.ok(null) });
+  });
+
+  it('FAILs any other exit, naming the first stderr line', () => {
+    const scanStaged = () => ({ status: 1, timedOut: false, stderr: '\nerror: .gitleaks.toml: bad rule\nmore\n' });
+    expect(tool({ scanStaged })).toEqual({
+      status: 'FAIL',
+      note: m.gitleaks.broken(1, 'error: .gitleaks.toml: bad rule'),
+    });
+    expect(m.gitleaks.broken(1, 'error: x')).toBe(
+      'gitleaks does not run (exit 1): error: x; the pre-commit secret scan is skipped',
+    );
+  });
+
+  it('SKIPs absent, and reads a timeout as unverified', () => {
+    expect(tool({ hasTool: (bin) => bin !== 'gitleaks' })).toEqual({ status: 'SKIP', note: m.gitleaks.absent });
+    const scanStaged = () => ({ status: null, timedOut: true, stderr: '' });
+    expect(tool({ scanStaged })).toEqual({ status: 'SKIP', note: m.checkTimedOut(messages.timedOut('gitleaks')) });
+  });
+});
+
+describe('gate.scripts', () => {
+  const scripts = (files, checks) => doctor(level0(files, { gate: { checks } }))['gate.scripts'];
+  const test = { name: 'test', run: 'npm test' };
+
+  it('PASSes no checks, or every npm script defined', () => {
+    expect(scripts({}, [])).toEqual({ status: 'PASS', note: m.gateScripts.none });
+    const pkg = JSON.stringify({ scripts: { test: 'vitest run' } });
+    expect(scripts({ 'package.json': pkg }, [test, { name: 'lint', run: 'eslint .' }])).toEqual({
+      status: 'PASS',
+      note: m.gateScripts.ok(2),
+    });
+  });
+
+  it('FAILs with the gate’s own refusal text, verbatim', () => {
+    expect(scripts({ 'package.json': '{}' }, [test])).toEqual({
+      status: 'FAIL',
+      note: bundleMessages.missingScript('test', 'test'),
+    });
+    expect(scripts({}, [test])).toEqual({ status: 'FAIL', note: bundleMessages.noPackageJson('test', 'test') });
+  });
+});
+
 describe('the readout', () => {
   const out = [];
   const err = [];
@@ -350,10 +527,10 @@ describe('the readout', () => {
 
   it('prints every check, the counts, the level line and the next level', () => {
     expect(doc(level0())).toBe(0);
-    expect(out).toHaveLength(15);
-    expect(out[0]).toBe(`PASS  config           ${m.config.ok(0)}`);
+    expect(out).toHaveLength(20);
+    expect(out[0]).toBe(`PASS  ${'config'.padEnd('hooks.pre-commit'.length)}  ${m.config.ok(0)}`);
     expect(out.slice(-3)).toEqual([
-      '11 checks — 11 PASS, 0 FAIL, 0 WARN, 0 SKIP',
+      '16 checks — 16 PASS, 0 FAIL, 0 WARN, 0 SKIP',
       'level 0 declared: complete',
       'next: Level 1 is not available in this version of cookwright',
     ]);
@@ -367,7 +544,17 @@ describe('the readout', () => {
   it('names what is weak or unverified, and still reads complete', () => {
     expect(doc(level0({}, { baseBranch: 'trunk' }), [], { claudeVersion: () => null })).toBe(0);
     expect(out).toContain('level 0 declared: complete; weak: git; unverified: host.rules');
-    expect(out).toContain('11 checks — 9 PASS, 0 FAIL, 1 WARN, 1 SKIP');
+    expect(out).toContain('16 checks — 14 PASS, 0 FAIL, 1 WARN, 1 SKIP');
+  });
+
+  it('reads gitleaks absent as unverified, and the level complete', () => {
+    expect(doc(level0(), [], { hasTool: (bin) => bin !== 'gitleaks' })).toBe(0);
+    expect(out).toContain('level 0 declared: complete; unverified: tools.gitleaks');
+  });
+
+  it('reads a foreign hooks setup as weak, its files unverified, and the level complete', () => {
+    expect(doc(level0({}, null, { hooksPath: '.husky/_' }))).toBe(0);
+    expect(out).toContain('level 0 declared: complete; weak: hooks.path; unverified: hooks.pre-commit, hooks.pre-push');
   });
 
   it('a WARN outside the requirements is neither drift nor weak', () => {
@@ -417,7 +604,7 @@ describe('--hook', () => {
     expect(hook(level0({ '.claude/settings.json': null }))).toBe(0);
     expect(out).toEqual([
       `FAIL  host.hook  ${m.hostHook.none('.claude/settings.json')}`,
-      'cookwright doctor: 11 checks — 10 PASS, 1 FAIL, 0 WARN, 0 SKIP',
+      'cookwright doctor: 16 checks — 15 PASS, 1 FAIL, 0 WARN, 0 SKIP',
       'level 0 declared: drift, 1 piece(s) missing: host.hook',
     ]);
   });

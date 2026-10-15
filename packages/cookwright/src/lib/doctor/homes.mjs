@@ -1,7 +1,9 @@
-// src/lib/doctor/homes.mjs — the state homes exist, and the backlog's ids are unique.
+// src/lib/doctor/homes.mjs — the state homes exist, the changelog is the generated
+// one, and the backlog's ids are unique.
 
 import path from 'node:path';
 
+import { hasMarker } from '../changelog/render.mjs';
 import { fail, pass, skip, warn } from '../verdict.mjs';
 import { messages } from '../messages.mjs';
 import { isDir, isFile, readLF } from './repo.mjs';
@@ -31,9 +33,16 @@ export function checkCloseouts(repo) {
   return isDir(path.join(repo.root, dir)) ? pass(m.homes.dirOk(dir)) : fail(m.homes.missing(`${dir}/`));
 }
 
+/**
+ * The changelog exists and carries the generated marker. Only the marker is read:
+ * comparing it with the release tags (a `git log` per tag) is the changelog
+ * command's and the pre-push check's, never inside doctor's budget.
+ */
 export function checkChangelog(repo) {
   const file = repo.config.paths.changelog;
-  return isFile(path.join(repo.root, file)) ? pass(m.homes.fileOk(file)) : fail(m.homes.missing(file));
+  const abs = path.join(repo.root, file);
+  if (!isFile(abs)) return fail(m.homes.missing(file));
+  return hasMarker(readLF(abs)) ? pass(m.homes.fileOk(file)) : warn(m.homes.unmarked(file));
 }
 
 /** Every backlog id once, counting item lines only. */

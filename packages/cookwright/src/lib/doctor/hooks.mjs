@@ -1,7 +1,9 @@
-// src/lib/doctor/hooks.mjs — where the repo's git hooks stand (plan §4.3, §4.6):
-// the effective core.hooksPath and its scope, the user's own hooks in git's hooks
-// directory, and cookwright's two files under .githooks. init's hooks step and
-// doctor's hooks checks read the same answer, so they never disagree on "foreign".
+// src/lib/doctor/hooks.mjs — where the repo's git hooks stand (plan §4.3, §4.6),
+// and doctor's five hook checks (`hooks.path`, `hooks.pre-commit`, `hooks.pre-push`,
+// `tools.gitleaks`, `gate.scripts`). The setup reader answers with the effective
+// core.hooksPath and its scope, the user's own hooks in git's hooks directory, and
+// cookwright's two files under .githooks. init's hooks step and doctor's checks
+// read the same answer, so they never disagree on "foreign".
 //
 // The scope comes from `--show-scope`, never `--show-origin`, whose absolute path
 // (from a linked worktree) must not reach a readout; git's hooks directory is shown
@@ -10,8 +12,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { TimedOut } from '../budget.mjs';
+import { scriptProblems } from '../bundle/gate.mjs';
 import { HOOKS_DIR, HOOK_NAMES, callsCookwright, shimText } from '../hooks/shims.mjs';
 import { messages } from '../messages.mjs';
+import { fail, pass, skip, warn } from '../verdict.mjs';
 import { gitRun, isLink } from './repo.mjs';
 
 const firstLine = (r) => (r.stderr || '').trim().split('\n')[0] || `exit ${r.status}`;
@@ -93,4 +98,58 @@ export function hooksSetup(root) {
   const configured = configuredPath(root);
   const files = Object.fromEntries(HOOK_NAMES.map((name) => [name, hookFile(root, name)]));
   return { configured, files, foreign: foreignReason(root, configured, files) };
+}
+
+// ── doctor's checks (plan §4.6) ──────────────────────────────────────────────
+
+const m = messages.doctor;
+
+/** The setup, read once per doctor run: three checks share it. */
+const setupOf = (repo) => (repo.hooksSetup ??= hooksSetup(repo.root));
+
+/**
+ * `hooks.path`: PASS when core.hooksPath is `.githooks` from the local scope; WARN a
+ * foreign setup, which is a chosen state, not drift; FAIL unset with nothing foreign.
+ */
+export function checkHooksPath(repo) {
+  if (!repo.workTree) return skip(m.hooks.notWorkTree);
+  const s = setupOf(repo);
+  if (s.foreign) return warn(s.foreign);
+  return s.configured ? pass(m.hooks.pathOk(HOOKS_DIR)) : fail(m.hooks.pathUnset);
+}
+
+/** `hooks.pre-commit`, `hooks.pre-push`: the file calls cookwright and is executable. */
+export const checkHookFile = (name) => (repo) => {
+  if (!repo.workTree) return skip(m.hooks.notWorkTree);
+  const s = setupOf(repo);
+  if (s.foreign) return skip(m.hooks.elsewhere);
+  const f = s.files[name];
+  if (f.kind === 'none') return fail(m.hooks.missing(f.rel));
+  if (f.kind !== 'file') return fail(m.hooks.notAFile(f.rel));
+  if (!f.executable) return fail(m.hooks.notExecutable(f.rel));
+  return pass(f.ours ? m.hooks.shim(f.rel) : m.hooks.calls(f.rel));
+};
+
+const stderrLine = (text) => (text ?? '').split('\n').map((l) => l.trim()).find(Boolean) ?? '';
+
+/**
+ * `tools.gitleaks`: on PATH, and one bounded dry run of the staged scan (output
+ * discarded) exits 0 or 3, both meaning it runs. Any other exit is drift the user
+ * can clear (a malformed .gitleaks.toml); absent is a SKIP; a timeout unverified.
+ */
+export function checkGitleaks(repo, probes) {
+  if (!probes.hasTool('gitleaks')) return skip(m.gitleaks.absent);
+  if (!repo.workTree) return skip(m.hooks.notWorkTree);
+  const r = probes.scanStaged(repo.root, { quiet: true });
+  if (r.timedOut) throw new TimedOut('gitleaks');
+  if (r.status === 0 || r.status === 3) return pass(m.gitleaks.ok(probes.gitleaksVersion()));
+  return fail(m.gitleaks.broken(r.status, stderrLine(r.stderr)));
+}
+
+/** `gate.scripts`: every npm script gate.checks runs is in package.json; no subprocess. */
+export function checkGateScripts(repo) {
+  const { checks } = repo.config.gate;
+  if (!checks.length) return pass(m.gateScripts.none);
+  const problems = scriptProblems(checks, repo.root);
+  return problems.length ? fail(problems.join('; ')) : pass(m.gateScripts.ok(checks.length));
 }

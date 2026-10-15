@@ -14,6 +14,7 @@ import { fail, skip } from '../verdict.mjs';
 import { checkConfig, checkGit } from './basics.mjs';
 import { checkClaudeHook, checkClaudeRules } from './claude.mjs';
 import { checkBacklog, checkChangelog, checkCloseouts, checkIds } from './homes.mjs';
+import { checkGateScripts, checkGitleaks, checkHookFile, checkHooksPath } from './hooks.mjs';
 import { checkBlock, checkSize } from './rules.mjs';
 import { checkSecrets } from './secrets.mjs';
 
@@ -38,6 +39,11 @@ export const CHECKS = Object.freeze({
   'rules.size': { run: checkSize },
   'host.rules': { run: hostCheck('rules'), config: true },
   'host.hook': { run: hostCheck('hook'), config: true },
+  'hooks.path': { run: checkHooksPath, git: true },
+  'hooks.pre-commit': { run: checkHookFile('pre-commit'), git: true },
+  'hooks.pre-push': { run: checkHookFile('pre-push'), git: true },
+  'tools.gitleaks': { run: checkGitleaks, git: true },
+  'gate.scripts': { run: checkGateScripts, config: true },
   'secrets.env': { run: checkSecrets, git: true },
 });
 

@@ -41,6 +41,11 @@ describe('levels', () => {
       'rules.block',
       'host.rules',
       'host.hook',
+      'hooks.path',
+      'hooks.pre-commit',
+      'hooks.pre-push',
+      'tools.gitleaks',
+      'gate.scripts',
     ]);
   });
 });

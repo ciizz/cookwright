@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 58,
+  "revision": 61,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -368,6 +368,12 @@
       "path": "docs/dev/bundles/stage-2/sessions/implement-s2-1.md",
       "at": "2026-10-15T16:20:09.848Z",
       "stored": true
+    },
+    {
+      "phase": "implement:s3",
+      "path": "docs/dev/bundles/stage-2/sessions/implement-s3-1.md",
+      "at": "2026-10-15T16:35:53.913Z",
+      "stored": true
     }
   ],
   "qaRounds": [],
@@ -552,6 +558,20 @@
       "actor": "orchestrator",
       "source": "implement:s2 open question 3 (several pushed refs), 2026-10-15",
       "text": "For fix:hooks: when a push carries several refs, the checks run if any pushed sha is HEAD, and each line then ends with 'not tested: <refs> are not the checked-out branch' for the others; both checks SKIP only when no pushed sha is HEAD. As built, one non-HEAD ref among several makes everything SKIP, so 'git push --all' would never test; that is not what the developer's refinement intends.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T16:35:53.065Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, implement:s2 strings batch",
+      "text": "The s2 strings stand as built (the hook command's lines, the shim lines, the hooks.docSync config refusals and schema descriptions), and the two fix:changelog strings with them.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T16:36:27.873Z",
+      "actor": "orchestrator",
+      "source": "implement:s3 report and open questions, 2026-10-15",
+      "text": "Accepted as built: one shared hooksSetup reader for init and doctor with one foreignHooks message set; the three foreign init rows carrying the same reason; the hooks dir shown root-relative, dotfiles and *.sample not counted; a mode-only write that runs chmod alone; git writes carrying the inert shim paths for the refusal text, run after the file writes; the doc-sync line in header() for the implementer role (fix sessions included) with the playbook bullet; README line 5 reworded; the v1Block test helper. Open questions: the config-root versus work-tree-top placement of .githooks is logged as B-007, not folded into B-002; the loader masking a non-object hooks/gate is B-006; the several-refs pre-push behaviour stays with fix:hooks as decided.",
       "claim": true
     }
   ],

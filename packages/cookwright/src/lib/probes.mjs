@@ -51,11 +51,13 @@ export function claudeVersion({ bin = 'claude', timeout = 1500 } = {}) {
 /**
  * Whether git ignores `rel` (root-relative) in the work tree at `root`. One path per
  * call: `-q` with two paths is fatal, and without it git exits 0 when only one is
- * ignored. Exit 0 ignored, 1 not; anything else throws with git's stderr, never
- * "not ignored".
+ * ignored. `--no-index`: the question is whether the rules cover the path, and git
+ * otherwise answers "not ignored" for any tracked file (doctor FAILs a tracked env
+ * file on its own). Exit 0 ignored, 1 not; anything else throws with git's stderr,
+ * never "not ignored".
  */
 export function ignored(root, rel) {
-  const r = spawnSync('git', ['check-ignore', '-q', '--', rel], {
+  const r = spawnSync('git', ['check-ignore', '-q', '--no-index', '--', rel], {
     cwd: root,
     encoding: 'utf8',
     timeout: 5000,

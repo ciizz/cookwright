@@ -97,10 +97,75 @@ const doctor = {
   next: (text) => `next: ${text}`,
 };
 
+// init: the usage, the refusals, and one note per row of each step (plan §4.4).
+const init = {
+  usage: `usage: ${CLI} init [--base <branch>] [--dry-run]`,
+  refused: (detail) => `init: ${detail}`,
+  bundleFlag: (flag) => `--${flag} belongs to ${CLI} bundle init; ${CLI} init takes --base and --dry-run`,
+  notWorkTree: (cwd) => `${cwd} is not inside a git work tree (init needs git and a repo: run git init first)`,
+  notAFile: (rel) => `${rel} exists and is not a file; move it aside, then rerun`,
+  notADir: (rel) => `${rel} exists and is not a directory; move it aside, then rerun`,
+  gitFailed: (what, detail) => `git ${what} failed: ${detail}`,
+  settingsInvalid: (file, detail) => `${file} is not valid JSON (${detail}); fix it by hand, then rerun`,
+  settingsShape: (file, key) =>
+    `${key ? `${file}: ${key}` : file} is not the shape Claude Code reads (an object, its hooks an object, hooks.SessionStart a list); fix it by hand, then rerun`,
+
+  header: (root) => `${CLI} init in ${root}`,
+  dryHeader: (root) => `${CLI} init --dry-run in ${root}: nothing is written`,
+  dryFooter: 'dry run: nothing written, doctor skipped',
+
+  config: {
+    wrote: (base, gate) => `baseBranch ${base}; ${gate}`,
+    kept: (level) => `present, level ${level}; init never edits an existing config`,
+    gateTest: (run) => `gate: ${run}`,
+    gateNone: (reason) => `gate: no checks (${reason})`,
+    noPackage: 'no package.json',
+    badPackage: 'package.json is not valid JSON',
+    noTestScript: 'package.json has no test script',
+    placeholder: "the test script is npm's placeholder",
+    watch: 'the test script runs in watch mode and never exits',
+  },
+  homes: {
+    template: 'from the template',
+    gitkeep: 'created, with a .gitkeep so a clone keeps it',
+    emptyDir: 'empty: .gitkeep added so a clone keeps it',
+    present: 'present',
+  },
+  block: {
+    wrote: 'written with the managed rules block',
+    appended: 'managed rules block appended; your text is untouched',
+    refreshed: (v) => `managed rules block refreshed to v${v}; the text outside the markers is untouched`,
+    current: 'the managed rules block is current',
+    newer: (v) => `block v${v} is newer than this cookwright; left alone (update cookwright)`,
+  },
+  hostRules: {
+    imports: (token) => `imports ${token}`,
+    prepended: (token) => `${token} prepended as the first line`,
+    shadowed: (token, files) => `only ${token}: ${list(files)} would otherwise shadow AGENTS.md`,
+    old: (token, version, min) =>
+      `only ${token}: claude ${version} reads only CLAUDE.md (AGENTS.md needs ${min} or newer)`,
+    native: (version) => `not needed: claude ${version} reads AGENTS.md natively and nothing shadows it`,
+    noClaude: 'not needed: nothing shadows AGENTS.md (claude not on PATH, its version unverified)',
+  },
+  hostHook: {
+    wrote: 'SessionStart hook runs doctor',
+    kept: 'the doctor SessionStart hook is present',
+    replaced: 'an earlier doctor hook replaced by the current one; the rest untouched',
+    added: 'doctor SessionStart hook added; the other settings untouched',
+  },
+  gitignore: {
+    ignored: '.env and .env.local are ignored',
+    ignoredElsewhere: ".env and .env.local are ignored by git's own excludes",
+    wrote: (lines) => `ignores ${list(lines)}`,
+    appended: (lines) => `appended ${list(lines)}`,
+    overridden: (paths) =>
+      `${list(paths)} not ignored although .gitignore lists the patterns (a later rule overrides them); left alone`,
+  },
+};
+
 export const messages = {
   // the bin
   usage: (commands) => `usage: ${CLI} <${commands.join('|')}> …`,
-  notBuiltYet: (command) => `${CLI} ${command} is not available in this build yet`,
 
   // cli.mjs
   missing: (what) => `missing ${what}`,
@@ -124,4 +189,5 @@ export const messages = {
   templateValue: (key) => `agents-block.md: no value for {{${key}}} (a packaging bug)`,
 
   doctor,
+  init,
 };

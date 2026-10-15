@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { gitInit, scratchRoot } from '../test-helpers.mjs';
+import { gitInit, run, scratchRoot } from '../test-helpers.mjs';
 import { atLeast, claudeVersion, hasTool, ignored, parseVersion } from './probes.mjs';
 
 const TMP = scratchRoot('cookwright-probes-');
@@ -53,6 +53,14 @@ describe('ignored', () => {
     expect(ignored(root, '.env.local')).toBe(false);
     fs.writeFileSync(path.join(root, '.gitignore'), '.env*\n');
     expect(ignored(root, '.env.local')).toBe(true);
+  });
+
+  it('judges a tracked path by the rules, not by the index', () => {
+    const root = gitInit(path.join(TMP, 'tracked'));
+    fs.writeFileSync(path.join(root, '.gitignore'), '.env\n');
+    fs.writeFileSync(path.join(root, '.env'), 'X=1\n');
+    run(root, 'git', ['add', '-f', '.env']);
+    expect(ignored(root, '.env')).toBe(true);
   });
 
   it('throws on a git error instead of answering "not ignored"', () => {

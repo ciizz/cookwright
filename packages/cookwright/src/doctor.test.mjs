@@ -184,7 +184,9 @@ describe('rules', () => {
     expect(rows['rules.size']).toEqual({ status: 'WARN', note: m.size.longLine('CLAUDE.md', 2, 3001) });
     const big = `${block}\n${'word '.repeat(13_000)}\n`.replace(/(.{100})/g, '$1\n');
     const bigRows = doctor(level0({ 'AGENTS.md': big }));
-    expect(bigRows['rules.size']).toEqual({ status: 'WARN', note: m.size.big('AGENTS.md', 65) });
+    const kb = Math.ceil(Buffer.byteLength(big) / 1024);
+    expect(kb).toBeGreaterThan(60);
+    expect(bigRows['rules.size']).toEqual({ status: 'WARN', note: m.size.big('AGENTS.md', kb) });
   });
 });
 

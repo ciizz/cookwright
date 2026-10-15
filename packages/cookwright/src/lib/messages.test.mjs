@@ -5,7 +5,8 @@
 // a finding, unless it is on the allowlist below, each entry with its reason. The
 // bundle modules keep their literals until E-004; hosts.mjs (the hook command and
 // its fallback lines) and config.mjs (the loader's messages) are exceptions by the
-// plan's import rule, and the templates and the rules block are content.
+// plan's import rule, and the templates, the rules block and the generated
+// changelog's render (stage-2 plan §4.8) are content.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -26,6 +27,12 @@ const SCANNED = [
   'src/lib/levels.mjs',
   'src/lib/probes.mjs',
   'src/lib/rules/block.mjs',
+  'src/lib/changelog',
+];
+
+/** Modules whose literals are content written into the user's repo, not messages. */
+const EXEMPT = [
+  'src/lib/changelog/render.mjs', // the generated changelog's section titles and count line
 ];
 
 /** Literals that are not messages, by file. */
@@ -44,7 +51,8 @@ const sources = () =>
     return fs
       .readdirSync(abs)
       .filter((f) => f.endsWith('.mjs') && !f.endsWith('.test.mjs'))
-      .map((f) => path.posix.join(rel, f));
+      .map((f) => path.posix.join(rel, f))
+      .filter((f) => !EXEMPT.includes(f));
   });
 
 const COMMENTS = [/\/\*[\s\S]*?\*\//g, /^\s*\/\/.*$/gm, /\s\/\/ .*$/gm];

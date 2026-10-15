@@ -8,15 +8,17 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { TimedOut, runBounded } from '../budget.mjs';
+import { CALL_CAP_MS, TimedOut, runBounded } from '../budget.mjs';
 import { findRoot, loadConfig, workTreeRoot } from '../config.mjs';
 
 /**
  * git's exit status and output: a check decides what a failure means. The one throw
- * is TimedOut, when git outlasts the shared budget (budget.mjs).
+ * is TimedOut, when git outlasts the shared budget (budget.mjs) or `cap`, the per-call
+ * ceiling (doctor's 1.5 s by default; the changelog and the hooks pass 60 s). Inside
+ * a budget, the budget still bounds the call.
  */
-export function gitRun(root, args) {
-  const r = runBounded('git', args, { cwd: root });
+export function gitRun(root, args, { cap = CALL_CAP_MS } = {}) {
+  const r = runBounded('git', args, { cwd: root }, cap);
   if (r.timedOut) throw new TimedOut(`git ${args[0]}`);
   return { status: r.status, stdout: r.stdout, stderr: r.stderr };
 }
@@ -64,7 +66,7 @@ const real = (p) => {
 export const readLF = (p) => fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
 
 /** The loader's message as one line: `cookwright.json: problem; problem`. */
-const oneLine = (message) => {
+export const oneLine = (message) => {
   const [head, ...rest] = message.split('\n').map((s) => s.trim());
   return rest.length ? `${head} ${rest.join('; ')}` : head;
 };

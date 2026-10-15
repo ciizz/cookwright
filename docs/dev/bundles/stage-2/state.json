@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 1,
+  "revision": 2,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -125,7 +125,21 @@
       "runs": []
     }
   ],
-  "gates": [],
+  "gates": [
+    {
+      "commit": "8298ff847a0d85de7dcf756e0d82968756293645",
+      "at": "2026-10-15T15:08:19.185Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 17906
+        }
+      ]
+    }
+  ],
   "findings": [],
   "reports": [],
   "qaRounds": [],

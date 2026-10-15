@@ -1223,5 +1223,17 @@ describe('the CLI', () => {
     const report = fs.readFileSync(path.join(bdir, 'sessions/implement-s1-1.md'), 'utf8');
     expect(report).toContain('- `src/a.mjs`');
     expect(report).toContain('see src/a.mjs, <local path> and <local path>');
+
+    // A quoted machine path, or one before an escaped newline, leaves valid JSON:
+    // the strings are scrubbed before they are serialized, never the JSON text.
+    const quoted = `codex wrote to "${scratch}" and stopped\nsee ${scratch}\nnext line`;
+    expect(cli('decide', 'paths', '--actor', 'orchestrator', '--source', 'plan §2', '--text', quoted)).toBe(0);
+    const decided = JSON.parse(fs.readFileSync(path.join(bdir, 'state.json'), 'utf8'));
+    expect(decided.decisions.at(-1).text).toBe('codex wrote to "<local path>" and stopped\nsee <local path>\nnext line');
+    stdin = JSON.stringify({ issues: [{ verdict: 'plausible', severity: 'P3', evidence: quoted }] });
+    expect(cli('record', 'paths', 'findings', 'plan-review')).toBe(0);
+    const stored = JSON.parse(fs.readFileSync(path.join(bdir, 'findings/plan-review-2.json'), 'utf8'));
+    expect(stored.issues[0].evidence).toBe(decided.decisions.at(-1).text);
+    expect(cli('status', 'paths')).toBe(0);
   });
 });

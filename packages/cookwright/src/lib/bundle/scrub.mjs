@@ -24,18 +24,36 @@ const spellings = (dirs) =>
 
 const MACHINE_DIRS = () => [os.homedir(), os.tmpdir(), '/tmp', '/private/tmp'];
 
+/** A function that scrubs one string: the repo root's paths made relative, other machine-local paths redacted. */
+function scrubber(root) {
+  const rules = [
+    ...spellings([root]).map((r) => [
+      new RegExp(`${escape(r)}(/|(?![\\w.-]))`, 'g'),
+      (_, slash) => (slash ? '' : '.'),
+    ]),
+    ...spellings(MACHINE_DIRS()).map((d) => [
+      new RegExp(`${escape(d)}(?:/[^\\s'"\`)\\]}>,;]*|(?![\\w.-]))`, 'g'),
+      LOCAL_PATH,
+    ]),
+  ];
+  return (text) => rules.reduce((out, [re, to]) => out.replace(re, to), text);
+}
+
 /** `text` with the repo root's paths made relative and other machine-local paths redacted. */
-export function scrubLocalPaths(text, root) {
-  let out = text;
-  for (const r of spellings([root])) {
-    out = out.replace(new RegExp(`${escape(r)}(/|(?![\\w.-]))`, 'g'), (_, slash) =>
-      slash ? '' : '.',
-    );
-  }
-  for (const d of spellings(MACHINE_DIRS())) {
-    out = out.replace(new RegExp(`${escape(d)}(?:/[^\\s'"\`)\\]}>,;]*|(?![\\w.-]))`, 'g'), LOCAL_PATH);
-  }
-  return out;
+export const scrubLocalPaths = (text, root) => scrubber(root)(text);
+
+/**
+ * `value` with every string in it (keys included) scrubbed. Scrub before
+ * serializing, never after: a regex over JSON text can eat an escape and break it.
+ */
+export function scrubValue(value, root, scrub = scrubber(root)) {
+  if (typeof value === 'string') return scrub(value);
+  if (Array.isArray(value)) return value.map((v) => scrubValue(v, root, scrub));
+  if (value === null || typeof value !== 'object') return value;
+  if (typeof value.toJSON === 'function') return scrubValue(value.toJSON(), root, scrub);
+  return Object.fromEntries(
+    Object.entries(value).map(([k, v]) => [scrub(k), scrubValue(v, root, scrub)]),
+  );
 }
 
 /** A session report's file list, root-relative; an absolute path outside the repo is refused. */

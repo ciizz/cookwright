@@ -17,7 +17,7 @@ import path from 'node:path';
 
 import { rulesFiles } from '../hosts.mjs';
 import { BUNDLE_CLI } from './messages.mjs';
-import { relativeFiles, scrubLocalPaths } from './scrub.mjs';
+import { relativeFiles, scrubLocalPaths, scrubValue } from './scrub.mjs';
 import { bundleDir, bundleRel, findPhase, sha256File, sliceOfPhase } from './state.mjs';
 
 /** Kinds that run through the Workflow script; the rest are shell or the developer's hands. */
@@ -224,13 +224,18 @@ function findingsFor(state, reviewName, repo) {
 
 const fileSafe = (name) => name.replace(/:/g, '-');
 
+/** Write a record: `content` is text (scrubbed as text) or, for json, a value (scrubbed, then serialized). */
 function writeRecord(repo, state, sub, base, ext, content) {
   const dir = path.join(bundleDir(repo, state.slug), sub);
   fs.mkdirSync(dir, { recursive: true });
   let n = 1;
   while (fs.existsSync(path.join(dir, `${base}-${n}.${ext}`))) n += 1;
   const file = path.join(dir, `${base}-${n}.${ext}`);
-  fs.writeFileSync(file, scrubLocalPaths(content, repo.root));
+  const text =
+    typeof content === 'string'
+      ? scrubLocalPaths(content, repo.root)
+      : JSON.stringify(scrubValue(content, repo.root), null, 2) + '\n';
+  fs.writeFileSync(file, text);
   return path.relative(repo.root, file).split(path.sep).join('/');
 }
 
@@ -286,7 +291,7 @@ export function recordFindings(repo, state, name, result, now, opts = {}) {
     counts[i.verdict in counts ? i.verdict : 'unverified'] += 1;
     if (isOpen(i)) openBySeverity[i.severity in openBySeverity ? i.severity : 'P1'] += 1;
   }
-  const body = JSON.stringify({ phase: name, stored: true, ...result }, null, 2) + '\n';
+  const body = { phase: name, stored: true, ...result };
   const rel = writeRecord(repo, state, 'findings', fileSafe(name), 'json', body);
   state.findings.push({
     phase: name,

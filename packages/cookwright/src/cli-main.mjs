@@ -9,6 +9,7 @@ import { messages } from './lib/messages.mjs';
 const COMMANDS = {
   init: () => import('./init.mjs'),
   doctor: () => import('./doctor.mjs'),
+  changelog: () => import('./changelog.mjs'),
   bundle: () => import('./bundle.mjs'),
 };
 

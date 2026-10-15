@@ -35,7 +35,7 @@ describe('dispatch', () => {
 
   it('prints the usage and exits 2 on an unknown or missing command', async () => {
     expect(await dispatch(['bogus'])).toBe(2);
-    expect(errors.at(-1)).toBe(`usage: ${CLI} <init|doctor|bundle> …`);
+    expect(errors.at(-1)).toBe(`usage: ${CLI} <init|doctor|changelog|bundle> …`);
     expect(await dispatch([])).toBe(2);
     expect(await dispatch(['toString'])).toBe(2); // not an inherited property
   });
@@ -47,6 +47,13 @@ describe('dispatch', () => {
     expect(errors.at(-1)).toMatch(new RegExp(`^usage: ${CLI} bundle <init\\|status`));
     expect(await dispatch(['bundle', 'status'], { cwd: path.join(repo.root, 'a') })).toBe(0);
     expect(logs.join('\n')).toMatch(/no bundle state for this branch/);
+  });
+
+  it('hands `changelog` and its flags to the changelog command', async () => {
+    const repo = scratchRepo(TMP, 'changelog');
+    expect(await dispatch(['changelog', '--check'], { cwd: repo.root })).toBe(1);
+    expect(errors.at(-1)).toMatch(/^CHANGELOG\.md: missing; /);
+    expect(await dispatch(['changelog', '--check', '--adopt'], { cwd: repo.root })).toBe(2);
   });
 });
 

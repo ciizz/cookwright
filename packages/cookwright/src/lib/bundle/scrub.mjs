@@ -24,15 +24,19 @@ const spellings = (dirs) =>
 
 const MACHINE_DIRS = () => [os.homedir(), os.tmpdir(), '/tmp', '/private/tmp'];
 
+// A path starts the text, follows a character that cannot be part of a path or URL
+// (so `app/tmp/x` and `https://host/tmp` are left alone), or follows `file://`.
+const LEFT = String.raw`(?:(?<=file://)|(?<![\w.~%+@/\\-]))`;
+
 /** A function that scrubs one string: the repo root's paths made relative, other machine-local paths redacted. */
 function scrubber(root) {
   const rules = [
     ...spellings([root]).map((r) => [
-      new RegExp(`${escape(r)}(/|(?![\\w.-]))`, 'g'),
+      new RegExp(`${LEFT}${escape(r)}(/|(?![\\w.-]))`, 'g'),
       (_, slash) => (slash ? '' : '.'),
     ]),
     ...spellings(MACHINE_DIRS()).map((d) => [
-      new RegExp(`${escape(d)}(?:/[^\\s'"\`)\\]}>,;]*|(?![\\w.-]))`, 'g'),
+      new RegExp(`${LEFT}${escape(d)}(?:/[^\\s'"\`)\\]}>,;]*|(?![\\w.-]))`, 'g'),
       LOCAL_PATH,
     ]),
   ];

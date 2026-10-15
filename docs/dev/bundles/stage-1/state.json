@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 62,
+  "revision": 64,
   "slug": "stage-1",
   "branch": "bundle/stage-1",
   "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
@@ -219,21 +219,25 @@
     },
     {
       "name": "qa",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
           "startedAt": "2026-10-15T13:33:24.917Z",
           "stateRevision": 58,
           "planSha": "a252db7ad517b7c2",
-          "codex": true
+          "codex": true,
+          "endedAt": "2026-10-15T13:59:39.121Z",
+          "turnOutputTokens": 0
         }
       ],
       "startCommit": "76b9ecd535f408c9527915fee17c837782354dcf",
       "range": {
         "from": "76b9ecd535f408c9527915fee17c837782354dcf",
         "to": "HEAD"
-      }
+      },
+      "endCommit": "bfc3a322fd2b8b46f1d61985b850ba0d645708c5",
+      "endCode": "0c782154e1010855ba06e24390c96257e56e20f1"
     },
     {
       "name": "closeout",
@@ -463,6 +467,11 @@
     {
       "path": "docs/dev/bundles/stage-1/qa/round-2.md",
       "at": "2026-10-15T13:56:18.223Z",
+      "stored": true
+    },
+    {
+      "path": "docs/dev/bundles/stage-1/qa/round-3.md",
+      "at": "2026-10-15T13:59:38.965Z",
       "stored": true
     }
   ],

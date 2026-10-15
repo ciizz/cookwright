@@ -4,7 +4,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 
 ## Open bugs
 
-- **B-002** (2026-10-15) The SessionStart hook command looks for `node_modules/cookwright` in `CLAUDE_PROJECT_DIR`. When a Claude session starts in a subdirectory of the repo, or the package is installed in a workspace sub-package, the hook prints "package not installed", although doctor run from there would find the root.
+- **B-004** (2026-10-15) The SessionStart hook looks for `node_modules/cookwright` from `CLAUDE_PROJECT_DIR` upward only. When the package is installed in a workspace sub-package and not hoisted (pnpm's default), a session at the repo root prints "package not installed".
 - **B-003** (2026-10-15) The bundle CLI ignores unknown flags on every subcommand but the three `phase` verbs, so a mistyped or dropped flag passes silently. `init` and `doctor` refuse them through `onlyFlags` in `src/lib/cli.mjs`.
 
 ## Open enhancements
@@ -24,6 +24,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 
 ## Closed
 
+- **B-002** (opened and closed by stage-1, 2026-10-15) The SessionStart hook looked for `node_modules/cookwright` only in `CLAUDE_PROJECT_DIR`, so a session in a subdirectory, or with the package hoisted to a workspace root above it, printed "package not installed". Fixed: the hook searches upward, as node resolves a package. The non-hoisted workspace case is B-004.
 - **B-001** (opened and closed by stage-1, 2026-10-15) The bundle runner persisted `--transcript-dir`, an absolute machine-local path, into committed bundle state. Fixed: the state keeps the run id only, the flag is gone from `phase run` and `phase done`, and a test refuses any absolute path in saved state.
 - **E-009** (opened and closed by stage 0, 2026-10-15) A check naming an npm script the repo does not define is misconfiguration, not absence: the gate refuses before anything runs, naming the check and the script. Skipping stays reserved for tools the developer has not installed (`needs`, or the command's first word absent from PATH).
 - **E-005** (opened and closed by stage 0, 2026-10-15) What counts as code comes from config: everything outside `paths.bundles`, `paths.closeouts`, `paths.backlog`, markdown included.

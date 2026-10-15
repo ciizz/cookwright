@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { Refusal } from '../cli.mjs';
-import { isLink } from '../doctor/repo.mjs';
+import { gitRun, isLink } from '../doctor/repo.mjs';
 import { messages } from '../messages.mjs';
 
 const m = messages.init;
@@ -19,7 +19,11 @@ export const UPDATED = 'updated';
 export const KEPT = 'kept';
 export const SKIPPED = 'skipped';
 
-/** One line of init's report; `writes` are `{ rel, content }`, root-relative. */
+/**
+ * One line of init's report. `writes` are file writes `{ rel, content, mode? }`
+ * (root-relative; a mode with no content changes the mode only), or git writes
+ * `{ git: [args], inert: [rels] }`, run after every file write of the run.
+ */
 export const row = (action, target, note, writes = []) => ({ action, target, note, writes });
 
 /** `none`, `file`, `dir` or `other` (a symlink to nothing, a socket, …). */
@@ -52,7 +56,7 @@ export function linkOnPath(root, rel) {
  */
 export function refuseLinks(root, rows) {
   for (const { writes } of rows) {
-    for (const { rel } of writes) {
+    for (const { rel } of writes.filter((w) => w.rel !== undefined)) {
       const link = linkOnPath(root, rel);
       if (link) throw new Refusal(m.symlink(link));
     }
@@ -80,13 +84,26 @@ export const withEol = (text, eol) => (eol === '\n' ? text : text.split('\n').jo
 /** `text` ending in a newline, the file's own, unless it is empty. */
 export const endLine = (text, eol) => (text === '' || /\n$/.test(text) ? text : text + eol);
 
-/** Apply every row's writes, in order, creating directories as needed. */
+function writeFile(root, { rel, content, mode }) {
+  const abs = path.join(root, rel);
+  if (content !== undefined) {
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, content, mode === undefined ? undefined : { mode });
+  }
+  // The mode option does not touch an existing file; chmod does.
+  if (mode !== undefined) fs.chmodSync(abs, mode);
+}
+
+/**
+ * Apply every row's file writes, in order, creating directories as needed; then its
+ * git writes, so a config that activates files never precedes them. A git failure
+ * is a refusal naming the files it leaves inert, which the next run completes.
+ */
 export function applyRows(root, rows) {
-  for (const { writes } of rows) {
-    for (const { rel, content } of writes) {
-      const abs = path.join(root, rel);
-      fs.mkdirSync(path.dirname(abs), { recursive: true });
-      fs.writeFileSync(abs, content);
-    }
+  const writes = rows.flatMap((r) => r.writes);
+  for (const w of writes.filter((x) => x.rel !== undefined)) writeFile(root, w);
+  for (const { git, inert } of writes.filter((x) => x.git)) {
+    const r = gitRun(root, git);
+    if (r.status !== 0) throw new Refusal(m.gitWriteFailed(git, r.stderr.trim() || `exit ${r.status}`, inert));
   }
 }

@@ -1,13 +1,15 @@
 // src/lib/init/steps.mjs — init's steps, in order, and the preflight that computes
 // every row before anything is written.
 //
-// A step is `(repo, io) → row`; it reads, never writes. Step 1 sets `repo.config`,
-// which the later steps read. A second host adds its two steps to HOST_STEPS.
+// A step is `(repo, io) → row`, or a list of rows (the hooks step has three); it
+// reads, never writes. Step 1 sets `repo.config`, which the later steps read. A
+// second host adds its two steps to HOST_STEPS.
 
 import { claudeHookStep, claudeRulesStep } from './claude.mjs';
 import { configStep } from './config.mjs';
 import { refuseLinks } from './files.mjs';
 import { gitignoreStep } from './gitignore.mjs';
+import { hooksStep } from './hooks.mjs';
 import { backlogStep, changelogStep, closeoutsStep } from './homes.mjs';
 import { blockStep } from './rules.mjs';
 
@@ -27,11 +29,12 @@ export const STEPS = Object.freeze([
   hostStep('rules'),
   hostStep('hook'),
   gitignoreStep,
+  hooksStep,
 ]);
 
 /** Every row, in order; any refusal throws before a single write. */
 export function preflight(repo, io) {
-  const rows = STEPS.map((step) => step(repo, io));
+  const rows = STEPS.flatMap((step) => step(repo, io));
   refuseLinks(repo.root, rows);
   return rows;
 }

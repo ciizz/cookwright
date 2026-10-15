@@ -161,6 +161,16 @@ const init = {
     added: 'doctor SessionStart hook added; the other settings kept',
     relaid: ' (the file is rewritten in standard JSON layout, its indent kept)',
   },
+  gitWriteFailed: (args, detail, inert) =>
+    `git ${args.join(' ')} failed: ${detail}; ${list(inert)} are written but inactive, rerun init`,
+  hooks: {
+    pathSet: (dir) => `core.hooksPath set to ${dir} in the local git config`,
+    pathKept: (dir) => `core.hooksPath is ${dir}`,
+    shim: 'the managed shim, executable; it calls the hook in the package',
+    shimKept: 'the managed shim',
+    calls: 'calls cookwright; the rest is yours',
+    modeFixed: 'made executable; its content untouched',
+  },
   gitignore: {
     ignored: '.env and .env.local are ignored',
     ignoredElsewhere: ".env and .env.local are ignored by git's own excludes",
@@ -169,6 +179,14 @@ const init = {
     overridden: (paths) =>
       `${list(paths)} not ignored although .gitignore ends with the patterns (a rule outside it overrides them); left alone`,
   },
+};
+
+// The three ways a repo's git hooks are someone else's: init skips its hooks step
+// with the reason, doctor's hooks.path WARNs it (plan §4.3, §4.6).
+const foreignHooks = {
+  path: (value, scope) => `core.hooksPath is ${value} (${scope}): hooks are managed elsewhere, cookwright's are not installed`,
+  dir: (dir, names) => `${dir} has ${list(names)}: cookwright's hooks are not installed`,
+  file: (rel) => `${rel} is not cookwright's: cookwright's hooks are not installed`,
 };
 
 // changelog: the usage, the refusals, the lines of each mode (plan §4.4). The
@@ -279,6 +297,7 @@ export const messages = {
   timedOut: (what) => `${what} did not answer in time (is git stalled?)`,
   templateValue: (key) => `agents-block.md: no value for {{${key}}} (a packaging bug)`,
 
+  foreignHooks,
   doctor,
   init,
   changelog,

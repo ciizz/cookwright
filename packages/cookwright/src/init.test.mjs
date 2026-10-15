@@ -9,10 +9,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { main } from './init.mjs';
 import { DEFAULTS } from './lib/config.mjs';
+import { callLine, shimText } from './lib/hooks/shims.mjs';
 import { claudeHookStep } from './lib/init/claude.mjs';
 import { ENV_LINES } from './lib/init/gitignore.mjs';
 import { HOOK_COMMAND, HOOK_LINES, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
+import { hasTool } from './lib/probes.mjs';
 import { renderBlock } from './lib/rules/block.mjs';
 import { commit, gitInit, run, scratchRoot, stageOnly } from './test-helpers.mjs';
 
@@ -47,6 +49,15 @@ const write = (root, rel, body) => {
 };
 const read = (root, rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 const exists = (root, rel) => fs.existsSync(path.join(root, rel));
+const executable = (root, rel) => (fs.statSync(path.join(root, rel)).mode & 0o111) !== 0;
+/** The effective core.hooksPath, or null when it is set nowhere. */
+const hooksPath = (root) => {
+  try {
+    return run(root, 'git', ['config', '--get', 'core.hooksPath']);
+  } catch {
+    return null;
+  }
+};
 
 /** Every file under `root` but .git, as rel → text. */
 function tree(root) {
@@ -65,11 +76,18 @@ function tree(root) {
 
 const ROW = /^(wrote|updated|kept|skipped) +(\S+) +(.*)$/;
 
+/** gitleaks played present and running, so doctor's verdict never depends on this machine. */
+const GITLEAKS = {
+  hasTool: (bin) => bin === 'gitleaks' || hasTool(bin),
+  scanStaged: () => ({ status: 0, timedOut: false, stderr: '' }),
+  gitleaksVersion: () => '8.30.1',
+};
+
 /** Run init; `rows` maps each target to `{ action, note }`. */
 function init(cwd, argv = [], { version = '2.1.281', probes = {} } = {}) {
   out.length = 0;
   err.length = 0;
-  const code = main(argv, { cwd, home: TMP, probes: { claudeVersion: () => version, ...probes } });
+  const code = main(argv, { cwd, home: TMP, probes: { ...GITLEAKS, claudeVersion: () => version, ...probes } });
   const rows = {};
   for (const line of out) {
     const r = ROW.exec(line);
@@ -92,8 +110,16 @@ describe('a fresh repo', () => {
       'CLAUDE.md': 'skipped',
       '.claude/settings.json': 'wrote',
       '.gitignore': 'wrote',
+      'hooks.path': 'wrote',
+      '.githooks/pre-commit': 'wrote',
+      '.githooks/pre-push': 'wrote',
     });
     expect(rows['CLAUDE.md'].note).toBe(m.hostRules.native('2.1.281'));
+    expect(hooksPath(root)).toBe('.githooks');
+    for (const name of ['pre-commit', 'pre-push']) {
+      expect(read(root, `.githooks/${name}`)).toBe(shimText(name));
+      expect(executable(root, `.githooks/${name}`)).toBe(true);
+    }
     expect(read(root, 'docs/backlog.md')).toBe(template('backlog.md'));
     expect(read(root, 'CHANGELOG.md')).toBe(template('CHANGELOG.md'));
     expect(read(root, 'docs/closeouts/.gitkeep')).toBe('');
@@ -104,6 +130,7 @@ describe('a fresh repo', () => {
     expect(config).toMatchObject({ version: 1, level: 0, hosts: ['claude'], baseBranch: 'main' });
     expect(config.paths).toEqual(DEFAULTS.paths);
     expect(config.gate).toEqual({ checks: [] });
+    expect(config.hooks).toEqual({ docSync: [] });
     const hook = JSON.parse(read(root, '.claude/settings.json')).hooks.SessionStart;
     expect(hook).toEqual([{ hooks: [{ type: 'command', command: HOOK_COMMAND, timeout: 10 }] }]);
     expect(out).toContain(`PASS  git              ${messages.doctor.git.unborn('main')}`);
@@ -143,6 +170,8 @@ describe('a fresh repo', () => {
     expect(out).toContain(m.dryFooter);
     expect(out.some((l) => /^PASS /.test(l))).toBe(false);
     expect(tree(root)).toEqual({});
+    expect(rows['hooks.path'].action).toBe('wrote');
+    expect(hooksPath(root)).toBe(null);
   });
 
   it('runs from a subdirectory and writes at the work tree top', () => {
@@ -559,5 +588,141 @@ describe('.gitignore', () => {
     stageOnly(root, '.env');
     commit({ root }, { '.gitignore': '.env\n.env.*\n' }, 'oops');
     expect(init(root).rows['.gitignore'].action).toBe('kept');
+  });
+});
+
+describe('git hooks', () => {
+  const SHIMS = ['.githooks/pre-commit', '.githooks/pre-push'];
+  const TARGETS = ['hooks.path', ...SHIMS];
+  const f = messages.foreignHooks;
+  const hookRows = (rows) => TARGETS.map((t) => rows[t]);
+  const userHook = (root, body, mode = 0o755) => {
+    write(root, '.githooks/pre-commit', body);
+    fs.chmodSync(path.join(root, '.githooks/pre-commit'), mode);
+  };
+
+  it('keeps the shims and the path on a second run', () => {
+    const root = fresh();
+    init(root);
+    const second = init(root);
+    expect(hookRows(second.rows)).toEqual([
+      { action: 'kept', note: m.hooks.pathKept('.githooks') },
+      { action: 'kept', note: m.hooks.shimKept },
+      { action: 'kept', note: m.hooks.shimKept },
+    ]);
+  });
+
+  it('skips all three, writing nothing, when core.hooksPath is set elsewhere locally', () => {
+    for (const value of ['.husky/_', path.join(TMP, 'abs', '.githooks')]) {
+      const root = fresh();
+      run(root, 'git', ['config', '--local', 'core.hooksPath', value]);
+      const { code, rows } = init(root);
+      const note = f.path(value, 'local');
+      expect(hookRows(rows)).toEqual(TARGETS.map(() => ({ action: 'skipped', note })));
+      expect(exists(root, '.githooks')).toBe(false);
+      expect(hooksPath(root)).toBe(value);
+      expect(code).toBe(0); // a foreign setup is a WARN in doctor, never drift
+    }
+  });
+
+  it('skips all three when core.hooksPath comes from the global config, naming the scope', () => {
+    const root = fresh();
+    const global = path.join(TMP, `global-${n}`);
+    fs.writeFileSync(global, '[core]\n\thooksPath = .githooks\n');
+    vi.stubEnv('GIT_CONFIG_GLOBAL', global);
+    try {
+      const { rows } = init(root);
+      expect(hookRows(rows)).toEqual(TARGETS.map(() => ({ action: 'skipped', note: f.path('.githooks', 'global') })));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    expect(exists(root, '.githooks')).toBe(false);
+  });
+
+  it('skips all three when git’s hooks directory holds a hook of the user’s', () => {
+    const root = fresh();
+    write(root, '.git/hooks/pre-commit', '#!/bin/sh\nexit 0\n');
+    const { rows } = init(root);
+    expect(hookRows(rows)).toEqual(TARGETS.map(() => ({ action: 'skipped', note: f.dir('.git/hooks', ['pre-commit']) })));
+    expect(exists(root, '.githooks')).toBe(false);
+    expect(hooksPath(root)).toBe(null);
+  });
+
+  it('keeps a user’s own hook that calls cookwright in each accepted form, and writes the other', () => {
+    const call = callLine('pre-commit');
+    for (const line of [`exec ${call}`, `${call} || exit 1`, `${call} || exit $?`, `${call}\n# done`]) {
+      const root = fresh();
+      const body = `#!/bin/sh\necho mine\n${line}\n`;
+      userHook(root, body);
+      const { rows } = init(root);
+      expect([line, rows['.githooks/pre-commit']]).toEqual([line, { action: 'kept', note: m.hooks.calls }]);
+      expect(rows['.githooks/pre-push'].action).toBe('wrote');
+      expect(rows['hooks.path'].action).toBe('wrote');
+      expect(read(root, '.githooks/pre-commit')).toBe(body);
+    }
+  });
+
+  // No executable bit on Windows; root ignores the read-only .git directory.
+  const NO_MODES = process.platform === 'win32';
+
+  it.skipIf(NO_MODES)('makes a hook that calls cookwright executable, its bytes intact', () => {
+    const root = fresh();
+    const body = `#!/bin/sh\r\n${callLine('pre-commit')} || exit 1\r\n`;
+    userHook(root, body, 0o644);
+    expect(init(root).rows['.githooks/pre-commit']).toEqual({ action: 'updated', note: m.hooks.modeFixed });
+    expect(executable(root, '.githooks/pre-commit')).toBe(true);
+    expect(read(root, '.githooks/pre-commit')).toBe(body);
+    expect(init(root).rows['.githooks/pre-commit'].action).toBe('kept');
+  });
+
+  it('skips all three when a .githooks file swallows the status or does not call cookwright', () => {
+    const call = callLine('pre-commit');
+    for (const body of [`#!/bin/sh\n${call} || true\n`, `#!/bin/sh\n${call}\necho done\n`, '#!/bin/sh\nnpm run lint\n']) {
+      const root = fresh();
+      userHook(root, body);
+      const before = tree(root);
+      const { rows } = init(root, ['--dry-run']);
+      expect(hookRows(rows)).toEqual(TARGETS.map(() => ({ action: 'skipped', note: f.file('.githooks/pre-commit') })));
+      init(root);
+      expect(read(root, '.githooks/pre-commit')).toBe(before['.githooks/pre-commit']);
+      expect(exists(root, '.githooks/pre-push')).toBe(false);
+      expect(hooksPath(root)).toBe(null);
+    }
+  });
+
+  it('refuses a .githooks entry that is not a file, before any write', () => {
+    const root = fresh();
+    fs.mkdirSync(path.join(root, '.githooks/pre-push'), { recursive: true });
+    expect(init(root).code).toBe(2);
+    expect(err[0]).toBe(m.refused(m.notAFile('.githooks/pre-push')));
+    expect(exists(root, 'cookwright.json')).toBe(false);
+  });
+
+  it('refuses to write the shims through a linked .githooks directory', () => {
+    const root = fresh();
+    const elsewhere = fs.mkdtempSync(path.join(TMP, 'hooks-'));
+    fs.symlinkSync(elsewhere, path.join(root, '.githooks'));
+    expect(init(root).code).toBe(2);
+    expect(err[0]).toBe(m.refused(m.symlink('.githooks')));
+    expect(fs.readdirSync(elsewhere)).toEqual([]);
+  });
+
+  it.skipIf(NO_MODES || process.getuid?.() === 0)('sets the path only after the shims are written; a git failure names the inert files', () => {
+    const root = fresh();
+    const git = path.join(root, '.git');
+    fs.chmodSync(git, 0o555); // git config cannot take its lock file
+    let r;
+    try {
+      r = init(root);
+    } finally {
+      fs.chmodSync(git, 0o755);
+    }
+    expect(r.code).toBe(2);
+    expect(err[0]).toMatch(/^init: git config --local core\.hooksPath \.githooks failed: .+; \.githooks\/pre-commit, \.githooks\/pre-push are written but inactive, rerun init$/);
+    expect(executable(root, '.githooks/pre-commit')).toBe(true);
+    expect(hooksPath(root)).toBe(null);
+    const again = init(root);
+    expect(hookRows(again.rows).map((x) => x.action)).toEqual(['wrote', 'kept', 'kept']);
+    expect(hooksPath(root)).toBe('.githooks');
   });
 });

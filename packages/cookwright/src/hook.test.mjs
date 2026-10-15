@@ -10,10 +10,11 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { main } from './hook.mjs';
+import { main as init } from './init.mjs';
 import { TimedOut } from './lib/budget.mjs';
 import { generate } from './lib/changelog/state.mjs';
 import { CONFIG_FILE } from './lib/config.mjs';
-import { CLI } from './lib/messages.mjs';
+import { CLI, messages } from './lib/messages.mjs';
 import { callLine, callsCookwright, shimText } from './lib/hooks/shims.mjs';
 import { hasTool } from './lib/probes.mjs';
 import { commit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
@@ -510,6 +511,23 @@ describe('end to end: a real git commit through the shim', () => {
     expect(swallowed.status).toBe(0);
     expect(swallowed.output).toMatch(/pre-commit {2}FAIL {2}doc-sync/);
     expect(callsCookwright(`#!/bin/sh\n${call} || true\n`, 'pre-commit')).toBe(false);
+  });
+
+  it('through the hooks init installs: refused without the doc, landed with it', () => {
+    const repo = repoAt();
+    commit(repo, { 'README.md': 'x', 'docs/guide.md': 'g' }, 'init');
+    fs.appendFileSync(path.join(repo.root, '.git/info/exclude'), 'node_modules\n');
+    fs.mkdirSync(path.join(repo.root, 'node_modules'));
+    fs.symlinkSync(PKG, path.join(repo.root, 'node_modules/cookwright'));
+    init([], { cwd: repo.root, home: TMP, probes: { ...gitleaks(), claudeVersion: () => '2.1.281' } });
+    expect(out).toContain(`wrote    hooks.path             ${messages.init.hooks.pathSet('.githooks')}`);
+    expect(fs.readFileSync(path.join(repo.root, '.githooks/pre-commit'), 'utf8')).toBe(shimText('pre-commit'));
+    const before = head(repo);
+    const refused = gitCommit(repo, { 'src/a.mjs': 'a' });
+    expect(refused.status).toBe(1);
+    expect(refused.output).toMatch(/pre-commit {2}FAIL {2}doc-sync {2}docs: 1 file\(s\) changed \(src\/a\.mjs\)/);
+    expect(head(repo)).toBe(before);
+    expect(gitCommit(repo, { 'docs/guide.md': 'updated' }).status).toBe(0);
   });
 
   it('without the package installed: the not-installed line, exit 0, the commit lands', () => {

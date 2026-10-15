@@ -58,6 +58,7 @@ export function freshConfig(root, base) {
     baseBranch: detectBase(root, base),
     paths: { ...DEFAULTS.paths },
     gate: { checks: gate.checks },
+    hooks: { docSync: [] },
   };
   return { raw, note: m.wrote(raw.baseBranch, gate.note) };
 }

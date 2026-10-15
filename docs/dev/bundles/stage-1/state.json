@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 47,
+  "revision": 52,
   "slug": "stage-1",
   "branch": "bundle/stage-1",
   "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
@@ -176,9 +176,26 @@
     },
     {
       "name": "review:whole",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-15T12:37:10.888Z",
+          "stateRevision": 47,
+          "planSha": "a252db7ad517b7c2",
+          "codex": true,
+          "runId": "wf_74dc451e-455",
+          "endedAt": "2026-10-15T12:45:35.124Z",
+          "turnOutputTokens": 668974
+        }
+      ],
+      "startCommit": "2ee7c0cd769e7509a0053ca8f3c3c92f81f9b631",
+      "range": {
+        "from": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
+        "to": "2ee7c0cd769e7509a0053ca8f3c3c92f81f9b631"
+      },
+      "endCommit": "2ee7c0cd769e7509a0053ca8f3c3c92f81f9b631",
+      "endCode": "9832a071659b9cc835f79e9faa30055afb6f8071"
     },
     {
       "name": "fix:whole",
@@ -333,6 +350,24 @@
       "at": "2026-10-15T12:18:41.303Z",
       "stored": true,
       "head": "40bb0f29c653e75196378c67caf35dc4cee0bcb2"
+    },
+    {
+      "phase": "review:whole",
+      "path": "docs/dev/bundles/stage-1/findings/review-whole-1.json",
+      "counts": {
+        "confirmed": 5,
+        "plausible": 8,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 5,
+        "P2": 5,
+        "P3": 3
+      },
+      "at": "2026-10-15T12:44:50.768Z",
+      "stored": true,
+      "head": "2ee7c0cd769e7509a0053ca8f3c3c92f81f9b631"
     }
   ],
   "reports": [
@@ -452,6 +487,13 @@
       "actor": "orchestrator",
       "source": "fix:core report, 2026-10-15",
       "text": "Accepted as built, over the earlier dispositions: tests write no env file at all (index entries and an injected root listing), so the block's secrets line keeps its stricter wording unchanged; doctor runs inside one 1.8 s total budget with a 1.5 s cap per call rather than a per-call timeout alone; .gitkeep is decided by git ls-files --cached --others --exclude-standard; the settings row says 'the other settings kept' with a layout suffix only when re-serialising changes the layout; the B-002 attempt (835b555) stays reverted (e060f3f), B-002 open. The six records committed before the scrub landed (three implement session reports, the three findings files) are scrubbed once in the working tree with the runner's own scrubLocalPaths and committed with this state; the history rewrite before push removes the paths from the earlier commits.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T12:45:34.997Z",
+      "actor": "orchestrator",
+      "source": "review:whole findings, 2026-10-15",
+      "text": "fix:whole applies findings 2/12 (refuse a write when any path component between the root and the target is a symlink, by comparing realpath(dirname) with the real root; README sentence made true), 3 (scrub structured values, not serialized text: walk the object and scrub each string before JSON.stringify, scrub raw text for .md; a local path is one under the repo root (made relative), the home dir, os.tmpdir(), <local path>, <local path>, /Volumes, /Users/*, /home/*, or a Windows drive or UNC path; JSON.parse the result before any rename and refuse on failure), 6 (same fix), 8 (a left boundary before every machine-dir pattern; app<local path> and URLs untouched; tests), 5 (changelog and playbook join the overlap check: neither may equal or nest inside bundles, closeouts or backlog, nor equal each other; tests refuse before any write), 10 (a TimedOut check is SKIP 'unverified: <what> did not answer in time', never drift), 11 (hasImport accepts @./AGENTS.md as the same import). Finding 4 is B-002, deferred: no change. Findings 1/9 (npm name) stay the developer's landing precondition. Findings 0/7 (the history rewrite and the commit ids it changes) are decided by the developer before any rewrite; the plan's 'every recorded commit id survives' claim is corrected in the closeout, not in plan.md.",
       "claim": true
     }
   ],

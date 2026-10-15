@@ -1,0 +1,236 @@
+{
+  "phase": "review:whole",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/bundles/stage-1/state.json (history)",
+      "location": "commits 97b5a76, 839bc5f, da49f2d, 322b904, 40bb0f2, b660f62",
+      "problem": "2ee7c0c scrubs current files, but earlier commits in the range still contain absolute workstation paths; a cleanup commit does not remove them from git history, violating 'Nothing private, ever' and the plan's history-rewrite requirement.",
+      "severity": "P1",
+      "suggested_fix": "Rewrite every affected commit before publishing the branch, then verify every commit in the range (not only HEAD) for Unix and Windows absolute paths.",
+      "failure_scenario": "The branch is pushed or merged; anyone fetching it can inspect earlier commits and recover the developer's username and filesystem layout.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "plausible",
+      "evidence": "The factual claim holds. `git show` of 97b5a76, 839bc5f, da49f2d, 322b904, 40bb0f2 and b660f62 each adds lines containing /Users/ (1, 2, 25, 20, 28 and 3 lines). 2ee7c0c only scrubs the current tree. Two things weaken the finding. First, docs/dev/bundles/stage-1/plan.md:18 schedules the rewrite: the orchestrator rewrites the pre-s1 state commits that carry the path 'before the branch is pushed'. Second, the repo has no remote and no remote branches, so nothing has been pushed and the stated scenario has not happened. This is a pending required step, not a shipped violation. It becomes a real 'Nothing private' violation only if the branch is pushed without the rewrite. The three remaining /Users/ hits at 2ee7c0c, in findings/plan-review-1.json, plan-review-2.json and review-core-1.json, are descriptive placeholders such as /Users/<user>/..., not real paths."
+    },
+    {
+      "file": "packages/cookwright/src/lib/messages.mjs; README.md",
+      "location": "messages.mjs:13; README.md:9",
+      "problem": "All generated instructions use `npx cookwright` while the README says the package is not on npm; plan section 2 permits this only after the name is reserved by publication.",
+      "severity": "P1",
+      "suggested_fix": "Publish and verify a trusted placeholder before landing this range, or use an invocation guaranteed to run the local package (node node_modules/cookwright/bin/cookwright.mjs) until publication.",
+      "failure_scenario": "A third party publishes `cookwright`; with node_modules absent, an agent follows the managed rules and runs `npx cookwright doctor`, and non-interactive npx downloads and executes the third-party package.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "plausible",
+      "evidence": "The code does what the plan says: messages.mjs:13 sets CLI='npx cookwright', and plan.md:18 and plan.md:36 specify that spelling on the condition that the developer reserves the npm name before s1's docs land. That condition is not met. `npm view cookwright` returns E404 (checked 2026-10-15), and README.md:9 says 'Not on npm yet'. So the name is unreserved and the plan's mitigation has not happened. The risk is therefore real, but it is a release precondition and not a code defect. Whether any third party actually publishes the name is outside the repo. I could not refute the risk and did not confirm it as a code bug."
+    },
+    {
+      "file": "packages/cookwright/src/lib/init/files.mjs",
+      "location": "files.mjs:35, files.mjs:63",
+      "problem": "refuseLinks checks only whether the final target is a symlink; it does not inspect parent components or verify the resolved destination stays under repo.root, and mkdirSync/writeFileSync follow parent symlinks.",
+      "severity": "P1",
+      "suggested_fix": "Before applying any write, reject a symlink in every path component and verify the resolved parent is within the real repo root. Add tests for symlinked .claude, backlog, closeouts and changelog directories.",
+      "failure_scenario": ".claude is a symlink to a shared directory outside the repo and .claude/settings.json is absent; init passes preflight and creates or overwrites the external settings file. Same for configured state-home directories.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "files.mjs:36-38 refuseLinks calls isLink(path.join(root, rel)), and isLink (lib/doctor/repo.mjs:34-40) is a bare lstatSync(p).isSymbolicLink() on the final component. There is no realpath or containment check against repo.root, and refuseLinks is called only from steps.mjs:35. applyRows (files.mjs:57-64) then runs mkdirSync(dirname, {recursive:true}) and writeFileSync. Both follow parent symlinks. If .claude is a symlink to an external directory and settings.json is absent, lstat of .claude/settings.json gives ENOENT, so isLink returns false and preflight passes. The write then lands outside the repo. The plan does not cover parent components: plan.md mentions no parent or realpath handling for writes, and fix-core-1.md:99-102 only covers the final target. The init.test.mjs symlink tests (405-447) only cover symlinked CLAUDE.md and AGENTS.md. I reasoned from the code and did not run a repro."
+    },
+    {
+      "file": "packages/cookwright/src/lib/bundle/scrub.mjs",
+      "location": "scrub.mjs:25, scrub.mjs:28",
+      "problem": "Scrubbing recognizes only the repo root, home directory and a few temp prefixes; other absolute paths (e.g. /opt/company/private.txt, /Volumes/work/code.mjs) remain, and Windows paths are mishandled in serialized JSON.",
+      "severity": "P1",
+      "suggested_fix": "Detect or refuse all remaining Unix and Windows absolute paths after normalization, preferably sanitizing structured values before JSON serialization and validating the final stored text. Test paths outside home/temp and Windows drive/UNC paths.",
+      "failure_scenario": "A findings note records output under /Volumes/ClientName/build.log; writeRecord commits that private machine-local path verbatim despite the claim that records contain no machine-local paths.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "plausible",
+      "evidence": "scrub.mjs:25 lists only homedir, tmpdir, <local path> and /private/tmp. I ran scrubLocalPaths on '/Volumes/ClientName/build.log /opt/x/y' and it came back unchanged, so the literal scenario holds. The header (scrub.mjs:1-4) scopes scrubbing to the repo root, home and temp dirs, so this may be a deliberate limit and not a defect. I did not test Windows serialized-JSON paths."
+    },
+    {
+      "file": "packages/cookwright/src/lib/hosts.mjs",
+      "location": "hosts.mjs:24, hosts.mjs:27",
+      "problem": "After cd to CLAUDE_PROJECT_DIR the hook looks only for node_modules/cookwright directly there; the plan allows Claude's cwd to be a subdirectory. Tracked as B-002 but still present in the shipped Level-0 hook.",
+      "severity": "P2",
+      "suggested_fix": "Find the repo root first and resolve the installed bin upward or via Node module resolution. Add an execution test from a nested directory and a workspace-hoisted install.",
+      "failure_scenario": "Claude starts in packages/mobile with cookwright installed at the monorepo root; the hook prints 'package not installed' and skips doctor, while host.hook reports PASS because it only checks command equality.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "plausible",
+      "evidence": "packages/cookwright/src/lib/hosts.mjs (at 2ee7c0c): HOOK_COMMAND does `cd \"${CLAUDE_PROJECT_DIR:-.}\"` then `[ -f node_modules/cookwright/bin/cookwright.mjs ]`, with no upward search. If CLAUDE_PROJECT_DIR is a subdirectory such as packages/mobile and the package is installed at the monorepo root, the hook prints the notInstalled line and exits 0. The plan (plan.md:20,76) states CLAUDE_PROJECT_DIR is Claude's cwd, which supports the premise. A fix was attempted in 835b555 and reverted in e060f3f. docs/dev/backlog.md:7 tracks the gap as B-002 and it is still open. The host.hook check matches the command verbatim (HOOK_COMMAND and hookCommandsPast), so it would pass. I did not read the doctor code and did not run the hook. In real Claude Code, CLAUDE_PROJECT_DIR is normally the project root rather than the cwd, so the trigger is uncertain. That is why this is plausible, not confirmed."
+    },
+    {
+      "file": "packages/cookwright/src/lib/config.mjs",
+      "location": "config.mjs:170; config.test.mjs:131",
+      "problem": "Overlap validation covers only bundles, closeouts and backlog; it accepts closeouts === changelog or a changelog inside paths.bundles, creating conflicting preflight writes or a code-classified doc under a path excluded as bundle state.",
+      "severity": "P2",
+      "suggested_fix": "Validate that all init write targets are mutually compatible and distinct, and reject code-owned paths (changelog/playbook) nested under non-code state directories. Add collision tests asserting refusal before any write.",
+      "failure_scenario": "closeouts and changelog both set to CHANGELOG.md: preflight schedules CHANGELOG.md/.gitkeep and a CHANGELOG.md file; apply creates the directory then crashes writing the file, leaving a partially initialized tree.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "config.mjs:168-176 limits the overlap check to ['bundles','closeouts','backlog'] and leaves out changelog. config.test.mjs:~131 asserts that 'docs/bundles/CHANGELOG.md' is accepted. With closeouts == changelog == CHANGELOG.md, init/homes.mjs closeoutsStep sees kind 'none' and schedules CHANGELOG.md/.gitkeep. changelogStep, in the same preflight, sees the path as absent and schedules a CHANGELOG.md file. steps.mjs preflight and files.mjs refuseLinks check only for symlinks and do no cross-row path conflict check, so both rows pass. The apply phase would then fail when it writes the file after creating the directory; I did not run apply, so the partial-tree outcome is inferred. A changelog nested under paths.bundles is also accepted. nonCodePathspecs excludes the bundles path, so that changelog would be treated as non-code, which conflicts with the test's comment that a changelog line is code. Severity P2 is reasonable."
+    },
+    {
+      "file": "packages/cookwright/src/lib/bundle/scrub.mjs",
+      "location": "scrubLocalPaths, line 36 (machine-dir regex); applied to serialized JSON at state.mjs:73 (saveState) and phases.mjs:233 (writeRecord, findings .json)",
+      "problem": "scrubLocalPaths runs a text regex over JSON that has already been serialized. The path pattern `[^\\s'\"`)\\]}>,;]*` stops at a quote but accepts a backslash. So for a path followed by an escaped quote (`\\\"`) inside a JSON string, the regex eats the backslash and leaves a bare `\"`, which ends the JSON string early. A path followed by a JSON-escaped newline (`\\n`) also eats the newline and the next word. saveState then renames the broken text over state.json, and writeRecord writes broken findings JSON.",
+      "severity": "P1",
+      "suggested_fix": "Scrub values, not serialized text. Walk the object and scrub each string, then JSON.stringify; for .md records, scrub the raw text. At minimum, keep `\\\\` out of the path character class when the input is JSON, and JSON.parse the scrubbed output before the rename, refusing when it fails. Add a test with a quoted machine path in a decision and in a finding.",
+      "failure_scenario": "Reproduced in-process: scrubLocalPaths(JSON.stringify({evidence:'codex wrote its report to \"<local path>" and stopped'}), root) returns `\"codex wrote its report to \\\"<local path>\" and stopped\"`, and JSON.parse throws 'Expected , or }'. In real use, `bundle decide` with text quoting a scratch or transcript path, or `--accept-incomplete \"<reason>\"` naming one, lets saveState overwrite state.json with invalid JSON. Every later bundle command (loadState, and saveState's own revision read) then crashes, and the rules forbid fixing the state by hand. A reviewer's findings that quote a scratchpad path (as review-core-1 did) become an invalid findings/*.json, and a later `recheckOf` re-check crashes in carryForward's JSON.parse.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "Reproduced against scrub.mjs:36 (the char class excludes the quote but not the backslash). Input JSON.stringify({e:'wrote to \"<local path>" and stopped'}) gave {\"e\":\"wrote to \\\"<local path>\" and stopped\"}, and JSON.parse threw \"Expected ',' or '}'\". A path followed by an escaped newline also swallowed the newline and the next word ('see <local path> word'). The scrub is applied to serialized JSON at state.mjs:73 and phases.mjs:233, so saveState can write invalid state.json."
+    },
+    {
+      "file": "docs/dev/bundles/stage-1/plan.md",
+      "location": "§2 (a) (line 18) and the fix:core decisions in state.json about the history rewrite before push",
+      "problem": "The plan says the pre-fix commits are rewritten before push and that 'gate #0 on 06223a0 predates them and stays reachable, so every recorded commit id survives'. That is no longer true. The rewrite now has to start at 97b5a76, and the in-range commits 97b5a76, 839bc5f, da49f2d, 322b904, 40bb0f2 and b660f62 still hold `/Users/<name>/...` paths, so every later commit id changes with it. state.json records gates on 839bc5f, fc31612, adec668, 629fcc5 and 9832a07, plus each phase's startCommit, endCommit, endCode and review range, all descendants of 97b5a76. The CLI has no way to re-map them, and the state may be written only by the CLI.",
+      "severity": "P2",
+      "suggested_fix": "Decide this before the rewrite. Either rewrite only the record files' blobs and accept that the bundle restarts its evidence (re-gate, and reopen fix:core so its endCommit is re-recorded), or add a runner command that maps old ids to new ones after a filter-repo. Correct the plan's 'every recorded commit id survives' claim. Log the pending rewrite as a backlog item rather than only as a state decision, since B-001 is already marked Closed while the paths are still in history.",
+      "failure_scenario": "The developer runs the planned history rewrite and pushes. `bundle check` computes lastCode on the new history. bundle.gate-latest fails because isAncestor(newLastCode, old 9832a07) is false. bundle.gate-slice:core then fails permanently with 'no passing gate on the slice end': fix:core's endCode and endCommit are old ids, and no gate on the new history descends from them. On a fresh clone the old objects do not exist at all. The bundle cannot land without hand-editing state.json, which the rules forbid. If the developer skips the rewrite instead, the developer's username and home layout ship in the pushed history.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "plausible",
+      "evidence": "Premise holds. plan.md:18 says gate #0 on 06223a0 'predates them and stays reachable, so every recorded commit id survives'. But 97b5a76 (the first commit after 06223a0) still holds <local path> at state.json:58, and 839bc5f, da49f2d, 322b904, 40bb0f2 and b660f62 still hold local paths in their trees (confirmed by git grep). Any rewrite starting at 97b5a76 changes every descendant id. Those descendants include the gate commits and phase ranges recorded in state.json (fc31612, adec668, 629fcc5 and 9832a07 are all after 97b5a76). state.json:425 and :467 name the rewrite but give no re-mapping route. I did not confirm the CLI has no re-map route, and I did not run `bundle check` on rewritten history. The gate-latest and gate-slice failure chain is therefore unreproduced. Packages/cookwright/src/bundle.test.mjs:364-399 shows gateChecks uses isAncestor, which is consistent with the claim. The claim that the bundle cannot land without hand-editing state.json is plausible, not proven."
+    },
+    {
+      "file": "packages/cookwright/src/lib/bundle/scrub.mjs",
+      "location": "line 36: the `<local path>` and `<local path>` patterns have no left boundary",
+      "problem": "The machine-dir regex is not anchored at the start of a path. Any repo-relative path or URL that contains `<local path>` or ends in `<local path>` is rewritten to `<local path>`, including the session-report file lists that relativeFiles has just made repo-relative.",
+      "severity": "P2",
+      "suggested_fix": "Require a boundary before the dir: start of text, or a character that cannot be part of a path (whitespace, a quote, a backtick, `(`, `=`, `:` not followed by `//`). Add a test with `app<local path>` and an https URL containing <local path>",
+      "failure_scenario": "Reproduced: scrubLocalPaths('- `app<local path>`\\nsee https://example.com<local path>', root) returns '- `app<local path>`' and 'https://example.com<local path>'. An implementer that touches `ios<local path>` or `scripts<local path>` gets a committed session report listing `ios<local path>`. Findings evidence that cites such a file loses its location, so the orchestrator and the closeout verifier cannot find the file the finding names.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "confirmed",
+      "evidence": "scrub.mjs:36 has no left boundary on the '<local path>' and '<local path>' spellings. Reproduced: '- `app<local path>`' became '- `app<local path>`' and 'https://example.com<local path>' became 'https://example.com<local path>'."
+    },
+    {
+      "file": "packages/cookwright/src/lib/rules/agents-block.md",
+      "location": "Session start line ('run `{{cli}} doctor`'); messages.mjs CLI = 'npx cookwright'; README, playbook, SKILL.md",
+      "problem": "The precondition of plan §2 (b) is still unmet at the end of the range: `npm view cookwright` still returns E404. The managed block every user receives, the doctor notes ('run npx cookwright init'), the playbook and the Workflow args (`cli: npx cookwright bundle`) all tell agents to run `npx cookwright`, which resolves through the public registry whenever the local package is missing. This was raised in review:core (finding 5) and is recorded as pending, but nothing in the range closes it.",
+      "severity": "P2",
+      "suggested_fix": "Do not land the branch until the developer's publish of the name is verified (`npm view cookwright`). Alternatively, make CLI `npx --no cookwright` until the name is held.",
+      "failure_scenario": "A third party publishes `cookwright` before the developer does. A Codex session in a user repo has no SessionStart hook, so it reads the managed block and runs `npx cookwright doctor`. Likewise, an orchestrator on a fresh clone before `npm ci` follows the playbook's `npx cookwright bundle status`. Either way, npx downloads and runs the squatter's package non-interactively with the developer's environment.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 9,
+      "verdict": "plausible",
+      "evidence": "Holds factually: npm view cookwright returns E404 now; agents-block.md:26 says run `{{cli}} doctor` with CLI='npx cookwright' (messages.mjs:13). But plan.md:18 and :36 make the reservation a developer-hands precondition, and state.json:460 records it as pending with an orchestrator verification before the branch lands. So this is a tracked landing blocker, not a code defect in the range. Could not refute the exposure, so plausible."
+    },
+    {
+      "file": "packages/cookwright/src/lib/doctor/registry.mjs",
+      "location": "runOne, line 50; budget.mjs BUDGET_MS; doctor/claude.mjs checkClaudeRules runs claudeVersion before secrets.env",
+      "problem": "A subprocess that runs out of the shared 1.8 s budget is reported as a FAIL of the check. For a check in Level 0's `requires` (git), the level line then calls it drift ('piece(s) missing'). claudeVersion takes up to 1.5 s of the same budget, and it runs (in host.rules) before secrets.env's three git calls, so a slow `claude --version` starves the checks that follow. The plan maps a timeout to 'unverified', not to a missing piece.",
+      "severity": "P3",
+      "suggested_fix": "Report a TimedOut as SKIP ('unverified: <what> did not answer in time'), which the level line already lists as unverified rather than drift. Alternatively, cap claudeVersion's share so it cannot exhaust the git checks' budget.",
+      "failure_scenario": "In a repo with no CLAUDE.md, claude is installed as an npm-global node script and takes about 1.4 s on a cold start. host.rules uses that time and gets a version or a SKIP. secrets.env's `git ls-files` then finds timeLeft() at 0 and reports FAIL 'the check could not run: git ls-files did not answer in time (is git stalled?)', so doctor exits 1. On a slower disk the `git` check itself can time out, and the hook tells the agent 'level 0 declared: drift, 1 piece(s) missing: git', which per the managed block it must deal with before any other work.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 10,
+      "verdict": "plausible",
+      "evidence": "The mechanism holds. registry.mjs:46-47 turns TimedOut into fail(checkThrew(...)). budget.mjs:15,32-34,51-52 gives one shared 1800 ms budget, and runBounded returns timedOut at once when none is left. probes.mjs:47-49 runs claudeVersion through that same budget with a 1500 ms cap, and claude.mjs:47 calls it inside host.rules, before secrets.env in the registry order. repo.mjs:20 and probes.mjs ignored() throw TimedOut for git calls. Plan.md:54 says only a FAIL among `requires` counts as drift, and `git` is in `requires`. Plan.md:109 maps a timeout to unverified only for claude --version, not for git. The scenario's numbers are overstated. A 1.4 s claude leaves about 0.4 s, not 0, so secrets' git ls-files would normally still run. Starvation needs claude to use close to the full 1.5 s, or git to be slow. I could not run it, so I could not fully refute or fully confirm it."
+    },
+    {
+      "file": "packages/cookwright/src/lib/rules/block.mjs",
+      "location": "hasImport (whitespace-split equality with the token)",
+      "problem": "An import is recognised only as the exact word `@AGENTS.md`. Claude Code also resolves `@./AGENTS.md` as an import of the same file, and both doctor and init miss it.",
+      "severity": "P3",
+      "suggested_fix": "Normalise each `@`-word (strip a leading `./` and trailing sentence punctuation) and compare the resolved path to AGENTS.md at the root.",
+      "failure_scenario": "A user's root CLAUDE.md says `@./AGENTS.md` (verified: hasImport('@./AGENTS.md\\n','@AGENTS.md') returns false). doctor FAILs host.rules with 'AGENTS.md is shadowed by CLAUDE.md … does not carry @AGENTS.md' at every session start, and level 0 reads as drift. init then prepends a second, redundant `@AGENTS.md` line to a file that already imports the rules.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 11,
+      "verdict": "plausible",
+      "evidence": "packages/cookwright/src/lib/rules/block.mjs:87 matches only `bare.split(/\\s+/).includes(token)`, so `@./AGENTS.md` or `@./AGENTS.md` variants return false, as claimed. The code does what plan §4.4 step 4 says: 'present' means the token `@AGENTS.md`, so the narrow match is deliberate. The consequence (doctor FAIL on host.rules, a second import line prepended by init) follows from that, but it only affects users who write the `./` form. I could not verify here that Claude Code treats `@./AGENTS.md` as an import of the same file, so the finding is a real gap in the spec but not confirmed."
+    },
+    {
+      "file": "packages/cookwright/src/lib/init/files.mjs",
+      "location": "refuseLinks, lines 36-38; README 'init refuses to write through any other symlink'",
+      "problem": "refuseLinks lstat's only the final path component. A write whose parent directory is a symlink, such as `.claude -> ~/dotfiles/claude` or `docs -> ../shared-docs`, goes through the link. applyRows also runs mkdirSync(recursive) and writeFileSync through it. The README claims more than the code does.",
+      "severity": "P3",
+      "suggested_fix": "Refuse when any component between the root and the target is a symlink, by walking each ancestor with lstat or comparing realpath(dirname) to root + dirname. Otherwise, narrow the README sentence.",
+      "failure_scenario": "A developer keeps `.claude/` as a symlink to a dotfiles directory shared across projects. `npx cookwright init` writes the SessionStart hook into the shared settings.json outside the repo, so other projects that use that directory run this repo's hook command, and the repo's own commit carries no hook file. The README had told them init refuses to write through a symlink.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 12,
+      "verdict": "confirmed",
+      "evidence": "The same code path as [2]: files.mjs:36-38 lstat's only the last component, and files.mjs:57-64 applyRows writes through parent links. The README claim is at README.md:22: 'init refuses to write through any other symlink'. It was added in the fix-core-1 session (fix-core-1.md:70) and overstates the guard, since only the final path component is checked. A .claude -> dotfiles symlink with an existing settings.json file is refused only if settings.json is itself a link. A symlinked parent directory passes preflight, and the write goes into the shared directory. The code does not contradict the doc as written ('any other symlink' is ambiguous), but the user-visible claim is broader than the check."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff c0322d4..2ee7c0c via Codex by file reference (high effort, read-only, foreground)",
+    "AGENTS.md rules",
+    "plan sections 2 and 4",
+    "AGENTS.md, CLAUDE.md, docs/playbook.md (reviewer role, prompt header), plan.md, state.json decisions/phases/gates",
+    "git diff c0322d4a..2ee7c0cd stat and every commit; history grep for local paths",
+    "bin/cookwright.mjs, cli-main.mjs, lib/cli.mjs, doctor.mjs, budget.mjs, probes.mjs, hosts.mjs, levels.mjs, verdict.mjs",
+    "lib/doctor/* (basics, claude, homes, registry, repo, report, rules, secrets)",
+    "init.mjs and lib/init/* (claude, config, files, gitignore, homes, repo, rules, steps)",
+    "rules/block.mjs and agents-block.md, messages.mjs",
+    "bundle/scrub.mjs, phases.mjs, state.mjs, check.mjs (gate checks vs a history rewrite)",
+    "config.mjs findRoot/workTreeRoot/validation",
+    "package.json bin/files, lock, npm pack contents, bin file mode",
+    "README, CHANGELOG, CHARTER amendment, backlog, playbook/skill invocation changes",
+    "Ran npm test (185 passed), doctor on this repo (11 PASS), in-process reproductions of scrub JSON corruption, scrub mid-path <local path> mangling, hasImport variants, npm view cookwright (E404)"
+  ],
+  "notes": "Codex completed within the ceiling (exit 0), so no resume was needed. Findings transcribed from its final report with no additions. Codex session id 01a13f91-7cfa-7390-a546-3eb7500d64a3. Full output: <local path> c0322d4a..2ee7c0cd, reviewed read-only. The suite is green (185 tests) and doctor on this repo gives 11 PASS. Two findings are reproduced, not inferred. (1) fix:core's new scrubLocalPaths runs a regex over serialized JSON, so a quoted machine path in a decision or finding turns state.json or a findings file into invalid JSON; saveState renames the result over the live state. (2) The same regex has no left boundary, so repo paths like app<local path> and URLs containing <local path> are mangled to `<local path>`. The planned pre-push history rewrite now has to start at 97b5a76: six in-range commits still carry `/Users/<name>` paths. That rewrite would change every gate, phase and range commit id recorded in state.json, which contradicts the plan's 'every recorded commit id survives' and leaves bundle.gate-slice:core permanently red. The npm-name precondition of plan §2 (b) is still unmet (E404), as review:core already noted. B-002 (hook from a subdirectory) is a known deferral, so I did not re-raise it.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a13f91-7cfa-7390-a546-3eb7500d64a3",
+    "partialReportPath": null
+  }
+}

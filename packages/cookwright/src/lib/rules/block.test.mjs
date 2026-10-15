@@ -91,5 +91,7 @@ describe('hasImport', () => {
     expect(hasImport('~~~md\n@AGENTS.md\n~~~\nafter\n', '@AGENTS.md')).toBe(false);
     expect(hasImport('```\ncode\n```\n@AGENTS.md\n', '@AGENTS.md')).toBe(true);
     expect(hasImport('@AGENTS.mdx\n', '@AGENTS.md')).toBe(false);
+    expect(hasImport('@./AGENTS.md\n', '@AGENTS.md')).toBe(true);
+    expect(hasImport('@../AGENTS.md\n', '@AGENTS.md')).toBe(false);
   });
 });

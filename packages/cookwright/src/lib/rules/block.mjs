@@ -68,10 +68,13 @@ export function blockState(text, rendered) {
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 
+/** `@./X` imports the same file as `@X`: the path resolves from the importing file's directory. */
+const sameDir = (word) => word.replace(/^@(?:\.\/)+/, '@');
+
 /**
  * True when `token` (e.g. `@AGENTS.md`) is an import in `text`: a whitespace-
- * delimited word on a line outside a fenced block, outside any code span. Claude
- * skips imports in code, so a mention in prose code is not one.
+ * delimited word (`@./AGENTS.md` too) on a line outside a fenced block, outside
+ * any code span. Claude skips imports in code, so a mention in prose code is not one.
  */
 export function hasImport(text, token) {
   let fence = null;
@@ -84,7 +87,7 @@ export function hasImport(text, token) {
     }
     if (fence) continue;
     const bare = line.replace(/(`+)[^`][\s\S]*?\1/g, ' ');
-    if (bare.split(/\s+/).includes(token)) return true;
+    if (bare.split(/\s+/).map(sameDir).includes(token)) return true;
   }
   return false;
 }

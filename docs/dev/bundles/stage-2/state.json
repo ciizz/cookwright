@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 69,
+  "revision": 71,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -214,9 +214,19 @@
     },
     {
       "name": "fix:hooks",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-15T16:44:11.140Z",
+          "stateRevision": 69,
+          "planSha": "825bfd5edc1f9ee2",
+          "codex": true,
+          "runId": "wf_eb64f3c3-db1"
+        }
+      ],
+      "startCommit": "729d9df14348752102eb4a361846d4d78c2fbc2e",
+      "range": null
     },
     {
       "name": "review:whole",

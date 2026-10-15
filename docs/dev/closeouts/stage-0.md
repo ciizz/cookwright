@@ -24,7 +24,7 @@ The bootstrap commit lifted the bundle machinery from Leeka verbatim into `packa
 
 ## Where each lifted file went
 
-The table from the deleted `LIFTED-FROM-LEEKA.md`, with the outcome. Leeka commit ids are those of the public history the files were lifted from.
+The table from the deleted `LIFTED-FROM-LEEKA.md`, with the outcome. Leeka commit ids are the commit ids in the origin repo at lift time.
 
 | Lifted (Leeka path) | Leeka commit | Home |
 |---|---|---|

@@ -1,8 +1,8 @@
-// src/lib/levels.test.mjs — the level ladder. That every `requires` name is a doctor
-// check is held by doctor's registry test, which lands with doctor.
+// src/lib/levels.test.mjs — the level ladder, held to doctor's check registry.
 
 import { describe, expect, it } from 'vitest';
 
+import { CHECKS } from './doctor/registry.mjs';
 import { KNOWN_LEVELS, LEVELS, nextLevel } from './levels.mjs';
 import { messages } from './messages.mjs';
 
@@ -22,6 +22,12 @@ describe('levels', () => {
         name: expect.any(String),
         summary: expect.any(String),
       });
+    }
+  });
+
+  it('requires only checks doctor runs', () => {
+    for (const level of KNOWN_LEVELS) {
+      for (const name of LEVELS[level].requires) expect(Object.keys(CHECKS)).toContain(name);
     }
   });
 

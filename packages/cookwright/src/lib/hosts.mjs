@@ -10,6 +10,30 @@
 
 import path from 'node:path';
 
+// The session-start hook's three fallback lines, and the command itself. They live
+// here, not in messages.mjs: hosts.mjs imports neither messages.mjs nor config.mjs,
+// which would close a cycle (config → hosts → messages → config). One shell line in
+// three steps, so each absence reads as itself, and every branch ends at exit 0. No
+// npx: it contacts the registry before refusing; a direct node call needs no network.
+export const HOOK_LINES = Object.freeze({
+  noNode: 'cookwright doctor skipped, needs node, run setup',
+  notInstalled: 'cookwright doctor skipped: package not installed (npm install)',
+  crashed: 'cookwright doctor crashed (exit $?)',
+});
+
+const HOOK_BIN = 'node_modules/cookwright/bin/cookwright.mjs';
+
+/** The SessionStart command init writes and doctor's `host.hook` looks for, verbatim. */
+export const HOOK_COMMAND = [
+  'cd "${CLAUDE_PROJECT_DIR:-.}"',
+  `command -v node >/dev/null 2>&1 || { echo "${HOOK_LINES.noNode}"; exit 0; }`,
+  `[ -f ${HOOK_BIN} ] || { echo "${HOOK_LINES.notInstalled}"; exit 0; }`,
+  `node ${HOOK_BIN} doctor --hook || echo "${HOOK_LINES.crashed}"`,
+].join('; ');
+
+/** Earlier versions of HOOK_COMMAND: doctor WARNs on one, init replaces it. */
+export const HOOK_COMMANDS_PAST = Object.freeze([]);
+
 export const HOSTS = Object.freeze({
   claude: Object.freeze({
     // Where this repo keeps the adapter's workflow scripts, relative to the root.
@@ -20,6 +44,19 @@ export const HOSTS = Object.freeze({
     // AGENTS.md; Claude Code also reads CLAUDE.md, which may be the whole rules file
     // or a pointer to AGENTS.md.
     rules: ['AGENTS.md', 'CLAUDE.md'],
+    // The project settings file init wires the SessionStart hook into; a hook in
+    // settings.local.json or the user settings is not what init writes.
+    settings: '.claude/settings.json',
+    hookCommand: HOOK_COMMAND,
+    hookCommandsPast: HOOK_COMMANDS_PAST,
+    hookTimeout: 10,
+    // Any of these in the session's cwd or above makes Claude Code ignore a bare
+    // AGENTS.md (~/.claude/CLAUDE.md does not count); a root CLAUDE.md carrying
+    // `importLine` brings it back.
+    shadowing: Object.freeze(['CLAUDE.md', '.claude/CLAUDE.md', 'CLAUDE.local.md']),
+    importLine: '@AGENTS.md',
+    // The first Claude Code release in which every session reads AGENTS.md.
+    agentsNativeSince: '2.1.281',
   }),
 });
 

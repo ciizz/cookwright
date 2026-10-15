@@ -1,0 +1,78 @@
+// src/lib/doctor/claude.mjs — the claude host's two checks: Claude Code reads the
+// AGENTS.md rules (`host.rules`), and the session-start hook runs doctor
+// (`host.hook`). Everything about Claude Code comes from its host-table entry.
+
+import fs from 'node:fs';
+import path from 'node:path';
+
+import { HOSTS } from '../hosts.mjs';
+import { messages } from '../messages.mjs';
+import { atLeast } from '../probes.mjs';
+import { hasImport } from '../rules/block.mjs';
+import { fail, pass, skip, warn } from '../verdict.mjs';
+import { isFile } from './repo.mjs';
+
+const m = messages.doctor;
+const host = HOSTS.claude;
+
+/**
+ * Every shadowing file from the invocation cwd upward, through the root and its
+ * ancestors, as absolute paths. In the home directory, `.claude/` holds the user's
+ * own settings (`~/.claude/CLAUDE.md` does not shadow), so it is not scanned there.
+ */
+export function shadowingFiles({ cwd, home }) {
+  const found = [];
+  for (let dir = cwd; ; dir = path.dirname(dir)) {
+    for (const name of host.shadowing) {
+      if (dir === home && name.startsWith('.claude/')) continue;
+      if (isFile(path.join(dir, name))) found.push(path.join(dir, name));
+    }
+    if (path.dirname(dir) === dir) return found;
+  }
+}
+
+/**
+ * PASS: the root CLAUDE.md imports AGENTS.md, or nothing shadows it and Claude Code
+ * reads it natively. The version probe runs only when its answer matters.
+ */
+export function checkClaudeRules(repo, probes) {
+  const rootClaude = path.join(repo.root, 'CLAUDE.md');
+  if (isFile(rootClaude) && hasImport(fs.readFileSync(rootClaude, 'utf8'), host.importLine)) {
+    return pass(m.hostRules.imports('CLAUDE.md', host.importLine));
+  }
+  const found = shadowingFiles(repo).map((p) => path.relative(repo.root, p));
+  if (found.length) return fail(m.hostRules.shadowed(found, host.importLine));
+  const version = probes.claudeVersion();
+  if (!version) return skip(m.hostRules.noClaude);
+  if (!atLeast(version, host.agentsNativeSince)) {
+    return fail(m.hostRules.old(version, host.agentsNativeSince));
+  }
+  return pass(m.hostRules.native(version));
+}
+
+/** The `command` of every SessionStart hook entry in a parsed settings object. */
+export function sessionStartCommands(settings) {
+  const groups = settings?.hooks?.SessionStart;
+  if (!Array.isArray(groups)) return [];
+  return groups
+    .flatMap((g) => (Array.isArray(g?.hooks) ? g.hooks : []))
+    .filter((h) => h?.type === 'command' && typeof h.command === 'string')
+    .map((h) => h.command);
+}
+
+/** Detection is by equality with HOOK_COMMAND, never a substring search. */
+export function checkClaudeHook(repo) {
+  const file = host.settings;
+  const abs = path.join(repo.root, file);
+  if (!isFile(abs)) return fail(m.hostHook.none(file));
+  let settings;
+  try {
+    settings = JSON.parse(fs.readFileSync(abs, 'utf8'));
+  } catch (err) {
+    return fail(m.hostHook.invalid(file, err.message));
+  }
+  const commands = sessionStartCommands(settings);
+  if (commands.includes(host.hookCommand)) return pass(m.hostHook.ok(file));
+  if (commands.some((c) => host.hookCommandsPast.includes(c))) return warn(m.hostHook.past(file));
+  return fail(m.hostHook.none(file));
+}

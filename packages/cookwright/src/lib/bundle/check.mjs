@@ -15,7 +15,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { FAIL, PASS, SKIP, WARN, summarize } from '../verdict.mjs';
+import { FAIL, PASS, SKIP, WARN, fail, pass, skip, summarize, warn } from '../verdict.mjs';
 import { dirtyPaths, head, isAncestor, lastCodeCommit, mergeBase } from './git.mjs';
 import { onPath, skippedNames } from './gate.mjs';
 import { messages } from './messages.mjs';
@@ -24,10 +24,8 @@ import { sha256File } from './state.mjs';
 
 export { FAIL, PASS, SKIP, WARN, summarize };
 
-const ok = (note) => ({ status: PASS, note });
-const bad = (note) => ({ status: FAIL, note });
-const warn = (note) => ({ status: WARN, note });
-const skip = (note) => ({ status: SKIP, note });
+const ok = pass;
+const bad = fail;
 
 /** Repo-wide checks: none in this version. */
 export function repoChecks() {

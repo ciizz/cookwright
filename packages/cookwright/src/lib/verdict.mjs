@@ -11,6 +11,12 @@ export const FAIL = 'FAIL';
 export const WARN = 'WARN';
 export const SKIP = 'SKIP';
 
+/** One verdict each: `{ status, note }`, the shape every check returns. */
+export const pass = (note) => ({ status: PASS, note });
+export const fail = (note) => ({ status: FAIL, note });
+export const warn = (note) => ({ status: WARN, note });
+export const skip = (note) => ({ status: SKIP, note });
+
 /** Counts over `[name, { status }]` rows. */
 export function summarize(rows) {
   const count = (status) => rows.filter(([, r]) => r.status === status).length;

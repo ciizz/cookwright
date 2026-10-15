@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 66,
+  "revision": 68,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -378,6 +378,24 @@
       "at": "2026-10-15T15:56:54.590Z",
       "stored": true,
       "head": "353a3b2dd130137e761f3c104536520c7cc27a94"
+    },
+    {
+      "phase": "review:hooks",
+      "path": "docs/dev/bundles/stage-2/findings/review-hooks-1.json",
+      "counts": {
+        "confirmed": 7,
+        "plausible": 2,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 2,
+        "P2": 4,
+        "P3": 3
+      },
+      "at": "2026-10-15T16:43:28.206Z",
+      "stored": true,
+      "head": "f4708c58e84d3f07a253194baedb6a352202c5a1"
     }
   ],
   "reports": [
@@ -609,6 +627,13 @@
       "actor": "developer",
       "source": "chat 2026-10-15, implement:s3 strings batch",
       "text": "The s3 strings stand as built: init's hooks rows and refusal, the shared foreign-hooks lines, doctor's hooks.*, tools.gitleaks, gate.scripts and homes.changelog notes, the Level 0 summary, the rules block v2 text, the implementer doc-sync line in the prompt header and the playbook, and the README sections.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T16:44:10.166Z",
+      "actor": "orchestrator",
+      "source": "review:hooks findings, 2026-10-15",
+      "text": "fix:hooks applies: finding 0 (closes B-007: init writes the shims at the work tree top where git looks, and when the config root is below the top the shim's call is preceded by 'cd <config root, root-relative to the top>' so node_modules/cookwright and cookwright.json resolve from the config root; shimText(name, rel) and callsCookwright take the rel; doctor reads the shims at the top; hook.mjs finds the config from its cwd bounded by the top, never from the top alone; an end-to-end nested-config test commits through the real hook and checks doctor); findings 1 and 5 (every pushed sha is peeled to its commit with rev-parse <sha>^{commit}, so an annotated tag on HEAD counts as HEAD; the checks run when any peeled sha is HEAD, and each line then ends with 'not tested: <refs> are not the checked-out branch' for the others; both checks SKIP only when no peeled sha is HEAD; tests for branch plus older branch, branch plus annotated tag, tag-only push of a tag on HEAD); finding 2 (closes B-006: withDefaults applies the nested defaults only when hooks or gate is absent or an object, so a string, list or null reaches the validator and is refused; tests); finding 3 (a core.hooksPath value that is not a root-relative path inside the repo is shown as 'a path outside the repo', never verbatim); finding 6 (when git config --show-scope is refused, exit 129 or an unknown-option stderr, fall back to --local --get plus --get to tell local from elsewhere; never a Refusal, never a doctor probe error; the README names git 2.26 as the version with scopes); finding 7 (hooks.pre-commit and hooks.pre-push WARN 'the hook prints not-installed and checks nothing (npm install)' when node_modules/cookwright/bin/cookwright.mjs is absent under the directory the shim runs in); finding 8 (a vitest setup file sets GIT_CONFIG_GLOBAL to a scratch file and GIT_CONFIG_NOSYSTEM=1 for the whole suite). Finding 4 (README sections landing after the feature commits) needs no change: the plan scheduled the README in s3, and the hooks reached no user before init installed them. B-006 and B-007 move to Closed in the fix commits that close them.",
       "claim": true
     }
   ],

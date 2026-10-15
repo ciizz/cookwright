@@ -1,0 +1,174 @@
+{
+  "phase": "review:hooks",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/init/hooks.mjs",
+      "location": "line 45; also packages/cookwright/src/hook.mjs line 28",
+      "problem": "Shims are written under repo.root (the config root) while Git resolves .githooks from the worktree root; the hook command searches for config from the worktree root so it cannot find a nested config. Doctor checks the config-root copy and can report PASS wrongly.",
+      "severity": "P1",
+      "suggested_fix": "Track config root and worktree root separately. Install/read hooks at Git's resolved hooks path, and make the shim pass or enter the config root before invoking cookwright. Add an end-to-end nested-config test that commits through the real Git hook and verifies doctor's result.",
+      "failure_scenario": "In repo/apps/mobile/cookwright.json, init writes apps/mobile/.githooks but sets core.hooksPath=.githooks; Git looks in repo/.githooks, runs nothing, while doctor under apps/mobile says hooks are installed.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "hooks.mjs:45 calls setup(repo.root), and hookFile (doctor/hooks.mjs:~55) joins root with '.githooks/<name>'. repo.root is the config root. core.hooksPath is set to the relative '.githooks' (hooks.mjs:~33). Git resolves a relative hooksPath against the work tree top, so a nested cookwright.json puts the shims where git never looks. hook.mjs:28 opens the repo at workTreeRoot(cwd), the top, not the config root, so even a hook that did run would not find a nested config. checkHookFile/checkHooksPath (doctor/hooks.mjs ~110-125) read the same config-root copy and PASS. The branch itself logs this as B-007 (docs/dev/backlog.md:10), a known open bug outside this stage's scope."
+    },
+    {
+      "file": "packages/cookwright/src/lib/hooks/push.mjs",
+      "location": "line 92",
+      "problem": "pushed.find(l => l.localSha !== head) skips both checks if any pushed ref differs from HEAD, contradicting the recorded decision that checks run when any pushed SHA is HEAD, with other refs reported as untested.",
+      "severity": "P1",
+      "suggested_fix": "Partition pushed refs. Run checks when at least one pushed SHA is HEAD, labelling the rest 'other refs not tested'; skip only when none target HEAD. Add branch-plus-older-branch and branch-plus-annotated-tag tests.",
+      "failure_scenario": "git push --all, or pushing HEAD together with the annotated release tag the README recommends, skips the gate and changelog checks entirely.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/hooks/push.mjs:98-99 at f79dc1c: `pushed.find(l => l.localSha !== head)` returns a skip if any pushed ref differs from HEAD. The state.json line 590 decision for fix:hooks says the checks run if any pushed sha is HEAD, and the other refs are reported as untested. The code in the range does not do that. `git push --all` and `--follow-tags` (branch plus tag) therefore skip both checks."
+    },
+    {
+      "file": "packages/cookwright/src/lib/config.mjs",
+      "location": "line 113 (withDefaults)",
+      "problem": "withDefaults converts every non-object hooks value into {}, so validation never emits 'hooks must be an object'. Same masking affects gate.",
+      "severity": "P2",
+      "suggested_fix": "Apply nested defaults only when the field is absent or an object; preserve invalid values so validateHooks/validateGate reject them. Add loadConfig tests for strings, arrays and null.",
+      "failure_scenario": "Config with \"hooks\": \"disabled\" passes doctor, and pre-commit reports no doc-sync rules configured instead of diagnosing invalid configuration.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/config.mjs:113-124. withDefaults uses obj = (v) => (isObj(v) ? v : {}) and spreads obj(raw?.hooks) and obj(raw?.gate) over DEFAULTS. A string such as \"disabled\" therefore becomes {docSync: []}. loadConfig (lines 97-98) calls validateConfig only on the defaulted config. validateHooks (line 230) and validateGate (line 200) therefore never see a non-object, and their 'must be an object' branches cannot run. The config passes validation and doctor, and pre-commit sees no doc-sync rules. The same masking applies to gate. Commit 06a8268 already logs this as backlog B-006, which concedes the behavior."
+    },
+    {
+      "file": "packages/cookwright/src/lib/doctor/hooks.mjs",
+      "location": "line 31",
+      "problem": "Foreign-hook messages include core.hooksPath verbatim, and path.relative can yield an external ../private-dir path for linked worktrees, leaking private machine paths.",
+      "severity": "P2",
+      "suggested_fix": "Sanitize hook paths before display: show only repo-internal relative paths and describe absolute or escaping paths generically as an external/absolute hooks path. Test absolute core.hooksPath and linked-worktree paths.",
+      "failure_scenario": "core.hooksPath=<local path> is printed at SessionStart and may be copied into a committed bundle report or closeout.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "plausible",
+      "evidence": "messages.mjs:210 prints configured.value verbatim (a global/system hooksPath may be absolute); doctor/hooks.mjs:54 path.relative(root, abs) yields ../ paths from a linked worktree. Relative form is by design (header lines 8-10) and it only reaches the user's own terminal; the committed-report leak is speculative, but a global absolute hooksPath is not scrubbed."
+    },
+    {
+      "file": "README.md",
+      "location": "line 23 (commits cd6f7f5, 5de4468 vs b3839f5)",
+      "problem": "The user-facing hook command and pre-push behavior landed in cd6f7f5 and 5de4468 but README docs landed later in b3839f5; no doc-sync exemption recorded, violating the same-commit doc-sync rule.",
+      "severity": "P3",
+      "suggested_fix": "Amend/squash the README sections into the feature commits, or record a justified doc-sync exemption.",
+      "failure_scenario": "Bisecting or cherry-picking at either feature commit yields working behavior with stale command documentation.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "plausible",
+      "evidence": "Factually true: README.md changed in the range only by edb439e, 724a070 and b3839f5. cd6f7f5 and 5de4468 touch only packages/cookwright/src/** and none of them touch README. AGENTS.md:54 says a doc-implicating change updates its doc in the same commit. Mitigations I could not turn into a refutation: plan.md:160, 184, 205 and 216 deliberately schedule the README in slice s3, and the hooks reach no user until init (edb439e, s3) installs the shims. The enforced doc-sync hook and its COOKWRIGHT_SKIP escape arrived only in 6b2ffe7 and d32d41f, so no exemption could have been recorded at that time. The practical impact is low (a P3 at most), and the finding's 'no exemption recorded' claim is accurate but the sequencing was planned."
+    },
+    {
+      "file": "packages/cookwright/src/lib/hooks/push.mjs",
+      "location": "pushContext / isZero / headSha (lines ~95-107); README.md 'Releases and the changelog'",
+      "problem": "pre-push compares each pushed line's local sha with HEAD's commit sha. For an annotated tag, git passes the tag object's sha, never the commit's, so a tag line is always 'not HEAD'. The release push is the one where the changelog check matters most, and it is never tested. The README says the opposite: 'Until the changelog is regenerated after a tag, --check and the pre-push changelog check fail, which is the reminder.' The fix:hooks decision ('run when any pushed sha is HEAD') does not cover this either: a tag-only push still never matches.",
+      "severity": "P2",
+      "suggested_fix": "Peel each pushed sha before comparing (`git rev-parse --verify -q <sha>^{commit}`). Alternatively, judge `refs/tags/*` lines by the commit they peel to, and do not let a tag line alone force the SKIP when the branch at HEAD is in the same push. Add a hook test with an annotated tag on HEAD in the stdin lines.",
+      "failure_scenario": "The README's release flow: `git tag -a v1.2.0 -m 'released: …'` on HEAD, then `git push --follow-tags origin main` before regenerating. stdin carries `refs/tags/v1.2.0 <tag-object-sha> …`. The sha differs from HEAD, so both `gate` and `changelog` print `SKIP  not tested: refs/tags/v1.2.0 is not the checked-out branch`. The stale changelog is pushed with the release tag and no reminder fires. A plain `git push origin v1.2.0` behaves the same way.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "push.mjs:95-99. The pre-push stdin carries the tag object sha for an annotated tag, which never equals the `rev-parse HEAD` commit sha (headSha, :74-77). A tag-only push (`git push origin v1.2.0`) therefore always yields `SKIP not tested`. Even the state.json:590 'any sha is HEAD' rule would not cover it. The README ('Releases and the changelog', and the pre-push line) says the stale changelog fails the pre-push check as a reminder, which contradicts this. For `--follow-tags origin main`, the main line matches HEAD, so the failure comes from the same bug as [1]."
+    },
+    {
+      "file": "packages/cookwright/src/lib/doctor/hooks.mjs",
+      "location": "configuredPath (git config --show-scope --get core.hooksPath); src/lib/init/hooks.mjs setup()",
+      "problem": "`git config --show-scope` exists only from git 2.26, and no minimum git version is documented or checked. On an older git the call exits 129. configuredPath treats any status other than 0 or 1 as an error and throws. init's hooks step turns that into a Refusal during preflight, which aborts the whole init (exit 2, nothing written). doctor FAILs hooks.path, hooks.pre-commit and hooks.pre-push with a probe error. This breaks the rules file: 'Every piece is optional … It never fails on absence.' The hooks step should skip with a reason, not take down Level 0.",
+      "severity": "P2",
+      "suggested_fix": "When `--show-scope` is refused (exit 129, or an 'unknown option' stderr), fall back to `git config --local --get core.hooksPath` plus `git config --get` to find a non-local value. Or skip the hooks step with a 'needs git >= 2.26' line (doctor: SKIP, unverified) rather than a Refusal. Document the minimum git version either way.",
+      "failure_scenario": "A user on Ubuntu 20.04 (stock git 2.25.1) or Debian 10 (git 2.20) runs `npx cookwright init`. `git config --show-scope` fails with 'unknown option', exit 129, and preflight throws. init exits 2 before writing cookwright.json, the state homes or the rules block. doctor in an already-initialised repo on that machine reports three FAILs the user cannot clear.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "doctor/hooks.mjs:32-34 uses `git config --show-scope` (git >= 2.26) and throws on any status other than 0/1 (old git exits 129); init/hooks.mjs:22-28 converts that to Refusal, aborting init. No minimum git version is documented or checked in the plan or docs. Conflicts with the 'every piece is optional' rule."
+    },
+    {
+      "file": "packages/cookwright/src/lib/doctor/hooks.mjs",
+      "location": "checkHookFile",
+      "problem": "doctor PASSes `hooks.pre-commit` and `hooks.pre-push`, and reads Level 0 as complete, from the file's content and mode alone. It never checks the shim's precondition: `node_modules/cookwright/bin/cookwright.mjs` must exist at the work tree root. When it is missing, every hook prints 'skipped: package not installed' and checks nothing, yet doctor claims the secret scan and doc sync are in force. B-002 records the shims' lookup, but not that doctor hides it.",
+      "severity": "P3",
+      "suggested_fix": "In checkHookFile, when the file is ours or calls cookwright, also stat `node_modules/cookwright/bin/cookwright.mjs` under the work tree top, and WARN (or SKIP unverified) with 'the hook prints not-installed and checks nothing (npm install)'. Alternatively, widen B-002's backlog line to cover doctor's blind spot.",
+      "failure_scenario": "In a monorepo, cookwright is installed in a workspace sub-package, or the developer runs doctor through `npx cookwright` from the npm cache. doctor prints hooks.pre-commit PASS and 'level 0 declared: complete'. Every `git commit` then prints 'cookwright pre-commit skipped: package not installed' and no secret scan or doc-sync rule runs.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "confirmed",
+      "evidence": "doctor/hooks.mjs:122-130 checkHookFile passes on content and mode only. No check anywhere in src tests node_modules/cookwright/bin/cookwright.mjs, though the shim (hooks/shims.mjs:44) skips silently when it is missing. Plan line 86 and B-002 record the shim's lookup but not that doctor hides it."
+    },
+    {
+      "file": "packages/cookwright/src/init.test.mjs",
+      "location": "hooks step tests (fresh repo → hooks.path wrote; keeps the shims on a second run) and hook.test.mjs 'through the hooks init installs'",
+      "problem": "The init and e2e tests that assert `hooks.path wrote` run init in process with the developer's real global git config. Only the global-origin test points GIT_CONFIG_GLOBAL at a scratch file. A contributor whose global config sets core.hooksPath gets init's hooks step skipped as foreign, so these tests fail. In this repo the pre-push gate is `npm test`, so that contributor's every push FAILs the gate.",
+      "severity": "P3",
+      "suggested_fix": "Isolate git's global and system config for the whole suite: set GIT_CONFIG_GLOBAL to a scratch file and GIT_CONFIG_NOSYSTEM=1 in a vitest setup file, or in `run` and the in-process init calls.",
+      "failure_scenario": "A contributor has `git config --global core.hooksPath ~/.git-hooks` (a common corporate or global hook-manager setup). `npm test` fails on 'hooks.path wrote' (the row is `skipped  core.hooksPath is … (global)`), and every `git push` in this repo is refused by the pre-push gate.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "confirmed",
+      "evidence": "Init's hooks step reads the effective core.hooksPath, including global scope. The test at init.test.mjs:640-660 proves this: it sets core.hooksPath only through GIT_CONFIG_GLOBAL and expects `skipped ... (global)`. The helper `init()` (init.test.mjs:~90) passes `home: TMP`, which is init's own home option and does not change git's HOME or global config. packages/cookwright/vitest.config.mjs has no setupFiles and no env isolation. Only the global-origin test (init.test.mjs:644) and doctor.test.mjs:427 stub GIT_CONFIG_GLOBAL. The tests that expect `hooks.path` to be `wrote` therefore read the real global config: 'keeps the shims and the path on a second run' (~608-625), init.test.mjs:113 and 174, 'keeps a user's own hook...' (~672), and hook.test.mjs:516-523 ('through the hooks init installs'). hook.test.mjs:458 isolates git only for the e2e describe via GIT_ENV, which is passed to child git processes. The in-process init call at hook.test.mjs:522 is not covered by it. A contributor with a global core.hooksPath gets the skipped row and these assertions fail. I did not verify that the pre-push gate runs `npm test`; I took that from the finding."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff and git show over 1eda96b..f79dc1c",
+    "CHARTER.md, AGENTS.md, stage-2 plan",
+    "cookwright doctor (16 PASS)",
+    "git diff --check (clean)",
+    "secret-shaped values and absolute /Users or /home paths in range (none found)",
+    "git diff 1eda96ba..f79dc1ce: stats, every source file of slice hooks (hook.mjs, lib/hooks/*, lib/doctor/hooks.mjs, lib/init/hooks.mjs, init/files.mjs, init/steps.mjs, config.mjs, probes.mjs, budget.mjs, doctor/repo.mjs, bundle/gate.mjs, messages.mjs, levels.mjs, block.mjs, agents-block.md, schema)",
+    "Plan §4.1-4.3, §4.5-4.9, §6, §7, §9 against the code: exit contract (10 → 1, crash → 0), per-check SKIP isolation, COOKWRIGHT_SKIP, secrets exit-code mapping and --redact, doc-sync through git diff --cached with GIT_INDEX_FILE kept, gate env stripping, dirty and not-HEAD pre-push labels, callsCookwright accepted forms, the foreign-hooks cases, mode-only writes, git writes run after file writes, dry-run, doctor's five checks and the 16 count, the v2 rules block",
+    "Recorded decisions in state.json: the multi-ref push case is already directed to fix:hooks, and the ':x' pathspec refusal is accepted, so neither is re-reported",
+    "Ran (read-only) `cookwright doctor` here: 16 PASS, level 0 complete; `cookwright changelog --check`: up to date; core.hooksPath local .githooks; .githooks shims match shimText",
+    "Searched the range for private paths (none); package.json has no new dependency",
+    "bundle-phase.js: the doc-sync line reaches both the implement and fix prompts (both use role implementer); playbook bullets match",
+    "Tests: hook.test.mjs (in process and end to end), docsync.test.mjs, the init and doctor test names cover the plan's §6 list, including the two-worktree test"
+  ],
+  "notes": "Transcribed from the Codex run (gpt-5.6-sol, high effort, read-only, foreground, finished without hitting the ceiling). Codex could not run the targeted tests because the read-only sandbox blocked Vitest from creating node_modules/.vite-temp. Full output is at <local path>\n---\nRead-only review of 1eda96ba..f79dc1ce (slice hooks, s2+s3). The core contracts hold as planned: the exit codes, a harness failure inside one check SKIPs only that check, gitleaks output is redacted and streamed (doctor prints only the first stderr line on FAIL), doc-sync judges the partial-commit index, the gate runs without git's repository variables, init writes the shims before the hooks path is set, and the foreign-hooks setups are detected. A scratch-repo experiment to confirm the annotated-tag pre-push case was denied as a git write, so finding 1 rests on reading the code and git's documented pre-push stdin: an annotated tag line carries the tag object's sha. Finding 2 rests on --show-scope arriving in git 2.26; git here is 2.52, so it was not reproduced. Known items not re-reported: B-006, B-007 (config root versus work tree top), the multi-ref pre-push decision queued for fix:hooks, and the accepted ':x' pathspec refusal.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a1406c-f559-70a0-885f-4bb28d92da28",
+    "partialReportPath": null
+  }
+}

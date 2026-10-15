@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 76,
+  "revision": 78,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -234,9 +234,22 @@
     },
     {
       "name": "review:whole",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-15T17:01:13.446Z",
+          "stateRevision": 76,
+          "planSha": "825bfd5edc1f9ee2",
+          "codex": true,
+          "runId": "wf_afa9c473-32a"
+        }
+      ],
+      "startCommit": "bea071f9a91397c9ded2cb7a0c4b46e77c4de866",
+      "range": {
+        "from": "5272c24a336b2088c77e41127f458ddf03450f35",
+        "to": "bea071f9a91397c9ded2cb7a0c4b46e77c4de866"
+      }
     },
     {
       "name": "fix:whole",

@@ -2,8 +2,10 @@
 // per-check SKIP for the harness's own trouble, COOKWRIGHT_SKIP, and each check's
 // lines over scratch repos with the gitleaks scan played by a probe (plan §4.1, §6).
 
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -12,6 +14,7 @@ import { TimedOut } from './lib/budget.mjs';
 import { generate } from './lib/changelog/state.mjs';
 import { CONFIG_FILE } from './lib/config.mjs';
 import { CLI } from './lib/messages.mjs';
+import { callLine, callsCookwright, shimText } from './lib/hooks/shims.mjs';
 import { hasTool } from './lib/probes.mjs';
 import { commit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
 
@@ -415,5 +418,114 @@ describe('pre-push', () => {
     expect(push(repo)).toBe(0);
     expect(line('gate').note).toBe(`${CONFIG_FILE} invalid: version must be 1; run ${CLI} doctor`);
     expect(line('changelog').note).toBe(line('gate').note);
+  });
+});
+
+describe('the shims', () => {
+  it('call the hook and map its exit codes; no exec, no npx', () => {
+    const text = shimText('pre-commit');
+    expect(text.startsWith('#!/bin/sh\n')).toBe(true);
+    expect(text.endsWith('\n')).toBe(true);
+    expect(text).not.toContain('\r');
+    const commands = text.split('\n').filter((l) => !l.startsWith('#'));
+    expect(commands.filter((l) => /\bnpx\b|\bexec\b/.test(l))).toEqual([]);
+    expect(text).toContain(`${callLine('pre-commit')}; s=$?`);
+    expect(text).toContain('[ $s -eq 10 ] && exit 1');
+    expect(shimText('pre-push')).toContain('cookwright pre-push crashed (exit $s); the push goes through unchecked');
+  });
+
+  it('callsCookwright accepts only the forms in which a finding reaches git', () => {
+    const call = callLine('pre-commit');
+    const file = (...lines) => ['#!/bin/sh', ...lines, ''].join('\n');
+    expect(callsCookwright(shimText('pre-commit'), 'pre-commit')).toBe(true);
+    for (const ok of [`exec ${call}`, `  ${call} || exit 1`, `${call} || exit $?`]) {
+      expect(callsCookwright(file('npm run lint', ok, 'echo after'), 'pre-commit')).toBe(true);
+    }
+    expect(callsCookwright(file('npm run lint', call, '# trailing comment', ''), 'pre-commit')).toBe(true);
+    expect(callsCookwright(file(call).replace(/\n/g, '\r\n'), 'pre-commit')).toBe(true);
+    for (const bad of [file(`${call} || true`), file(call, 'echo done'), file(`# ${call}`), file('npx lint-staged')]) {
+      expect(callsCookwright(bad, 'pre-commit')).toBe(false);
+    }
+    expect(callsCookwright(file(callLine('pre-push')), 'pre-commit')).toBe(false);
+    expect(callsCookwright(shimText('pre-push'), 'pre-commit')).toBe(false);
+  });
+});
+
+describe('end to end: a real git commit through the shim', () => {
+  const PKG = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+  /** git's own config isolated; gitleaks skipped (it would run for real here and SKIP elsewhere). */
+  const GIT_ENV = { ...ENV, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', COOKWRIGHT_SKIP: 'secrets' };
+
+  function e2eRepo(pkg = PKG) {
+    const repo = repoAt();
+    commit(repo, { 'README.md': 'x', 'docs/guide.md': 'g' }, 'init');
+    fs.appendFileSync(path.join(repo.root, '.git/info/exclude'), 'node_modules\n');
+    if (pkg) {
+      fs.mkdirSync(path.join(repo.root, 'node_modules'));
+      fs.symlinkSync(pkg, path.join(repo.root, 'node_modules/cookwright'));
+    }
+    fs.mkdirSync(path.join(repo.root, '.githooks'));
+    hookFile(repo, shimText('pre-commit'));
+    run(repo.root, 'git', ['config', 'core.hooksPath', '.githooks']);
+    return repo;
+  }
+  const hookFile = (repo, text) => fs.writeFileSync(path.join(repo.root, '.githooks/pre-commit'), text, { mode: 0o755 });
+  const userHook = (repo, line) => hookFile(repo, `#!/bin/sh\necho user hook\n${line}\n`);
+  const head = (repo) => run(repo.root, 'git', ['rev-parse', 'HEAD']);
+
+  /** `git commit` for real (hooks on), with `files` staged. */
+  function gitCommit(repo, files, msg = 'feat: change') {
+    stage(repo, files);
+    const r = spawnSync('git', ['commit', '-q', '-m', msg], { cwd: repo.root, env: GIT_ENV, encoding: 'utf8' });
+    return { status: r.status, output: `${r.stdout}${r.stderr}` };
+  }
+
+  it('refuses a code change without its doc (the shim maps 10 to 1), then lands it with the doc', () => {
+    const repo = e2eRepo();
+    const before = head(repo);
+    const refused = gitCommit(repo, { 'src/a.mjs': 'a' });
+    expect(refused.status).toBe(1);
+    expect(refused.output).toMatch(/pre-commit {2}SKIP {2}secrets {2}skipped by COOKWRIGHT_SKIP/);
+    expect(refused.output).toMatch(/pre-commit {2}FAIL {2}doc-sync {2}docs: 1 file\(s\) changed \(src\/a\.mjs\)/);
+    expect(head(repo)).toBe(before);
+    const shim = spawnSync('sh', ['.githooks/pre-commit'], { cwd: repo.root, env: GIT_ENV, encoding: 'utf8' });
+    expect(shim.status).toBe(1);
+    const landed = gitCommit(repo, { 'docs/guide.md': 'updated' });
+    expect(landed.status).toBe(0);
+    expect(landed.output).toMatch(/pre-commit {2}PASS {2}doc-sync/);
+    expect(head(repo)).not.toBe(before);
+  });
+
+  it('refuses through a user’s own hook in each accepted form; `|| true` lets the commit land', () => {
+    const repo = e2eRepo();
+    const call = callLine('pre-commit');
+    for (const form of [`exec ${call}`, `${call} || exit 1`, call]) {
+      userHook(repo, form);
+      const r = gitCommit(repo, { 'src/a.mjs': form });
+      expect([form, r.status]).toEqual([form, 1]);
+      expect(r.output).toMatch(/user hook[\s\S]*pre-commit {2}FAIL {2}doc-sync/);
+    }
+    userHook(repo, `${call} || true`);
+    const swallowed = gitCommit(repo, { 'src/a.mjs': 'swallowed' });
+    expect(swallowed.status).toBe(0);
+    expect(swallowed.output).toMatch(/pre-commit {2}FAIL {2}doc-sync/);
+    expect(callsCookwright(`#!/bin/sh\n${call} || true\n`, 'pre-commit')).toBe(false);
+  });
+
+  it('without the package installed: the not-installed line, exit 0, the commit lands', () => {
+    const repo = e2eRepo(null);
+    const r = gitCommit(repo, { 'src/a.mjs': 'a' });
+    expect(r.status).toBe(0);
+    expect(r.output).toContain('cookwright pre-commit skipped: package not installed (npm install)');
+  });
+
+  it('a package whose bin throws at import: the crashed line, exit 0, the commit lands', () => {
+    const broken = path.join(TMP, 'broken-pkg');
+    fs.mkdirSync(path.join(broken, 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(broken, 'bin/cookwright.mjs'), "throw new Error('broken at import');\n");
+    const repo = e2eRepo(broken);
+    const r = gitCommit(repo, { 'src/a.mjs': 'a' });
+    expect(r.status).toBe(0);
+    expect(r.output).toMatch(/cookwright pre-commit crashed \(exit 1\); the commit goes through unchecked/);
   });
 });

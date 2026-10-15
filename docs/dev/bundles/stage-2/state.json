@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 71,
+  "revision": 74,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -436,6 +436,12 @@
       "path": "docs/dev/bundles/stage-2/sessions/implement-s3-1.md",
       "at": "2026-10-15T16:35:53.913Z",
       "stored": true
+    },
+    {
+      "phase": "fix:hooks",
+      "path": "docs/dev/bundles/stage-2/sessions/fix-hooks-1.md",
+      "at": "2026-10-15T17:00:32.763Z",
+      "stored": true
     }
   ],
   "qaRounds": [],
@@ -648,6 +654,20 @@
       "actor": "orchestrator",
       "source": "review:hooks findings, 2026-10-15",
       "text": "fix:hooks applies: finding 0 (closes B-007: init writes the shims at the work tree top where git looks, and when the config root is below the top the shim's call is preceded by 'cd <config root, root-relative to the top>' so node_modules/cookwright and cookwright.json resolve from the config root; shimText(name, rel) and callsCookwright take the rel; doctor reads the shims at the top; hook.mjs finds the config from its cwd bounded by the top, never from the top alone; an end-to-end nested-config test commits through the real hook and checks doctor); findings 1 and 5 (every pushed sha is peeled to its commit with rev-parse <sha>^{commit}, so an annotated tag on HEAD counts as HEAD; the checks run when any peeled sha is HEAD, and each line then ends with 'not tested: <refs> are not the checked-out branch' for the others; both checks SKIP only when no peeled sha is HEAD; tests for branch plus older branch, branch plus annotated tag, tag-only push of a tag on HEAD); finding 2 (closes B-006: withDefaults applies the nested defaults only when hooks or gate is absent or an object, so a string, list or null reaches the validator and is refused; tests); finding 3 (a core.hooksPath value that is not a root-relative path inside the repo is shown as 'a path outside the repo', never verbatim); finding 6 (when git config --show-scope is refused, exit 129 or an unknown-option stderr, fall back to --local --get plus --get to tell local from elsewhere; never a Refusal, never a doctor probe error; the README names git 2.26 as the version with scopes); finding 7 (hooks.pre-commit and hooks.pre-push WARN 'the hook prints not-installed and checks nothing (npm install)' when node_modules/cookwright/bin/cookwright.mjs is absent under the directory the shim runs in); finding 8 (a vitest setup file sets GIT_CONFIG_GLOBAL to a scratch file and GIT_CONFIG_NOSYSTEM=1 for the whole suite). Finding 4 (README sections landing after the feature commits) needs no change: the plan scheduled the README in s3, and the hooks reached no user before init installed them. B-006 and B-007 move to Closed in the fix commits that close them.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T16:58:09.119Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, during fix:hooks",
+      "text": "CHARTER.md gains a 'Judgment rules' section as a dated amendment (2026-10-15), appended verbatim under Amendments by the orchestrator right after fix:hooks lands (s3, the session named for it, had already closed), as its own docs(charter) commit with a gate, covered by review:whole. The nine rules: (1) a harness problem never blocks the user's work, only a finding in the user's own change fails a hook; (2) drift from the declared level is FAIL, a chosen state is WARN with the reason, a FAIL the user cannot clear is a cookwright bug; (3) claim only what was measured, SKIP with the reason when the thing judged is not the thing tested; (4) logic lives in the package, the repo holds shims, config and generated files; (5) generated artifacts are never hand-maintained, derived state never stored; (6) a feature wanted twice gets built, wanted once goes to the backlog with its justification; (7) nothing private in the repo, a leak is a history rewrite; (8) escapes are per-check, named, with the reason in the commit message, --no-verify the documented last resort; (9) no runtime dependency in the core package, any dependency asked for first. From this message on the orchestrator applies these rules to every open question and review finding before escalating, cites the rule number in each recorded disposition, and escalates only what no rule covers.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T17:00:33.349Z",
+      "actor": "orchestrator",
+      "source": "fix:hooks report and open questions, 2026-10-15",
+      "text": "Rule 3 and rule 7: accepted as built, the foreign-hooks readout uses three phrases ('an absolute path', 'a path outside the repo', \"git's hooks directory\") in place of the decision's one, since an absolute path inside the repo is not outside it; the withDefaults fix covers paths as well as hooks and gate. Rule 6: several config roots in one work tree (one shim fanning out to several apps) is wanted once, backlogged as E-025 with its justification. Rule 6 and rule 4: a managed shim written for another config root, or by an earlier cookwright, reads as foreign today; init refreshing a shim that carries the managed header, as it refreshes the rules block, is backlogged as E-026 and must land before shimText ever changes, since the first change would make every installed shim foreign. The unneeded COOKWRIGHT_SKIP=doc-sync on commit 323c739 (the rule did not match) is noted, harmless.",
       "claim": true
     }
   ],

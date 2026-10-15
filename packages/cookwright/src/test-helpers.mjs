@@ -31,6 +31,27 @@ export function gitInit(dir) {
   return dir;
 }
 
+/**
+ * A directory holding a `git` that refuses `--show-scope` as git before 2.26 does
+ * (a usage error, exit 129) and runs the real git for anything else. Put it first
+ * on PATH to play an old git.
+ */
+export function gitWithoutScopes(parent) {
+  const real = run(parent, 'sh', ['-c', 'command -v git']);
+  const dir = path.join(parent, `old-git-${process.pid}`);
+  fs.mkdirSync(dir, { recursive: true });
+  const script = [
+    '#!/bin/sh',
+    'for a in "$@"; do',
+    '  [ "$a" = "--show-scope" ] && { echo "error: unknown option show-scope" >&2; exit 129; }',
+    'done',
+    `exec '${real}' "$@"`,
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(dir, 'git'), script, { mode: 0o755 });
+  return dir;
+}
+
 /** A scratch git repo `parent/name` with a cookwright.json (defaults unless overridden), as `repo`. */
 export function scratchRepo(parent, name, config = {}) {
   const dir = gitInit(path.join(parent, name));

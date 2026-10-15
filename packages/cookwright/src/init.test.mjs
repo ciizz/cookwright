@@ -16,7 +16,7 @@ import { HOOK_COMMAND, HOOK_LINES, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { hasTool } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
-import { commit, gitInit, run, scratchRoot, stageOnly, v1Block } from './test-helpers.mjs';
+import { commit, gitInit, gitWithoutScopes, run, scratchRoot, stageOnly, v1Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-init-');
 const m = messages.init;
@@ -649,6 +649,26 @@ describe('git hooks', () => {
       vi.unstubAllEnvs();
     }
     expect(exists(root, '.githooks')).toBe(false);
+  });
+
+  it('installs the hooks on a git without --show-scope (before 2.26), and still names a global path', () => {
+    vi.stubEnv('PATH', `${gitWithoutScopes(TMP)}${path.delimiter}${process.env.PATH}`);
+    try {
+      const root = fresh();
+      const { code, rows } = init(root);
+      expect(code).toBe(0);
+      expect(rows['hooks.path']).toEqual({ action: 'wrote', note: m.hooks.pathSet('.githooks') });
+      expect(hooksPath(root)).toBe('.githooks');
+      expect(init(root).rows['hooks.path']).toEqual({ action: 'kept', note: m.hooks.pathKept('.githooks') });
+      const global = path.join(TMP, `global-old-git-${n}`);
+      fs.writeFileSync(global, '[core]\n\thooksPath = .githooks\n');
+      vi.stubEnv('GIT_CONFIG_GLOBAL', global);
+      const other = fresh();
+      const note = f.path('.githooks', f.notLocal);
+      expect(hookRows(init(other).rows)).toEqual(TARGETS.map(() => ({ action: 'skipped', note })));
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('skips all three when git’s hooks directory holds a hook of the user’s', () => {

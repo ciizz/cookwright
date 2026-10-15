@@ -210,6 +210,8 @@ const foreignHooks = {
   path: (value, scope) => `core.hooksPath is ${value} (${scope}): hooks are managed elsewhere, cookwright's are not installed`,
   dir: (dir, names) => `${dir} has ${list(names)}: cookwright's hooks are not installed`,
   file: (rel) => `${rel} is not cookwright's: cookwright's hooks are not installed`,
+  // The scope word when git (before 2.26) cannot name the scope.
+  notLocal: 'not the local config',
 };
 
 // changelog: the usage, the refusals, the lines of each mode (plan §4.4). The

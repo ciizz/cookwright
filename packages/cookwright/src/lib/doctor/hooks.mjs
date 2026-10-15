@@ -7,7 +7,9 @@
 //
 // The scope comes from `--show-scope`, never `--show-origin`, whose absolute path
 // (from a linked worktree) must not reach a readout; git's hooks directory is shown
-// relative to the root for the same reason.
+// relative to the root for the same reason. A git older than 2.26 refuses
+// `--show-scope`; the reader then tells local from not-local with `--local`, and
+// never fails on the missing option.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -27,12 +29,34 @@ const executable = (st) => process.platform === 'win32' || (st.mode & 0o111) !==
 /** The root-relative path of hook `name`'s file. */
 export const hookRel = (name) => `${HOOKS_DIR}/${name}`;
 
+const configFailed = (r) => new Error(messages.probeFailed('git config core.hooksPath', firstLine(r)));
+const chomp = (text) => text.replace(/\r?\n$/, '');
+
+/** git before 2.26 has no `--show-scope`: a usage error, exit 129. */
+const noScopes = (r) => r.status === 129 || /unknown option/i.test(r.stderr ?? '');
+
+/**
+ * The effective core.hooksPath without `--show-scope`: `local` when the local
+ * config holds the effective value, otherwise a scope word saying only that it is
+ * not the local config (git before 2.26 cannot name it).
+ */
+function configuredPathNoScope(root) {
+  const any = gitRun(root, ['config', '--get', 'core.hooksPath']);
+  if (any.status === 1) return null;
+  if (any.status !== 0) throw configFailed(any);
+  const value = chomp(any.stdout);
+  const local = gitRun(root, ['config', '--local', '--get', 'core.hooksPath']);
+  const isLocal = local.status === 0 && chomp(local.stdout) === value;
+  return { scope: isLocal ? 'local' : messages.foreignHooks.notLocal, value };
+}
+
 /** `{ scope, value }` of the effective core.hooksPath, or null when it is set nowhere. */
 function configuredPath(root) {
   const r = gitRun(root, ['config', '--show-scope', '--get', 'core.hooksPath']);
   if (r.status === 1) return null;
-  if (r.status !== 0) throw new Error(messages.probeFailed('git config core.hooksPath', firstLine(r)));
-  const [scope, ...value] = r.stdout.replace(/\r?\n$/, '').split('\t');
+  if (r.status !== 0 && noScopes(r)) return configuredPathNoScope(root);
+  if (r.status !== 0) throw configFailed(r);
+  const [scope, ...value] = chomp(r.stdout).split('\t');
   return { scope, value: value.join('\t') };
 }
 

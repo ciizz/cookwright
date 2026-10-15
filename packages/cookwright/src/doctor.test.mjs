@@ -22,7 +22,7 @@ import { HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { PROBES } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
-import { commit, gitInit, run, scratchRepo, scratchRoot, stageOnly, v1Block } from './test-helpers.mjs';
+import { commit, gitInit, gitWithoutScopes, run, scratchRepo, scratchRoot, stageOnly, v1Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-doctor-');
 const m = messages.doctor;
@@ -435,6 +435,21 @@ describe('git hooks', () => {
     expect(hooks(userHooks)).toEqual(elsewhere(f.dir('.git/hooks', ['pre-commit'])));
     const theirs = level0({ '.githooks/pre-commit': '#!/bin/sh\nnpm run lint\n' });
     expect(hooks(theirs)).toEqual(elsewhere(f.file('.githooks/pre-commit')));
+  });
+
+  it('reads the path on a git without --show-scope (before 2.26): local PASS, elsewhere WARN, never a probe error', () => {
+    vi.stubEnv('PATH', `${gitWithoutScopes(TMP)}${path.delimiter}${process.env.PATH}`);
+    const global = path.join(TMP, 'global-hooks-config-old-git');
+    fs.writeFileSync(global, '[core]\n\thooksPath = .githooks\n');
+    try {
+      expect(hooks(level0())).toEqual(ok);
+      expect(hooks(level0({}, null, { hooksPath: '.husky/_' }))).toEqual(elsewhere(f.path('.husky/_', 'local')));
+      expect(hooks(level0({}, null, { hooksPath: null }))[0]).toEqual({ status: 'FAIL', note: m.hooks.pathUnset });
+      vi.stubEnv('GIT_CONFIG_GLOBAL', global);
+      expect(hooks(level0({}, null, { hooksPath: null }))).toEqual(elsewhere(f.path('.githooks', f.notLocal)));
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('reads a linked worktree whose branch lacks .githooks/ as the path PASS and the files missing', () => {

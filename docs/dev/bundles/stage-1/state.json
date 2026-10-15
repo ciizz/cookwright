@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 16,
+  "revision": 23,
   "slug": "stage-1",
   "branch": "bundle/stage-1",
   "base": "c0322d4a4d1bd95c594dd3146f1fedb6182bbe9c",
@@ -54,8 +54,7 @@
           "stateRevision": 2,
           "planSha": "78b8a834d66ff43b",
           "codex": true,
-          "runId": "wf_760ca6d4-f81",
-          "transcriptDir": "<local path>"
+          "runId": "wf_760ca6d4-f81"
         },
         {
           "startedAt": "2026-10-15T09:12:55.918Z",
@@ -74,9 +73,23 @@
     },
     {
       "name": "implement:s1",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-15T09:16:58.865Z",
+          "stateRevision": 16,
+          "planSha": "a252db7ad517b7c2",
+          "codex": true,
+          "runId": "wf_8450c46d-c19",
+          "endedAt": "2026-10-15T09:27:31.560Z",
+          "turnOutputTokens": 175854
+        }
+      ],
+      "startCommit": "4d4c78c4186eb4630c229942a5eadebdc4cad8fc",
+      "range": null,
+      "endCommit": "fc316122f21eaf6b74c7362c698a52c47d5d06d5",
+      "endCode": "fc316122f21eaf6b74c7362c698a52c47d5d06d5"
     },
     {
       "name": "implement:s2",
@@ -153,6 +166,19 @@
           "ms": 4115
         }
       ]
+    },
+    {
+      "commit": "fc316122f21eaf6b74c7362c698a52c47d5d06d5",
+      "at": "2026-10-15T09:27:31.443Z",
+      "slice": "core",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 4992
+        }
+      ]
     }
   ],
   "findings": [
@@ -193,7 +219,14 @@
       "head": "839bc5f67a0c2d8e767437f5f572902279fa65b1"
     }
   ],
-  "reports": [],
+  "reports": [
+    {
+      "phase": "implement:s1",
+      "path": "docs/dev/bundles/stage-1/sessions/implement-s1-1.md",
+      "at": "2026-10-15T09:26:45.743Z",
+      "stored": true
+    }
+  ],
   "qaRounds": [],
   "decisions": [
     {
@@ -236,6 +269,20 @@
       "actor": "orchestrator",
       "source": "plan-review re-check notes, 2026-10-15",
       "text": "The CHARTER amendment quoted in plan §2 says init writes CLAUDE.md only when a shadowing file exists; §4.4 step 4 also writes it when Claude Code is older than 2.1.281 (a version that ignores AGENTS.md). s3 surfaces the amendment wording to the developer in its strings batch before appending it; the developer's wording is final.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T09:27:26.325Z",
+      "actor": "orchestrator",
+      "source": "after implement:s1, 2026-10-15",
+      "text": "The leftover transcriptDir on plan-review run 0 was removed from state.json by hand (one key deleted, nothing else touched): the CLI refuses to re-record a done phase, so the re-record route of plan §2 (a) was not available. The pre-s1 state commits that still carry the path (97b5a76, 839bc5f, 4d4c78c) are rewritten before the branch is pushed, per the developer's decision.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T09:27:26.379Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open questions, 2026-10-15",
+      "text": "probes.mjs (hasTool, claudeVersion, ignored, with tests) was not built in s1 because the recorded s1 scope predates the round-1 plan revision; s2 builds it as part of doctor (§4.8 probes, §4.4 step 6's ignored). levels.mjs holding only requires, with the level names and the no-next-level text in messages.levels / messages.noNextLevel, is accepted (it avoids a config → levels → messages → config cycle). The bundle CLI's other subcommands still ignoring unknown flags goes to the backlog in s3, beside E-004. The strings test of §4.9/§6 is s3's. The init/doctor placeholders are replaced by s3/s2.",
       "claim": true
     }
   ],

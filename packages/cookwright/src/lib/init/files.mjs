@@ -32,10 +32,27 @@ export function kindOf(abs) {
   }
 }
 
-/** Refuse, in preflight, any write that would land through a symbolic link. */
+/** The first component of `rel`, from the root down to `rel` itself, that is a symbolic link, or null. */
+function linkOnPath(root, rel) {
+  const parts = rel.split(/[\\/]/);
+  for (let i = 1; i <= parts.length; i += 1) {
+    const sub = parts.slice(0, i).join('/');
+    if (isLink(path.join(root, sub))) return sub;
+  }
+  return null;
+}
+
+/**
+ * Refuse, in preflight, any write that would land through a symbolic link: the
+ * target or any directory between the root and it, since mkdir and writeFile
+ * follow a linked parent out of the repo.
+ */
 export function refuseLinks(root, rows) {
   for (const { writes } of rows) {
-    for (const { rel } of writes) if (isLink(path.join(root, rel))) throw new Refusal(m.symlink(rel));
+    for (const { rel } of writes) {
+      const link = linkOnPath(root, rel);
+      if (link) throw new Refusal(m.symlink(link));
+    }
   }
 }
 

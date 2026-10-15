@@ -106,7 +106,8 @@ const init = {
   notWorkTree: (cwd) => `${cwd} is not inside a git work tree (init needs git and a repo: run git init first)`,
   notAFile: (rel) => `${rel} exists and is not a file; move it aside, then rerun`,
   notADir: (rel) => `${rel} exists and is not a directory; move it aside, then rerun`,
-  symlink: (rel) => `${rel} is a symbolic link and init does not write through one; replace it with the file, then rerun`,
+  symlink: (rel) =>
+    `${rel} is a symbolic link and init does not write through one; replace it with the real file or directory, then rerun`,
   gitFailed: (what, detail) => `git ${what} failed: ${detail}`,
   badBase: (base) => `--base ${JSON.stringify(base)} is not a valid branch name`,
   freshInvalid: (problems) => `the ${CONFIG_FILE} init would write is invalid: ${problems.join('; ')}`,

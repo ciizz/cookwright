@@ -449,6 +449,28 @@ describe('host rules: a symlinked CLAUDE.md or AGENTS.md', () => {
   });
 });
 
+describe('a symlinked parent directory', () => {
+  const outside = () => fs.mkdtempSync(path.join(TMP, 'outside-'));
+
+  it('refuses a write through a linked .claude or state-home directory, before any write', () => {
+    const shared = outside();
+    const claude = fresh();
+    fs.symlinkSync(shared, path.join(claude, '.claude'));
+    expect(init(claude).code).toBe(2);
+    expect(err[0]).toBe(m.refused(m.symlink('.claude')));
+    expect(fs.readdirSync(shared)).toEqual([]);
+    expect(exists(claude, 'cookwright.json')).toBe(false);
+
+    const docsDir = outside();
+    const docs = fresh();
+    fs.symlinkSync(docsDir, path.join(docs, 'docs'));
+    expect(init(docs).code).toBe(2);
+    expect(err[0]).toBe(m.refused(m.symlink('docs')));
+    expect(fs.readdirSync(docsDir)).toEqual([]);
+    expect(exists(docs, 'AGENTS.md')).toBe(false);
+  });
+});
+
 describe('host hook: .claude/settings.json', () => {
   const FILE = '.claude/settings.json';
   const entry = { type: 'command', command: HOOK_COMMAND, timeout: 10 };

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 42,
+  "revision": 43,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -108,7 +108,7 @@
     },
     {
       "name": "review:changelog",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -116,14 +116,18 @@
           "stateRevision": 37,
           "planSha": "825bfd5edc1f9ee2",
           "codex": true,
-          "runId": "wf_0452edc2-f6d"
+          "runId": "wf_0452edc2-f6d",
+          "endedAt": "2026-10-15T15:57:16.048Z",
+          "turnOutputTokens": 402313
         }
       ],
       "startCommit": "9d3d896673faa0a40be679942e11ee2c762bb11c",
       "range": {
         "from": "40300c470e8a784dce45ec571b3169304956d7ec",
         "to": "9d3d896673faa0a40be679942e11ee2c762bb11c"
-      }
+      },
+      "endCommit": "7e78012c5a10a23c0923c11233cdb1cbf8dbee94",
+      "endCode": "4a280996e02c40664286a0ffed47d64ccfcfb72d"
     },
     {
       "name": "fix:changelog",

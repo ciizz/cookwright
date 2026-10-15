@@ -469,6 +469,14 @@ describe('host hook: .claude/settings.json', () => {
     expect(init(root).rows[FILE].action).toBe('kept');
   });
 
+  it('says so when merging rewrites the layout of the rest', () => {
+    const root = fresh();
+    const text = '{\n  "permissions": { "allow": ["Bash(npm test)", "Read"] }\n}\n';
+    write(root, FILE, text);
+    expect(init(root).rows[FILE]).toEqual({ action: 'updated', note: `${m.hostHook.added}${m.hostHook.relaid}` });
+    expect(JSON.parse(read(root, FILE)).permissions).toEqual({ allow: ['Bash(npm test)', 'Read'] });
+  });
+
   it('is not fooled by a command that mentions doctor', () => {
     const root = fresh();
     const settings = { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'echo "run cookwright doctor"' }] }] } };

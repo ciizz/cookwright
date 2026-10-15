@@ -155,8 +155,9 @@ const init = {
   hostHook: {
     wrote: 'SessionStart hook runs doctor',
     kept: 'the doctor SessionStart hook is present',
-    replaced: 'an earlier doctor hook replaced by the current one; the rest untouched',
-    added: 'doctor SessionStart hook added; the other settings untouched',
+    replaced: 'an earlier doctor hook replaced by the current one; the other settings kept',
+    added: 'doctor SessionStart hook added; the other settings kept',
+    relaid: ' (the file is rewritten in standard JSON layout, its indent kept)',
   },
   gitignore: {
     ignored: '.env and .env.local are ignored',

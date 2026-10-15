@@ -452,6 +452,19 @@ describe('git hooks', () => {
     }
   });
 
+  it('never shows a machine path: an absolute core.hooksPath, or a sibling worktree’s hooks directory', () => {
+    const abs = hooks(level0({}, null, { hooksPath: path.join(TMP, 'elsewhere') }));
+    expect(abs).toEqual(elsewhere(f.path(f.absolutePath, 'local')));
+    const repo = scratchRepo(TMP, `wt-userhooks-${(n += 1)}`);
+    commit(repo, { 'README.md': 'x' }, 'init');
+    writeAll(repo.root, { '.git/hooks/pre-commit': '#!/bin/sh\n' });
+    const sibling = path.join(TMP, `wt-userhooks-sibling-${n}`);
+    run(repo.root, 'git', ['worktree', 'add', '-q', '-b', 'side', sibling]);
+    const [pathRow] = hooks(sibling);
+    expect(pathRow).toEqual({ status: 'WARN', note: f.dir(f.gitHooksDir, ['pre-commit']) });
+    expect(JSON.stringify(abs)).not.toContain(TMP);
+  });
+
   it('reads a linked worktree whose branch lacks .githooks/ as the path PASS and the files missing', () => {
     const repo = scratchRepo(TMP, `wt-main-${(n += 1)}`);
     const { '.githooks/pre-commit': a, '.githooks/pre-push': b, ...rest } = LEVEL0_FILES;

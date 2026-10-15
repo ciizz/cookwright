@@ -6,8 +6,9 @@
 // read the same answer, so they never disagree on "foreign".
 //
 // The scope comes from `--show-scope`, never `--show-origin`, whose absolute path
-// (from a linked worktree) must not reach a readout; git's hooks directory is shown
-// relative to the root for the same reason. A git older than 2.26 refuses
+// (from a linked worktree) must not reach a readout; git's hooks directory and the
+// path's value are shown root-relative for the same reason, or as a phrase when
+// they are absolute or outside the repo. A git older than 2.26 refuses
 // `--show-scope`; the reader then tells local from not-local with `--local`, and
 // never fails on the missing option.
 
@@ -75,7 +76,26 @@ function hooksDirEntries(root) {
     .filter((e) => !e.isDirectory() && !e.name.endsWith('.sample') && !e.name.startsWith('.'))
     .map((e) => e.name)
     .sort();
-  return { dir: path.relative(root, abs) || '.', names };
+  return { dir: shownDir(path.relative(root, abs)), names };
+}
+
+/** git's hooks directory for a readout: root-relative inside the repo, else a phrase. */
+function shownDir(rel) {
+  if (!rel) return '.';
+  const outside = rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel);
+  return outside ? messages.foreignHooks.gitHooksDir : rel.split(path.sep).join('/');
+}
+
+/**
+ * core.hooksPath for a readout: verbatim when it is a relative path inside the
+ * repo, otherwise a phrase, so no machine path (an absolute one, `~/…`, `../…`)
+ * reaches a terminal, a transcript or a report.
+ */
+export function shownHooksPath(value) {
+  const f = messages.foreignHooks;
+  if (path.posix.isAbsolute(value) || path.win32.isAbsolute(value) || value.startsWith('~')) return f.absolutePath;
+  const norm = path.posix.normalize(value.replace(/\\/g, '/'));
+  return norm === '..' || norm.startsWith('../') ? f.outsidePath : value;
 }
 
 /**
@@ -101,7 +121,7 @@ export function hookFile(root, name) {
 function foreignReason(root, configured, files) {
   const f = messages.foreignHooks;
   if (configured && (configured.value !== HOOKS_DIR || configured.scope !== 'local')) {
-    return f.path(configured.value, configured.scope);
+    return f.path(shownHooksPath(configured.value), configured.scope);
   }
   if (!configured) {
     const { dir, names } = hooksDirEntries(root);

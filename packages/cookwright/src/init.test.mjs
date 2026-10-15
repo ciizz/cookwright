@@ -625,11 +625,18 @@ describe('git hooks', () => {
   });
 
   it('skips all three, writing nothing, when core.hooksPath is set elsewhere locally', () => {
-    for (const value of ['.husky/_', path.join(TMP, 'abs', '.githooks')]) {
+    const cases = [
+      ['.husky/_', '.husky/_'],
+      [path.join(TMP, 'abs', '.githooks'), f.absolutePath],
+      ['~/hooks', f.absolutePath],
+      ['../shared/hooks', f.outsidePath],
+    ];
+    for (const [value, shown] of cases) {
       const root = fresh();
       run(root, 'git', ['config', '--local', 'core.hooksPath', value]);
       const { code, rows } = init(root);
-      const note = f.path(value, 'local');
+      const note = f.path(shown, 'local');
+      expect(note).not.toContain(TMP);
       expect(hookRows(rows)).toEqual(TARGETS.map(() => ({ action: 'skipped', note })));
       expect(exists(root, '.githooks')).toBe(false);
       expect(hooksPath(root)).toBe(value);

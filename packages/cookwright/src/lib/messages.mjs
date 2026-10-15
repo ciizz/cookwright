@@ -212,6 +212,10 @@ const foreignHooks = {
   file: (rel) => `${rel} is not cookwright's: cookwright's hooks are not installed`,
   // The scope word when git (before 2.26) cannot name the scope.
   notLocal: 'not the local config',
+  // Shown in place of a path that would name a place on this machine.
+  absolutePath: 'an absolute path',
+  outsidePath: 'a path outside the repo',
+  gitHooksDir: "git's hooks directory",
 };
 
 // changelog: the usage, the refusals, the lines of each mode (plan §4.4). The

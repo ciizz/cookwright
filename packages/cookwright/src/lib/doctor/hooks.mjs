@@ -196,13 +196,14 @@ const stderrLine = (text) => (text ?? '').split('\n').map((l) => l.trim()).find(
 
 /**
  * `tools.gitleaks`: on PATH, and one bounded dry run of the staged scan (output
- * discarded) exits 0 or 3, both meaning it runs. Any other exit is drift the user
- * can clear (a malformed .gitleaks.toml); absent is a SKIP; a timeout unverified.
+ * discarded, at the work tree's top as the hook scans) exits 0 or 3, both meaning
+ * it runs. Any other exit is drift the user can clear (a malformed .gitleaks.toml);
+ * absent is a SKIP; a timeout unverified.
  */
 export function checkGitleaks(repo, probes) {
   if (!probes.hasTool('gitleaks')) return skip(m.gitleaks.absent);
   if (!repo.workTree) return skip(m.hooks.notWorkTree);
-  const r = probes.scanStaged(repo.root, { quiet: true });
+  const r = probes.scanStaged(repo.top ?? repo.root, { quiet: true });
   if (r.timedOut) throw new TimedOut('gitleaks');
   if (r.status === 0 || r.status === 3) return pass(m.gitleaks.ok(probes.gitleaksVersion()));
   return fail(m.gitleaks.broken(r.status, stderrLine(r.stderr)));

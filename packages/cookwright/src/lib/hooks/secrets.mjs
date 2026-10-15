@@ -6,6 +6,10 @@
 // `--exit-code 3` separates a finding (FAIL) from a failure to run (SKIP): a
 // malformed .gitleaks.toml or a gitleaks too old for the `git` subcommand is
 // doctor's to report as drift, never a blocked commit. It needs no config.
+//
+// It runs at the work tree's top, never a config root below it: gitleaks reads the
+// staged diff and its .gitleaks.toml from its own directory, so a scan from the
+// config root would judge one subtree and still say the staged diff is clean.
 
 import { messages } from '../messages.mjs';
 import { SCAN_CAP_MS } from '../probes.mjs';
@@ -16,7 +20,7 @@ const m = messages.hook.secrets;
 /** Exit 0 PASS, 3 FAIL, anything else (a timeout included) SKIP. */
 export function checkSecrets(repo, { probes, env }) {
   if (!probes.hasTool('gitleaks')) return skip(m.needsGitleaks);
-  const r = probes.scanStaged(repo.root, { env });
+  const r = probes.scanStaged(repo.top ?? repo.root, { env });
   if (r.status === 0) return pass(m.clean(probes.gitleaksVersion()));
   if (r.status === 3) return fail(m.found);
   return skip(m.didNotRun(r.timedOut ? m.timedOut(SCAN_CAP_MS / 1000) : m.exit(r.status)));

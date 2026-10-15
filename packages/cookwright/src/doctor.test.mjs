@@ -543,6 +543,19 @@ describe('tools.gitleaks', () => {
     expect(tool({ gitleaksVersion: () => null })).toEqual({ status: 'PASS', note: m.gitleaks.ok(null) });
   });
 
+  it('runs the dry run at the work tree top when cookwright.json is below it', () => {
+    const top = gitInit(path.join(TMP, `nested-gitleaks-${(n += 1)}`));
+    const app = path.join(top, 'apps/mobile');
+    writeAll(app, { 'cookwright.json': JSON.stringify({ version: 1 }) });
+    const roots = [];
+    const scanStaged = (root) => {
+      roots.push(root);
+      return { status: 0, timedOut: false, stderr: '' };
+    };
+    expect(doctor(app, { probes: probes({ scanStaged }) })['tools.gitleaks'].status).toBe('PASS');
+    expect(roots).toEqual([fs.realpathSync(top)]);
+  });
+
   it('FAILs any other exit, naming the first stderr line', () => {
     const scanStaged = () => ({ status: 1, timedOut: false, stderr: '\nerror: .gitleaks.toml: bad rule\nmore\n' });
     expect(tool({ scanStaged })).toEqual({

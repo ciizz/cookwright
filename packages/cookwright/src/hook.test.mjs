@@ -525,9 +525,9 @@ describe('end to end: a real git commit through the shim', () => {
   const head = (repo) => run(repo.root, 'git', ['rev-parse', 'HEAD']);
 
   /** `git commit` for real (hooks on), with `files` staged. */
-  function gitCommit(repo, files, msg = 'feat: change') {
+  function gitCommit(repo, files, msg = 'feat: change', env = GIT_ENV) {
     stage(repo, files);
-    const r = spawnSync('git', ['commit', '-q', '-m', msg], { cwd: repo.root, env: GIT_ENV, encoding: 'utf8' });
+    const r = spawnSync('git', ['commit', '-q', '-m', msg], { cwd: repo.root, env, encoding: 'utf8' });
     return { status: r.status, output: `${r.stdout}${r.stderr}` };
   }
 
@@ -580,6 +580,18 @@ describe('end to end: a real git commit through the shim', () => {
     expect(gitCommit(repo, { 'docs/guide.md': 'updated' }).status).toBe(0);
   });
 
+  /** A gitleaks on PATH that logs the directory it ran in, finds nothing and says 8.30.1. */
+  function cwdGitleaks(dir) {
+    const bin = path.join(dir, 'fake-bin');
+    fs.mkdirSync(bin, { recursive: true });
+    const log = path.join(dir, 'gitleaks-cwd.log');
+    const script = `#!/bin/sh\n[ "$1" = version ] && { echo 8.30.1; exit 0; }\npwd -P >> '${log}'\nexit 0\n`;
+    fs.writeFileSync(path.join(bin, 'gitleaks'), script, { mode: 0o755 });
+    const env = { ...GIT_ENV, PATH: `${bin}${path.delimiter}${GIT_ENV.PATH}` };
+    delete env.COOKWRIGHT_SKIP;
+    return { env, cwds: () => fs.readFileSync(log, 'utf8').split('\n').filter(Boolean) };
+  }
+
   it('a config below the work tree top: init writes the shims at the top, a real commit is checked, doctor agrees', () => {
     const top = gitInit(path.join(TMP, `nested-${(n += 1)}`));
     const repo = { root: path.join(top, 'apps/mobile') };
@@ -597,8 +609,11 @@ describe('end to end: a real git commit through the shim', () => {
     expect(fs.existsSync(path.join(repo.root, '.githooks'))).toBe(false);
     expect(run(top, 'git', ['config', '--get', 'core.hooksPath'])).toBe('.githooks');
     const before = head(outer);
-    const refused = gitCommit(outer, { 'apps/mobile/src/a.mjs': 'a' });
+    const scan = cwdGitleaks(path.join(TMP, `nested-bin-${n}`));
+    const refused = gitCommit(outer, { 'apps/mobile/src/a.mjs': 'a' }, 'feat: change', scan.env);
     expect(refused.status).toBe(1);
+    expect(refused.output).toContain('pre-commit  PASS  secrets  staged diff clean (gitleaks 8.30.1)');
+    expect(scan.cwds()).toEqual([fs.realpathSync(top)]); // the whole staged diff, never apps/mobile alone
     expect(refused.output).toMatch(/pre-commit {2}FAIL {2}doc-sync {2}docs: 1 file\(s\) changed \(apps\/mobile\/src\/a\.mjs\)/);
     expect(head(outer)).toBe(before);
     expect(gitCommit(outer, { 'apps/mobile/docs/guide.md': 'updated' }).status).toBe(0);

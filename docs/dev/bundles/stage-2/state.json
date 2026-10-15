@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 33,
+  "revision": 37,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -88,7 +88,7 @@
     },
     {
       "name": "implement:s1",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -96,11 +96,15 @@
           "stateRevision": 30,
           "planSha": "825bfd5edc1f9ee2",
           "codex": true,
-          "runId": "wf_a1b42c47-e7b"
+          "runId": "wf_a1b42c47-e7b",
+          "endedAt": "2026-10-15T15:50:24.910Z",
+          "turnOutputTokens": 158547
         }
       ],
       "startCommit": "40300c470e8a784dce45ec571b3169304956d7ec",
-      "range": null
+      "range": null,
+      "endCommit": "4a280996e02c40664286a0ffed47d64ccfcfb72d",
+      "endCode": "4a280996e02c40664286a0ffed47d64ccfcfb72d"
     },
     {
       "name": "review:changelog",
@@ -176,6 +180,19 @@
           "ms": 17906
         }
       ]
+    },
+    {
+      "commit": "4a280996e02c40664286a0ffed47d64ccfcfb72d",
+      "at": "2026-10-15T15:50:12.055Z",
+      "slice": "changelog",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 20896
+        }
+      ]
     }
   ],
   "findings": [
@@ -234,7 +251,14 @@
       "head": "dc44c4f7d976324e3a11b7779b0cc63a2aa2c582"
     }
   ],
-  "reports": [],
+  "reports": [
+    {
+      "phase": "implement:s1",
+      "path": "docs/dev/bundles/stage-2/sessions/implement-s1-1.md",
+      "at": "2026-10-15T15:49:25.946Z",
+      "stored": true
+    }
+  ],
   "qaRounds": [],
   "decisions": [
     {
@@ -375,6 +399,13 @@
       "actor": "orchestrator",
       "source": "plan-review round 1, finding 17; plan §10",
       "text": "The recorded s1 scope says 'cli-main registration of changelog and hook names in the usage'; corrected by plan §10: s1 registers changelog only, the usage reads <init|doctor|changelog|bundle>, and s2 adds hook with its module. The state's split text is the CLI's and stays as recorded.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:49:50.724Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open questions, 2026-10-15",
+      "text": "README line 5 ('nothing is released yet') is reworded in s3's README pass (plan §7 step 5), not in s1: B-005 named only the Install line. The changelog refusal for a link keeps init's shape with 'the changelog is not written through one' (accepted deviation from 'the same message'). The hand-written Unreleased line s1 added to this repo's CHANGELOG.md is accepted: the v1 block in force requires it, and s3's --adopt drops it per the developer's decision.",
       "claim": true
     }
   ],

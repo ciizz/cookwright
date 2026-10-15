@@ -15,8 +15,11 @@ export const HOSTS = Object.freeze({
     // Where this repo keeps the adapter's workflow scripts, relative to the root.
     workflows: 'hosts/claude/workflows',
     skills: 'hosts/claude/skills',
-    // The file the host reads its rules from.
-    rules: 'CLAUDE.md',
+    // The files the host reads its rules from, in the order a session should read
+    // them; whichever exist are hashed into every prompt. The charter puts rules in
+    // AGENTS.md; Claude Code also reads CLAUDE.md, which may be the whole rules file
+    // or a pointer to AGENTS.md.
+    rules: ['AGENTS.md', 'CLAUDE.md'],
   }),
 });
 
@@ -29,5 +32,5 @@ export const defaultHost = (config) => HOSTS[config.hosts[0]];
 export const workflowScript = (config, name) =>
   path.posix.join(defaultHost(config).workflows, `${name}.js`);
 
-/** Root-relative path of the default host's rules file. */
-export const rulesFile = (config) => defaultHost(config).rules;
+/** Root-relative paths of the default host's candidate rules files. */
+export const rulesFiles = (config) => defaultHost(config).rules;

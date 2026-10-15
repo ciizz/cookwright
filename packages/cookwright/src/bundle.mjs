@@ -43,7 +43,7 @@ import { pathToFileURL } from 'node:url';
 
 import { bundleChecks, repoChecks, summarize, FAIL } from './lib/bundle/check.mjs';
 import { renderCloseoutDraft } from './lib/bundle/closeout.mjs';
-import { gatePassed, onPath, runGate } from './lib/bundle/gate.mjs';
+import { gatePassed, onPath, passLabel, runGate } from './lib/bundle/gate.mjs';
 import {
   currentBranch,
   dirtyPaths,
@@ -124,9 +124,7 @@ function numberFlag(flags, name) {
 const stringFlag = (flags, name) =>
   flags[name] === undefined ? undefined : need(flags[name], `--${name} <value>`);
 
-function readStdin() {
-  return fs.readFileSync(0, 'utf8');
-}
+const readStdin = () => fs.readFileSync(0, 'utf8');
 
 // ── the repo ─────────────────────────────────────────────────────────────────
 
@@ -226,7 +224,7 @@ function cmdStatus(repo, pos) {
   console.log(`plan     : ${state.plan.path}`);
   console.log(`phases   : ${state.phases.map((p) => `${p.name}[${p.status}]`).join(' ')}`);
   console.log(
-    `last gate: ${lastGate ? `${lastGate.passed ? 'pass' : 'FAIL'} on ${lastGate.commit.slice(0, 8)}` : 'none'}`,
+    `last gate: ${lastGate ? `${lastGate.passed ? passLabel(lastGate) : 'FAIL'} on ${lastGate.commit.slice(0, 8)}` : 'none'}`,
   );
   console.log(`next     : ${nextAction(repo, state, phase)}`);
   return 0;
@@ -328,10 +326,10 @@ function cmdPhase(repo, pos, flags) {
 
 // ── records ──────────────────────────────────────────────────────────────────
 
-function cmdRecord(repo, pos, flags) {
+function cmdRecord(repo, pos, flags, io) {
   const state = openBundle(repo, pos[0]);
   const kind = need(pos[1], 'findings|session|qa');
-  const input = readStdin();
+  const input = io.input();
   let rel;
   if (kind === 'findings') {
     const phaseName = need(pos[2], '<phase>');
@@ -507,7 +505,8 @@ const COMMANDS = {
   'closeout-draft': cmdCloseoutDraft,
 };
 
-export function main(argv = process.argv.slice(2), { cwd = process.cwd() } = {}) {
+/** `io.input` reads stdin; tests inject it. */
+export function main(argv = process.argv.slice(2), { cwd = process.cwd(), input = readStdin } = {}) {
   const [command, ...rest] = argv;
   const fn = COMMANDS[command];
   if (!fn) {
@@ -516,7 +515,7 @@ export function main(argv = process.argv.slice(2), { cwd = process.cwd() } = {})
   }
   const { pos, flags } = parseArgv(rest);
   try {
-    return fn(openRepo(cwd), pos, flags);
+    return fn(openRepo(cwd), pos, flags, { input });
   } catch (err) {
     console.error(`bundle ${command}: ${err.message}`);
     return 2;

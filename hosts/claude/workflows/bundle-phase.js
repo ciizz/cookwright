@@ -163,9 +163,9 @@ const RANGE = args.range ? `${args.range.from}..${args.range.to}` : null;
 const CODEX = Boolean(args.codex);
 
 function header(role) {
-  const rules = args.rules
-    ? `- the repo's rules file ${args.rules.path} (sha ${args.rules.sha}): every rule in it applies to you.\n`
-    : '';
+  const rules = (args.rules ?? [])
+    .map((r) => `- the repo's rules file ${r.path} (sha ${r.sha}): every rule in it applies to you.\n`)
+    .join('');
   return `You are the ${role} of the cookwright bundle "${args.slug}" (branch ${args.branch}, phase ${args.name}).
 Before acting, read these yourself — they are not pasted here:
 ${rules}- the playbook ${args.playbook.path} (sha ${args.playbook.sha}): the "${role}" role section and "Prompt header".
@@ -178,7 +178,7 @@ function codexReviewer(target) {
   return `${header('reviewer')}
 
 You are the CODEX reviewer. Do not review yourself: run Codex, exactly as the playbook's "Codex by file reference" says — a runner script written with the Write tool, run in the FOREGROUND with a Bash timeout of 600000, the target named by reference (never inlined), a capped command budget. Target: ${target}.
-Transcribe Codex's findings into the schema faithfully; add none of your own. If the run hits the ceiling, do the playbook's recovery YOURSELF before returning: \`codex exec resume <session-id> "Stop investigating now. Write the full report from what you have already read."\`. Set timedOut=true (with the session id and the partial output path) only if that also fails — a returned timeout is cached, and a resumed Workflow would replay it.`;
+Transcribe Codex's findings into the schema faithfully; add none of your own. If the run hits the ceiling, do the playbook's recovery YOURSELF before returning: \`codex exec resume <session-id> "Stop investigating now. Write the full report from what you have already read."\` at medium effort. Set timedOut=true (with the session id and the partial output path) only if that also fails — a returned timeout is cached, and a resumed Workflow would replay it.`;
 }
 
 function redTeam(target) {
@@ -303,25 +303,7 @@ async function review(title, fixed) {
   const codex = CODEX ? results[0] : null;
   if (codex?.timedOut)
     log(`codex hit its ceiling — session ${codex.codexSessionId ?? '?'}; resume per the playbook`);
-
-  const groups = [...new Set(issues.map((x) => x.file))].map((file) => ({
-    file,
-    issues: issues.filter((x) => x.file === file),
-  }));
-  const judged = await pipeline(
-    groups,
-    (g) =>
-      agent(verifyPrompt(g.file, g.issues), {
-        label: `verify:${g.file}`,
-        phase: 'Verify',
-        schema: VERDICTS,
-        ...TIERS.standard,
-      }),
-    (result, g) => verdictsFor(g, result),
-  );
-  // A stage that threw leaves null: its group still goes forward, all plausible.
-  const verified = groups.flatMap((g, n) => judged[n] ?? verdictsFor(g, null));
-
+  const verified = await verify(issues);
   // A review where a reviewer never finished is NOT a clean review: say so, and
   // `bundle record findings` refuses it unless the orchestrator accepts it by name.
   return {
@@ -338,6 +320,26 @@ async function review(title, fixed) {
       partialReportPath: codex?.partialReportPath ?? null,
     },
   };
+}
+
+/** One adversarial verifier per file group; a group whose verifier threw stays plausible. */
+async function verify(issues) {
+  const groups = [...new Set(issues.map((x) => x.file))].map((file) => ({
+    file,
+    issues: issues.filter((x) => x.file === file),
+  }));
+  const judged = await pipeline(
+    groups,
+    (g) =>
+      agent(verifyPrompt(g.file, g.issues), {
+        label: `verify:${g.file}`,
+        phase: 'Verify',
+        schema: VERDICTS,
+        ...TIERS.standard,
+      }),
+    (result, g) => verdictsFor(g, result),
+  );
+  return groups.flatMap((g, n) => judged[n] ?? verdictsFor(g, null));
 }
 
 /**

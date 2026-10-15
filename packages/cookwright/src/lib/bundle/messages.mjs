@@ -14,7 +14,7 @@ export const messages = {
 
   // gate
   skippedNeeds: (tool) => `skipped, needs ${tool}, run setup`,
-  skippedNotFound: 'skipped, command not found',
+  skippedNotFound: (cmd) => `skipped, command not found: ${cmd}`,
   noChecksConfigured: `gate.checks is empty in ${CONFIG_FILE} — add the commands that verify this repo`,
   noCheckRan: `no check ran (every check was skipped) — run setup, or fix gate.checks in ${CONFIG_FILE}`,
   noFlakes: `--retry needs --flake <id>, and gate.flakes in ${CONFIG_FILE} names no flake yet`,

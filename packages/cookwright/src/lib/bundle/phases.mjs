@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { rulesFile } from '../hosts.mjs';
+import { rulesFiles } from '../hosts.mjs';
 import { CLI } from './messages.mjs';
 import { bundleDir, bundleRel, findPhase, sha256File, sliceOfPhase } from './state.mjs';
 
@@ -150,7 +150,7 @@ export function workflowArgs(state, name, repo) {
   const kind = kindOf(name);
   if (!WORKFLOW_KINDS.has(kind)) throw new Error(`${name} is not a Workflow phase`);
   if (phase.status !== 'running') throw new Error(`start ${name} first (bundle phase start)`);
-  const rules = rulesFile(repo.config);
+  const rules = rulesFiles(repo.config).filter((f) => fs.existsSync(path.join(repo.root, f)));
   const args = {
     phase: kind,
     name,
@@ -161,7 +161,7 @@ export function workflowArgs(state, name, repo) {
     state: bundleRel(repo, state.slug, 'state.json'),
     plan: pointer(repo, state.plan.path),
     playbook: pointer(repo, repo.config.paths.playbook),
-    ...(fs.existsSync(path.join(repo.root, rules)) ? { rules: pointer(repo, rules) } : {}),
+    ...(rules.length ? { rules: rules.map((f) => pointer(repo, f)) } : {}),
   };
   const slice = sliceOfPhase(state, name);
   if (slice) args.slice = { id: slice.id };

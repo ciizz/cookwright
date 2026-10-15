@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { dirtyPaths, head, isAncestor, lastCodeCommit, mergeBase } from './git.mjs';
-import { onPath } from './gate.mjs';
+import { onPath, skippedNames } from './gate.mjs';
 import { messages } from './messages.mjs';
 import { blockingOpen, closeoutPath } from './phases.mjs';
 import { sha256File } from './state.mjs';
@@ -93,10 +93,13 @@ function latestGateCheck(state, ctx) {
       `latest gate is on ${short(latest.commit)}, last code commit is ${short(ctx.lastCode)}`,
     );
   }
-  if (latest.commit === ctx.lastCode) return ok(`passed on ${short(latest.commit)}`);
-  return ok(
-    `passed on ${short(latest.commit)}, which contains the last code ${short(ctx.lastCode)}`,
-  );
+  const where =
+    latest.commit === ctx.lastCode
+      ? `passed on ${short(latest.commit)}`
+      : `passed on ${short(latest.commit)}, which contains the last code ${short(ctx.lastCode)}`;
+  // A pass with skipped checks is a pass with holes: say which, as a WARN.
+  const skipped = skippedNames(latest.checks ?? []);
+  return skipped.length ? warn(`${where}; skipped: ${skipped.join(', ')}`) : ok(where);
 }
 
 export function phaseChecks(state) {

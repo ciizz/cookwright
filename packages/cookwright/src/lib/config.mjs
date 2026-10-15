@@ -58,25 +58,35 @@ export function loadConfig(root) {
   } catch (err) {
     throw new Error(`${CONFIG_FILE}: ${err.code === 'ENOENT' ? 'not found' : err.message}`);
   }
+  if (!isObj(raw)) throw new Error(`${CONFIG_FILE}: must be a JSON object`);
   const config = withDefaults(raw);
   const problems = validateConfig(config);
   if (problems.length) throw new Error(`${CONFIG_FILE}:\n  ${problems.join('\n  ')}`);
   return config;
 }
 
-/** Defaults applied one level deep: an absent `paths.x` or `gate.x` gets its default. */
+const isStr = (v) => typeof v === 'string' && v.length > 0;
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+/** A path with its trailing slashes removed, so `docs/x/` and `docs/x` are one path. */
+const trimSlash = (p) => (typeof p === 'string' ? p.replace(/\/+$/, '') : p);
+
+/**
+ * Defaults applied one level deep: an absent `paths.x` or `gate.x` gets its default.
+ * `version` is never defaulted — a config must say which format it speaks.
+ */
 export function withDefaults(raw) {
-  const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+  const obj = (v) => (isObj(v) ? v : {});
+  const paths = { ...DEFAULTS.paths, ...obj(raw?.paths) };
+  for (const k of Object.keys(paths)) paths[k] = trimSlash(paths[k]);
   return {
     ...DEFAULTS,
     ...raw,
-    paths: { ...DEFAULTS.paths, ...obj(raw?.paths) },
+    version: raw?.version,
+    paths,
     gate: { ...DEFAULTS.gate, ...obj(raw?.gate) },
   };
 }
-
-const isStr = (v) => typeof v === 'string' && v.length > 0;
-const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 function unknownKeys(obj, known, where) {
   return Object.keys(obj)
@@ -96,28 +106,46 @@ export function validateConfig(config) {
   ];
 }
 
-function validateTop({ version, hosts, baseBranch }) {
+function validateTop({ $schema, version, hosts, baseBranch }) {
   const out = [];
+  if ($schema !== undefined && !isStr($schema)) out.push('$schema must be a string');
   if (version !== CONFIG_VERSION) out.push(`version must be ${CONFIG_VERSION}`);
   if (!Array.isArray(hosts) || hosts.length === 0) out.push('hosts must be a non-empty list');
   else {
     for (const h of hosts) {
       if (!KNOWN_HOSTS.includes(h)) out.push(`hosts: unknown host "${h}" (known: ${KNOWN_HOSTS.join(', ')})`);
     }
+    if (new Set(hosts).size !== hosts.length) out.push('hosts: each host once');
   }
   if (!isStr(baseBranch)) out.push('baseBranch must be a non-empty string');
   return out;
 }
 
-/** A root-relative path: no leading slash, no `..` segment, forward slashes. */
+/** A root-relative path inside the repo: no leading slash, no `..` or `.` segment, forward slashes. */
 const isRelPath = (p) =>
-  isStr(p) && !p.startsWith('/') && !p.includes('\\') && !p.split('/').includes('..');
+  isStr(p) &&
+  !p.startsWith('/') &&
+  !p.includes('\\') &&
+  p.split('/').every((seg) => seg !== '' && seg !== '.' && seg !== '..');
+
+/** `a` is `b` or inside it. */
+const within = (a, b) => a === b || a.startsWith(`${b}/`);
 
 function validatePaths(paths) {
   if (!isObj(paths)) return ['paths must be an object'];
   const out = unknownKeys(paths, KNOWN_KEYS.paths, 'paths');
   for (const key of KNOWN_KEYS.paths) {
-    if (!isRelPath(paths[key])) out.push(`paths.${key} must be a root-relative path`);
+    if (!isRelPath(paths[key])) out.push(`paths.${key} must be a root-relative path inside the repo`);
+  }
+  // The state homes must not nest: the gate ignores dirt under `bundles`, and a
+  // closeout or backlog inside it would be gated over while uncommitted.
+  const homes = ['bundles', 'closeouts', 'backlog'].filter((k) => isRelPath(paths[k]));
+  for (const a of homes) {
+    for (const b of homes) {
+      if (a < b && (within(paths[a], paths[b]) || within(paths[b], paths[a]))) {
+        out.push(`paths.${a} and paths.${b} overlap (${paths[a]}, ${paths[b]})`);
+      }
+    }
   }
   return out;
 }

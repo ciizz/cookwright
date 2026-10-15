@@ -27,7 +27,7 @@ import {
   summarize,
 } from './lib/bundle/check.mjs';
 import { fiveNumbers, renderCloseoutDraft } from './lib/bundle/closeout.mjs';
-import { gatePassed, planChecks, runGate } from './lib/bundle/gate.mjs';
+import { commandOf, gatePassed, passLabel, planChecks, runGate } from './lib/bundle/gate.mjs';
 import { dirtyPaths, isAncestor, lastCodeCommit } from './lib/bundle/git.mjs';
 import { messages } from './lib/bundle/messages.mjs';
 import {
@@ -289,8 +289,7 @@ describe('phases and the args invariant', () => {
   it('points at the configured playbook, the rules file and the CLI, with hashes', () => {
     const args = workflowArgs(state, 'review:schema', repo);
     expect(args.playbook.path).toBe('docs/playbook.md');
-    expect(args.rules.path).toBe('CLAUDE.md');
-    expect(args.rules.sha).toMatch(/^[0-9a-f]{16}$/);
+    expect(args.rules).toEqual([{ path: 'CLAUDE.md', sha: expect.stringMatching(/^[0-9a-f]{16}$/) }]);
     expect(args.state).toBe('docs/bundles/demo/state.json');
     expect(args.cli).toBe('node packages/cookwright/src/bundle.mjs');
     expect(args.codex).toBe(true); // frozen at phase start, a measured fact
@@ -310,7 +309,11 @@ describe('phases and the args invariant', () => {
     fs.writeFileSync(path.join(repo.root, 'plan.md'), 'plan v2');
     expect(workflowArgs(state, 'review:schema', repo).plan.sha).not.toBe(before.plan.sha);
     fs.writeFileSync(path.join(repo.root, 'CLAUDE.md'), 'rules v2');
-    expect(workflowArgs(state, 'review:schema', repo).rules.sha).not.toBe(before.rules.sha);
+    expect(workflowArgs(state, 'review:schema', repo).rules[0].sha).not.toBe(before.rules[0].sha);
+    // Both candidate rules files are read, in order, when both exist.
+    fs.writeFileSync(path.join(repo.root, 'AGENTS.md'), 'agents');
+    expect(workflowArgs(state, 'review:schema', repo).rules.map((r) => r.path)).toEqual(['AGENTS.md', 'CLAUDE.md']);
+    fs.rmSync(path.join(repo.root, 'AGENTS.md'));
   });
 
   it('stores findings with verdict counts and feeds their hash to the fix args', () => {
@@ -420,6 +423,18 @@ describe('check', () => {
     );
     const equal = verdicts({ ...base, gates: [gate('c3')] }, { lastCode: 'c3' });
     expect(equal['bundle.gate-latest'].note).toBe('passed on c3');
+  });
+
+  it('warns on a latest gate that passed with skipped checks, naming them', () => {
+    const holed = gate('c3', {
+      checks: [
+        { name: 'test', result: 'skipped', note: 'skipped, needs deno, run setup' },
+        { name: 'lint', result: 'pass' },
+      ],
+    });
+    const rows = verdicts({ ...base, gates: [holed] }, { lastCode: 'c3' });
+    expect(rows['bundle.gate-latest']).toMatchObject({ status: 'WARN' });
+    expect(rows['bundle.gate-latest'].note).toMatch(/passed on c3; skipped: test/);
   });
 
   it('fails a stale latest gate and a red latest gate', () => {
@@ -539,14 +554,18 @@ describe('gate', () => {
     config: { gate: { checks, flakes: {} } },
   });
 
-  it('skips a check whose tool is missing, with the note a user acts on', () => {
+  it('skips a check whose tool or command is missing, with the note a user acts on', () => {
     const checks = [
       { name: 'a', run: 'true' },
       { name: 'b', run: 'true', needs: ['deno', 'docker'] },
+      { name: 'c', run: 'CI=1 FOO=bar no-such-cmd --flag' },
     ];
-    const planned = planChecks({ checks, hasTool: (t) => t !== 'docker' });
+    const planned = planChecks({ checks, hasTool: (t) => t !== 'docker' && t !== 'no-such-cmd' });
     expect(planned[0].skip).toBeUndefined();
     expect(planned[1].skip).toBe('skipped, needs docker, run setup');
+    expect(planned[2].skip).toBe('skipped, command not found: no-such-cmd');
+    expect(commandOf('  A=1 npm test')).toBe('npm');
+    expect(commandOf('')).toBe('');
   });
 
   it('runs shell commands, passes over skips, and shows every red at once', () => {
@@ -556,17 +575,24 @@ describe('gate', () => {
         { name: 'needs', run: 'true', needs: ['no-such-tool-xyz'] },
         { name: 'absent', run: 'no-such-command-xyz --flag' },
         { name: 'red', run: 'echo boom >&2; exit 3' },
+        // Absence is decided before the run: a 127 from a command that DID start
+        // (a runner missing below npm, say) is a failure, never a skip.
+        { name: 'inner127', run: 'sh -c "exit 127"' },
       ]),
       ...quiet,
     });
     const by = Object.fromEntries(out.results.map((r) => [r.name, r]));
     expect(by.ok.result).toBe('pass');
     expect(by.needs).toMatchObject({ result: 'skipped', note: messages.skippedNeeds('no-such-tool-xyz') });
-    expect(by.absent).toMatchObject({ result: 'skipped', note: messages.skippedNotFound });
+    expect(by.absent).toMatchObject({ result: 'skipped', note: messages.skippedNotFound('no-such-command-xyz') });
     expect(by.red.result).toBe('fail');
     expect(by.red.tail).toMatch(/boom/);
+    expect(by.inner127.result).toBe('fail');
     expect(gatePassed(out.results)).toBe(false);
-    expect(gatePassed(out.results.filter((r) => r.name !== 'red'))).toBe(true);
+    const greens = out.results.filter((r) => !['red', 'inner127'].includes(r.name));
+    expect(gatePassed(greens)).toBe(true);
+    expect(passLabel({ checks: greens })).toBe('pass (skipped: needs, absent)');
+    expect(passLabel({ checks: [by.ok] })).toBe('pass');
   });
 
   it('refuses a gate in which nothing ran, and an empty check list', () => {
@@ -661,6 +687,7 @@ describe('review completeness and phase evidence', () => {
     expect(doneBlocker(state, 'plan-review', { head: base, acceptOpen: 'product call' })).toBeNull();
     // the rerun re-judges the open findings only
     expect(workflowArgs(state, 'plan-review', repo).recheck.path).toMatch(/plan-review-2\.json$/);
+    expect(workflowArgs(state, 'plan-review', repo).rules).toBeUndefined(); // no rules file here
     recordFindings(repo, state, 'plan-review', { issues: [issue('P3')] }, 't');
     expect(doneBlocker(state, 'plan-review', { head: base })).toBeNull();
     expect(workflowArgs(state, 'plan-review', repo).recheck).toBeUndefined();
@@ -1059,12 +1086,68 @@ describe('the CLI', () => {
       branch: 'bundle/demo',
       state: 'docs/bundles/demo/state.json',
       playbook: { path: 'docs/playbook.md' },
-      rules: { path: 'CLAUDE.md' },
+      rules: [{ path: 'CLAUDE.md' }],
     });
     expect(typeof args.codex).toBe('boolean');
     expect(cli('status')).toBe(0); // the slug resolves from the branch
     expect(logs.join('\n')).toMatch(/Workflow\(\{ scriptPath: 'hosts\/claude\/workflows\/bundle-phase\.js'/);
     expect(cli('check', '--ci')).toBe(0);
     expect(logs.join('\n')).toMatch(/SKIP  repo  no repo-wide checks configured/);
+    // The skipped check is on the recorded event, and status reads it back.
+    const state = () => JSON.parse(fs.readFileSync(path.join(repo.root, 'docs/bundles/demo/state.json'), 'utf8'));
+    expect(state().gates[0].checks).toEqual([
+      { name: 'ok', result: 'pass', ms: expect.any(Number) },
+      { name: 'opt', result: 'skipped', ms: 0, note: 'skipped, needs no-such-tool-xyz, run setup' },
+    ]);
+    expect(logs.join('\n')).toMatch(/last gate: pass \(skipped: opt\) on/);
+  });
+
+  it('records findings, closes a phase, takes decisions and costs, and audits a retry', () => {
+    const flag = path.join(TMP, 'cli-retry-flag');
+    const repo = scratchRepo('cli-retry', {
+      gate: {
+        checks: [{ name: 'flaky', run: `test -f ${flag}` }],
+        flakes: { 'B-1': 'a suite that needs a warm cache' },
+      },
+    });
+    commit(repo, { 'docs/playbook.md': 'pb' }, 'main');
+    const plan = path.join(TMP, 'cli-retry-plan.md');
+    const split = path.join(TMP, 'cli-retry-split.json');
+    fs.writeFileSync(plan, 'the plan');
+    fs.writeFileSync(split, JSON.stringify({ slices: [{ id: 'core', sessions: [{ id: 's1', scope: '§1' }] }] }));
+    run(repo.root, 'git', ['checkout', '-q', '-b', 'bundle/rt']);
+    let stdin = '';
+    const cli = (...argv) => main(argv, { cwd: repo.root, input: () => stdin });
+    expect(cli('init', 'rt', '--plan', plan, '--split', split)).toBe(0);
+    commit(repo, {}, 'chore(bundle): rt initialized');
+
+    expect(cli('gate', 'rt')).toBe(1); // red: the flag file is absent
+    expect(cli('gate', 'rt', '--retry', '--flake', 'B-9')).toBe(2);
+    expect(errors.at(-1)).toMatch(/--flake B-9 is not an allowlisted flake \(B-1\)/);
+    fs.writeFileSync(flag, '');
+    expect(cli('gate', 'rt', '--retry', '--flake', 'B-1')).toBe(0);
+    const state = () => JSON.parse(fs.readFileSync(path.join(repo.root, 'docs/bundles/rt/state.json'), 'utf8'));
+    expect(state().gates.map((g) => [g.passed, g.retryOf, g.flake])).toEqual([
+      [false, undefined, undefined],
+      [true, 0, 'B-1'],
+    ]);
+    expect(cli('gate', 'rt', '--retry', '--flake', 'B-1')).toBe(2); // the latest gate passed
+
+    expect(cli('phase', 'rt', 'start', 'plan-review')).toBe(0);
+    expect(cli('phase', 'rt', 'done', 'plan-review')).toBe(2);
+    expect(errors.at(-1)).toMatch(/record plan-review's findings first/);
+    stdin = JSON.stringify({ issues: [{ file: 'plan', severity: 'P3', verdict: 'plausible' }] });
+    expect(cli('record', 'rt', 'findings', 'plan-review')).toBe(0);
+    expect(logs.at(-1)).toBe('stored docs/bundles/rt/findings/plan-review-1.json');
+    expect(cli('phase', 'rt', 'done', 'plan-review', '--usage', '1200')).toBe(0);
+    expect(cli('decide', 'rt', '--actor', 'orchestrator', '--source', 'plan §2', '--text', 'kept the P3')).toBe(0);
+    expect(cli('cost', 'rt', '--usd', '1.5', '--note', 'plan review')).toBe(0);
+    expect(cli('cost', 'rt')).toBe(2);
+    const s = state();
+    expect(s.phases[0]).toMatchObject({ status: 'done', runs: [{ turnOutputTokens: 1200 }] });
+    expect(s.decisions.at(-1)).toMatchObject({ text: 'kept the P3', claim: true });
+    expect(s.costs).toEqual([{ at: expect.any(String), usd: 1.5, note: 'plan review', entered: true }]);
+    expect(cli('status')).toBe(0);
+    expect(logs.at(-1)).toMatch(/next     : node packages\/cookwright\/src\/bundle\.mjs phase rt start implement:s1/);
   });
 });

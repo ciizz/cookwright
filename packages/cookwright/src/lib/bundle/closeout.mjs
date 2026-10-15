@@ -1,10 +1,12 @@
-// scripts/lib/bundle/closeout.mjs — the closeout's machine-derived skeleton.
+// src/lib/bundle/closeout.mjs — the closeout's machine-derived skeleton.
 //
 // The docs role fills in the narrative around it; the closeout-verify phase then
 // re-derives every claim. What this generates is the part no model should type: the
 // review trajectory, the gate history, the decisions taken on the developer's behalf,
 // and the five numbers a bundle is measured by — with the one number the runtime
 // cannot measure (USD) marked as entered.
+
+import { passLabel } from './gate.mjs';
 
 const short = (sha) => (sha ? sha.slice(0, 8) : '—');
 
@@ -73,7 +75,7 @@ function gateTable(state) {
     ...state.gates.map(
       (g, i) =>
         `| ${i} | \`${short(g.commit)}\` | ${g.slice ?? '—'} | ${
-          g.passed ? 'pass' : `FAIL (${failed(g).join(', ')})`
+          g.passed ? passLabel(g) : `FAIL (${failed(g).join(', ')})`
         } | ${g.retryOf ?? '—'} |`,
     ),
   ];

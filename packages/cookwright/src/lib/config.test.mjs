@@ -18,7 +18,7 @@ import {
   validateConfig,
   withDefaults,
 } from './config.mjs';
-import { KNOWN_HOSTS, rulesFile, workflowScript } from './hosts.mjs';
+import { KNOWN_HOSTS, rulesFiles, workflowScript } from './hosts.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCHEMA = JSON.parse(
@@ -61,9 +61,17 @@ describe('loadConfig', () => {
     expect(config.ci).toBeUndefined();
   });
 
-  it('names a missing or unparsable file', () => {
+  it('names a missing, unparsable or non-object file, and requires version', () => {
     expect(() => loadConfig(path.join(TMP, 'nowhere'))).toThrow(/not found/);
     expect(() => loadConfig(repoWith('broken', '{ nope'))).toThrow(/cookwright\.json: /);
+    expect(() => loadConfig(repoWith('array', '[]'))).toThrow(/must be a JSON object/);
+    expect(() => loadConfig(repoWith('null', 'null'))).toThrow(/must be a JSON object/);
+    expect(() => loadConfig(repoWith('empty', {}))).toThrow(/version must be 1/);
+  });
+
+  it('normalizes a trailing slash so the gate’s dirty-path exclusion matches', () => {
+    const dir = repoWith('slash', { version: 1, paths: { bundles: 'state/bundles/' } });
+    expect(loadConfig(dir).paths.bundles).toBe('state/bundles');
   });
 
   it('reports every problem at once', () => {
@@ -81,17 +89,29 @@ describe('validateConfig', () => {
     expect(validateConfig(valid())).toEqual([]);
   });
 
-  it('refuses an unknown host and keeps the known ones listed', () => {
+  it('refuses an unknown or repeated host and keeps the known ones listed', () => {
     expect(problems({ hosts: ['gemini'] })).toMatch(/unknown host "gemini" \(known: claude\)/);
     expect(problems({ hosts: 'claude' })).toMatch(/non-empty list/);
+    expect(problems({ hosts: ['claude', 'claude'] })).toMatch(/each host once/);
+    expect(problems({ $schema: 1 })).toMatch(/\$schema must be a string/);
   });
 
-  it('refuses paths that escape the root or are absolute', () => {
+  it('refuses paths that escape the root, are absolute, or are the root itself', () => {
     const paths = (p) => problems({ paths: { ...DEFAULTS.paths, bundles: p } });
     expect(paths('/tmp/x')).toMatch(/paths\.bundles must be a root-relative path/);
     expect(paths('../x')).toMatch(/paths\.bundles/);
+    expect(paths('.')).toMatch(/paths\.bundles/);
+    expect(paths('a//b')).toMatch(/paths\.bundles/);
     expect(paths('')).toMatch(/paths\.bundles/);
     expect(problems({ paths: { ...DEFAULTS.paths, extra: 'x' } })).toMatch(/paths: unknown key "extra"/);
+  });
+
+  it('refuses state homes that nest, since the gate ignores dirt under bundles', () => {
+    const nested = { ...DEFAULTS.paths, closeouts: 'docs/bundles/closeouts' };
+    expect(problems({ paths: nested })).toMatch(/paths\.bundles and paths\.closeouts overlap/);
+    const same = { ...DEFAULTS.paths, backlog: 'docs/bundles' };
+    expect(problems({ paths: same })).toMatch(/paths\.backlog and paths\.bundles overlap/);
+    expect(problems({ paths: { ...DEFAULTS.paths, backlog: 'docs/bundles.md' } })).toBe('');
   });
 
   it('refuses a malformed gate: checks shape, duplicate names, needs, flakes', () => {
@@ -159,8 +179,8 @@ describe('derived values', () => {
     ]);
   });
 
-  it('resolves the default host’s workflow script and rules file', () => {
+  it('resolves the default host’s workflow script and rules files', () => {
     expect(workflowScript(valid(), 'bundle-phase')).toBe('hosts/claude/workflows/bundle-phase.js');
-    expect(rulesFile(valid())).toBe('CLAUDE.md');
+    expect(rulesFiles(valid())).toEqual(['AGENTS.md', 'CLAUDE.md']);
   });
 });

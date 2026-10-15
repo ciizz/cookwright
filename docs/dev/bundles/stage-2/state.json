@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 97,
+  "revision": 98,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -544,6 +544,25 @@
       "stored": true,
       "head": "a741aafdf154e5c80b4974617a65da4c11d89e40",
       "closeoutSha": "a0e3373f25cfc7ec"
+    },
+    {
+      "phase": "closeout",
+      "path": "docs/dev/bundles/stage-2/findings/closeout-2.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 0,
+        "rejected": 4,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      },
+      "at": "2026-10-15T17:33:38.229Z",
+      "stored": true,
+      "head": "b369aadcabadf267f706310840dc9080afb01001",
+      "closeoutSha": "70d663dfc4977b7a"
     }
   ],
   "reports": [

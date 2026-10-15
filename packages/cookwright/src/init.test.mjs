@@ -296,6 +296,15 @@ describe('state homes', () => {
     expect(exists(root, 'docs/closeouts/.gitkeep')).toBe(true);
   });
 
+  it('adds a .gitkeep when the closeouts directory holds only ignored files, once', () => {
+    const root = fresh();
+    write(root, '.gitignore', '.DS_Store\n');
+    write(root, 'docs/closeouts/.DS_Store', 'x');
+    expect(init(root).rows['docs/closeouts/']).toEqual({ action: 'updated', note: m.homes.emptyDir });
+    expect(exists(root, 'docs/closeouts/.gitkeep')).toBe(true);
+    expect(init(root).rows['docs/closeouts/'].action).toBe('kept');
+  });
+
   it('keeps homes that exist, whatever they hold', () => {
     const root = fresh();
     write(root, 'docs/backlog.md', '# mine\n');

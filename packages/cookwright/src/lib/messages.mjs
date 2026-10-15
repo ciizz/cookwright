@@ -130,7 +130,7 @@ const init = {
   homes: {
     template: 'from the template',
     gitkeep: 'created, with a .gitkeep so a clone keeps it',
-    emptyDir: 'empty: .gitkeep added so a clone keeps it',
+    emptyDir: 'nothing in it git would keep: .gitkeep added so a clone keeps it',
     present: 'present',
   },
   block: {

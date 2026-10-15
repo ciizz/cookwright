@@ -23,6 +23,7 @@ const doctor = {
   hookLine: (text) => `cookwright doctor: ${text}`,
   crashed: (detail) => `cookwright doctor crashed: ${detail}`,
   checkThrew: (detail) => `the check could not run: ${detail}`,
+  checkTimedOut: (detail) => `unverified: ${detail}`,
   needsGit: 'skipped, needs git, run setup',
   configInvalid: 'config invalid',
 

@@ -10,7 +10,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { dispatch } from './cli-main.mjs';
 import { main } from './doctor.mjs';
-import { BUDGET_MS } from './lib/budget.mjs';
+import { BUDGET_MS, TimedOut } from './lib/budget.mjs';
 import { DEFAULTS } from './lib/config.mjs';
 import { checkClaudeHook } from './lib/doctor/claude.mjs';
 import { openDoctorRepo } from './lib/doctor/repo.mjs';
@@ -315,6 +315,18 @@ describe('secrets.env', () => {
     expect(doctor(level0(), { probes: throwing })['secrets.env']).toEqual({
       status: 'FAIL',
       note: m.checkThrew('git check-ignore .env failed: boom'),
+    });
+  });
+
+  it('reads a probe that outlasts the budget as unverified, never a FAIL', () => {
+    const slow = probes({
+      ignored: () => {
+        throw new TimedOut('git check-ignore');
+      },
+    });
+    expect(doctor(level0(), { probes: slow })['secrets.env']).toEqual({
+      status: 'SKIP',
+      note: m.checkTimedOut(messages.timedOut('git check-ignore')),
     });
   });
 });

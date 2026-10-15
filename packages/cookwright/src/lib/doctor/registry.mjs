@@ -4,6 +4,8 @@
 // needs: `config` (SKIP `config invalid` when the config did not load) and `git`
 // (SKIP `skipped, needs git, run setup` when git is not on PATH). A check that
 // throws is a FAIL naming why, never a crash of doctor: the hook must always exit 0.
+// A check whose subprocess outlasts the shared budget is a SKIP (unverified), not a
+// FAIL: a slow machine is not a missing piece.
 // levels.mjs names checks from this table; a test holds the two together.
 
 import { TimedOut } from '../budget.mjs';
@@ -47,7 +49,7 @@ function runOne(check, repo, probes) {
   try {
     return check.run(repo, probes);
   } catch (err) {
-    if (err instanceof TimedOut) return fail(m.checkThrew(messages.timedOut(err.what)));
+    if (err instanceof TimedOut) return skip(m.checkTimedOut(messages.timedOut(err.what)));
     return fail(m.checkThrew(firstLine(err?.message ?? err)));
   }
 }

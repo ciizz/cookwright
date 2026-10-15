@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 32,
+  "revision": 33,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -95,7 +95,8 @@
           "startedAt": "2026-10-15T15:38:44.680Z",
           "stateRevision": 30,
           "planSha": "825bfd5edc1f9ee2",
-          "codex": true
+          "codex": true,
+          "runId": "wf_a1b42c47-e7b"
         }
       ],
       "startCommit": "40300c470e8a784dce45ec571b3169304956d7ec",

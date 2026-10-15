@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 39,
+  "revision": 40,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -419,6 +419,13 @@
       "actor": "orchestrator",
       "source": "implement:s1 open questions, 2026-10-15",
       "text": "README line 5 ('nothing is released yet') is reworded in s3's README pass (plan §7 step 5), not in s1: B-005 named only the Install line. The changelog refusal for a link keeps init's shape with 'the changelog is not written through one' (accepted deviation from 'the same message'). The hand-written Unreleased line s1 added to this repo's CHANGELOG.md is accepted: the v1 block in force requires it, and s3's --adopt drops it per the developer's decision.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:51:49.868Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, implement:s1 strings batch",
+      "text": "The s1 strings stand as built: the changelog command's refusals, success and --check lines, the --unreleased headings, the generated file's header and section forms, the README Install and Commands text, the schema description of paths.changelog.",
       "claim": true
     }
   ],

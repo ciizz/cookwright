@@ -50,7 +50,7 @@ bundle init <slug> --plan <plan-path> --split <split.json>
 git add <paths.bundles>/<slug> && git commit -m "chore(bundle): <slug> initialized"
 ```
 
-`init` refuses on the base branch, on a dirty tree, and on an existing state. It records the branch that is checked out, which is why the branch comes first. It also copies the plan into `<paths.bundles>/<slug>/plan.md`, and that copy is the plan from then on: revisions go there, committed with the bundle.
+`bundle init` refuses on the base branch, on a dirty tree, and on an existing state. It records the branch that is checked out, which is why the branch comes first. It also copies the plan into `<paths.bundles>/<slug>/plan.md`, and that copy is the plan from then on: revisions go there, committed with the bundle.
 
 ### 4. Baseline gate
 

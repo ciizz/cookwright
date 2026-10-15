@@ -5,7 +5,7 @@ How a feature bundle runs across many fresh-context sessions with one orchestrat
 - **The state:** the bundle CLI (`npx cookwright bundle`, written `bundle …` below), its only writer. It reads `cookwright.json` at the repo root for the paths named `<paths.x>` here.
 - **The phase order and the schemas:** the host's `bundle-phase` workflow (`hosts/<host>/workflows/bundle-phase.js`).
 
-The entry point is the `/bundle` skill. The repo's rules file (`CLAUDE.md`, `AGENTS.md`) applies throughout; this file names the few rules a phase needs.
+The entry point is the `/bundle` skill. The repo's rules file (`AGENTS.md`, which a `CLAUDE.md` may import) applies throughout; this file names the few rules a phase needs.
 
 ## Phases
 
@@ -93,7 +93,7 @@ This covers `plan-review`, `implement:*`, `review:*`, `fix:*`, `qa` rounds and `
 
 - **The tree:** `git status` clean, or every dirty path named and dealt with.
 - **Sibling plans:** `git branch --sort=-committerdate | head`. Two sessions can plan the same item on the same day, and a branch-level plan doc is invisible to a session that did not write it.
-- **The split.** Propose it to the developer in about ten lines: slices, sessions, each session's scope as plan sections, checkpoints. `bundle init` writes it once they confirm. Cut the branch first, because `init` records the branch that is checked out.
+- **The split.** Propose it to the developer in about ten lines: slices, sessions, each session's scope as plan sections, checkpoints. `bundle init` writes it once they confirm. Cut the branch first, because `bundle init` records the branch that is checked out.
 
 ## Roles
 

@@ -15,6 +15,7 @@ import {
   findRoot,
   loadConfig,
   nonCodePathspecs,
+  unknownMagic,
   validateConfig,
   withDefaults,
   workTreeRoot,
@@ -81,6 +82,7 @@ describe('loadConfig', () => {
     expect(config.baseBranch).toBe('main');
     expect(config.paths).toEqual({ ...DEFAULTS.paths, bundles: 'state/bundles' });
     expect(config.gate).toEqual({ checks: [], flakes: {} });
+    expect(config.hooks).toEqual({ docSync: [] });
     expect(config.ci).toBeUndefined();
   });
 
@@ -178,6 +180,40 @@ describe('validateConfig', () => {
     expect(gate({ legs: {} })).toMatch(/gate: unknown key "legs"/);
   });
 
+  it('refuses a malformed hooks.docSync: shape, keys, names, pathspec lists', () => {
+    const rule = (r) => ({ name: 'playbook', code: ['src/*'], docs: ['docs/playbook.md'], ...r });
+    const hooks = (h) => problems({ hooks: { ...DEFAULTS.hooks, ...h } });
+    expect(hooks({ docSync: [rule()] })).toBe('');
+    expect(hooks({ docSync: 'x' })).toBe('hooks.docSync must be a list');
+    expect(hooks({ pushChecks: [] })).toMatch(/^hooks: unknown key "pushChecks"$/);
+    expect(hooks({ docSync: ['x'] })).toBe('hooks.docSync[0] must be an object');
+    expect(hooks({ docSync: [rule({ extra: 1 })] })).toBe('hooks.docSync[0]: unknown key "extra"');
+    expect(hooks({ docSync: [rule({ name: '' })] })).toBe('hooks.docSync[0].name must be a non-empty string');
+    const { docs, ...noDocs } = rule();
+    expect(docs).toBeDefined();
+    expect(hooks({ docSync: [noDocs] })).toBe('hooks.docSync[0].docs must be a non-empty list of git pathspecs');
+    expect(hooks({ docSync: [rule({ code: [] })] })).toBe(
+      'hooks.docSync[0].code must be a non-empty list of git pathspecs',
+    );
+    expect(hooks({ docSync: [rule({ code: ['src/*', 3, ''] })] })).toBe(
+      'hooks.docSync[0].code[1] must be a non-empty string\nhooks.docSync[0].code[2] must be a non-empty string',
+    );
+    expect(hooks({ docSync: [rule(), rule({ code: ['lib/*'] })] })).toBe('hooks.docSync[1]: duplicate name "playbook"');
+  });
+
+  it('refuses pathspec magic git does not know, and leaves the rest of a pathspec to git', () => {
+    const code = (spec) => problems({ hooks: { docSync: [{ name: 'r', code: [spec], docs: ['README.md'] }] } });
+    expect(code(':(foo)src')).toBe('hooks.docSync[0].code[0]: unknown pathspec magic "foo"');
+    expect(code(':(exclude,Glob)src')).toMatch(/unknown pathspec magic "Glob"/);
+    expect(code(':(top')).toMatch(/unknown pathspec magic "\(top"/);
+    expect(code(':x')).toMatch(/unknown pathspec magic ":x"/);
+    for (const ok of [':!x', ':^x', ':/x', ':/!x', '::x', ':(exclude,glob)x', ':(attr:text)x', ':()x', '*.md', 'a:b']) {
+      expect(code(ok)).toBe('');
+    }
+    const docs = problems({ hooks: { docSync: [{ name: 'r', code: ['x'], docs: [':(prefix:0)x'] }] } });
+    expect(docs).toBe('hooks.docSync[0].docs[0]: unknown pathspec magic "prefix:0"');
+  });
+
   it('refuses a ci block without a workflow', () => {
     expect(problems({ ci: {} })).toMatch(/ci\.workflow must name a workflow file/);
     expect(problems({ ci: { workflow: 'ci.yml' } })).toBe('');
@@ -195,6 +231,21 @@ describe('the schema and the validator agree', () => {
       [...KNOWN_KEYS.check].sort(),
     );
     expect(props(SCHEMA.properties.ci)).toEqual([...KNOWN_KEYS.ci].sort());
+    expect(props(SCHEMA.properties.hooks)).toEqual([...KNOWN_KEYS.hooks].sort());
+    const rule = SCHEMA.properties.hooks.properties.docSync.items;
+    expect(props(rule)).toEqual([...KNOWN_KEYS.docSyncRule].sort());
+    expect([...rule.required].sort()).toEqual([...KNOWN_KEYS.docSyncRule].sort());
+  });
+
+  it('agree on which pathspec magic is known', () => {
+    const rule = SCHEMA.properties.hooks.properties.docSync.items.properties;
+    expect(rule.docs.items).toEqual(rule.code.items);
+    const pattern = new RegExp(rule.code.items.pattern);
+    const specs = [
+      'src/*', ':!x', ':^x', ':/x', '::x', ':()x', ':(exclude,glob)x', ':(attr:text)x', ':(exclude,)x',
+      ':(top,literal,icase)x', ':(foo)x', ':(top', ':x', ':(prefix:0)x', ':(exclude,Glob)x',
+    ];
+    for (const spec of specs) expect([spec, pattern.test(spec)]).toEqual([spec, unknownMagic(spec) === null]);
   });
 
   it('agree on the defaults, the known hosts and the known levels', () => {
@@ -209,6 +260,7 @@ describe('the schema and the validator agree', () => {
       expect(p.paths.properties[key].default).toBe(DEFAULTS.paths[key]);
     }
     expect(p.version.const).toBe(DEFAULTS.version);
+    expect(p.hooks.properties.docSync.default).toEqual(DEFAULTS.hooks.docSync);
   });
 
   it('validates the repo’s own cookwright.json', () => {

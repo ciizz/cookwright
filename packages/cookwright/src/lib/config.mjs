@@ -33,16 +33,22 @@ export const DEFAULTS = Object.freeze({
     changelog: 'CHANGELOG.md',
   },
   gate: { checks: [], flakes: {} },
+  hooks: { docSync: [] },
 });
 
 /** Every key the validator knows, per object — the schema test compares these. */
 export const KNOWN_KEYS = Object.freeze({
-  top: ['$schema', 'version', 'level', 'hosts', 'baseBranch', 'paths', 'gate', 'ci'],
+  top: ['$schema', 'version', 'level', 'hosts', 'baseBranch', 'paths', 'gate', 'hooks', 'ci'],
   paths: ['bundles', 'closeouts', 'backlog', 'playbook', 'changelog'],
   gate: ['checks', 'flakes'],
   check: ['name', 'run', 'needs'],
+  hooks: ['docSync'],
+  docSyncRule: ['name', 'code', 'docs'],
   ci: ['workflow'],
 });
+
+/** git's long pathspec magic words (gitglossary); `attr` may carry `:<spec>`. */
+export const PATHSPEC_MAGIC = Object.freeze(['top', 'literal', 'icase', 'glob', 'attr', 'exclude']);
 
 /**
  * The git work tree's top directory containing `cwd`, or null (not a work tree, no
@@ -101,7 +107,7 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const trimSlash = (p) => (typeof p === 'string' ? p.replace(/\/+$/, '') : p);
 
 /**
- * Defaults applied one level deep: an absent `paths.x` or `gate.x` gets its default.
+ * Defaults applied one level deep: an absent `paths.x`, `gate.x` or `hooks.x` gets its default.
  * `version` is never defaulted — a config must say which format it speaks.
  */
 export function withDefaults(raw) {
@@ -114,6 +120,7 @@ export function withDefaults(raw) {
     version: raw?.version,
     paths,
     gate: { ...DEFAULTS.gate, ...obj(raw?.gate) },
+    hooks: { ...DEFAULTS.hooks, ...obj(raw?.hooks) },
   };
 }
 
@@ -131,6 +138,7 @@ export function validateConfig(config) {
     ...validateTop(config),
     ...validatePaths(config.paths),
     ...validateGate(config.gate),
+    ...validateHooks(config.hooks),
     ...validateCi(config.ci),
   ];
 }
@@ -216,6 +224,59 @@ function validateCheck(check, i) {
     out.push(`${where}.needs must be a list of executable names`);
   }
   return out;
+}
+
+function validateHooks(hooks) {
+  if (!isObj(hooks)) return ['hooks must be an object'];
+  const out = unknownKeys(hooks, KNOWN_KEYS.hooks, 'hooks');
+  if (!Array.isArray(hooks.docSync)) return [...out, 'hooks.docSync must be a list'];
+  const names = new Set();
+  hooks.docSync.forEach((rule, i) => {
+    out.push(...validateDocSyncRule(rule, i));
+    if (isStr(rule?.name) && names.has(rule.name)) out.push(`hooks.docSync[${i}]: duplicate name "${rule.name}"`);
+    if (isStr(rule?.name)) names.add(rule.name);
+  });
+  return out;
+}
+
+function validateDocSyncRule(rule, i) {
+  const where = `hooks.docSync[${i}]`;
+  if (!isObj(rule)) return [`${where} must be an object`];
+  const out = unknownKeys(rule, KNOWN_KEYS.docSyncRule, where);
+  if (!isStr(rule.name)) out.push(`${where}.name must be a non-empty string`);
+  for (const key of ['code', 'docs']) out.push(...validatePathspecs(rule[key], `${where}.${key}`));
+  return out;
+}
+
+function validatePathspecs(list, where) {
+  if (!Array.isArray(list) || list.length === 0) return [`${where} must be a non-empty list of git pathspecs`];
+  const out = [];
+  list.forEach((spec, j) => {
+    if (!isStr(spec)) out.push(`${where}[${j}] must be a non-empty string`);
+    else {
+      const bad = unknownMagic(spec);
+      if (bad !== null) out.push(`${where}[${j}]: unknown pathspec magic "${bad}"`);
+    }
+  });
+  return out;
+}
+
+/**
+ * The magic of `spec` git would refuse, or null. Static, so a typo is a config
+ * problem at session start rather than a doc-sync check that never matches: a
+ * leading `:` must open a short form (`:!`, `:^`, `:/`, or `::`, the explicit end
+ * of no magic) or `:(words)` whose comma-separated words are git's own. Everything
+ * else in a pathspec is git's to judge at hook time.
+ */
+export function unknownMagic(spec) {
+  if (!spec.startsWith(':')) return null;
+  if ('!^/:'.includes(spec[1] ?? '')) return null;
+  if (spec[1] !== '(') return spec.slice(0, 2);
+  const end = spec.indexOf(')');
+  if (end < 0) return spec.slice(1);
+  const words = spec.slice(2, end).split(',');
+  const bad = words.find((w) => w !== '' && !PATHSPEC_MAGIC.includes(w) && !w.startsWith('attr:'));
+  return bad ?? null;
 }
 
 function validateCi(ci) {

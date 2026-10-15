@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 78,
+  "revision": 79,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -698,6 +698,13 @@
       "actor": "orchestrator",
       "source": "fix:hooks report and open questions, 2026-10-15",
       "text": "Rule 3 and rule 7: accepted as built, the foreign-hooks readout uses three phrases ('an absolute path', 'a path outside the repo', \"git's hooks directory\") in place of the decision's one, since an absolute path inside the repo is not outside it; the withDefaults fix covers paths as well as hooks and gate. Rule 6: several config roots in one work tree (one shim fanning out to several apps) is wanted once, backlogged as E-025 with its justification. Rule 6 and rule 4: a managed shim written for another config root, or by an earlier cookwright, reads as foreign today; init refreshing a shim that carries the managed header, as it refreshes the rules block, is backlogged as E-026 and must land before shimText ever changes, since the first change would make every installed shim foreign. The unneeded COOKWRIGHT_SKIP=doc-sync on commit 323c739 (the rule did not match) is noted, harmless.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T17:02:27.067Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, fix:hooks strings batch",
+      "text": "The fix:hooks strings stand as built: the foreign-hooks readout's scope and path phrases, the pre-push not-tested forms, the nested-config shim line, the doctor not-installed WARN, and the README Git hooks bullets.",
       "claim": true
     }
   ],

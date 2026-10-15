@@ -1,0 +1,60 @@
+{
+  "phase": "closeout",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/closeouts/stage-2.md",
+      "location": "Tests",
+      "problem": "The closeout says the suite 'runs real `git commit` and `git push` through the shims in scratch repos'. The commit half holds: hook.test.mjs:540 spawns a real `git commit`. The push half does not. No test file anywhere in packages/cookwright/src calls `git push` (grep for 'push' as a git argument finds nothing). pre-push is only called in-process, with simulated stdin and fake args (hook.test.mjs:308-312, `hook(repo, 'pre-push', { probes, input: pushing(repo), args: ['origin', '../bare.git'] })`). The closeout itself contradicts the claim: pre-push had to be measured by hand in a scratch repo because nothing else ran it end to end (QA follow-up decision 17:23:55).",
+      "severity": "P2",
+      "suggested_fix": "Change it to: 'runs a real `git commit` through the shims in scratch repos; pre-push is tested in process with simulated push input, and the end-to-end push was measured by hand (below)'.",
+      "failure_scenario": "A reader trusts the suite to catch a regression in how git calls the pre-push shim (argv, stdin, exit-code mapping). No test exercises that path, so the regression ships while the closeout says it is covered.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-2.md",
+      "location": "Header (opening paragraph)",
+      "problem": "The closeout says the range `5272c24a..49c76baa` 'holds eighty commits'. `git rev-list --count 5272c24a336b2088c77e41127f458ddf03450f35..49c76baafe9e4de69c6e0ecea775bb1f7b44a7bd` returns 79. The breakdown is correct: 35 non-bundle commits (10 feat, 13 fix, 6 docs, 3 test, 3 chore). That leaves 44 chore(bundle) commits, not 45, so only the total is off by one.",
+      "severity": "P2",
+      "suggested_fix": "Change 'eighty commits' to 'seventy-nine commits'.",
+      "failure_scenario": "Anyone who checks the closeout with git rev-list gets 79, not 80. A count the closeout presents as derived from git does not match git.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-2.md",
+      "location": "Verified by hand (first bullet, doctor timing)",
+      "problem": "The closeout says 'three runs at close took 0.34 s of wall time each' and attributes the gap from stage 1's 0.14-0.23 s to 'the gitleaks dry invocation and two git calls'. Nothing records this. No session report, QA round, state decision (rev 93 or 94) or commit message contains 0.34 or a close-time timing. The only recorded doctor timing for this stage is s3's 'A full doctor run took 0.19 s wall time'. I re-measured now on the same tree: `node node_modules/cookwright/bin/cookwright.mjs doctor --hook` gave 0.26, 0.18 and 0.16 s, inside stage 1's range. The full `npx cookwright doctor` gave 0.71, 0.39 and 0.38 s. Neither reproduces three identical 0.34 s runs, and the cause given for the slowdown was never measured.",
+      "severity": "P2",
+      "suggested_fix": "Drop the timing and its explanation, or replace them with a measurement that is recorded (command, mode, the three times). Otherwise cite s3's recorded 0.19 s for a full run.",
+      "failure_scenario": "A future stage compares its doctor latency against a 0.34 s baseline that was never measured. It concludes doctor got faster, or blames gitleaks for a cost that does not show up in hook mode.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-2.md",
+      "location": "What shipped (The shims paragraph)",
+      "problem": "The closeout says the shims are 'eight lines each'. That is true only when cookwright.json sits at the work tree's top. shimText (src/lib/hooks/shims.mjs) adds a `cd <rel> 2>/dev/null || { ...; exit 0; }` line when the config root is nested, which makes nine lines. The paragraph's next sentence describes that nested case, so the count is wider than the code supports.",
+      "severity": "P3",
+      "suggested_fix": "Change it to 'eight lines each (nine when the config root is below the top)', or drop the line count.",
+      "failure_scenario": "A user with a nested config, or a reviewer reading their shim, finds nine lines and takes the shim for foreign or edited, against the closeout's description.",
+      "verdict": "plausible"
+    }
+  ],
+  "checked": [
+    "Commit range 5272c24a..49c76baa: 79 commits, 35 non-chore(bundle), types 10 feat/13 fix/6 docs/3 test/3 chore all match except the total of 80",
+    "File shas: closeout a0e3373f25cfc7ec, plan 825bfd5edc1f9ee2, AGENTS.md 54861f4ef89e654e, playbook ce603f415dc379ec (sha256 prefixes) match",
+    "State revision 93 (at 0b6e7bd/78c53dc) is what the generated tables use: gate history (7 gates, commits and slices), review trajectory counts, findings files, 36 decisions (13 developer, 23 orchestrator), output tokens sum 2826090, wall clock 15:08:00 to 17:23:56 = 2.3 h, review rounds 7, QA rounds 1, plan sha 324abc3c at init",
+    "Findings files: plan-review-1 has 23 issues (18 confirmed, 5 plausible, 5 P1 as described); re-checks 19 then 3 rejected; review-changelog 7/6; review-hooks 9/7 with 2 P1 (B-007 and the multi-ref push); review-whole 5 with 3 confirmed, 1 plausible, 1 rejected (GIT_INDEX_FILE)",
+    "fix:changelog 6 commits, fix:hooks 7 commits plus the separate charter commit f345127, fix:whole 2 commits",
+    "Test counts 191/11, 218/12, 223, 275/14, 302, 315, 317/14 match the session reports; npm test now reports 14 files, 317 tests",
+    "npx cookwright doctor: 16 PASS, level 0 complete; doctor --hook prints the single line; changelog --check up to date (0 release tags)",
+    "QA round-1.md matches the Device QA section; the scratch-repo pre-push measurement matches decision 17:23:55",
+    "Backlog at 49c76ba: E-010, E-011, B-005, B-006, B-007 closed; B-008, B-009, E-018..E-026 open; B-002 widened; open-items list matches",
+    "Charter has its second dated amendment (Judgment rules); RULES_VERSION = 2; this repo's AGENTS.md block is v2 and d32d41f's diff stays inside the markers",
+    "Code claims: --exit-code 3, --redact, 64 MiB maxBuffer in the gate runner, docsync via git diff --cached rather than ls-files, --show-scope with the pre-2.26 fallback, the five new doctor checks in Level 0 requires, changelog exit codes 1 and 2, cookwright.json doc-sync rule",
+    "No absolute machine path under docs/dev/bundles/stage-2/"
+  ],
+  "notes": "I checked the closeout read-only against the range, state revision 93 (0b6e7bd) and the stored findings, session and QA files. I found four unsupported or wrong claims:\n1. Tests: the suite does not run a real `git push`. pre-push is tested only in process.\n2. Header: the range holds 79 commits, not 80.\n3. Verified by hand: the doctor timing (0.34 s each, with its explanation) is recorded nowhere, and re-measuring did not reproduce it.\n4. What shipped: the shims are 'eight lines each' only when the config is not nested.\nEverything else in the closeout checked out, including the generated tables, review counts, test counts, backlog and charter state. The state is now at revision 94 (closeout run recorded in a741aaf), not the 92 the prompt named. The closeout's tables are labelled revision 93, and I judged them against 93.",
+  "timedOut": false,
+  "incomplete": [],
+  "closeoutSha": "a0e3373f25cfc7ec"
+}

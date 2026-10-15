@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 43,
+  "revision": 45,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -131,9 +131,19 @@
     },
     {
       "name": "fix:changelog",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-15T15:57:16.504Z",
+          "stateRevision": 43,
+          "planSha": "825bfd5edc1f9ee2",
+          "codex": true,
+          "runId": "wf_56f0d355-6ef"
+        }
+      ],
+      "startCommit": "2dbb264b0e3a86d3d92e356be73d7e1ae10782c1",
+      "range": null
     },
     {
       "name": "implement:s2",

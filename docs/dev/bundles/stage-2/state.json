@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 2,
+  "revision": 12,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -143,6 +143,77 @@
   "findings": [],
   "reports": [],
   "qaRounds": [],
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-15T15:09:08.430Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, plan §2",
+      "text": "Hook install: tracked .githooks/ shims plus a local core.hooksPath. When node or the package is missing, the shim prints one line and exits 0, never blocking the commit, the SessionStart hook's contract. A repo with a foreign hooksPath (husky, lefthook) is reported by doctor with the reason; a backlog enhancement records that init could append the shim call into those hooks instead of stopping.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:09:08.872Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, plan §2",
+      "text": "Changelog: generated only, no stored Unreleased section. A repo with no release tag yet must pass --check (an empty generated changelog is byte-stable), with a test, since every user's repo starts there. This repo's hand-written Unreleased lines are dropped.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:09:09.312Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, plan §2",
+      "text": "Doc-sync dogfood: one rule, the bundle CLI and workflow (bundle.mjs, src/lib/bundle/*, bundle-phase.js, tests excluded by pathspec) require docs/playbook.md or the bundle skill staged. The rules block's doc-sync line says that a COOKWRIGHT_SKIP=doc-sync commit carries the reason in its message, since the escape itself leaves no trace.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:09:09.732Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, plan approval amendment 1 (disposition 1)",
+      "text": "A foreign hooks setup (core.hooksPath elsewhere or from a non-local origin, or user hooks in the hooks dir) is WARN on hooks.path with the reason, not FAIL: a chosen state, not drift; a permanent FAIL the user cannot clear trains them to ignore doctor. FAIL stays for unset (run init) and for our shim present but broken. The two file checks SKIP.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:09:10.156Z",
+      "actor": "developer",
+      "source": "chat 2026-10-15, plan approval amendment 2 (disposition 6)",
+      "text": "pre-push runs the single gate.checks list in this stage and prints the elapsed time on the pre-push gate line; a backlog enhancement opens for a hooks.push list that overrides gate.checks on push, since the bundle gate wants thorough and the push hook wants cheap enough never to be bypassed.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:09:10.695Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 2, from the plan review",
+      "text": "gitleaks absent is SKIP in doctor (tools.gitleaks, unverified), matching the shipped convention for a missing tool (needsGit, noClaude) and the hook's own line; not WARN.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:09:11.114Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 3, from the plan review",
+      "text": "npx cookwright changelog refuses to replace a changelog that carries no generated marker unless --adopt is passed; this repo's dogfood passes --adopt.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:09:11.509Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 4, from the plan review",
+      "text": "No config lever to turn a hook check off in this stage; the escapes are COOKWRIGHT_SKIP per invocation and --no-verify. A hooks.disabled list goes to the backlog.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:09:11.898Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 5, from the plan review",
+      "text": "Names: hook checks are secrets, doc-sync, gate, changelog (what COOKWRIGHT_SKIP takes); the config key is hooks.docSync; doctor's checks are dotted (hooks.path, hooks.pre-commit, hooks.pre-push, tools.gitleaks, gate.scripts).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:09:12.305Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 7, from the plan review",
+      "text": "B-002 is widened to the git hook shims rather than a new id: one bug, the package is looked for at the work tree root (node_modules/cookwright), so a workspace sub-package install or a linked worktree without node_modules prints the not-installed line.",
+      "claim": true
+    }
+  ],
   "costs": []
 }

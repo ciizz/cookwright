@@ -12,7 +12,7 @@ The bootstrap commit lifted the bundle machinery from Leeka verbatim into `packa
 
 **The bundle CLI** at `packages/cookwright/src/bundle.mjs`, with its library under `src/lib/bundle/`. Every function takes `repo = { root, config }`; nothing is a module constant any more. Guidance strings live in `src/lib/bundle/messages.mjs`.
 
-**The gate.** Checks come from config and run as shell strings. Absence is decided before anything runs: a check whose `needs` tool is absent, or whose command's first word is not on PATH, is skipped with `skipped, needs <tool>, run setup` (or `command not found: <cmd>`) and the gate goes on; once a command has started, every non-zero exit is a failure, 127 included. A gate in which nothing ran is refused and records nothing, so it can never stand as evidence. A gate that passed with skips reads as one everywhere: `status`, the closeout's gate table and the landing check (a WARN naming the skipped checks).
+**The gate.** Checks come from config and run as shell strings. Absence is decided before anything runs: a check whose `needs` tool is absent, or whose command's first word is not on PATH, is skipped with `skipped, needs <tool>, run setup` (or `command not found: <cmd>`) and the gate goes on; once a command has started, every non-zero exit is a failure, 127 included. A check naming an npm script the repo's `package.json` does not define is misconfiguration, not absence: the gate refuses before anything runs and names the script (E-009, decided by the developer). A gate in which nothing ran is refused and records nothing, so it can never stand as evidence. A gate that passed with skips reads as one everywhere: `status`, the closeout's gate table and the landing check (a WARN naming the skipped checks).
 
 **The landing check** gained `SKIP` beside `PASS`/`WARN`/`FAIL` and a summary line that counts skips and warnings. `bundle.ci` is SKIP without a `ci` block and WARN when `gh` is not installed; only FAIL exits non-zero.
 
@@ -68,11 +68,11 @@ Named by category, not by the origin repo's values.
 | | Before (lifted) | After |
 |---|---|---|
 | Test files | 1 | 2 |
-| Tests | 60 | 78 (61 bundle + 17 config) |
+| Tests | 60 | 80 (63 bundle + 17 config) |
 | Removed suites | — | ledger, hook/tripwire, SQL preflight |
 | Added | — | config discovery/defaults/every refusal/schema parity/trailing slash/overlapping homes; gate skipping, not-found, inner-127-is-red and all-skipped refusal; skipped checks on the recorded event, in `status` and as a landing WARN; CI SKIP/WARN; summary counts; non-code pathspecs; args `cli`/`rules`/`codex`, rules omitted when absent; two CLI walks: `init → gate → phase start → args → status → check --ci`, and a red gate → refused retry → audited retry → `record findings` → `phase done` → `decide` → `cost` |
 
-`npm ci && npm test` at the root: 78 passing.
+`npm ci && npm test` at the root: 80 passing.
 
 ## Verified by hand
 
@@ -114,4 +114,4 @@ Ten findings, one P1, all addressed in the commit after the review:
 
 ## Open items
 
-Backlog E-001, E-002, E-003, E-004, E-007, E-008, E-009 (see `docs/dev/backlog.md`). Stage 1 is the first bundle through the runner.
+Backlog E-001, E-002, E-003, E-004, E-007, E-008 (see `docs/dev/backlog.md`). Stage 1 is the first bundle through the runner: doctor and init (Level 0). E-007 is deferred to its own bundle.

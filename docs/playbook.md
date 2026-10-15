@@ -153,7 +153,7 @@ When the only failures are an allowlisted flake, the orchestrator may re-gate on
 
 ## The gate's checks
 
-`gate.checks` in `cookwright.json` lists the commands, in order; every one runs even after a failure, so one gate shows every red at once. A check may name the tools it `needs`; when one is missing the check is reported `skipped, needs <tool>, run setup` and the gate goes on. A command the shell cannot find is skipped the same way. A gate in which nothing ran is refused, not recorded: it can never stand as evidence. List only checks the repo actually has.
+`gate.checks` in `cookwright.json` lists the commands, in order; every one runs even after a failure, so one gate shows every red at once. A check may name the tools it `needs`; when one is missing the check is reported `skipped, needs <tool>, run setup` and the gate goes on. A command the shell cannot find is skipped the same way. A gate in which nothing ran is refused, not recorded: it can never stand as evidence. A check that runs an npm script the repo's `package.json` does not define is misconfiguration, not absence: the gate refuses before anything runs and names the script.
 
 ## Codex by file reference
 

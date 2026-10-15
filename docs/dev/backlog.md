@@ -12,9 +12,9 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 - **E-004** (2026-10-15) Move the remaining user-facing literals of the bundle CLI (refusal texts beside their checks) into `messages.mjs`; stage 0 moved the guidance strings only.
 - **E-007** (2026-10-15) How the host adapters under `hosts/` and the playbook reach a user's repo from the npm package (symlinks, thin shims or a generated `.claude/`), whether `paths.playbook` defaults to the package's own copy, and the CLI invocation itself: `messages.mjs` names this monorepo's path (`node packages/cookwright/src/bundle.mjs`) and the package has no `bin` yet. Init's concern; stage 0 only wires this repo.
 - **E-008** (2026-10-15) Lint and format tooling for this repo's own gate (`gate.checks` has `npm test` only).
-- **E-009** (2026-10-15) Absence below the first token: the gate skips a check whose command is not on PATH, but `npm run x` with no such script (exit 1) and `npm test` with its runner not installed (exit 127) are both recorded as failures. Decide whether a missing npm script counts as absence (reported) or misconfiguration (red), and detect it either way.
 
 ## Closed
 
+- **E-009** (opened and closed by stage 0, 2026-10-15) A check naming an npm script the repo does not define is misconfiguration, not absence: the gate refuses before anything runs, naming the check and the script. Skipping stays reserved for tools the developer has not installed (`needs`, or the command's first word absent from PATH).
 - **E-005** (opened and closed by stage 0, 2026-10-15) What counts as code comes from config: everything outside `paths.bundles`, `paths.closeouts`, `paths.backlog`, markdown included.
 - **E-006** (2026-10-15) Folded into E-001.

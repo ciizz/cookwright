@@ -18,6 +18,10 @@ export const messages = {
   noChecksConfigured: `gate.checks is empty in ${CONFIG_FILE} — add the commands that verify this repo`,
   noCheckRan: `no check ran (every check was skipped) — run setup, or fix gate.checks in ${CONFIG_FILE}`,
   noFlakes: `--retry needs --flake <id>, and gate.flakes in ${CONFIG_FILE} names no flake yet`,
+  missingScript: (check, script) =>
+    `gate check "${check}" runs npm script "${script}", which package.json does not define — add the script or fix gate.checks in ${CONFIG_FILE}`,
+  noPackageJson: (check, script) =>
+    `gate check "${check}" runs npm script "${script}", but there is no package.json at the root — fix gate.checks in ${CONFIG_FILE}`,
 
   // landing check
   noRepoChecks: 'no repo-wide checks configured',

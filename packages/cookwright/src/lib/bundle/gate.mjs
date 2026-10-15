@@ -4,7 +4,8 @@
 // THE CHECKS come from cookwright.json (`gate.checks`): a name, a shell command and
 // optionally the tools it needs. Every piece is optional (the charter): a check whose
 // tool is missing, or whose command is not on PATH, is SKIPPED with a note and the
-// gate goes on. Two things are never optional: SOMETHING ran (a gate in which every
+// gate goes on. A check that names an npm script the repo lacks is not absence but a
+// misconfiguration, and the gate refuses it before anything runs. Two things are never optional: SOMETHING ran (a gate in which every
 // check was skipped is refused, not recorded, so it can never stand as evidence), and
 // a skip is visible wherever the gate is shown (`skipped` names on the event, in
 // status, in the closeout table, as a WARN in the landing check).
@@ -14,14 +15,47 @@
 // re-gate is a second event marked `retryOf`, and the red one stays in the state.
 
 import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import { messages } from './messages.mjs';
 
 export const onPath = (bin) => spawnSync('which', [bin], { encoding: 'utf8' }).status === 0;
 
+const words = (run) =>
+  run.trim().split(/\s+/).filter((w) => w && !/^[A-Za-z_][A-Za-z0-9_]*=/.test(w));
+
 /** The executable a shell command starts with, past any leading VAR=value assignments. */
-export function commandOf(run) {
-  return run.trim().split(/\s+/).find((w) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(w)) ?? '';
+export const commandOf = (run) => words(run)[0] ?? '';
+
+const NPM_ALIASES = { test: 'test', t: 'test', tst: 'test', start: 'start', stop: 'stop', restart: 'restart' };
+
+/** The package.json script an `npm …` command names, or null when it names none. */
+export function npmScriptOf(run) {
+  const [cmd, sub, ...rest] = words(run);
+  if (cmd !== 'npm' || !sub) return null;
+  if (NPM_ALIASES[sub]) return NPM_ALIASES[sub];
+  if (sub === 'run' || sub === 'run-script') return rest.find((w) => !w.startsWith('-')) ?? null;
+  return null;
+}
+
+/**
+ * A check that names an npm script the repo does not have is MISCONFIGURATION, not
+ * absence (E-009): the gate refuses before anything runs, naming the script. Skipping
+ * stays reserved for tools the developer has not installed.
+ */
+export function scriptProblems(checks, root) {
+  const file = path.join(root, 'package.json');
+  let scripts = null;
+  if (fs.existsSync(file)) scripts = JSON.parse(fs.readFileSync(file, 'utf8')).scripts ?? {};
+  const out = [];
+  for (const check of checks) {
+    const script = npmScriptOf(check.run);
+    if (!script) continue;
+    if (!scripts) out.push(messages.noPackageJson(check.name, script));
+    else if (!(script in scripts)) out.push(messages.missingScript(check.name, script));
+  }
+  return out;
 }
 
 /**
@@ -67,6 +101,8 @@ function runCheck(check, { cwd }) {
 export function runGate({ repo, log = console.log, hasTool = onPath }) {
   const configured = repo.config.gate.checks;
   if (configured.length === 0) return { refused: messages.noChecksConfigured };
+  const problems = scriptProblems(configured, repo.root);
+  if (problems.length) return { refused: problems.join('\n') };
   const results = [];
   for (const check of planChecks({ checks: configured, hasTool })) {
     log(`  … ${check.name}`);

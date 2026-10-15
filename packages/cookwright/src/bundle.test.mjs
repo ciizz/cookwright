@@ -27,7 +27,7 @@ import {
   summarize,
 } from './lib/bundle/check.mjs';
 import { fiveNumbers, renderCloseoutDraft } from './lib/bundle/closeout.mjs';
-import { commandOf, gatePassed, passLabel, planChecks, runGate } from './lib/bundle/gate.mjs';
+import { commandOf, gatePassed, npmScriptOf, passLabel, planChecks, runGate } from './lib/bundle/gate.mjs';
 import { dirtyPaths, isAncestor, lastCodeCommit } from './lib/bundle/git.mjs';
 import { messages } from './lib/bundle/messages.mjs';
 import {
@@ -593,6 +593,33 @@ describe('gate', () => {
     expect(gatePassed(greens)).toBe(true);
     expect(passLabel({ checks: greens })).toBe('pass (skipped: needs, absent)');
     expect(passLabel({ checks: [by.ok] })).toBe('pass');
+  });
+
+  it('reads the npm script a command names', () => {
+    expect(npmScriptOf('npm test')).toBe('test');
+    expect(npmScriptOf('CI=1 npm t -- --run')).toBe('test');
+    expect(npmScriptOf('npm run --silent lint')).toBe('lint');
+    expect(npmScriptOf('npm run-script typecheck')).toBe('typecheck');
+    expect(npmScriptOf('npm run')).toBeNull();
+    expect(npmScriptOf('npm ci')).toBeNull();
+    expect(npmScriptOf('npx vitest run')).toBeNull();
+    expect(npmScriptOf('yarn lint')).toBeNull();
+  });
+
+  it('refuses a check naming an npm script the repo lacks — misconfiguration, not absence', () => {
+    const root = path.join(TMP, 'gate-scripts');
+    fs.mkdirSync(root, { recursive: true });
+    const gate = (checks) => runGate({ repo: { root, config: { gate: { checks, flakes: {} } } }, ...quiet });
+    const checks = [
+      { name: 'lint', run: 'npm run lint' },
+      { name: 'ok', run: 'true' },
+    ];
+    expect(gate(checks).refused).toBe(messages.noPackageJson('lint', 'lint'));
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ scripts: { test: 'true' } }));
+    expect(gate(checks).refused).toBe(messages.missingScript('lint', 'lint'));
+    expect(gate([{ name: 'test', run: 'npm test' }, ...checks]).refused).toBe(messages.missingScript('lint', 'lint'));
+    const ran = gate([{ name: 'test', run: 'npm test' }]);
+    expect(ran.results.map((r) => [r.name, r.result])).toEqual([['test', 'pass']]);
   });
 
   it('refuses a gate in which nothing ran, and an empty check list', () => {

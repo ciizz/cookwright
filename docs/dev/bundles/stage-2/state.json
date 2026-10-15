@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 47,
+  "revision": 49,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -131,7 +131,7 @@
     },
     {
       "name": "fix:changelog",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -139,11 +139,15 @@
           "stateRevision": 43,
           "planSha": "825bfd5edc1f9ee2",
           "codex": true,
-          "runId": "wf_56f0d355-6ef"
+          "runId": "wf_56f0d355-6ef",
+          "endedAt": "2026-10-15T16:05:52.309Z",
+          "turnOutputTokens": 126324
         }
       ],
       "startCommit": "2dbb264b0e3a86d3d92e356be73d7e1ae10782c1",
-      "range": null
+      "range": null,
+      "endCommit": "33afbe0fcfb22865094a013f125d00dc38c393c6",
+      "endCode": "26b391ab11033300a110a007aaf90b6270206059"
     },
     {
       "name": "implement:s2",
@@ -218,6 +222,19 @@
           "name": "test",
           "result": "pass",
           "ms": 20896
+        }
+      ]
+    },
+    {
+      "commit": "33afbe0fcfb22865094a013f125d00dc38c393c6",
+      "at": "2026-10-15T16:05:44.099Z",
+      "slice": "changelog",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 23600
         }
       ]
     }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 98,
+  "revision": 100,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -299,7 +299,7 @@
     },
     {
       "name": "closeout",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -314,14 +314,18 @@
           "stateRevision": 95,
           "planSha": "825bfd5edc1f9ee2",
           "codex": true,
-          "runId": "wf_41e8c60c-156"
+          "runId": "wf_41e8c60c-156",
+          "endedAt": "2026-10-15T17:34:06.644Z",
+          "turnOutputTokens": 165211
         }
       ],
       "startCommit": "49c76baafe9e4de69c6e0ecea775bb1f7b44a7bd",
       "range": {
         "from": "5272c24a336b2088c77e41127f458ddf03450f35",
         "to": "49c76baafe9e4de69c6e0ecea775bb1f7b44a7bd"
-      }
+      },
+      "endCommit": "9189010f8095f03a0a7afbf6a0ac85f2ec1c7c6e",
+      "endCode": "f9a96f9d83d4cefeefec16d184e825ef0b9ee612"
     }
   ],
   "gates": [
@@ -413,6 +417,19 @@
           "name": "test",
           "result": "pass",
           "ms": 25862
+        }
+      ]
+    },
+    {
+      "commit": "9189010f8095f03a0a7afbf6a0ac85f2ec1c7c6e",
+      "at": "2026-10-15T17:34:05.924Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 27131
         }
       ]
     }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 40,
+  "revision": 42,
   "slug": "stage-2",
   "branch": "bundle/stage-2",
   "base": "5272c24a336b2088c77e41127f458ddf03450f35",
@@ -262,6 +262,24 @@
       "at": "2026-10-15T15:38:43.491Z",
       "stored": true,
       "head": "dc44c4f7d976324e3a11b7779b0cc63a2aa2c582"
+    },
+    {
+      "phase": "review:changelog",
+      "path": "docs/dev/bundles/stage-2/findings/review-changelog-1.json",
+      "counts": {
+        "confirmed": 6,
+        "plausible": 1,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 2,
+        "P3": 5
+      },
+      "at": "2026-10-15T15:56:54.590Z",
+      "stored": true,
+      "head": "353a3b2dd130137e761f3c104536520c7cc27a94"
     }
   ],
   "reports": [
@@ -426,6 +444,13 @@
       "actor": "developer",
       "source": "chat 2026-10-15, implement:s1 strings batch",
       "text": "The s1 strings stand as built: the changelog command's refusals, success and --check lines, the --unreleased headings, the generated file's header and section forms, the README Install and Commands text, the schema description of paths.changelog.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-15T15:57:15.504Z",
+      "actor": "orchestrator",
+      "source": "review:changelog findings, 2026-10-15",
+      "text": "fix:changelog applies findings 0 (the template read normalised to LF, with a CRLF-template test), 1 (unborn means HEAD is a symbolic ref whose target is absent: symbolic-ref -q HEAD succeeds and rev-parse --verify -q HEAD fails; any other git failure is a refusal through gitFailed, with a corrupt-HEAD test), 2 (version parts compared as digit strings by length then lexically, never Number), 3 (metadata read from %(contents:subject) and %(contents:body), git stripping the signature in every format; the SIGNATURE regex goes, with a parseMeta test per marker the old regex missed), 4 (the showSignature test asserts the exact argv commitsBetween passes to git, so dropping -c log.showSignature=false fails it), 5 (fs errors from changelogState and the write are Refusals, exit 2, one line '<file>: <code>', never exit 1). Finding 6 (template header vs the v1 block until s3) needs no change: s3 lands the v2 block before anything leaves the branch, and the whole-branch review checks that the template and the block agree.",
       "claim": true
     }
   ],

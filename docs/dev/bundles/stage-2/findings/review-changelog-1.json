@@ -1,0 +1,144 @@
+{
+  "phase": "review:changelog",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/changelog/render.mjs",
+      "location": "line 16",
+      "severity": "P2",
+      "problem": "The template is read without normalizing CRLF, while changelogState normalizes the written file before comparing it with the generated text.",
+      "failure_scenario": "In a Windows checkout with core.autocrlf=true, the template contains CRLF. init seeds that template, but changelog --check normalizes the changelog to LF and compares it against the CRLF render, permanently reporting it as stale. Local-checkout installation is explicitly documented.",
+      "suggested_fix": "Normalize TEMPLATE to LF when loading it and add a regression test using CRLF template content.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "render.mjs:16 reads the template with no CRLF normalisation, and render.mjs:62 builds the render from it. state.mjs:~44 reads the file with readLF and compares it to g.text (state.mjs:~47). If the template has CRLF, the render has CRLF in its header and the LF-normalised file never equals it, so the state is permanently 'stale'. The repo has no .gitattributes at 9d3d896 to force LF on checkout. The trigger is narrow: a local checkout of the package on Windows with core.autocrlf=true. I did not run it on Windows, so that part is reasoning only."
+    },
+    {
+      "file": "packages/cookwright/src/lib/changelog/tags.mjs",
+      "location": "line 30",
+      "severity": "P2",
+      "problem": "isUnborn treats every nonzero git rev-parse result as an unborn repository, including repository corruption or an invalid HEAD.",
+      "failure_scenario": "If HEAD or its branch ref is malformed, a normal changelog run sees zero tags and commits and can replace an existing generated changelog with the header-only template instead of refusing with the Git error.",
+      "suggested_fix": "Confirm that HEAD is a symbolic ref whose target is genuinely absent before declaring it unborn; propagate all other failures through gitFailed.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "tags.mjs:30 isUnborn is status !== 0 on `rev-parse --verify -q HEAD`. Reproduced: a repo whose HEAD is `ref: refs/heads/@@bad` exits 1, the same as a fresh unborn repo. releaseTags (tags.mjs:49) and unreleasedMode (changelog.mjs:89) then take the empty path with no git error. The plan (§ unborn HEAD) defines unborn this way, so it is a deliberate shortcut. The corrupt-HEAD case is a real but narrow edge. I did not run the write path end to end."
+    },
+    {
+      "file": "packages/cookwright/src/lib/changelog/tags.mjs",
+      "location": "line 41",
+      "severity": "P3",
+      "problem": "Version components are converted to JavaScript Number, which loses integer precision.",
+      "failure_scenario": "v9999999999999999.0.0 and v10000000000000000.0.0 compare equal numerically. Git's lexical input order is then retained, causing releases to render in the wrong order and commits to be assigned to the wrong release.",
+      "suggested_fix": "Compare components as BigInt values or as normalized digit strings by length and lexical order.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "tags.mjs:56 maps the semver parts with Number and :41 compares by subtraction. Reproduced: 9999999999999999 === 10000000000000000 is true in Node, so such tags compare equal and keep git's lexical order. The reasoning holds, but versions this large are unrealistic, so the practical impact is negligible."
+    },
+    {
+      "file": "packages/cookwright/src/lib/changelog/tags.mjs",
+      "location": "parseMeta / SIGNATURE regex (line ~559) and tagMeta's %(contents) read",
+      "problem": "The signature block is recognised only by `^-----BEGIN [A-Z ]*SIGNATURE-----`. git's own signature markers also include `-----BEGIN PGP MESSAGE-----` (OpenPGP) and `-----BEGIN SIGNED MESSAGE-----` (x509/gpgsm, e.g. smimesign). %(contents) carries the signature appended directly after the message, with no blank line between them, so for those formats the armour lines are read as continuation lines of the last open key.",
+      "severity": "P3",
+      "suggested_fix": "Let git strip the signature. Read `%(contents:subject)` and `%(contents:body)` (ref-filter separates `%(contents:signature)` using git's full list of signature formats), or at minimum match every marker git recognises (PGP SIGNATURE, PGP MESSAGE, SSH SIGNATURE, SIGNED MESSAGE). Add a parseMeta test for each.",
+      "failure_scenario": "The developer signs tags with `gpg.format=x509` (smimesign) and runs `git tag -s v1.0.0 -m 'released: 2026-10-15' -m 'note: first release'`. `npx cookwright changelog` then renders the `-----BEGIN SIGNED MESSAGE-----` line and every base64 line of the signature as `> …` lines of the note blockquote in the committed CHANGELOG.md.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "tags.mjs:77 SIGNATURE = /^-----BEGIN [A-Z ]*SIGNATURE-----/ matches PGP SIGNATURE and SSH SIGNATURE only. It does not match `-----BEGIN SIGNED MESSAGE-----` (x509/gpgsm) or `-----BEGIN PGP MESSAGE-----`; as I recall from git's signature handling, git tag -s emits the first for x509. The armour sits directly after the message with no blank line. In parseMeta (tags.mjs:85-99), an open key then takes each armour line through the `else if (open) open.lines.push(line)` branch, because the line fails KEY and is non-blank. The plan marks signature handling as 'unmeasured' (plan §4.4). I did not run an x509 signing end to end."
+    },
+    {
+      "file": "packages/cookwright/src/changelog.test.mjs",
+      "location": "'is the same whatever log.showSignature says' (line ~205)",
+      "problem": "The test cannot fail. Its commits are unsigned, and with `log.showSignature=true` git prints nothing extra for an unsigned commit. The render is identical whether or not commits.mjs passes `-c log.showSignature=false`, so the plan §6 item (`log.showSignature=true` → the same render) goes unguarded.",
+      "severity": "P3",
+      "suggested_fix": "Sign the scratch commits so the setting has an effect: generate an ephemeral key with ssh-keygen into the test's tmp dir and set gpg.format=ssh, user.signingkey and commit.gpgsign in the scratch repo config. Alternatively, assert on the exact argv commitsBetween passes to git.",
+      "failure_scenario": "A later refactor drops `-c log.showSignature=false` from LOG in commits.mjs and the suite stays green. On a signer's machine `git log --format=%H%x1f%s` then emits gpg/ssh verification lines, which split into bogus `{sha, subject}` entries, and the render (and `--check`) becomes machine-dependent.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/changelog.test.mjs:205-212 sets log.showSignature=true on a repo of ordinary unsigned commits (commitMsg/tag, no -S or gpgsign). Git prints verification output only for signed commits, so the render is identical whether or not packages/cookwright/src/lib/changelog/commits.mjs:12 passes `-c log.showSignature=false`. Removing that flag leaves the test green, so the plan §6 item is unguarded. I did not run the mutation."
+    },
+    {
+      "file": "packages/cookwright/src/changelog.mjs",
+      "location": "refuse() / main (lines ~183-204)",
+      "problem": "Only Refusal and TimedOut are mapped to exit 2. Any other error (EACCES on readLF in changelogState, EACCES/EROFS on writeFileSync) is rethrown and ends the process through the bin's top-level await with a stack trace and exit 1. Exit 1 is the code the header comment and README reserve for `--check` drift (missing, unmarked, stale).",
+      "severity": "P3",
+      "suggested_fix": "In main, wrap fs errors from changelogState/writeMode into a Refusal with a one-line message (`<file>: <err.code>`), so a harness failure exits 2 and never looks like drift.",
+      "failure_scenario": "`chmod 000 CHANGELOG.md; npx cookwright changelog --check` throws EACCES out of readLF and exits 1 with a stack trace. A CI step or script that reads exit 1 as 'changelog out of date, run npx cookwright changelog' gets a wrong diagnosis, and the suggested fix then also fails.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "changelog.mjs refuse() (~L183-189) rethrows anything that is not Refusal/TimedOut. changelogState (lib/changelog/state.mjs:45) calls readLF (lib/doctor/repo.mjs:66, bare fs.readFileSync) after isFile passes, so chmod 000 raises EACCES. writeMode's fs.readFileSync and fs.writeFileSync are likewise uncaught. bin/cookwright.mjs awaits dispatch with no catch, so Node prints a stack trace and exits 1. The header comment (L6-7) reserves exit 1 for --check drift. Not run; confirmed by reading the code."
+    },
+    {
+      "file": "packages/cookwright/src/lib/templates/CHANGELOG.md",
+      "location": "template rewrite vs packages/cookwright/src/lib/rules/agents-block.md:9 (v1 block, unchanged until s3)",
+      "problem": "At this commit, init seeds a changelog whose header says it is generated and 'not edited by hand: the next run reverts any edit'. The same init writes the v1 managed rules block, which tells the agent 'User-visible changes: the Unreleased section of CHANGELOG.md', a section the new template no longer has. The plan's split puts the block v2 in s3, so the branch carries contradictory instructions until then.",
+      "severity": "P3",
+      "suggested_fix": "No code change needed if s3 lands the v2 block (plan §4.7) before anything leaves the branch. Have the orchestrator confirm that the whole-branch review checks the template and the rules block agree, and that no publish happens from a state between s1 and s3.",
+      "failure_scenario": "A user installs from a checkout of this branch (the README's 'try a change that is not published yet' path) and runs init. Their agent follows AGENTS.md and hand-adds `## Unreleased` and a line to CHANGELOG.md. `npx cookwright changelog --check` then fails as stale, and the next `npx cookwright changelog` silently deletes the agent's line.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "plausible",
+      "evidence": "Contradiction confirmed: agents-block.md:9 (unchanged in range) says 'User-visible changes: the Unreleased section of CHANGELOG.md', while templates/CHANGELOG.md:1-7 now has no Unreleased section and says 'not edited by hand: the next run reverts any edit'. changelog.mjs:75-81 checkMode requires the file equal the render (so a hand edit is stale), and writeMode regenerates it. The plan defers block v2 to s3 (plan.md:216). Not fully reproduced end to end (init run, agent behavior), and the window is transient and only affects checkouts of this branch, so plausible rather than confirmed."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 40300c4..9d3d896 via Codex (high effort, read-only, 30-command budget)",
+    "render.mjs, tags.mjs, state.mjs, commits.mjs, changelog.mjs, init template wiring",
+    "AGENTS.md, CLAUDE.md, docs/playbook.md (Reviewer, Prompt header), plan.md §4.4/§4.5/§4.8/§4.9/§6/§10, state.json decisions for s1",
+    "git diff 40300c47..9d3d896: changelog.mjs, lib/changelog/{tags,commits,render,state}.mjs, budget.mjs, doctor/repo.mjs gitRun cap, init/files.mjs linkOnPath export, messages.mjs/messages.test.mjs, template, schema description, cli-main and its test, README, CHANGELOG.md, backlog B-005",
+    "Tag listing: %1f in the ref-filter format, strict semver filter, numeric sort, --merged HEAD, unborn HEAD short-circuit, non-semver notes from the command only",
+    "Release ranges: `<tag> --not <lower tags>`, maintenance-branch graph, notAncestors via merge-base exit codes, --unreleased as HEAD --not every merged tag",
+    "Metadata: annotated-only read, key regex (URL continuation), subject-as-key, blank-line termination, CRLF, signature dropping",
+    "Render: zero tags equals the template byte for byte, newest first, no trailing spaces, BREAKING and scope, internal count",
+    "State: missing/unmarked/stale/current with LF-normalised compare; default run refuses unmarked; --adopt; link refusal on the target and its parent dirs; notAFile; no-op writes",
+    "Arg parsing (two modes, positional, flag value, unknown flag → exit 2); not a work tree and no config → exit 2; TimedOut mapped to a refusal",
+    "Config path validation (paths.changelog cannot escape the root); no secrets or local paths in the diff, the state or the session report; no new dependency",
+    "Test coverage against plan §6's changelog list"
+  ],
+  "notes": "Codex ran to completion within the ceiling (session 01a14042-4356-7eb1-b52c-3a38a5fcab97); findings transcribed verbatim. Full output at <local path>\n---\nStatic review only. The sandbox denied running git in a scratch repo, so every scenario above was derived from reading the code and git's documented behaviour, not reproduced. s1 delivers what plan §4.4/§4.9 promise for the changelog slice, and I found no P1 or P2. The release-range construction (`<tag> --not <every lower version>`), the unborn-HEAD handling, the link refusal and the refusal of an unmarked file without --adopt all match the plan, and the tests exercise them. The deviations the orchestrator already accepted (README line 5 left for s3, the changelog's own symlink wording, the hand-written CHANGELOG line under the v1 block) are not raised again. All four findings are P3: the signature-marker gap for x509 and PGP MESSAGE tags, a showSignature test that cannot fail, crash exit 1 colliding with --check's drift exit 1, and the interim mismatch between the v1 rules block and the new template until s3.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a14042-4356-7eb1-b52c-3a38a5fcab97",
+    "partialReportPath": null
+  }
+}

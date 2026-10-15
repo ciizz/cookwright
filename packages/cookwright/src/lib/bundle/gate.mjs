@@ -1,83 +1,49 @@
-// scripts/lib/bundle/gate.mjs — the gate between phases: every local check, its
+// src/lib/bundle/gate.mjs — the gate between phases: every configured check, its
 // result recorded against the commit it ran on.
 //
-// THE GATE, reconciled with the operating model §7.5: the spec says `npm run
-// test:all`, but in this repo `test:all` already includes `test:sql:reset`. So the
-// default gate is the CI set (typecheck, lint, format, vitest, changelog) plus the
-// edge suite when Deno is installed, and `--sql` adds exactly one SQL reset + run,
-// under the rig lock, after a Docker/disk preflight. The SQL suites are not in CI
-// (their workflow is manual), which is why a schema slice gates with `--sql`.
+// THE CHECKS come from cookwright.json (`gate.checks`): a name, a shell command and
+// optionally the tools it needs. Every piece is optional (the charter): a check whose
+// tool is missing is SKIPPED with a note and the gate goes on; a check whose command
+// does not exist is skipped the same way. What is never optional is that SOMETHING
+// ran: a gate in which every check was skipped is refused, not recorded, so it can
+// never stand as evidence.
 //
 // NO RETRY MECHANISM. A gate that fails is recorded failed. The playbook's flake
-// policy lets the orchestrator re-gate once for a backlog-named flake; the re-gate
-// is a second event marked `retryOf`, and the red one stays in the state.
+// policy lets the orchestrator re-gate once for a flake named in `gate.flakes`; the
+// re-gate is a second event marked `retryOf`, and the red one stays in the state.
 
 import { spawnSync } from 'node:child_process';
 
-import { TOKEN_ENV, acquire, lockPath } from '../rig-lock.mjs';
+import { messages } from './messages.mjs';
 
-const MIN_FREE_GB = 10;
+export const onPath = (bin) => spawnSync('which', [bin], { encoding: 'utf8' }).status === 0;
 
-/**
- * The flakes a `--retry` may name — the playbook's flake policy, as data. Each is a
- * backlog item with a known, deterministic fix; the list shrinks as they land.
- */
-export const KNOWN_FLAKES = {
-  'B-102': 'ota-publish.check.test.mjs — vitest 5 s default timeout under the parallel runner',
-  'B-130': 'access_mode_flip.test.mjs — a fixed pg_sleep hold and a global lock count under load',
-};
-
-export const BASE_CHECKS = [
-  { name: 'typecheck', cmd: 'npm', args: ['run', 'typecheck'] },
-  { name: 'lint', cmd: 'npm', args: ['run', 'lint'] },
-  { name: 'format', cmd: 'npm', args: ['run', 'format:check'] },
-  { name: 'vitest', cmd: 'npm', args: ['test'] },
-  { name: 'changelog', cmd: 'npm', args: ['run', 'changelog:check'] },
-];
-const EDGE = { name: 'edge', cmd: 'npm', args: ['run', 'test:edge'] };
-const SQL = { name: 'sql', cmd: 'npm', args: ['run', 'test:sql:reset'] };
-
-const onPath = (bin) => spawnSync('which', [bin], { encoding: 'utf8' }).status === 0;
-
-/** Docker answering and enough free disk — the two causes of the 2026-09 stalls. */
-export function sqlPreflight({ exec = spawnSync, cwd = process.cwd() } = {}) {
-  const docker = exec('docker', ['info', '--format', '{{.ServerVersion}}'], {
-    encoding: 'utf8',
-    timeout: 20_000,
+/** The checks this gate runs, in order, each marked `skip` when a tool it needs is absent. */
+export function planChecks({ checks, hasTool = onPath }) {
+  return checks.map((check) => {
+    const missing = (check.needs ?? []).find((tool) => !hasTool(tool));
+    return missing ? { ...check, skip: messages.skippedNeeds(missing) } : check;
   });
-  if (docker.status !== 0) return 'Docker is not answering (`docker info` failed)';
-  // Fail CLOSED: a df that fails or prints something unparsable is a refusal, not
-  // a pass — the reset that follows is destructive.
-  const df = exec('df', ['-Pk', cwd], { encoding: 'utf8' });
-  const freeKb = Number(df.stdout?.trim().split('\n').at(-1)?.split(/\s+/)[3]);
-  if (df.status !== 0 || !Number.isFinite(freeKb)) return 'could not read free disk space (`df`)';
-  if (freeKb < MIN_FREE_GB * 1024 * 1024) {
-    return `only ${(freeKb / 1024 / 1024).toFixed(1)} GB free (need ${MIN_FREE_GB})`;
-  }
-  return null;
 }
 
-/** The checks this gate runs, in order. */
-export function planChecks({ sql, hasDeno = onPath('deno') }) {
-  const checks = [...BASE_CHECKS];
-  checks.push(hasDeno ? EDGE : { ...EDGE, skip: 'deno not on PATH' });
-  if (sql) checks.push(SQL);
-  return checks;
-}
-
-function runCheck(check, { cwd, env }) {
+function runCheck(check, { cwd }) {
   if (check.skip) return { name: check.name, result: 'skipped', note: check.skip, ms: 0 };
   const t0 = Date.now();
-  const r = spawnSync(check.cmd, check.args, {
+  const r = spawnSync(check.run, {
     cwd,
-    env: { ...process.env, ...env },
+    shell: true,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
     timeout: 30 * 60_000,
   });
   const ms = Date.now() - t0;
-  // stdout and stderr tailed SEPARATELY: `supabase db reset` fills stderr, and a
-  // joined tail would push the failed-assertion list (stdout) out of view.
+  // The shell's "command not found" (127) and a missing shell (ENOENT) are absence,
+  // not failure: the charter says absence is reported, never red.
+  if (r.status === 127 || r.error?.code === 'ENOENT') {
+    return { name: check.name, result: 'skipped', note: messages.skippedNotFound, ms };
+  }
+  // stdout and stderr tailed SEPARATELY: a noisy stderr would otherwise push the
+  // failed-assertion list (stdout) out of view.
   const last = (text, n) => (text ?? '').trim().split('\n').slice(-n).join('\n');
   const tail = `${last(r.stdout, 30)}\n── stderr ──\n${last(r.stderr, 10)}`;
   return { name: check.name, result: r.status === 0 ? 'pass' : 'fail', ms, tail };
@@ -85,31 +51,22 @@ function runCheck(check, { cwd, env }) {
 
 /**
  * Run the gate. Every check runs even after a failure, so one gate shows every red
- * at once. Returns the event to append to `state.gates` (the `tail` of a failing
- * check is printed by the caller and not stored).
+ * at once. Returns `{ results }` (the event the caller appends to `state.gates`; the
+ * `tail` of a failing check is printed by the caller and not stored), or
+ * `{ refused }` when nothing could run.
  */
-export function runGate({ cwd, sql, log = console.log }) {
-  const checks = planChecks({ sql });
-  let lock = null;
-  const env = {};
-  if (sql) {
-    const why = sqlPreflight({ cwd });
-    if (why) return { refused: why };
-    lock = acquire('bundle gate --sql', { file: lockPath(cwd) });
-    env[TOKEN_ENV] = lock.nonce;
+export function runGate({ repo, log = console.log, hasTool = onPath }) {
+  const configured = repo.config.gate.checks;
+  if (configured.length === 0) return { refused: messages.noChecksConfigured };
+  const results = [];
+  for (const check of planChecks({ checks: configured, hasTool })) {
+    log(`  … ${check.name}`);
+    const r = runCheck(check, { cwd: repo.root });
+    log(`  ${r.result.toUpperCase().padEnd(7)} ${check.name}${r.note ? ` (${r.note})` : ''}`);
+    results.push(r);
   }
-  try {
-    const results = [];
-    for (const check of checks) {
-      log(`  … ${check.name}`);
-      const r = runCheck(check, { cwd, env });
-      log(`  ${r.result.toUpperCase().padEnd(7)} ${check.name}${r.note ? ` (${r.note})` : ''}`);
-      results.push(r);
-    }
-    return { results };
-  } finally {
-    lock?.release();
-  }
+  if (results.every((r) => r.result === 'skipped')) return { refused: messages.noCheckRan };
+  return { results };
 }
 
 export const gatePassed = (results) => results.every((r) => r.result !== 'fail');

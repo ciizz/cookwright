@@ -1,20 +1,20 @@
-// scripts/lib/rig-lock.mjs — one machine-wide lock on the local Supabase stack.
+// src/lib/rig-lock.mjs — one machine-wide lock on a shared local resource.
 //
-// WHAT: a lockfile taken by the two consumers that destroy each other's work on the
-//   shared local stack — `run-sql-tests.mjs` (its reset wipes the atlas world; its
-//   suites write fixture rows into it) and `atlas-capture.mjs` (its reset and seed
-//   wipe the suites' virgin database; its flips mutate rows mid-suite). Not a general
-//   wrapper: nothing else takes it.
+// WHAT: a lockfile for consumers that destroy each other's work on a resource one
+//   machine has exactly one of — a local database stack that one job resets while
+//   another reads it, a simulator one job seeds while another captures it. Not a
+//   general wrapper: only such consumers take it. In this version NOTHING takes it;
+//   it is kept, tested and generic for the stack packs that will (backlog E-001).
 //
-// WHY: the orchestrated bundles run a gate, an atlas capture and review sessions on
-//   one machine; the only thing that stopped an SQL reset landing mid-capture was the
-//   orchestrator remembering not to (bundle workflow v1, the operating model §7.5).
+// WHY: an orchestrated bundle runs gates, captures and review sessions on one
+//   machine, and the only thing that stopped a reset landing mid-capture was the
+//   orchestrator remembering not to.
 //
-// WHERE: `$(git rev-parse --git-common-dir)/leeka-rig.lock` — inside git's own
-//   directory, so no `.gitignore` line (which would move the EAS fingerprint), and the
-//   COMMON dir, so a linked worktree (where `.git` is a file) contends for the same
-//   lock as the main checkout: the resource is one Docker stack, not one checkout.
-//   Callers pass their repo root, so the lock never depends on the caller's cwd.
+// WHERE: `$(git rev-parse --git-common-dir)/cookwright-rig.lock` — inside git's own
+//   directory, so no `.gitignore` line, and the COMMON dir, so a linked worktree
+//   (where `.git` is a file) contends for the same lock as the main checkout: the
+//   resource is one machine's, not one checkout's. Callers pass their repo root, so
+//   the lock never depends on the caller's cwd.
 //
 // ATOMICITY: the lock body is written to a private temp file and hard-LINKED into
 //   place. link(2) fails with EEXIST if the name exists and never exposes a
@@ -23,8 +23,8 @@
 //   file (`.reap`), and the reaper re-reads the lock under it: two contenders can
 //   never both delete, and neither can delete a lock that became live meanwhile.
 //
-// NESTING: a parent that holds the lock (`bundle gate --sql`) hands its child the
-//   lock's random nonce in LEEKA_RIG_LOCK_TOKEN. The child proceeds only when that
+// NESTING: a parent that holds the lock hands its child the lock's random nonce in
+//   COOKWRIGHT_RIG_LOCK_TOKEN. The child proceeds only when that
 //   nonce equals the one in the file; a holder NAME proves nothing.
 //
 // STALE: the holder's PID is dead; or alive but not a node process; or a process that
@@ -36,8 +36,10 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const LOCK_NAME = 'leeka-rig.lock';
-export const TOKEN_ENV = 'LEEKA_RIG_LOCK_TOKEN';
+import { messages } from './bundle/messages.mjs';
+
+export const LOCK_NAME = 'cookwright-rig.lock';
+export const TOKEN_ENV = 'COOKWRIGHT_RIG_LOCK_TOKEN';
 const REAP_STALE_MS = 30_000;
 const CORRUPT_GRACE_MS = 5_000;
 
@@ -74,8 +76,8 @@ export function probePid(pid) {
   } catch (err) {
     if (err.code !== 'EPERM') return { state: 'dead', startedAt: null };
   }
-  // LC_ALL=C: `ps` prints lstart in the user's locale ("mar. 29 sept. …" here), and
-  // the fixed-width parse below would silently turn the PID-reuse check off.
+  // LC_ALL=C: `ps` prints lstart in the user's locale, and the fixed-width parse
+  // below would silently turn the PID-reuse check off.
   const r = spawnSync('ps', ['-p', String(pid), '-o', 'lstart=,comm='], {
     encoding: 'utf8',
     env: { ...process.env, LC_ALL: 'C' },
@@ -194,8 +196,5 @@ function describe(lock) {
 }
 
 function busyError(lock) {
-  return new RigLockBusyError(
-    `rig lock is held by ${describe(lock)}. The local stack is in use — wait for it, ` +
-      'or run `node scripts/bundle.mjs lock status`.',
-  );
+  return new RigLockBusyError(messages.lockBusy(describe(lock)));
 }

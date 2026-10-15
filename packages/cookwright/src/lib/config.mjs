@@ -2,7 +2,7 @@
 //
 // The config is the ONLY place a user repo tells the harness about itself: where the
 // state homes live, which host runs the agent, which commands make up the gate.
-// Everything the lifted Leeka scripts hardcoded is a key here. Stage 0 holds only
+// Everything the lifted scripts hardcoded is a key here. Stage 0 holds only
 // what the bundle runner needs; levels and tool detection come later as new keys.
 //
 // Validation is by hand (a handful of keys, no dependency). The JSON Schema under

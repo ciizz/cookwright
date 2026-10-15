@@ -1,8 +1,11 @@
-// scripts/lib/bundle/git.mjs — the few git reads the bundle CLI needs.
+// src/lib/bundle/git.mjs — the few git reads the bundle CLI needs.
 //
-// Every helper takes `cwd` so the tests can point it at a scratch repository.
+// Every helper takes `cwd` so the tests can point it at a scratch repository; the
+// one that needs to know what counts as code takes `repo` = { root, config }.
 
 import { spawnSync } from 'node:child_process';
+
+import { nonCodePathspecs } from '../config.mjs';
 
 /** Run git with output captured; throws with git's stderr on a non-zero exit. */
 export function git(args, { cwd = process.cwd(), allowFail = false, raw = false } = {}) {
@@ -30,7 +33,7 @@ export const mergeBase = (a, b, cwd) => git(['merge-base', a, b], { cwd });
  *
  * `-z` porcelain: NUL-separated and never quoted, so a path with a space or a
  * non-ASCII character still matches its prefix. A rename contributes BOTH sides —
- * `git mv src/x.ts docs/bundles/x.ts` deletes a source file, and hiding that would
+ * `git mv src/x.ts <bundles>/x.ts` deletes a source file, and hiding that would
  * let a gate record a commit its checks never saw.
  */
 export function dirtyPaths(cwd, { exclude = [] } = {}) {
@@ -63,19 +66,13 @@ export function changedFiles(from, to, cwd) {
 }
 
 /**
- * What is NOT code, as git pathspecs: every doc (the closeout, the deploy-log rows
- * an operator phase commits, the state-home edits, the bundle state, the atlas
- * images) and markdown anywhere. A commit touching only these needs no gate and no
- * review; CI's format check still covers their formatting.
+ * The newest CODE commit in from..to — code being everything outside the configured
+ * state homes (see `nonCodePathspecs`). Returns `from` when there is none.
  */
-export const NON_CODE_PATHSPECS = [':(exclude)docs', ':(exclude,glob)**/*.md'];
-
-/**
- * The newest CODE commit in from..to (see NON_CODE_PATHSPECS). Returns `from` when
- * there is none.
- */
-export function lastCodeCommit(from, to, cwd) {
-  const pathspec = ['.', ...NON_CODE_PATHSPECS];
-  const out = git(['log', '-1', '--format=%H', `${from}..${to}`, '--', ...pathspec], { cwd });
+export function lastCodeCommit(from, to, repo) {
+  const pathspec = ['.', ...nonCodePathspecs(repo.config)];
+  const out = git(['log', '-1', '--format=%H', `${from}..${to}`, '--', ...pathspec], {
+    cwd: repo.root,
+  });
   return out || from;
 }

@@ -2,8 +2,8 @@
 //
 // The docs role fills in the narrative around it; the closeout-verify phase then
 // re-derives every claim. What this generates is the part no model should type: the
-// review trajectory, the gate history, the decisions taken on Cesar's behalf, and the
-// five numbers the operating model measures v1 by — with the one number the runtime
+// review trajectory, the gate history, the decisions taken on the developer's behalf,
+// and the five numbers a bundle is measured by — with the one number the runtime
 // cannot measure (USD) marked as entered.
 
 const short = (sha) => (sha ? sha.slice(0, 8) : '—');
@@ -40,18 +40,10 @@ export function fiveNumbers(state) {
   };
 }
 
-export function renderCloseoutDraft(state, { planSha } = {}) {
-  const n = fiveNumbers(state);
-  const fmt = (v, digits = 1) => (v === null ? 'not recorded' : Number(v).toFixed(digits));
-  const lines = [
-    `# ${state.slug} — closeout (draft generated from the bundle state)`,
-    '',
-    `Branch \`${state.branch}\`, base \`${short(state.base)}\`, plan \`${state.plan.path}\` (sha ${planSha ?? state.plan.sha}${planSha && planSha !== state.plan.sha ? `; ${state.plan.sha} at init` : ''}).`,
-    '',
-    `_The tables below are generated from bundle state revision ${state.revision ?? '?'}; later phases (the closeout's own run and gate) are not in them._`,
-    '',
-    '## The five numbers',
-    '',
+const fmt = (v, digits = 1) => (v === null ? 'not recorded' : Number(v).toFixed(digits));
+
+function numbersTable(n) {
+  return [
     '| Measure | Value | Source |',
     '|---|---|---|',
     `| Wall clock (h) | ${fmt(n.wallClockHours)} | state timestamps |`,
@@ -59,31 +51,54 @@ export function renderCloseoutDraft(state, { planSha } = {}) {
     `| Output tokens | ${n.outputTokens ?? 'not recorded'} | sum of per-turn \`budget.spent()\` readings; turns that ran two workflows count once per run |`,
     `| Review rounds | ${n.reviewRounds} | review, plan-review and QA-round runs (each rerun is a run) |`,
     `| QA rounds | ${n.qaRounds} | recorded QA rounds |`,
-    '',
-    '## Review trajectory',
-    '',
+  ];
+}
+
+function trajectoryTable(state) {
+  return [
     '| Phase | Confirmed | Plausible | Rejected | File |',
     '|---|---|---|---|---|',
     ...state.findings.map(
       (f) =>
         `| ${f.phase} | ${f.counts.confirmed} | ${f.counts.plausible} | ${f.counts.rejected} | \`${f.path}\` |`,
     ),
+  ];
+}
+
+function gateTable(state) {
+  const failed = (g) => g.checks.filter((c) => c.result === 'fail').map((c) => c.name);
+  return [
+    '| # | Commit | Slice | Result | Retry of |',
+    '|---|---|---|---|---|',
+    ...state.gates.map(
+      (g, i) =>
+        `| ${i} | \`${short(g.commit)}\` | ${g.slice ?? '—'} | ${
+          g.passed ? 'pass' : `FAIL (${failed(g).join(', ')})`
+        } | ${g.retryOf ?? '—'} |`,
+    ),
+  ];
+}
+
+export function renderCloseoutDraft(state, { planSha } = {}) {
+  const initSha = planSha && planSha !== state.plan.sha ? `; ${state.plan.sha} at init` : '';
+  return [
+    `# ${state.slug} — closeout (draft generated from the bundle state)`,
+    '',
+    `Branch \`${state.branch}\`, base \`${short(state.base)}\`, plan \`${state.plan.path}\` (sha ${planSha ?? state.plan.sha}${initSha}).`,
+    '',
+    `_The tables below are generated from bundle state revision ${state.revision ?? '?'}; later phases (the closeout's own run and gate) are not in them._`,
+    '',
+    '## The five numbers',
+    '',
+    ...numbersTable(fiveNumbers(state)),
+    '',
+    '## Review trajectory',
+    '',
+    ...trajectoryTable(state),
     '',
     '## Gate history',
     '',
-    '| # | Commit | Slice | SQL | Result | Retry of |',
-    '|---|---|---|---|---|---|',
-    ...state.gates.map(
-      (g, i) =>
-        `| ${i} | \`${short(g.commit)}\` | ${g.slice ?? '—'} | ${g.sql ? 'yes' : 'no'} | ${
-          g.passed
-            ? 'pass'
-            : `FAIL (${g.checks
-                .filter((c) => c.result === 'fail')
-                .map((c) => c.name)
-                .join(', ')})`
-        } | ${g.retryOf ?? '—'} |`,
-    ),
+    ...gateTable(state),
     '',
     '## Decided on your behalf',
     '',
@@ -91,6 +106,5 @@ export function renderCloseoutDraft(state, { planSha } = {}) {
       ? state.decisions.map((d) => `- ${d.at} — ${d.text} (${d.actor}; source: ${d.source})`)
       : ['- none recorded']),
     '',
-  ];
-  return lines.join('\n');
+  ].join('\n');
 }

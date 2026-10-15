@@ -22,7 +22,7 @@ The repo's own harness config (this file, the hooks, the bundle runner, `docs/de
 - **Stage 0 excepted, work ships as bundles** through the repo's own runner: plan mode first, a written plan, an adversarial review of the plan, implementation, review of the diff, a closeout in `docs/dev/closeouts/`.
 - Ask before adding a dependency. Functions under ~40 lines. User-facing strings in one place.
 
-## State homes
+## State homes of this repo
 
 - `CHARTER.md` — product decisions.
 - `docs/dev/backlog.md` — bugs and enhancements outside the current bundle, stable IDs.

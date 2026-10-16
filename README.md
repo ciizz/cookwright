@@ -19,7 +19,7 @@ To try a change that is not published yet, install the package as npm would publ
 ## Updating
 
 1. `npm install cookwright@latest`
-2. Run `npx cookwright doctor` (or open a session): it says what the new version changed. `config` weak means your `cookwright.json` loads only by migrating in memory: `npx cookwright migrate` writes it. `rules.block` stale or `host.pointers` missing means the package ships a newer rules block or a new skill: `npx cookwright init` refreshes them and leaves your own text alone. The `setup` skill walks the same readout.
+2. Run `npx cookwright doctor` (or open a session): it says what the new version changed. `config` weak means your `cookwright.json` loads only by migrating in memory: `npx cookwright migrate` writes it. `rules.block` stale or `host.pointers` missing means the package ships a newer rules block or a new skill: `npx cookwright init` refreshes them and leaves your own text alone. The `setup` skill walks the same readout, but only once init has written its pointer: on a repo set up before the skill shipped (`host.pointers` names `.claude/skills/setup` missing), run `npx cookwright init` yourself first, then `/setup` (`$setup` in Codex), in a new session if the host does not list it yet.
 3. `git add` the paths migrate and init name, never `-A`, and commit.
 
 ## Skills and workflows

@@ -407,13 +407,14 @@ describe('derived values', () => {
     ]);
   });
 
-  it('resolves the workflow pointer of the first host with workflows, and the default host’s rules files', () => {
+  it('resolves the workflow pointer and the rules files of the first host with workflows', () => {
     expect(workflowScript(valid(), 'bundle-phase')).toBe('.claude/workflows/bundle-phase.js');
     expect(rulesFiles(valid())).toEqual(['AGENTS.md', 'CLAUDE.md']);
     const hosts = (list) => ({ ...valid(), hosts: list });
     expect(workflowScript(hosts(['codex', 'claude']), 'bundle-phase')).toBe('.claude/workflows/bundle-phase.js');
-    expect(rulesFiles(hosts(['codex', 'claude']))).toEqual(['AGENTS.md']);
+    expect(rulesFiles(hosts(['codex', 'claude']))).toEqual(['AGENTS.md', 'CLAUDE.md']);
     expect(workflowScript(hosts(['codex']), 'bundle-phase')).toBeNull();
+    expect(rulesFiles(hosts(['codex']))).toEqual(['AGENTS.md']);
     expect(workflowHosts()).toEqual(['claude']);
   });
 

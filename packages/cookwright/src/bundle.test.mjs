@@ -1390,7 +1390,9 @@ describe('the package’s playbook and the workflow pointer', () => {
       config: { hosts: ['codex', 'claude'] },
       link: ({ root }) => linkPackage(root),
     });
-    expect(argsOf(both.cli).playbook.path).toBe('node_modules/cookwright/docs/playbook.md');
+    const args = argsOf(both.cli);
+    expect(args.playbook.path).toBe('node_modules/cookwright/docs/playbook.md');
+    expect(args.rules.map((r) => r.path)).toEqual(['CLAUDE.md']); // the rules of the host the bundle runs in
     expect(both.cli('status', 'demo')).toBe(0);
     expect(logs.join('\n')).toMatch(/next {5}: Workflow\(\{ name: 'bundle-phase'/);
     expect(logs.join('\n')).toMatch(/run init: the workflow pointer \.claude\/workflows\/bundle-phase\.js is missing/);

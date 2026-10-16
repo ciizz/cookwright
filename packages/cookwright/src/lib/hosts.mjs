@@ -167,8 +167,12 @@ export function workflowScript(config, name) {
   return host ? path.posix.join(HOSTS[host].workflowsDir, `${name}.js`) : null;
 }
 
-/** Root-relative paths of the default host's candidate rules files. */
-export const rulesFiles = (config) => defaultHost(config).rules;
+/**
+ * Root-relative paths of the candidate rules files every bundle session reads: those
+ * of the host the bundle runs in (the first configured one with workflows, as
+ * workflowScript picks), else the default host's.
+ */
+export const rulesFiles = (config) => (HOSTS[workflowHosts(config.hosts)[0]] ?? defaultHost(config)).rules;
 
 const real = (p) => {
   try {

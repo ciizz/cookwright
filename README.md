@@ -2,22 +2,43 @@
 
 A guided, incremental, non-rotting agentic harness for solo developers building mobile apps with React Native, TypeScript and Supabase.
 
-Early: Level 0 works, and the npm release lags this repo (install from a checkout to try what is here, see Install). See `CHARTER.md` for what it will be and `docs/dev/` for how it is being built.
+Early: Level 0 works, and the npm release lags this repo (install from a checkout to try what is here, see First run). See `CHARTER.md` for what it will be and `docs/dev/` for how it is being built.
 
-## Install
+## First run
 
-In your app's repo (a git repo):
+In your app's repo (a git repo), in order:
 
-```bash
-npm install --save-dev cookwright
-npx cookwright init
-```
+1. `npm install --save-dev cookwright`
+2. `npx cookwright init`, which takes the repo to Level 0 and names every file it wrote; commit them by path.
+3. Open your agent host (Claude Code, or Codex) in the repo.
+4. The doctor line appears at session start: `cookwright doctor: level 0 complete`, or the checks that are not PASS.
+5. For anything not PASS, run the `setup` skill (`/setup` in Claude Code, `$setup` in Codex). It runs doctor, applies one remedy for the first line that is not PASS, runs doctor again, and stops at what is yours to decide.
 
-To try a change that is not published yet, install from a checkout of this repo instead: `npm install --save-dev /path/to/cookwright/packages/cookwright`.
+To try a change that is not published yet, install the package as npm would publish it: `npm pack` in a checkout's `packages/cookwright`, then `npm install --save-dev /path/to/cookwright-X.Y.Z.tgz` in your repo. Installing the directory itself links `node_modules/cookwright` outside your repo, which the pointers below are not made for.
+
+## Updating
+
+1. `npm install cookwright@latest`
+2. Run `npx cookwright doctor` (or open a session): it says what the new version changed. `config` weak means your `cookwright.json` loads only by migrating in memory: `npx cookwright migrate` writes it. `rules.block` stale or `host.pointers` missing means the package ships a newer rules block or a new skill: `npx cookwright init` refreshes them and leaves your own text alone. The `setup` skill walks the same readout.
+3. `git add` the paths migrate and init name, never `-A`, and commit.
+
+## Skills and workflows
+
+The package's skills (`setup`; `bundle`, Level 2 and experimental) and Claude Code's workflows reach a session through pointers: symbolic links init writes at the work tree's top, `.claude/skills/<name>` and `.claude/workflows/<name>.js` for Claude Code, `.agents/skills/<name>` for Codex, each into `node_modules/cookwright`. Nothing is copied, so an update of the package updates them. Commit the links.
+
+- **A fresh clone** has the links but not their targets until `npm install`; doctor reads them as weak (`not installed where it points`) until then.
+- **A local install under `node_modules` only.** The links do not resolve with yarn Plug'n'Play or a global install.
+- **Windows** is not supported in this version: git checks a symbolic link out as a text file unless `core.symlinks` is on, and doctor reports a missing pointer there as weak, naming why.
+- **A skill of your own with the same name** (a directory or a link of yours at `.claude/skills/setup`) wins. init leaves it alone and doctor says that cookwright's is unreachable under that name.
+- **A Level 2 pointer you do not want** (`bundle`, the workflows): removing it reads as weak, not drift, at Level 0, and the next `npx cookwright init` writes it back.
+
+## Codex
+
+With `codex` in `hosts` (`npx cookwright init --hosts claude,codex` on a fresh repo, or the key edited in `cookwright.json` and init rerun), init writes `.agents/skills/setup` (Codex has no workflows, so no `bundle`) and the session-start hook in `.codex/hooks.json`. Codex runs a project hook only once you trust it with `/hooks`, and again after every rewrite of that file, which init keeps as rare as it can. Whether Codex fires the hook is unmeasured: it did not under `codex exec`, and an interactive session after `/hooks` has not been observed, so doctor's Codex `host.hook` says only that the file carries the hook. The hook enters the work tree's top before running doctor, so its readout judges from there: an `AGENTS.override.md` in a subdirectory the session started in is caught by `npx cookwright doctor` run by hand in that directory, not by the hook line.
 
 ## Commands
 
-- `npx cookwright init [--base <branch>] [--hosts <host,…>] [--dry-run]` takes the repo to Level 0. It writes `cookwright.json`, the state homes (a backlog, a closeouts directory, a changelog), a managed rules block in `AGENTS.md`, for each host a SessionStart hook that runs doctor (Claude Code's in `.claude/settings.json`; Codex's in `.codex/hooks.json`, which you trust with `/hooks`, though nobody has yet seen Codex run it: it did not fire under `codex exec`, and an interactive session is unmeasured, so doctor's Codex `host.hook` says only that the file carries the hook) and pointers (symbolic links under `.claude/skills/` and `.claude/workflows/`, or `.agents/skills/` for Codex) to the skills and workflows in the installed package, `.gitignore` lines for plaintext env files, and two git hooks, `.githooks/pre-commit` and `.githooks/pre-push`, activated by `core.hooksPath` in the local git config (see Git hooks below). Each step reports `wrote`, `updated`, `kept` or `skipped`. init never overwrites your text, and a second run changes nothing. `--base` and `--hosts` (`claude`, `codex`, or both, comma-separated; `claude` by default) shape a fresh `cookwright.json`, and init refuses them when one exists: change `baseBranch` or `hosts` there instead. `--dry-run` prints the report and writes nothing.
+- `npx cookwright init [--base <branch>] [--hosts <host,…>] [--dry-run]` takes the repo to Level 0. It writes `cookwright.json`, the state homes (a backlog, a closeouts directory, a changelog), a managed rules block in `AGENTS.md`, for each host a SessionStart hook that runs doctor (Claude Code's in `.claude/settings.json`; Codex's in `.codex/hooks.json`, see Codex) and pointers to the skills and workflows in the installed package (see Skills and workflows), `.gitignore` lines for plaintext env files, and two git hooks, `.githooks/pre-commit` and `.githooks/pre-push`, activated by `core.hooksPath` in the local git config (see Git hooks below). Each step reports `wrote`, `updated`, `kept` or `skipped`. init never overwrites your text, and a second run changes nothing. `--base` and `--hosts` (`claude`, `codex`, or both, comma-separated; `claude` by default) shape a fresh `cookwright.json`, and init refuses them when one exists: change `baseBranch` or `hosts` there instead. `--dry-run` prints the report and writes nothing.
 - `npx cookwright doctor` checks that Level 0 is still in place and names anything missing: 17 checks, the git hooks, gitleaks, the gate's npm scripts and the skill and workflow pointers among them. A hooks setup managed elsewhere (husky, lefthook) reads as weak, not missing, and gitleaks not installed as unverified. The hook runs it as `doctor --hook` at every session start, and that form never fails a session. Its git calls share a two-second budget, so a stalled git yields a one-line diagnosis, not a killed hook.
 - `npx cookwright migrate [--dry-run]` writes `cookwright.json` at the current format version. An older file already loads, migrated in memory, and doctor reads its `config` check as weak until you run this; each step prints one line, the file keeps its indent and line endings, and `--dry-run` prints the steps and writes nothing.
 - `npx cookwright changelog [--check | --unreleased | --adopt]` generates the changelog from the release tags (`vX.Y.Z`) and the conventional commit subjects between them: `feat`, `fix` and `perf` are listed, the rest counted as internal, and a release's date and notes come from its annotated tag body (`released: YYYY-MM-DD`, `note: …`). It is never edited by hand. `--check` exits 1 when the file is missing, not generated or out of date, and a refusal (a git failure, a file it cannot read or write) exits 2; `--unreleased` prints what no release tag holds yet. A changelog it did not generate is replaced only with `--adopt`, so keep a copy of what you want from it.
@@ -41,13 +62,19 @@ init writes two shims, `.githooks/pre-commit` and `.githooks/pre-push`, and sets
 
 `CHANGELOG.md` is generated from git, never written by hand. A commit's subject is what reaches it, in the conventional form `type(scope)!: text`: `feat`, `fix` and `perf` are listed under Features, Fixes and Performance, `!` marks a breaking change, and every other type (`docs`, `chore`, `refactor`, `test`, …) is counted as internal.
 
-To release: tag, then regenerate, then commit.
+To release, in this order:
 
 ```bash
+npm version 1.2.0 --no-git-tag-version
+git commit -m 'chore: release 1.2.0' package.json package-lock.json
 git tag -a v1.2.0 -m 'released: 2026-10-15' -m 'note: The first release with offline mode.'
 npx cookwright changelog
 git commit -m 'docs: changelog for v1.2.0' CHANGELOG.md
+git push --follow-tags
+npm publish
 ```
+
+The version bump is its own commit, so the tag sits on it; the changelog is generated after the tag, from it, and committed on top. `git push --follow-tags` runs pre-push, the gate and the changelog check, which passes only once the changelog matches the new tag. `npm publish` is last, for a package that is published at all.
 
 The tag body is `key: value` lines: `released` dates the heading, `note` becomes a quote, any other key renders as a labelled line. A lightweight tag has no body, so its section has no date. Until the changelog is regenerated after a tag, `--check` and the pre-push changelog check fail, which is the reminder. To adopt the generator on an existing hand-kept changelog, run `npx cookwright changelog --adopt` once: it replaces the file, and anything not derivable from the tags and the commit subjects is lost, so keep a copy of what you want.
 

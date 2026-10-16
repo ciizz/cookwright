@@ -92,7 +92,9 @@ init() {
   done
   expect AGENTS.md "^This is an Expo" "init lost the scaffold's AGENTS.md text"
   expect AGENTS.md "^## My rules" "init lost the overlay's rule"
-  expect .claude/settings.json '"enabledPlugins"' "init lost the scaffold's settings"
+  node -e 'const s = JSON.parse(require("fs").readFileSync(".claude/settings.json", "utf8"));
+    process.exit(s.enabledPlugins?.["expo@claude-plugins-official"] === true ? 0 : 1)' \
+    || fail "init lost the scaffold's settings"
 }
 
 doctor() {
@@ -135,7 +137,7 @@ links() {
 
 main() {
   echo "$MSG_HEAD"
-  need git; need npm; need npx
+  need git; need node; need npm; need npx
   isolate_git
   WORK="$(mktemp -d "${TMPDIR:-/tmp}/cookwright-fixture.XXXXXX")"
   [ -n "${KEEP:-}" ] || trap 'rm -rf "$WORK"' EXIT

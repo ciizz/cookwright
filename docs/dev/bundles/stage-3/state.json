@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "revision": 1,
+  "slug": "stage-3",
+  "branch": "bundle/stage-3",
+  "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
+  "createdAt": "2026-10-16T07:06:22.987Z",
+  "plan": {
+    "path": "docs/dev/bundles/stage-3/plan.md",
+    "sha": "1ecd1c87426312a3"
+  },
+  "slices": [
+    {
+      "id": "route",
+      "sessions": [
+        {
+          "id": "s1",
+          "scope": "plan §4.1, §4.2: the moves (hosts/, the playbook, the bundle skill) with this repo's three in-repo links and the doc-sync rule paths in the same commit; package.json files; PACKAGE_DIR, installedPackage, playbookPath; paths.playbook optional; the schema and hosts enum; the bundle refusals (playbook missing, Codex-only host); status's pointer script path; the doc lines the move breaks",
+          "checkpoints": [
+            "the moves committed with npm pack --dry-run measured",
+            "config and schema parity with tests",
+            "bundle args through the node_modules link with tests",
+            "the two bundle refusals with tests"
+          ]
+        },
+        {
+          "id": "s2",
+          "scope": "plan §4.3: migrations.mjs, the loader's in-memory chain and its two version lines, migrate.mjs with --dry-run, reserialize in init/files.mjs, cli-main registration and usage, doctor's config WARN, init's kept row for a version-1 config",
+          "checkpoints": [
+            "the loader's in-memory migration with tests",
+            "the migrate command with tests (dry-run, relaid note, refusals)"
+          ]
+        },
+        {
+          "id": "s3",
+          "scope": "plan §4.4, Claude half and the hook commands: HOSTS.claude keys, hookCommand(rel) with the stage-1 text as past, the link write and refuseLinks, init/pointers.mjs, doctor/hosts.mjs (host.pointers), levels, the doctor fixture with pointer targets",
+          "checkpoints": [
+            "init pointer rows with idempotence and every table state, with tests",
+            "the hook command forms with tests",
+            "doctor's host.pointers with tests; 17 checks in the fixture"
+          ]
+        },
+        {
+          "id": "s4",
+          "scope": "plan §4.4, Codex half: HOSTS.codex, init/hostfile.mjs, init/codex.mjs, the Codex rules and hook checks, init --hosts and its refusal on an existing config, the scratch-repo measurement with codex exec",
+          "checkpoints": [
+            "two-host init and doctor with tests",
+            "the codex exec measurement in the report"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "setup",
+      "sessions": [
+        {
+          "id": "s5",
+          "scope": "plan §4.5, §4.6, §4.8, §7.5's README text: the setup skill, the rules block v3, the README sections (first run, updating, skills and workflows, Codex, commands, releases order), the bundle skill's level line, backlog lines of §9",
+          "checkpoints": [
+            "the setup skill",
+            "the block v3 with tests",
+            "README and backlog"
+          ]
+        },
+        {
+          "id": "s6",
+          "scope": "plan §7: this repo's migrate, init, doctor (17 PASS), AGENTS.md Layout; the fresh-session listing is the orchestrator's measurement",
+          "checkpoints": [
+            "dogfood committed with doctor 17 PASS",
+            "the fresh-session listing recorded"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ci",
+      "sessions": [
+        {
+          "id": "s7",
+          "scope": "plan §4.7: scripts/ci/fixture.sh with the pinned create-expo-app version printed, fixtures/expo-overlay/, .github/workflows/ci.yml; measured locally once",
+          "checkpoints": [
+            "the fixture script measured locally with its output in the report",
+            "ci.yml"
+          ]
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "name": "plan-review",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s1",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s2",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s3",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s4",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:route",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:route",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s5",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s6",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:setup",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:setup",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s7",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:ci",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:ci",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "qa",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "closeout",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    }
+  ],
+  "gates": [],
+  "findings": [],
+  "reports": [],
+  "qaRounds": [],
+  "decisions": [],
+  "costs": []
+}

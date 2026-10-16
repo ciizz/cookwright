@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 21,
+  "revision": 34,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -221,7 +221,26 @@
       ]
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-3/findings/plan-review-1.json",
+      "counts": {
+        "confirmed": 15,
+        "plausible": 15,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 5,
+        "P2": 16,
+        "P3": 9
+      },
+      "at": "2026-10-16T07:22:12.251Z",
+      "stored": true,
+      "head": "f4c28f7266e1f42044ce2361c76064f7cf8d4775"
+    }
+  ],
   "reports": [],
   "qaRounds": [],
   "decisions": [
@@ -342,6 +361,90 @@
       "actor": "orchestrator",
       "source": "kickoff 2026-10-16, the Decision 1 precondition, measured in a scratch repo with one-shot Claude Code 2.1.301 sessions",
       "text": "Measured before bundle init: (1) a .claude/skills/zzz-probe symlink into node_modules/fakepkg/skills/zzz-probe was listed and invoked, the session replying the skill's own text PROBE-OK; (2) a .claude/workflows/zzz-flow.js symlink into node_modules/fakepkg/workflows/zzz-flow.js ran as the named workflow zzz-flow and returned {\"probe\":\"FLOW-OK\"}; (3) in a second scratch repo with the same two links and no node_modules, the session answered NO to the skill and NONE to any warning or error. The pointer route stands; the plugin fallback is not needed.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.060Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 0 and 16 (disposition 13)",
+      "text": "Rule 1 and rule 3: s1's move commit drops paths.playbook from this repo's cookwright.json, since the key is optional from s1 on and absent means the installed copy through the workspace link, so every later session's bundle args launches; §7.1 expects only the version bump and the relaid note. A plain version-1 file stays the migration's test case. The recorded s1 split text ('the three in-repo links') is corrected by plan §4.1 and §10: the links are written in their final node_modules form.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.122Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 1, 17 and 18 (disposition 14)",
+      "text": "Rule 2: ownership of a pointer link is decided by its text, the way hookCommandsPast decides a hook's: ours is the shape (../)*[<rel>/]node_modules/cookwright/(skills|hosts/<host>/workflows)/<name> plus a POINTER_TEXTS_PAST list, empty in this stage; every other link is the user's, dangling or not, skipped by init and WARN in doctor, never replaced. s1 writes this repo's three links straight in the node_modules form, which resolves through the workspace link (measured), so s6 reads kept for them and wrote for setup only.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.178Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 2 (disposition 15)",
+      "text": "Rule 1: a path interpolated into a hook command is quoted as a shell word (shellWord in shims.mjs) with tests for spaces, quotes, $(), backticks and semicolons. Moot in this stage since disposition 16 withdraws the change; recorded for the bundle that makes it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.233Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 3, 19 and 20 (disposition 16)",
+      "text": "Rule 3: the claim that the hook commands close B-002's hook half is withdrawn. Where each host loads its settings file for a session started at the top versus in a nested config root is unmeasured, the shims look under the config root only, and CLAUDE_PROJECT_DIR may already be the config root. The hook commands and the shims stay as stage 2 left them; B-002 stays open, its text noting that the pointers handle a package hoisted to the top while the hooks and shims do not; the fix is backlogged with the settings-file placement to measure first.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.288Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 4 (disposition 17)",
+      "text": "Rule 3: every path the bundle commands print or hash is relative to the config root, as today; a package hoisted to the top yields ../../node_modules/cookwright/... paths inside the work tree, hashed from the config root; an end-to-end test covers a nested config root with the package hoisted (bundle args and status).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.343Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 5 and 6 (disposition 18)",
+      "text": "Rule 1 and rule 2: /setup is a loop (doctor, one remedy, doctor again, until complete or a chosen state the recipe says to explain and stop at), its recipe exhaustive by check, status and host (the Codex AGENTS.override.md case is a chosen state, not the Claude import remedy), and the QA leg invokes it on the initial readout and lets it drive migrate and init.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.417Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 7, 8 and 9 (disposition 19)",
+      "text": "Rule 3 and rule 2: the ignored note says only 'ignored by git'; doctor reads an ignored, untracked pointer as WARN naming git add -f <path>; any symlinked component on a pointer's parent path makes its row skipped, refuseLinks exempting the final pointer only; a symlinkSync failure is reported after the rows and init goes on; the support claim is narrowed: only Windows is backlogged, a non-Windows filesystem refusing links is not supported in this stage and doctor reports the missing pointer as FAIL there.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.497Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 21 (disposition 20)",
+      "text": "Rule 2 and the charter's levels: at Level 0 only the Level 0 pointers (setup) count as drift; a missing pointer of a Level 2 piece (bundle, the workflows) is WARN 'not required at level 0', since Level 2 is installable, not required. SKILLS in hosts.mjs carries each skill's level. An opt-out lever for a Level 2 pointer a user does not want is backlogged (rule 6, wanted once).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.588Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 10 and 11 (disposition 21)",
+      "text": "Rule 3: a Codex hook's identity is its command and its matcher (a wrong matcher is WARN in doctor, updated by init); the Codex rules check walks from the invocation directory up through the root for AGENTS.override.md, as shadowingFiles does for Claude, reporting root-relative names.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.642Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 13, 25, 12 and 14 (disposition 22)",
+      "text": "Rule 3 and rule 6: s7 is mandatory (the state carries its phase; a scope cut is a formal plan revision, never silence); E-007, E-012 and E-013 close; E-014 stays open, narrowed to the first green GitHub run and ci.workflow set, closed by the developer after the first push; --base on an existing config is refused in s4 with a test beside --hosts, no conditional backlog line; the create-expo-app version is measured by s7 from the registry (the kickoff reading of the npx cache was not reproducible: 5.0.0 there, not 5.0.1) and nothing is claimed in the plan.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.705Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 22, 23 and 24 (disposition 23)",
+      "text": "Rule 3: bundle status prints the measured form, Workflow({ name: 'bundle-phase', args }), and says 'run init' when the workflow pointer is missing; every scratch-repo measurement and the QA leg install the npm pack tarball, the published shape, never npm install <directory>; s4 also measures codex exec with node_modules removed.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:26:47.760Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 26, 27, 28, 29 and 15 (disposition 24)",
+      "text": "Rule 3: the schema's version accepts what the loader accepts (enum [1, 2], 1 migrated in memory) with a parity test (schema versions = {CONFIG_VERSION} ∪ keys(MIGRATIONS)); 'first line' means the first body line after the frontmatter, with a test that each shipped SKILL.md opens with frontmatter holding name and description; workflowScript picks the first configured host that has workflowsDir and refuses only when none has; the QA leg expects three lines; doctor/basics.mjs (checkConfig's WARN) joins s2's surface.",
       "claim": true
     }
   ],

@@ -1,0 +1,495 @@
+{
+  "phase": "plan-review",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.1 lines 47-49; §4.3 lines 55-61; §10 lines 161-162",
+      "severity": "P1",
+      "problem": "Session order deadlocks the bundle. S1 moves docs/playbook.md and makes bundle args refuse a missing explicitly configured playbook, but the migration that drops the stale config key lands only in S2.",
+      "failure_scenario": "After S1, cookwright.json v1 still has paths.playbook 'docs/playbook.md' but the file moved; 'bundle args stage-3 implement:s2' refuses, so the workflow needed to implement the migration cannot launch.",
+      "suggested_fix": "Implement in-memory migration before moving the playbook, combine both in S1, or keep a temporary compatibility symlink through S2. Add a dogfood assertion that S1's checkout can emit S2's workflow args.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "cookwright.json:11 keeps paths.playbook; plan §4.1 moves the file and refuses a configured-but-missing playbook; the 1->2 migration is only in s2 (plan.md:162), which needs bundle args."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "Pointer-state table lines 69-76; dogfood §7.2 line 133",
+      "severity": "P1",
+      "problem": "Pointer classification is destructive and contradictory: unknown dangling symlinks are replaced as 'earlier pointer' while unknown resolving symlinks are treated as user-owned. This repo's legacy in-repo pointers resolve after S1, so the table keeps them while §7 requires updating them to node_modules.",
+      "failure_scenario": "Init deletes a user's temporarily dangling skill link and replaces it; conversely this repo's legacy links stay unchanged, so S6's expected 'updated' rows and 17-PASS doctor result fail.",
+      "suggested_fix": "Enumerate recognized current and legacy cookwright target texts and update those regardless of resolution; preserve every unknown link including dangling ones. Replace links atomically. Test a known resolving legacy link and an unknown dangling user link.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "plan §4.4 table: dangling other-text link -> updated, resolving other-text link -> skipped; §4.1 rewrites the links to in-repo targets that resolve, but §7.2 expects 'updated'."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.4 line 65",
+      "severity": "P1",
+      "problem": "Proposed hook commands interpolate the config-relative path inside double-quoted shell text without escaping.",
+      "failure_scenario": "A config directory such as apps/$(command) causes command substitution on every SessionStart; spaces or quotes make the hook cd to the wrong directory.",
+      "suggested_fix": "Quote the relative path as a shell word (existing shellWord approach). Test spaces, single quotes, $(), backticks and semicolons for both host commands.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "plausible",
+      "evidence": "plan §4.4 hookCommand uses cd \"${CLAUDE_PROJECT_DIR:-.}/<rel>\" with no escaping, while shims.mjs has shellWord for its cd; only exploitable with an unusual directory name."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "Disposition 6 line 29; §4.4 line 65; §9 line 151",
+      "severity": "P1",
+      "problem": "Plan wrongly claims to narrow B-002. Appending the top-to-config relative path to CLAUDE_PROJECT_DIR does not fix sessions started below a top-level config and can double the path when the project dir is already the nested config root. Both host commands still look for node_modules only after entering the config root. Git shims in src/lib/hooks/shims.mjs are unchanged and cannot use a package hoisted to the work-tree top.",
+      "failure_scenario": "With cookwright.json under apps/mobile and cookwright hoisted at the top, SessionStart and git hooks print 'package not installed' and exit cleanly; secret scan, doc sync, push gate and changelog verify never run though top-hoisted installs are claimed supported.",
+      "suggested_fix": "Resolve config root and installed package independently at runtime (config root and work-tree top). Update hooks/shims.mjs and tests; run hook tests with CLAUDE_PROJECT_DIR at top, config root and another subdirectory. Do not narrow B-002 until these pass.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "plan §4.4/disposition 6 claim to close the hook half of B-002; shims.mjs:24,53-59 test node_modules/cookwright only after entering the config root, so a top-hoisted package is not found."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.1 line 49; §6 bundle tests line 122",
+      "severity": "P2",
+      "problem": "Path base for a top-hoisted package is undefined. installedPackage(repo) returns a root-relative path, but a package at the work-tree top is outside a nested config root; pointer() resolves against repo.root while the workflow pointer lives at the work-tree top.",
+      "failure_scenario": "For apps/mobile/cookwright.json with top-level node_modules/cookwright, bundle args hashes the wrong file, emits a '..' path resolved from the wrong cwd, or prints an unresolvable script path.",
+      "suggested_fix": "Pick one explicit base (config root or work-tree top) for every workflow path, keep both roots in repo context, convert plan/state/rules/playbook/script paths consistently. Add an end-to-end nested-config/top-hoisted bundle status and bundle args test.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "plausible",
+      "evidence": "plan §4.1 installedPackage returns a root-relative path and also searches <top>/node_modules; how a '..' path is hashed or resolved by phases.mjs:164 pointer(repo, ...) is unspecified."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.5 lines 84-91; QA verification line 145",
+      "severity": "P2",
+      "problem": "Setup procedure is not a verification loop and QA bypasses its main behavior: only the first doctor run is unconditional, remedies do not rerun doctor, and QA runs migrate and init manually before invoking /setup.",
+      "failure_scenario": "The skill acts on stale diagnoses, misses output produced by migration, or stops without proving completion; QA passes even if the skill cannot remediate any WARN/FAIL.",
+      "suggested_fix": "Specify doctor -> remedy -> doctor again until complete or blocked. In QA invoke /setup on the initial migrated/stale/missing-pointer readout and let it drive migrate and init; assert actions and final doctor output.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "plausible",
+      "evidence": "plan §4.5 steps 1-4: doctor runs once in step 1, step 4 does not say to rerun it; §8 QA leg runs migrate and init by hand before /setup."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.5 lines 86-89",
+      "severity": "P2",
+      "problem": "The 'each non-PASS line' recipe is incomplete and sometimes host-wrong: no coverage of invalid/non-integer config versions, user-owned pointer conflicts, linked pointer parents, other pointer WARN states; 'host.rules shadowed -> README import paragraph' is a Claude remedy, not for Codex AGENTS.override.md.",
+      "failure_scenario": "A Codex repo with AGENTS.override.md is told to add a Claude @AGENTS.md import which cannot clear the warning; other non-PASS states get no action.",
+      "suggested_fix": "Make the recipe exhaustive by check, status/subreason and host, with explicit 'chosen state; explain and stop' outcomes and remediation or escalation for every emitted doctor variant.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "plausible",
+      "evidence": "plan §4.5 line 87 maps 'host.rules shadowed' to the README import paragraph; §4.4 gives Codex shadowing as AGENTS.override.md, which that paragraph (a Claude @AGENTS.md import) cannot clear; invalid-version and user-owned pointer WARNs are missing from the recipe."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.4 line 71; §6 pointer tests line 119; §7.5 line 136",
+      "severity": "P2",
+      "problem": "Ignored pointers are only annotated, not made persistent; the ignore probe cannot establish the source is a 'global ignore'; plain git add rejects an ignored pointer.",
+      "failure_scenario": "Doctor passes locally because the pointer exists but it was never committed; a fresh clone lacks skill and workflow pointers and the documented 'git add <paths>' fails.",
+      "suggested_fix": "Report only 'ignored by git' unless source is measured. Treat an untracked ignored required pointer as weak/failing, give a consented 'git add -f <named paths>' remedy or other placement, and test the fresh-clone result.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "plausible",
+      "evidence": "plan §4.4 table only appends an 'ignored by git' note to the wrote row; §4.5 step 4 tells the user to git add <paths>, which git rejects for ignored paths."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.4 lines 76-78; §6 line 119",
+      "severity": "P2",
+      "problem": "Only a symlink at the immediate pointer directory is handled, not a symlink in an earlier path component; this is the invariant enforced by linkOnPath/refuseLinks.",
+      "failure_scenario": "If .claude is a symlink but .claude/skills resolves as a normal dir, pointer code may write outside the repo; if refuseLinks stays unchanged, the whole init refuses instead of skipping just the pointer row.",
+      "suggested_fix": "Detect any linked component in the pointer's parent path and return a skipped row; exempt only the final pointer from refuseLinks. Test .claude and .claude/skills as links and prove the external target is untouched.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "plausible",
+      "evidence": "plan §4.4 table handles only 'the pointer's directory is itself a symlink'; a link in an earlier component (.claude) is not described, and refuseLinks is said to remain for other writes."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.4 line 78; §6 line 119",
+      "severity": "P2",
+      "problem": "Graceful handling of filesystems refusing symlinks conflicts with the planned doctor verdict: init continues but doctor reports the missing pointer as FAIL on non-Windows.",
+      "failure_scenario": "On a filesystem without symlink support, init does other writes then exits nonzero because doctor sees drift the user cannot clear; later doctor runs keep failing, violating 'every piece optional'.",
+      "suggested_fix": "Define a durable way to distinguish unsupported symlinks from ordinary drift, or narrow the support claim and backlog it. Test final init exit code and subsequent doctor behavior.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 9,
+      "verdict": "confirmed",
+      "evidence": "plan §4.4: a symlinkSync failure continues the run, but doctor reports a missing pointer as FAIL except on win32, and the test list says 'exit as doctor's'."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.4 lines 65 and 78-80; §6 lines 119 and 121",
+      "severity": "P2",
+      "problem": "Codex hook detection is command-only though the matcher matters; init merges only when the command is absent and doctor passes when the file 'carries the doctor hook'.",
+      "failure_scenario": "Same command under a matcher covering startup but not resume (or an unrelated event): init keeps it, doctor PASSes, resumed sessions never run doctor.",
+      "suggested_fix": "Treat command plus required matcher as one hook identity; WARN/update on wrong or incomplete matcher. Test missing, wrong, narrower and equivalent matchers.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 10,
+      "verdict": "plausible",
+      "evidence": "plan §4.4: Codex step 'merges only when the command is absent'; doctor PASS 'carries the doctor hook'; no matcher check described although hookMatcher is 'startup|resume'."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "Host description line 14; §4.4 lines 65 and 80",
+      "severity": "P2",
+      "problem": "Codex rules check looks only for AGENTS.override.md beside root AGENTS.md, contradicting the stated directory-walk behavior; a nearer override between invocation dir and root is ignored.",
+      "failure_scenario": "apps/mobile/AGENTS.override.md overrides root instructions for a session started there while doctor reports host.rules PASS.",
+      "suggested_fix": "Scan from invocation directory through the config/work-tree root for override files, report root-relative names, and test a nested invocation directory.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 11,
+      "verdict": "confirmed",
+      "evidence": "plan line 14 says AGENTS.override.md replaces per directory; §4.4 doctor checks only 'no AGENTS.override.md beside' root AGENTS.md."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.2 line 53; §6 line 119; §9 line 152; §10 line 164",
+      "severity": "P2",
+      "problem": "Scope for --base on an existing config is unresolved: §4.2 says refuse it, but tests and S4 scope cover only --hosts, and §9 conditionally backlogs --base.",
+      "failure_scenario": "Implementation follows session scope, leaving --base silently ignored while the plan/closeout claim §4 done; or an implementer fixes it outside the declared surface.",
+      "suggested_fix": "Decide now: include --base refusal in S4 with a test, or remove it from §4 and open a stable backlog item. Remove the 'if not folded in' wording.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 12,
+      "verdict": "confirmed",
+      "evidence": "plan §4.2 says --base should be refused on an existing config; §6 tests and §10 s4 name only --hosts; §9 (e) backlogs --base conditionally."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "Scope line 39; state homes lines 150-152; split lines 165-167",
+      "severity": "P2",
+      "problem": "Plan closes E-014 before its implementation session and declares the CI session (S7) 'droppable if the bundle runs long'; S5 owns backlog updates while S7 builds the fixture; 'runs long' is untestable and state already has a mandatory S7 phase.",
+      "failure_scenario": "E-014 recorded closed with no fixture or workflow, or S7 becomes a no-op while scope and verification still claim §4.7 shipped.",
+      "suggested_fix": "Make S7 mandatory, or formally revise plan/split and leave E-014 open before skipping. Close each backlog item only when its implementation and verification complete.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 13,
+      "verdict": "confirmed",
+      "evidence": "plan §3 and §9 close E-014; §10 s7 (plan.md:167) is 'Droppable if the bundle runs long; E-014 then stays open', contradicting the closure and leaving the trigger untestable."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "Intro line 3; §4.7 line 99",
+      "severity": "P2",
+      "problem": "The create-expo-app measurement is not reproducible: the inspected npm/npx cache contains 5.0.0, not 5.0.1.",
+      "failure_scenario": "S7 pins an unmeasured/unavailable version; the fixture fails before testing cookwright or exercises a different scaffold than described.",
+      "suggested_fix": "Remeasure the exact published tarball/version before implementation, record the command and generated files, and pin the verified value; drop '5.0.1 in the npx cache' unless demonstrated.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 14,
+      "verdict": "plausible",
+      "evidence": "npx cache holds create-expo 5.0.1 but create-expo-app 5.0.0; plan line 3 says create-expo 5.0.1 while §4.7 pins create-expo-app@<version> as 5.0.1."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "Files inventory line 111; §4.3 line 59; S2 line 162",
+      "severity": "P3",
+      "problem": "Changed-file inventory omits packages/cookwright/src/lib/doctor/basics.mjs, where checkConfig unconditionally returns PASS when config loaded; it must change to emit the migration WARN. If B-002 is fixed, src/lib/hooks/shims.mjs is also missing.",
+      "failure_scenario": "Implementer follows the inventory and migrated v1 configs keep reporting PASS, or touches an undeclared file creating a scope discrepancy in review.",
+      "suggested_fix": "Add src/lib/doctor/basics.mjs and its tests to S2 and the file list; if B-002 is fixed, add src/lib/hooks/shims.mjs to the declared surface.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 15,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/doctor/basics.mjs:10-12 checkConfig returns pass whenever repo.config loads; plan §5 Changed lists doctor/{registry,claude}.mjs but not basics.mjs, and not hooks/shims.mjs."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.1 (s1 moves docs/playbook.md) with §4.1 refusal, §7.1, §10 s1/s2",
+      "problem": "s1 moves docs/playbook.md and adds the refusal for a configured playbook that is missing. It never touches this repo's own `paths.playbook: \"docs/playbook.md\"` (cookwright.json:11). §7.1 counts on that stale key surviving until s6's migrate. The only thing that would neutralise the key is the in-memory 1->2 migration, and that lands in s2, which needs `bundle args` to launch.",
+      "severity": "P1",
+      "suggested_fix": "In s1's move commit, drop `paths.playbook` from this repo's cookwright.json, since the key is optional from s1 on and absent means node_modules/cookwright/docs/playbook.md through the workspace link. Add it to s1's scope and checkpoint ('bundle args through the node_modules link' measured on this repo). Restate §7.1 so it expects only the version bump and the relaid note. A plain v1 file is the migration case the tests already cover.",
+      "failure_scenario": "After implement:s1 commits the move, the orchestrator runs `bundle phase stage-3 start implement:s2` and then `bundle args stage-3 implement:s2`. workflowArgs calls playbookPath(config), gets 'docs/playbook.md', finds it missing and exits 2 with s1's own refusal ('the playbook is not at docs/playbook.md (paths.playbook names it)'). Under disposition 4, `bundle status` refuses too. The bundle halts after its first session, and the only way forward is a hand edit of a code file outside any session.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 16,
+      "verdict": "confirmed",
+      "evidence": "same chain as [0]: cookwright.json:11 stale key, s1 refusal, migration only in s2 (plan.md:161-162), and §7.1 relies on the key surviving until s6."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.1 (s1 rewrites the three tracked links) vs §4.4 row table vs §7.2/§7.3",
+      "problem": "s1 rewrites .claude/skills/bundle and the two workflow links to in-repo targets (../../packages/cookwright/...). These links resolve and their text is not one of the two forms §4.4 calls ours. By the plan's own row table, a link of other text that resolves is `skipped  your own link; cookwright's <name> is not reachable`, and doctor reports it as WARN. §7.2 instead expects these three rows to read `updated`, and §7.3 expects 17 PASS. s6's checkpoint 'dogfood committed with doctor 17 PASS' cannot be reached as the plan is written.",
+      "severity": "P2",
+      "suggested_fix": "Have s1 write the three links straight in the form init will produce (../../node_modules/cookwright/skills/bundle and ../../node_modules/cookwright/hosts/claude/workflows/<name>.js). These resolve today through node_modules/cookwright -> ../packages/cookwright (measured). s6's init then reads `kept` for them and `wrote` only for setup. Restate §7.2 to match.",
+      "failure_scenario": "In s6: `npx cookwright init` prints `skipped .claude/skills/bundle your own link; cookwright's bundle is not reachable` and the same for bundle-phase.js and docs-audit.js. `npx cookwright doctor` then shows host.pointers WARN naming three links of 'yours', so the readout is '16 PASS, 1 WARN', not '17 PASS'. The implementer either hand-deletes the links (out of the plan) or cannot meet the checkpoint.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 17,
+      "verdict": "confirmed",
+      "evidence": "plan §4.1 in-repo links resolve after the move; §4.4 table gives 'skipped, your own link' for resolving other-text links; §7.2 expects 'updated' and §7.3 17 PASS; .claude/skills/bundle currently -> ../../hosts/claude/skills/bundle."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§2 disposition 5, §4.4 row table ('a symlink of other text that resolves to nothing -> updated earlier pointer replaced')",
+      "problem": "Any dangling link of other text at .claude/skills/<name> or .agents/skills/<name> is classed as 'an earlier pointer'. No cookwright release has ever written a pointer (stages 1-2 wrote none), so for now every link this rule replaces belongs to the user. Doctor turns it into a FAIL 'run init', and init then deletes the user's link. Rule 2 says a state the user chose is a WARN, not drift that init overwrites.",
+      "severity": "P2",
+      "suggested_fix": "Recognise an earlier pointer by text, the way hookCommandsPast does. Keep a POINTER_TEXTS_PAST list, empty in this stage, or match the shape `(../)*[<rel>/]node_modules/cookwright/(skills|hosts/<host>/workflows)/<name>`. Treat any other dangling link as the user's: `skipped`, WARN naming it. Add a test where a user's dangling link of another shape is left byte-identical.",
+      "failure_scenario": "A user keeps `.claude/skills/setup -> ../../../dotfiles/skills/setup`, a personal skill whose target is missing on their laptop or in a fresh clone. Doctor reports host.pointers FAIL 'run init' (Level 0 drift). The user runs `npx cookwright init`, which removes their link and writes cookwright's. Their own link text is lost, and `git status` shows the change to a committed file.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 18,
+      "verdict": "confirmed",
+      "evidence": "plan disposition 5 and §4.4 table classify any dangling other-text link as an earlier pointer to be replaced, although no earlier release ever wrote one (plan line 3 says stages 1-2 wrote no pointers)."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§2 disposition 6, §4.4 hookCommand(rel), §9 B-002 narrowing",
+      "problem": "The pointers accept a package hoisted to the top (<top>/node_modules/cookwright). The hook commands do not: they `cd` into the config root, then test `[ -f node_modules/cookwright/bin/cookwright.mjs ]` there. The git shims do the same (shims.mjs:24,53-59). §9 nonetheless narrows B-002 to 'a package installed elsewhere than the config root or the top', which is wider than the design.",
+      "severity": "P2",
+      "suggested_fix": "Either have the hook commands and shims check both places in the same order as installedPackage (config root, then top), with a test for the hoisted case, or narrow §9 honestly: B-002 keeps 'a package hoisted to the top while the config root is nested' alongside the worktree case.",
+      "failure_scenario": "In a monorepo, cookwright.json is at apps/mobile and npm workspaces hoist cookwright to <top>/node_modules. init writes pointers into ../../node_modules/cookwright/... that resolve, and doctor's host.pointers is PASS. But the SessionStart hook prints 'package not installed (npm install)' every session, and the pre-commit/pre-push shims print the not-installed line and check nothing, so secrets and doc sync go unscanned. B-002 has been marked narrowed past this case.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 19,
+      "verdict": "confirmed",
+      "evidence": "plan disposition 6 accepts a top-hoisted package for pointers but hook commands keep the node_modules test in the config root; shims.mjs:24,53-59; §9 narrows B-002 past this case."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.4 'Hook commands become a function of the config root's place' and 'Pointers live at the work tree's top'",
+      "problem": "For a nested config root, the plan puts the pointers at the top and leaves the host settings files where init writes them today. claudeHookStep and doctor's checkClaudeHook both use path.join(repo.root, '.claude/settings.json'), which is the config root, and the Codex hostfile generalises the same logic. The new command `cd \"${CLAUDE_PROJECT_DIR:-.}/<rel>\"` is correct only if a session whose project dir is the top loads <config root>/.claude/settings.json. If the session starts at the config root, CLAUDE_PROJECT_DIR is already the config root and the cd doubles the path. Where each host loads its settings or hooks file from is neither stated nor measured, and the tests compare strings only. The claim that this closes the hook half of B-002 for nested roots is unmeasured (rule 3).",
+      "severity": "P2",
+      "suggested_fix": "State where each host reads its project settings file (.claude/settings.json, .codex/hooks.json) for a session started at the top and one started in the config root. Measure it in s3/s4's scratch repo with a nested root (one session each, hook output observed). Write the settings file where the session that gets the `<rel>` form reads it, which is probably the top beside the pointers, using placement().up as the git shims do. Until then, do not claim B-002's hook half closed.",
+      "failure_scenario": "Config root apps/mobile, settings written at apps/mobile/.claude/settings.json with `cd \"${CLAUDE_PROJECT_DIR:-.}/apps/mobile\"`. Case 1: the developer opens Claude Code in apps/mobile, so CLAUDE_PROJECT_DIR=<top>/apps/mobile and the cd to <top>/apps/mobile/apps/mobile fails. The ';'-joined line continues in whatever cwd the hook has, and prints a cd error plus a misleading line. Case 2: the developer opens it at the top, so Claude reads <top>/.claude/settings.json (absent) and the hook never fires. Doctor's host.hook PASSes in both cases, because it only compares the text.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 20,
+      "verdict": "plausible",
+      "evidence": "plan §4.4 hookCommand uses CLAUDE_PROJECT_DIR/<rel> while settings stay in the config root; which directory each host loads settings from and what CLAUDE_PROJECT_DIR is are not measured in the plan."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§2 dispositions 10-11, §4.4 doctor (Level 0 requires host.pointers covering every shipped skill and workflow)",
+      "problem": "host.pointers is required at Level 0 and judges every skill and workflow the package ships. That includes `bundle`, `bundle-phase.js` and `docs-audit.js`, which disposition 11 itself flags as Level 2, experimental. A Level 0 user who does not want the experimental runner and deletes its pointer gets Level 0 drift (FAIL 'run init'), and init writes the pointer back. The only way out is to fake a 'chosen state' with a real directory. This contradicts AGENTS.md 'Every piece is optional' and the charter's levels (Level 2 installable, not required).",
+      "severity": "P2",
+      "suggested_fix": "At Level 0, judge only the Level 0 skills (setup) as required. Report a missing pointer to a Level 1/2 piece as WARN, or SKIP 'not required at level 0', or judge it at its own level. SKILLS in hosts.mjs already says which skill needs workflows; give it the level too. Add a doctor test: bundle pointer deleted at Level 0, level still complete.",
+      "failure_scenario": "A solo developer at Level 0 removes .claude/skills/bundle and .claude/workflows/bundle-phase.js so the experimental runner never appears. Every session start shows host.pointers FAIL and 'level 0 declared: drift' with 'run init'. Running init restores the files they removed, so they cannot opt out without cheating the check (rule 2: a FAIL the user cannot clear is a bug).",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 21,
+      "verdict": "confirmed",
+      "evidence": "plan disposition 10 makes host.pointers required at Level 0 for every shipped skill and workflow; disposition 11 marks bundle as Level 2 experimental; AGENTS.md 'Every piece is optional'."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.1 'bundle status prints scriptPath as the pointer path ... the route the kickoff precondition measured'",
+      "problem": "The kickoff precondition (state decision, kickoff 2026-10-16) measured `Workflow({ name: 'zzz-flow' })` resolving a named workflow through a .claude/workflows symlink. It did not measure `Workflow({ scriptPath: '.claude/workflows/<name>.js' })` through a symlink whose real path is under node_modules (or outside the repo, for an `npm install <dir>` link). The plan calls the scriptPath form measured, a claim wider than what was tested (rule 3).",
+      "severity": "P3",
+      "suggested_fix": "Either print the measured form, `Workflow({ name: 'bundle-phase', args })`, or add the scriptPath-through-link run to s1's or s3's measurement. In either case, have status check that the pointer exists and say 'run init' when it does not, rather than print a path to nothing.",
+      "failure_scenario": "A user upgraded from stage 2 who has not run init yet calls `bundle status`, which prints `Workflow({ scriptPath: '.claude/workflows/bundle-phase.js' ... })`. That file does not exist yet, so the Workflow call fails with a not-found error rather than a cookwright line. Separately, a link whose real path is outside the session's readable tree may be refused by the runtime, and nothing measured covers that.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 22,
+      "verdict": "plausible",
+      "evidence": "plan §4.1 says status prints the pointer path 'the route the kickoff precondition measured'; the precondition is described in §8 as skill links, and scriptPath through a symlink is not shown as measured."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§8 scratch repo, QA leg ('npm install --save-dev <checkout>/packages/cookwright')",
+      "problem": "`npm install <directory>` installs node_modules/cookwright as a symlink to the checkout, outside the user repo. That is not the shape a registry install produces (a real directory). The s3/s4 measurement and the QA leg therefore test a different shape from the one shipped. §4.7 already uses the `npm pack` tarball. The plan itself notes that a Workflow script must be readable by the session ('anything under the working directory is'), and through a directory link the real path is outside the working directory.",
+      "severity": "P3",
+      "suggested_fix": "Use `npm pack` and `npm install --save-dev <tarball>` for the s3/s4 scratch repo and the QA leg, as fixture.sh does, so every measurement runs against the published shape.",
+      "failure_scenario": "The QA leg passes on the personal app through a directory link. After `npm publish`, users get a real directory, a different shape: a difference such as a skill listed only because the realpath lands in an already-trusted checkout goes unnoticed. The reverse can also happen: the link form fails a readability check that a real install would pass, and QA reports a false bug.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 23,
+      "verdict": "plausible",
+      "evidence": "plan §8 scratch repo uses npm install --save-dev <checkout>/packages/cookwright, a directory link install rather than a registry-shaped real directory; §4.7 uses npm pack."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.4 Codex pointers, §2 Decision 1 precondition, §8 codex exec measurement",
+      "problem": "The dangling-pointer case was measured for Claude Code only. For Codex, §8 measures that `codex exec` lists setup with the package installed. Whether a dangling .agents/skills/setup link, as in a fresh clone before npm install, is skipped quietly or errors at session start is not measured. The plan nonetheless commits that link for every Codex user (rule 1: a harness problem never blocks the user).",
+      "severity": "P3",
+      "suggested_fix": "Add to s4's measurement checkpoint: `codex exec` in the scratch repo with node_modules removed, recording that the session runs and what it prints about the dangling skill.",
+      "failure_scenario": "A Codex user clones their repo on a new machine and opens Codex before `npm install`. If Codex errors or warns loudly on the unresolvable symlinked skill folder, the harness disrupts the session before the user has done anything, and doctor's WARN 'not installed where it points' gave no warning of it.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 24,
+      "verdict": "plausible",
+      "evidence": "plan §8 measures only that codex exec lists setup with the package installed; the dangling .agents/skills link case is not measured, yet disposition 5 writes it before npm install."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§3 (E-014 closed), §2 disposition 8, §8 'The developer's hands, after merge'",
+      "problem": "E-014 is closed although the CI workflow has never run (no remote, measured), and `ci.workflow` stays unset. The outstanding steps (first push, first CI run, setting ci.workflow) are recorded only as prose in the plan's §8, and the closeout will carry them as narrative. AGENTS.md says 'No pending or next steps narrative in an active doc. A thing to do is a backlog entry', and rule 3 says claim only what was measured.",
+      "severity": "P3",
+      "suggested_fix": "Keep E-014 open, narrowed to 'first GitHub run green and ci.workflow set', or open a new backlog item for it in §9's 'opened' list, so the unverified CI has a stable id.",
+      "failure_scenario": "After merge, the backlog shows E-014 closed. The developer pushes, ci.yml fails on GitHub (say, git user config missing in the runner for the scratch-repo tests), and nothing in the state homes records that CI was never verified or that ci.workflow is still unset. `bundle check` keeps reporting the CI row as SKIP, and nobody owns the item.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 25,
+      "verdict": "plausible",
+      "evidence": "plan §3/§9 close E-014 while §8 holds first push, first CI run and ci.workflow as prose; AGENTS.md says a thing to do is a backlog entry."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.2/§4.3 schema parity for version (schema `\"const\": 1` becomes 2)",
+      "problem": "The loader accepts a version-1 file and migrates it in memory, but the editor-facing schema will say `const: 2`. Every existing user's cookwright.json then shows a schema error in the editor that the CLI does not share.",
+      "severity": "P3",
+      "suggested_fix": "Let the schema accept the versions the loader accepts (`enum: [1, 2]`), with a description saying 1 is migrated in memory and `npx cookwright migrate` writes 2. Parity test: schema versions = {CONFIG_VERSION} ∪ keys of MIGRATIONS.",
+      "failure_scenario": "The personal app updates the package. VS Code underlines `\"version\": 1` in red with 'must be equal to constant 2', while doctor says WARN, and the user is left with two contradictory readings of one file.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 26,
+      "verdict": "plausible",
+      "evidence": "packages/cookwright/schema/cookwright.schema.json:15-18 has const 1; plan §6 requires schema parity for version and CONFIG_VERSION=2, so the schema moves to 2 while v1 files still load."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§2 disposition 11, §4.5 ('each SKILL.md's first line names its level', 'First line: Level 0')",
+      "problem": "Both hosts require a SKILL.md to open with YAML frontmatter (`---`), so the file's first line cannot be the level line. Read literally, the instruction puts text ahead of the frontmatter, and the skill then does not load.",
+      "severity": "P3",
+      "suggested_fix": "Say 'the first body line after the frontmatter' (the slot the bundle SKILL.md's bold line 8 holds today). Add a test that each shipped SKILL.md starts with frontmatter holding `name` and `description`.",
+      "failure_scenario": "The implementer writes `Level 0.` as line 1 of skills/setup/SKILL.md, followed by the frontmatter. Neither Claude Code nor Codex parses the frontmatter, so /setup or $setup is not listed. doctor's host.pointers still PASSes, since the link resolves.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 27,
+      "verdict": "plausible",
+      "evidence": "plan §2 disposition 11 and §4.5 say the SKILL.md 'first line' names the level; existing hosts/claude/skills/bundle/SKILL.md starts with --- frontmatter, so a literal reading would break loading, though the plan may mean the first body line."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.1 'A default host without workflowsDir (Codex) -> bundle refuses'",
+      "problem": "The refusal keys on the default (first) host, not on whether any configured host has workflows. A config with `hosts: [\"codex\",\"claude\"]` is refused with 'needs a host with workflows (claude)' even though claude is configured. §4.5 step 3 tells users to add a host by editing `hosts`, so this order arises naturally.",
+      "severity": "P3",
+      "suggested_fix": "Pick the first configured host that has workflowsDir for workflowScript, and refuse only when none has one. Test with [codex, claude].",
+      "failure_scenario": "A Codex-first developer adds claude with `hosts: [\"codex\",\"claude\"]` and runs `npx cookwright bundle status x`. It exits 2 with 'the bundle runner needs a host with workflows (claude); hosts is [codex, claude]', a refusal that contradicts itself.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 28,
+      "verdict": "confirmed",
+      "evidence": "hosts.mjs:66,70 defaultHost = HOSTS[config.hosts[0]]; plan §4.1 refuses when the default host lacks workflowsDir, so hosts [codex, claude] is refused."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§8 QA leg",
+      "problem": "The QA leg says 'the exact two lines expected', then lists three (config WARN, rules.block FAIL, host.pointers FAIL). The developer's script for the QA leg is self-contradictory.",
+      "severity": "P3",
+      "suggested_fix": "Change it to 'the exact three lines expected', and say whether every other check is expected to PASS.",
+      "failure_scenario": "During QA the developer sees three non-PASS lines where the plan says two, and has to decide whether the extra line is a bug. That ambiguity ends up recorded as a QA finding or ignored.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 29,
+      "verdict": "confirmed",
+      "evidence": "plan §8 QA leg says 'the exact two lines expected' then lists config WARN, rules.block FAIL and host.pointers FAIL (three)."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "Ran Codex (high effort, read-only) on docs/dev/bundles/stage-3/plan.md against the repo; hit the ceiling, then ran codex exec resume at medium effort to get the full report",
+    "Transcribed all 16 Codex findings (4 P1, 11 P2, 1 P3)",
+    "AGENTS.md, CLAUDE.md, docs/playbook.md and the plan: sha256 prefixes match the prompt header",
+    "docs/dev/bundles/stage-3/state.json: slices, sessions and recorded decisions, including the kickoff precondition measurement",
+    "CHARTER.md: properties, levels and the nine Judgment rules",
+    "cookwright.json: paths.playbook and doc-sync rule paths; package.json files",
+    ".claude/ tracked symlinks and node_modules/cookwright workspace link",
+    "src/lib/hosts.mjs: HOOK_COMMAND, HOSTS, defaultHost, workflowScript",
+    "src/lib/config.mjs: loadConfig, withDefaults, validatePaths, CONFIG_VERSION",
+    "src/lib/bundle/phases.mjs workflowArgs (playbook pointer); bundle.mjs nextAction/status",
+    "src/lib/bundle/check.mjs ciCheck (disposition 8 claim verified)",
+    "src/lib/init/{steps,files,claude,config,repo}.mjs: refuseLinks, settings location at config root, freshConfig",
+    "src/lib/doctor/{registry,claude,hooks}.mjs and levels.mjs: 16 checks today, Level 0 requires, placement()",
+    "src/lib/hooks/shims.mjs: shims look for node_modules/cookwright only in the config root",
+    "schema/cookwright.schema.json: version const 1, playbook default",
+    "docs/dev/backlog.md: B-002, B-003, B-008, B-009, E-003, E-007, E-012..E-014, E-018",
+    "references to moved paths across README, AGENTS.md, playbook, src and tests",
+    "doctor readout on this repo (16 PASS) and codex 0.145.0 `features list` (hooks stable, enabled)"
+  ],
+  "notes": "The first run hit the 600s ceiling (session 01a1438a-295d-7373-b30c-6a265f94679f). The resume at medium effort produced the full report. Findings are transcribed from Codex with none added. Raw outputs are in the scratchpad: codex.out and codex-resume.out.\n---\nI found one P1. The plan's sequencing breaks the bundle's own runner. s1 moves docs/playbook.md and adds the refusal for a missing configured playbook. This repo keeps `paths.playbook: \"docs/playbook.md\"` until s6, so `bundle args stage-3 implement:s2` refuses (exit 2) before s2's in-memory migration can land. The fix is to drop the key in s1's move commit.\n\nThere are five P2s:\n- **Dogfood (§7.2/§7.3):** s1's in-repo links resolve, so the plan's own row table reads them as the user's (`skipped`, WARN). The s6 checkpoint of 17 PASS cannot be reached unless s1 writes the node_modules form directly.\n- **'Earlier pointer' rule:** it replaces any dangling link of other text, so it would delete users' own links, and no past pointer text exists yet.\n- **Hoisted package:** the pointers accept a package hoisted to the top, but the hook commands and git shims still look only in the config root. The B-002 narrowing in §9 claims more than the design does.\n- **Nested config root:** the settings files stay at the config root while the hook command assumes `${CLAUDE_PROJECT_DIR}` is the top. Where each host reads its settings file is not measured.\n- **Level 0 requirement:** host.pointers is required at Level 0 and covers the Level 2 experimental bundle pointers, so a user cannot opt out of them.\n\nThe P3s are wording, measurement-scope and schema items.\n\nI did not find any secret, private-path or dependency rule broken by the plan. Codex hooks are confirmed stable and enabled in 0.145.0 (`codex features list`), so I raised no feature-flag issue. I ran only read-only commands: `git hash-object` and `shasum`, `cookwright doctor` and `codex features list`.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a1438a-295d-7373-b30c-6a265f94679f",
+    "partialReportPath": null
+  }
+}

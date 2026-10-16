@@ -39,6 +39,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 - **E-034** (2026-10-16) Hook commands and git shims that find a package hoisted to the work tree's top for a nested config root, as the pointers do; measure first where each host loads its settings file for a session started at the top and one started in the config root (B-002).
 - **E-035** (2026-10-16) `doctor --from <dir>`, so a hook that must enter the work tree's top can still judge the session's own directory: Codex's session-start hook misses an `AGENTS.override.md` in the subdirectory a session started in.
 - **E-036** (2026-10-16) A committed lockfile for the fixture's scaffold in `fixtures/expo-overlay/`, installed with `npm ci` before the tarball, so the dependency tree `scripts/ci/fixture.sh` installs is pinned like the scaffold's files; regenerated with each scaffold bump. Needs a networked run to generate. Found by review:ci of stage-3.
+- **E-037** (2026-10-16) `host.pointers` reads only the project path (`.claude/skills/<name>`), so a personal skill of the same name (`~/.claude/skills/setup`), which Claude Code documents as taking precedence over a project one, hides cookwright's with doctor reading PASS. Measure the precedence first, then WARN when `<home>/.claude/skills/<name>` exists for a shipped skill (doctor carries `repo.home`), and the Codex equivalent if it has one. Found by review:whole of stage-3.
 
 ## Closed
 

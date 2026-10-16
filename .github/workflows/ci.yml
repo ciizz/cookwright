@@ -2,9 +2,11 @@
 # that fixes B-008 and B-009 (E-029), never as a permanently red job.
 name: ci
 
+# Bundle branches trigger on push: `bundle check` looks for a run on the
+# bundle branch's HEAD before the fast-forward, and no PR is opened.
 on:
   push:
-    branches: [main]
+    branches: [main, 'bundle/**']
   pull_request:
   workflow_dispatch:
 

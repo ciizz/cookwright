@@ -59,6 +59,14 @@ describe('1 → 2', () => {
     expect(read(root)).toBe(before);
   });
 
+  it('keeps the file’s mode and leaves no temporary file', () => {
+    const root = repoWith(STALE);
+    fs.chmodSync(path.join(root, CONFIG_FILE), 0o640);
+    expect(migrate(root)).toBe(0);
+    expect(fs.statSync(path.join(root, CONFIG_FILE)).mode & 0o777).toBe(0o640);
+    expect(fs.readdirSync(root).filter((f) => f.endsWith('.tmp'))).toEqual([]);
+  });
+
   it('keeps the key when the playbook is there', () => {
     const root = repoWith(STALE);
     fs.mkdirSync(path.join(root, 'docs'));
@@ -160,6 +168,21 @@ describe('refusals, exit 2, nothing written', () => {
       expect(err.at(-1)).toBe('migrate: cookwright.json: version must be 2');
       expect(JSON.parse(read(root))).toEqual(config);
     }
+  });
+
+  it('refuses a write that fails, the file byte for byte and no temporary file left', () => {
+    if (process.getuid?.() === 0) return; // root writes into a read-only directory
+    const root = repoWith(STALE);
+    const before = read(root);
+    fs.chmodSync(root, 0o555);
+    try {
+      expect(migrate(root)).toBe(2);
+    } finally {
+      fs.chmodSync(root, 0o755);
+    }
+    expect(err.at(-1)).toBe(`migrate: ${m.writeFailed('EACCES')}`);
+    expect(read(root)).toBe(before);
+    expect(fs.readdirSync(root).filter((f) => f.endsWith('.tmp'))).toEqual([]);
   });
 
   it('refuses a config that is a symbolic link, the target untouched', () => {

@@ -10,6 +10,7 @@
 // argument, no config, a link, unreadable JSON, a newer or unknown version, an
 // invalid result, a failed write), with nothing written.
 
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -92,12 +93,34 @@ function migrate(cwd, { dryRun, migrations }) {
     return 0;
   }
   try {
-    fs.writeFileSync(path.join(root, CONFIG_FILE), reserialize(out.raw, text));
+    replaceFile(path.join(root, CONFIG_FILE), reserialize(out.raw, text));
   } catch (err) {
     throw new Refusal(m.writeFailed(err.code ?? err.message));
   }
   console.log(m.wrote(CONFIG_VERSION, relaid));
   return 0;
+}
+
+/**
+ * `file` replaced by `body` whole or not at all: a temporary file beside it, written
+ * and flushed with the original's mode, renamed over it; removed on any failure, so
+ * "not written" leaves the original byte for byte.
+ */
+function replaceFile(file, body) {
+  const tmp = `${file}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
+  let fd;
+  try {
+    fd = fs.openSync(tmp, 'wx', fs.statSync(file).mode & 0o7777);
+    fs.writeFileSync(fd, body);
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fd = undefined;
+    fs.renameSync(tmp, file);
+  } catch (err) {
+    if (fd !== undefined) fs.closeSync(fd);
+    fs.rmSync(tmp, { force: true });
+    throw err;
+  }
 }
 
 /** A refusal on stderr, exit 2; with `usage`, the usage follows the reason. */

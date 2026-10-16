@@ -1,0 +1,143 @@
+{
+  "phase": "review:ci",
+  "stored": true,
+  "issues": [
+    {
+      "file": "scripts/ci/fixture.sh",
+      "location": "line 95",
+      "problem": "The fixture claims to verify init preserves the scaffold's settings, but only checks that the string \"enabledPlugins\" remains. Init could erase or replace expo@claude-plugins-official: true while keeping an empty enabledPlugins object, and CI would pass.",
+      "severity": "P2",
+      "suggested_fix": "Parse the JSON and assert the exact pre-existing key/value, e.g. enabledPlugins[\"expo@claude-plugins-official\"] === true.",
+      "failure_scenario": "A settings-merge regression silently destroys existing user configuration despite the fixture reporting success.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "scripts/ci/fixture.sh:95 only greps for the string \"enabledPlugins\" in .claude/settings.json. An init that emptied the object or dropped the scaffold's plugin entry would still pass. The check does not look at any value."
+    },
+    {
+      "file": "scripts/ci/fixture.sh",
+      "location": "line 29 (need())",
+      "problem": "need() turns a missing tool into failure whenever CI is nonempty. This violates the AGENTS.md rule that a missing tool reports 'skipped, needs X, run setup' and exits 0; no CI exception is documented. It also treats CI=false as enabled.",
+      "severity": "P2",
+      "suggested_fix": "Always emit the prescribed skip and exit 0. GitHub Actions already provisions the required tools through checkout/setup-node; if runner prerequisites need validation, keep that outside the product fixture.",
+      "failure_scenario": "Running the fixture in another CI environment, or locally with CI=false, without one prerequisite fails because of the harness rather than degrading cleanly.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "plausible",
+      "evidence": "scripts/ci/fixture.sh:30-35: any nonempty CI (including CI=false) turns a missing tool into fail. AGENTS.md says a missing tool skips and exits 0. The CI-fails choice looks deliberate for a harness script (plan §4.7 wants gitleaks installed in CI), and no exception is documented. The AGENTS.md rule is aimed at package checks and hooks, so whether it covers this script is a judgment call."
+    },
+    {
+      "file": "scripts/ci/fixture.sh",
+      "location": "line 67 (and line 73)",
+      "problem": "The plan and step label specify 'git init, one commit', but create-expo-app already initializes and commits. The conditional git init preserves that history and line 73 adds a second commit; the recorded local run confirms two commits.",
+      "severity": "P3",
+      "suggested_fix": "Invoke the scaffold with its no-git option if supported, or remove its temporary .git directory and initialize a fresh repository before committing the scaffold plus overlay once.",
+      "failure_scenario": "History-sensitive fixture behavior is influenced by an upstream scaffold commit, while the test claims to start from the planned single controlled baseline commit.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "plausible",
+      "evidence": "scripts/ci/fixture.sh:71 runs git init only if rev-parse fails, and :73 adds a commit. Plan §4.7 says 'then git init, one commit'. If create-expo-app already committed, there are two commits and the label at :68 is inaccurate. I did not run create-expo-app, so the second commit is unconfirmed. The harm to the fixture is speculative."
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "location": "on: (lines 5-9)",
+      "problem": "CI only runs on pushes to main, on pull requests and on manual dispatch. The repo's own landing check works differently: `bundle check` (ciCheck, packages/cookwright/src/lib/bundle/check.mjs:116-130) asks `gh run list --commit <bundle HEAD>` for a green run before the merge, and the playbook's merge is 'bundle check passes, then a fast-forward', with no PR anywhere. Once the developer sets `ci: { workflow: \"ci.yml\" }` (plan §8, E-014's remaining step), pushing a bundle branch starts no run, so the check can never see one.",
+      "severity": "P2",
+      "suggested_fix": "Add the bundle branches to the push trigger (`push: branches: [main, 'bundle/**']`). The other option is to state in the playbook and README that landing needs an open PR or `gh workflow run ci.yml --ref <branch>`. Either way, the check's 'push the branch first' advice should then be true.",
+      "failure_scenario": "After the first push, the developer sets ci.workflow and runs the next bundle. They push bundle/stage-4 and run `bundle check`. It FAILs with 'no CI run for <sha> — push the branch first'. Pushing again starts nothing, because only main and PRs trigger the workflow, so the landing check stays red until someone finds the undocumented workflow_dispatch or PR workaround.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": ".github/workflows/ci.yml:5-9 triggers only push to main, pull_request, workflow_dispatch. check.mjs:116-130 runs `gh run list --commit <sha> --workflow` and FAILs with 'no CI run for <sha> — push the branch first' when none exists. playbook.md:23 says merge is 'bundle check passes, then a fast-forward' (no PR). So a pushed bundle/* branch with ci.workflow set starts no run and the check stays red. The plan sets ci.workflow after the first push (plan §8), so this will bite from the next bundle. A PR or manual dispatch is an undocumented workaround."
+    },
+    {
+      "file": "scripts/ci/fixture.sh",
+      "location": "install_package() (line 79), scaffold() (line 57)",
+      "problem": "The developer's amendment says a harness CI must not go red on an upstream release. The fixture pins create-expo-app@5.0.0 and the template version, but `npm install --save-dev <tarball>` then installs the scaffold's whole dependency tree, 460 packages, with no lockfile. The ranges float (expo ~58.0.12, typescript ~6.0.3, plus every transitive dependency), and lifecycle scripts run. create-expo-app's own dependencies also float under npx. The claim 'the scaffold is pinned' covers the files the scaffold writes, not what the fixture actually installs and runs.",
+      "severity": "P2",
+      "suggested_fix": "Commit a lockfile for the scaffold's dependencies in the overlay and install with `npm ci` before adding the tarball. Alternatively, install with `--ignore-scripts` and record in the script header and AGENTS.md that the dependency tree floats within the scaffold's ranges, so a red fixture from an upstream patch is expected and not read as a cookwright regression.",
+      "failure_scenario": "Expo publishes 58.0.13, or a transitive dependency of react-native 0.88 publishes a patch, with a broken postinstall or an engines field that is stricter for strict installs. The next CI run's `npm install --save-dev <tarball>` exits non-zero, or installs a different tree, and the fixture job goes red with no change to cookwright: the property-3 rot the pin was meant to prevent.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "plausible",
+      "evidence": "scripts/ci/fixture.sh:12-13 pin only create-expo-app and the template. Line 79 runs `npm install --save-dev` on the scaffold's floating dependency ranges with no lockfile, and npx resolves create-expo-app's own dependencies at run time. The pin therefore does not cover what is installed, which is the property-3 rot concern in plan §4.7. A break depends on an upstream publish, so I could not confirm it."
+    },
+    {
+      "file": "scripts/ci/fixture.sh",
+      "location": "overlay() (lines 70-73)",
+      "problem": "`git rev-parse --git-dir || git init` asks whether the app sits inside any git work tree, not whether the app has its own repo. If the scaffold skipped `git init` because the temp dir lies inside an existing repo (create-expo-app skips it inside a work tree), rev-parse succeeds against the enclosing repo. `git add -A` then stages that whole repo's tree, and `git commit` writes into it, through that repo's hooks.",
+      "severity": "P3",
+      "suggested_fix": "Test the app's own repo: `[ \"$(git -C \"$APP\" rev-parse --show-toplevel 2>/dev/null)\" = \"$APP\" ] || git init -q`, or `[ -d \"$APP/.git\" ] || git init -q`.",
+      "failure_scenario": "A developer runs `TMPDIR=$PWD/tmp bash scripts/ci/fixture.sh` from inside the cookwright checkout. The scaffold sees an enclosing work tree and skips git init, rev-parse finds the cookwright repo, and the overlay step's `git add -A` plus commit creates a 'fixture: the scaffold with the overlay' commit on the current bundle branch, containing the temp app.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "scripts/ci/fixture.sh:71 `git rev-parse --git-dir || git init` is true inside any enclosing work tree, and isolate_git (:39-44) sets no GIT_DIR or ceiling. If TMPDIR is inside the checkout and the scaffold skipped git init there, :72-73 `git add -A` and `git commit` run in the enclosing repo. The required condition is a TMPDIR inside a repo, which is rare."
+    },
+    {
+      "file": "scripts/ci/fixture.sh",
+      "location": "commit_through_hooks() (line 112)",
+      "problem": "The commit step accepts `pre-commit SKIP secrets` even when gitleaks is on PATH, as it is in CI. The doctor step demands tools.gitleaks PASS in that case, but the commit step does not: a hook that silently stopped running the scan ('gitleaks did not run (exit N)' is a SKIP) still passes. That leaves 'a commit of init's files through the real hooks' asserting only that the hook printed a line, not that the secret scan ran.",
+      "severity": "P3",
+      "suggested_fix": "When `command -v gitleaks` succeeds, expect `^pre-commit +PASS +secrets `, matching the doctor branch. Keep `(PASS|SKIP)` only when gitleaks is absent.",
+      "failure_scenario": "A regression in the hook's scanStaged invocation, for example wrong arguments, makes gitleaks exit 1 inside the hook only. The hook reports SKIP and lets the commit through, and the CI fixture job stays green although the secret scan never ran on the user's commit.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "scripts/ci/fixture.sh:113 accepts (PASS|SKIP) for pre-commit secrets unconditionally. Only the doctor step (:103-105) requires gitleaks PASS, and that checks the doctor's own run, not the hook's. hook.test.mjs:175 shows the hook emits SKIP with 'gitleaks did not run (exit 1)' when the scan fails, so a hook-only gitleaks failure would pass the fixture."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 5feeb69..e7d3f1c (ci.yml, fixture.sh, AGENTS.md, fixtures/expo-overlay/AGENTS.md, backlog.md, session report, state.json)",
+    "AGENTS.md rules",
+    "plan docs/dev/bundles/stage-3/plan.md",
+    "git diff 5feeb69f..e7d3f1c: scripts/ci/fixture.sh, fixtures/expo-overlay/AGENTS.md, .github/workflows/ci.yml, AGENTS.md Layout line, backlog E-014 narrowing, state.json and the s7 session report",
+    "plan §2 dispositions 8, 9 and 22, §4.7, §6 checkpoints, §8 developer's hands, §9 E-014 narrowing: all delivered (pins printed on the first line, overlay appended, init rows, doctor exit 0 and level complete, a commit through the hooks, changelog --check, migrate version 2, links resolving, gitleaks pinned with sha256, test matrix ubuntu/macos x node 20/22, fixture on ubuntu, no ci.workflow, no Windows job)",
+    "the two pins instead of one: recorded with bundle decide by the orchestrator, consistent with the amendment's intent",
+    "doctor on the kept fixture app with neither claude nor gitleaks on PATH (simulating the CI runner): 16 PASS, 1 SKIP, 0 FAIL, 0 WARN, 'level 0 declared: complete; unverified', exit 0, so the fixture's '0 FAIL, 0 WARN' and level assertions hold in CI; host.rules passes through CLAUDE.md's @AGENTS.md import without the claude probe",
+    "the test suite's hermeticity on a fresh runner: gitInit sets a local identity and -b main, the gitleaks and claude probes are stubbed in the doctor and hook tests, and no test depends on this repo's git history (shallow checkout safe)",
+    "bundle check ciCheck (check.mjs:116-130) against the workflow triggers",
+    "rules: no local paths or private data in the diff (session report paths redacted), no plaintext env files, no secret values (the sha256 is a checksum), no commits with COOKWRIGHT_SKIP or --no-verify in range, the fixture skips on a missing tool locally with exit 0 (CI fails, as intended), messages grouped at the top of the script, no new dependency",
+    "the actions are pinned by commit SHA and the permissions are contents: read; the SHAs and the gitleaks hash were not re-fetched (no network verification), the session reports resolving them with gh api and recomputing the hash"
+  ],
+  "notes": "Codex ran to completion (exit 0, session 01a14410-aa01-79a0-b24b-b7a075683d7f), no recovery needed. Output at <local path> Findings transcribed verbatim from Codex; none added. Codex logged a harmless models-cache error at start.\n---\nThe work delivers what the plan's s7 slice promises. Two P2s are about CI as it will behave after the developer's first push. (1) The workflow never runs on a pushed bundle branch, but the repo's own landing check needs a run on the bundle branch's HEAD commit. (2) The pinned scaffold still installs a floating dependency tree of 460 packages, with lifecycle scripts running. Two P3s tighten the fixture: a guard that can commit into an enclosing repo, and a secrets SKIP accepted when gitleaks is present. I could not re-verify the action SHAs or the gitleaks sha256 online, and I could not run npm pack on a clean checkout with no node_modules (that command was denied); a missing root install in the fixture job is unmeasured but low risk, since the package has no lifecycle scripts besides test.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a14410-aa01-79a0-b24b-b7a075683d7f",
+    "partialReportPath": null
+  }
+}

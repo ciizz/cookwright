@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 119,
+  "revision": 122,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -349,7 +349,7 @@
     },
     {
       "name": "review:ci",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -357,14 +357,18 @@
           "stateRevision": 117,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_7b482c75-7e4"
+          "runId": "wf_7b482c75-7e4",
+          "endedAt": "2026-10-16T09:39:53.864Z",
+          "turnOutputTokens": 860695
         }
       ],
       "startCommit": "e7d3f1c432b3969b578d6be30790e5cb084a25e0",
       "range": {
         "from": "5feeb69f7f2691d2f6e5a8a0d65ad15d6c1323dc",
         "to": "e7d3f1c432b3969b578d6be30790e5cb084a25e0"
-      }
+      },
+      "endCommit": "d6b8ca63cf399009edc3977c9b54dc5d29f6ff99",
+      "endCode": "2999c153ff47486ea872f4d7a25d3fe506ef3c7b"
     },
     {
       "name": "fix:ci",
@@ -632,6 +636,24 @@
       "at": "2026-10-16T09:17:20.442Z",
       "stored": true,
       "head": "45d774fe8117c5751e4d533128fc8ebe6b851938"
+    },
+    {
+      "phase": "review:ci",
+      "path": "docs/dev/bundles/stage-3/findings/review-ci-1.json",
+      "counts": {
+        "confirmed": 4,
+        "plausible": 3,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 4,
+        "P3": 3
+      },
+      "at": "2026-10-16T09:39:24.898Z",
+      "stored": true,
+      "head": "d6b8ca63cf399009edc3977c9b54dc5d29f6ff99"
     }
   ],
   "reports": [
@@ -1047,6 +1069,13 @@
       "actor": "orchestrator",
       "source": "implement:s7 open questions, 2026-10-16 (the developer's amendment 1)",
       "text": "Property 3 and rule 3: the fixture pins two versions, not one: create-expo-app@5.0.0 and the template expo-template-blank-typescript@58.0.21, both printed on the script's first line and bumped by hand, because the CLI alone resolves --template blank-typescript to whatever the template's latest is, and an Expo SDK release would turn CI red through it. Read as the amendment's intent (a harness CI never goes red on an upstream release); the developer may amend. Measured from the registry on 2026-10-16: the pinned and the floating scaffolds were byte-identical. Accepted as built: the fixture job runs Node 22 because Expo 58 requires it, the test matrix keeps Node 20 and 22; the script's extra assertions (a second init leaves the tree clean; init kept the scaffold's AGENTS.md text, the overlay's rule and the scaffold's settings) are measured facts the review may cut; AGENTS.md's Layout gained a line for scripts/ci/ and ci.yml under the doc-sync rule; the scaffold's --no-agents-md path is not exercised. The actions are pinned by commit (checkout v7.0.1, setup-node v7.0.0) and gitleaks by version and sha256 recomputed on the tarball. ci.workflow stays unset (disposition 8); E-014's line is narrowed as plan §9 says. The s7 strings (the fixture's lines, the overlay's rule, the job names, the Layout line) go to the developer in one batch.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T09:39:53.649Z",
+      "actor": "orchestrator",
+      "source": "review:ci findings, 2026-10-16",
+      "text": "fix:ci applies: finding 0 (rule 3: the fixture parses .claude/settings.json and asserts the scaffold's enabledPlugins entry with its value, not the key's name); finding 3 (rule 3 and the playbook's landing: ci.yml's push trigger gains 'bundle/**' so a pushed bundle branch starts the run that bundle check asks gh for once ci.workflow is set; the playbook's merge is a fast-forward with no PR); finding 2 (rule 3: the scaffold's own .git is removed and the fixture makes exactly one baseline commit, so 'git init, one commit' is true); finding 5 (rule 7 and rule 1: the fixture tests the app's own repo, never an enclosing one, before git init, add and commit); finding 6 (rule 3: with gitleaks on PATH the commit step expects 'pre-commit PASS secrets', the doctor step's own bar, and accepts SKIP only when gitleaks is absent); finding 1 (rule 3, narrowed: the fixture is this repo's test harness, not a product check, so in CI a missing tool must fail the job rather than skip into a green run, which the AGENTS.md rule does not cover; CI=false and an empty CI read as not CI, and the script header states the exception); finding 4 (property 3, rule 3 and rule 6, narrowed: the scaffold's dependency tree floats within its ranges and that is said in the script header and in AGENTS.md's Layout line, so a red fixture from an upstream patch is read as such; the install runs with --ignore-scripts, since the fixture tests cookwright and not the scaffold's lifecycle scripts; a committed lockfile for the scaffold is backlogged as wanted once).",
       "claim": true
     }
   ],

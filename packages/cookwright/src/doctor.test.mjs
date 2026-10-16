@@ -579,6 +579,14 @@ describe('codex: host.rules and host.hook', () => {
     });
   });
 
+  it('WARNs the hook for a config root below the work tree’s top, whose readout the hook cannot reach', () => {
+    const top = fs.mkdtempSync(path.join(TMP, 'codex-nested-'));
+    const root = path.join(top, 'apps/mobile');
+    writeAll(root, { [FILE]: HOOKS([ours()]) });
+    expect(checkCodexHook({ root, top }, probes())).toEqual({ status: 'WARN', note: cm.hook.nested(FILE, 'apps/mobile') });
+    expect(checkCodexHook({ root, top: root }, probes())).toEqual({ status: 'PASS', note: cm.hook.ok(FILE, '/hooks') });
+  });
+
   it('names only the hosts not PASS, worst first, and reads the joined FAIL as drift', () => {
     const rows = doctor(repoFor(['claude', 'codex'], { [FILE]: HOOKS([ours('startup')]), '.claude/settings.json': null }));
     expect(rows['host.hook']).toEqual({

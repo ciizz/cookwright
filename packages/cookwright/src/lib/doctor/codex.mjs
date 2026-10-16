@@ -11,6 +11,7 @@ import { messages } from '../messages.mjs';
 import { RULES_FILE } from '../rules/block.mjs';
 import { fail, pass, warn } from '../verdict.mjs';
 import { sessionStartHooks } from './claude.mjs';
+import { placement } from './hooks.mjs';
 import { isFile } from './repo.mjs';
 
 const m = messages.doctor.codex;
@@ -45,7 +46,8 @@ export function checkCodexRules(repo) {
 /**
  * PASS: the hooks file carries the doctor hook, by command and matcher, and no copy
  * of it under another matcher (which would run doctor on that event too). Whether
- * the user trusted it is not measured, and the line says so.
+ * the user trusted it is not measured, and the line says so. WARN when the config
+ * root is below the work tree's top, where the hook's readout cannot reach it.
  */
 export function checkCodexHook(repo, probes, entry = host) {
   const file = entry.settings;
@@ -62,7 +64,12 @@ export function checkCodexHook(repo, probes, entry = host) {
   const right = mine.some((h) => h.matcher === entry.hookMatcher);
   const stray = mine.find((h) => h.matcher !== entry.hookMatcher);
   if (right && stray) return warn(m.hook.stray(file, stray.matcher, entry.hookMatcher));
-  if (right) return pass(m.hook.ok(file, entry.hookTrust));
+  if (right) {
+    // The command enters the work tree's top; from there doctor finds no config
+    // below it, so for a nested config root the hook gives no readout (B-002).
+    const { rel } = placement(repo.root, repo.top ?? repo.root);
+    return rel ? warn(m.hook.nested(file, rel)) : pass(m.hook.ok(file, entry.hookTrust));
+  }
   if (stray) return warn(m.hook.matcher(file, stray.matcher, entry.hookMatcher));
   if (hooks.some((h) => entry.hookCommandsPast.includes(h.command))) return warn(messages.doctor.hostHook.past(file));
   return fail(m.hook.none(file));

@@ -81,6 +81,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | `host.hook` | WARN | `… has an earlier version of the doctor hook` | `npx cookwright init` |
 | `host.hook`, Codex | WARN | `… has the doctor hook under …, not startup\|resume` | `npx cookwright init` |
 | `host.hook`, Codex | WARN | `… also has the doctor hook under …, beside startup\|resume` | `npx cookwright init` |
+| `host.hook`, Codex | WARN | `… which finds no cookwright.json for this config root (…), so it gives no readout …` | **stop at**: explain that Codex's hook enters the work tree's top, so for a `cookwright.json` below it the session-start line says nothing useful; run `npx cookwright doctor` from the config root by hand; cookwright's backlog tracks it as B-002 |
 | `host.hook` | FAIL | `… is not valid JSON (…)` | show the parse error; with consent, repair the file by hand |
 | `host.hook`, Codex | PASS | `… whether it is trusted is yours: /hooks` | at the end (see "At the end") |
 

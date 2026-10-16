@@ -99,6 +99,8 @@ const doctor = {
       none: (file) => `no doctor SessionStart hook in ${file}, so doctor runs only by hand (${RUN_INIT})`,
       matcher: (file, found, want) =>
         `${file} has the doctor hook under ${found === undefined ? 'no matcher' : `matcher ${found}`}, not ${want} (${RUN_INIT})`,
+      nested: (file, rel) =>
+        `${file} carries the doctor hook, but the hook runs doctor from the work tree's top, which finds no cookwright.json for this config root (${rel}), so it gives no readout; run npx cookwright doctor here by hand`,
       stray: (file, found, want) =>
         `${file} also has the doctor hook under ${found === undefined ? 'no matcher' : `matcher ${found}`}, beside ${want} (${RUN_INIT})`,
     },

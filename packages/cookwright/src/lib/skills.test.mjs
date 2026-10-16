@@ -89,6 +89,8 @@ const QUOTED = [
   ['has an earlier version of the doctor hook', d.hostHook.past('x')],
   ['has the doctor hook under', d.codex.hook.matcher('x', 'startup', 'startup|resume')],
   ['also has the doctor hook under', d.codex.hook.stray('x', 'compact', 'startup|resume')],
+  ['which finds no cookwright.json for this config root (', d.codex.hook.nested('x', 'apps/mobile')],
+  ['), so it gives no readout', d.codex.hook.nested('x', 'apps/mobile')],
   ['is not valid JSON (', d.hostHook.invalid('x', 'y')],
   ['whether it is trusted is yours: /hooks', d.codex.hook.ok('x', '/hooks')],
   ['missing (run npx cookwright init)', d.pointers.missing('x')],

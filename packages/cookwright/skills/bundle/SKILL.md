@@ -3,7 +3,7 @@ name: bundle
 description: Run an approved feature bundle across fresh-context sessions — start one from an approved plan, or resume one by slug. Drives the phase loop (plan review, one implement run per session, review/fix per slice, whole-branch pass, QA, closeout) through the bundle CLI and the bundle-phase Workflow. Use when the developer approves a plan and says go on work too large for one context, or invokes /bundle.
 ---
 
-# /bundle
+# /bundle — Level 2, experimental
 
 **Start or resume a feature bundle. The procedure is the playbook (the package's copy, `node_modules/cookwright/docs/playbook.md`, unless `paths.playbook` in `cookwright.json` names yours); read it first, every time. This skill is only the entry sequence.**
 

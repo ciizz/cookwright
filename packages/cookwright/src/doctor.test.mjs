@@ -66,15 +66,22 @@ function writeAll(root, files) {
   }
 }
 
-/** Each claude pointer the package ships: its path from the top, its link text, and the target in the package. */
-const POINTERS = shippedPieces('claude').map((piece) => {
-  const p = hostPointers({ root: TMP }, 'claude', { shipped: () => [piece] })[0];
-  return { ...piece, rel: p.rel, text: p.target, inPackage: path.posix.relative('node_modules/cookwright', path.posix.join(path.posix.dirname(p.rel), p.target)) };
-});
+/** Each pointer the package ships for `host`: its path from the top, its link text, and the target in the package. */
+const pointersOf = (host) =>
+  shippedPieces(host).map((piece) => {
+    const p = hostPointers({ root: TMP }, host, { shipped: () => [piece] })[0];
+    return { ...piece, rel: p.rel, text: p.target, inPackage: path.posix.relative('node_modules/cookwright', path.posix.join(path.posix.dirname(p.rel), p.target)) };
+  });
+const POINTERS = pointersOf('claude');
+const CODEX_POINTERS = pointersOf('codex');
 
-/** The pointers at `root`, as init writes them; a path `files` names (a body or null) is left to `files`. */
-function writePointers(root, files = {}) {
-  for (const { rel, text } of POINTERS.filter((x) => !Object.hasOwn(files, x.rel))) {
+/**
+ * The pointers at `root`, as init writes them: Claude Code's always, Codex's when
+ * `hosts` names it; a path `files` names (a body or null) is left to `files`.
+ */
+function writePointers(root, files = {}, hosts = ['claude']) {
+  const all = [...POINTERS, ...(hosts.includes('codex') ? CODEX_POINTERS : [])];
+  for (const { rel, text } of all.filter((x) => !Object.hasOwn(files, x.rel))) {
     fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
     fs.symlinkSync(text, path.join(root, rel));
   }
@@ -106,7 +113,7 @@ function level0(files = {}, config = null, { hooksPath = '.githooks' } = {}) {
   const all = { ...LEVEL0_FILES, ...files };
   if (config) all['cookwright.json'] = JSON.stringify({ version: CONFIG_VERSION, ...config });
   writeAll(repo.root, all);
-  writePointers(repo.root, files);
+  writePointers(repo.root, files, config?.hosts);
   commit(repo, {}, 'level 0');
   installPackage(repo.root);
   if (hooksPath) run(repo.root, 'git', ['config', '--local', 'core.hooksPath', hooksPath]);
@@ -331,9 +338,11 @@ describe('host.rules', () => {
 
 describe('host.pointers', () => {
   const pm = m.pointers;
-  const SKILL = POINTERS.find((x) => x.rel.startsWith('.claude/skills/'));
-  const skills = POINTERS.filter((x) => x.rel.startsWith('.claude/skills/')).length;
-  const LEVEL0_SKILL = [{ kind: 'skill', name: 'setup', file: 'setup', level: 0 }];
+  // SKILL: a Level 2 skill (bundle); SETUP: the Level 0 one.
+  const SKILL = POINTERS.find((x) => x.kind === 'skill' && x.level === 2);
+  const SETUP = POINTERS.find((x) => x.name === 'setup');
+  const SKILLS_SHIPPED = POINTERS.filter((x) => x.kind === 'skill');
+  const skills = SKILLS_SHIPPED.length;
   const check = (root, io = {}, p = probes()) => checkPointers(openDoctorRepo(root, p, { home: TMP }), p, io);
   const link = (root, rel, text) => {
     fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
@@ -349,15 +358,13 @@ describe('host.pointers', () => {
   });
 
   it('FAILs a missing Level 0 pointer as drift, and WARNs a missing Level 2 one at level 0', () => {
-    const root = level0();
-    expect(check(root, { shipped: () => LEVEL0_SKILL })).toEqual({
+    const root = level0({ [SETUP.rel]: null });
+    expect(check(root)).toEqual({
       status: 'FAIL',
       note: pm.named('claude', pm.missing('.claude/skills/setup')),
     });
     expect(pm.missing('.claude/skills/setup')).toBe('.claude/skills/setup missing (run npx cookwright init)');
-    const rows = runChecks(openDoctorRepo(root, probes(), { home: TMP }), probes()).map(([name, r]) =>
-      name === 'host.pointers' ? [name, check(root, { shipped: () => LEVEL0_SKILL })] : [name, r],
-    );
+    const rows = runChecks(openDoctorRepo(root, probes(), { home: TMP }), probes());
     expect(levelLine(DEFAULTS, rows)).toBe('level 0 declared: drift, 1 piece(s) missing: host.pointers');
 
     const r = doctor(level0({ [SKILL.rel]: null }))['host.pointers'];
@@ -386,7 +393,10 @@ describe('host.pointers', () => {
   it('WARNs an untracked pointer git ignores, naming git add -f; PASSes an untracked one it does not', () => {
     const ignoredRoot = level0({ ...Object.fromEntries(POINTERS.map(({ rel }) => [rel, null])), '.gitignore': `${LEVEL0_FILES['.gitignore']}.claude/skills/\n` });
     for (const { rel, text } of POINTERS) link(ignoredRoot, rel, text);
-    expect(doctor(ignoredRoot)['host.pointers']).toEqual({ status: 'WARN', note: pm.named('claude', pm.ignored(SKILL.rel)) });
+    expect(doctor(ignoredRoot)['host.pointers']).toEqual({
+      status: 'WARN',
+      note: SKILLS_SHIPPED.map(({ rel }) => pm.named('claude', pm.ignored(rel))).join('; '),
+    });
     expect(pm.ignored('.claude/skills/x')).toBe('.claude/skills/x is ignored by git; git add -f .claude/skills/x to track it');
     const plain = level0(Object.fromEntries(POINTERS.map(({ rel }) => [rel, null])));
     for (const { rel, text } of POINTERS) link(plain, rel, text);
@@ -421,18 +431,18 @@ describe('host.pointers', () => {
     expect(doctor(theirLink)['host.pointers']).toEqual({ status: 'WARN', note: pm.named('claude', pm.theirsLink(SKILL.rel, SKILL.name)) });
     const theirDir = level0({ [SKILL.rel]: null, [`${SKILL.rel}/SKILL.md`]: 'mine' });
     expect(doctor(theirDir)['host.pointers']).toEqual({ status: 'WARN', note: pm.named('claude', pm.theirs(SKILL.rel, SKILL.name)) });
-    const linkedParent = level0({ [SKILL.rel]: null });
+    const linkedParent = level0(Object.fromEntries(SKILLS_SHIPPED.map(({ rel }) => [rel, null])));
     fs.rmSync(path.join(linkedParent, '.claude/skills'), { recursive: true, force: true });
     link(linkedParent, '.claude/skills', elsewhere);
     expect(doctor(linkedParent)['host.pointers']).toEqual({
       status: 'WARN',
-      note: pm.named('claude', pm.linkedParent('.claude/skills', SKILL.name)),
+      note: SKILLS_SHIPPED.map(({ name }) => pm.named('claude', pm.linkedParent('.claude/skills', name))).join('; '),
     });
   });
 
   it('WARNs a missing pointer on Windows, whatever its level', () => {
-    const root = level0();
-    expect(check(root, { shipped: () => LEVEL0_SKILL, platform: 'win32' })).toEqual({
+    const root = level0({ [SETUP.rel]: null });
+    expect(check(root, { platform: 'win32' })).toEqual({
       status: 'WARN',
       note: pm.named('claude', pm.windows('.claude/skills/setup')),
     });
@@ -450,9 +460,8 @@ describe('host.pointers', () => {
   });
 
   it('names what is not PASS worst first, every host joined', () => {
-    const root = level0({ [SKILL.rel]: null });
-    const shipped = (host) => (host === 'claude' ? [...LEVEL0_SKILL, ...shippedPieces(host)] : []);
-    const r = check(root, { shipped });
+    const root = level0({ [SKILL.rel]: null, [SETUP.rel]: null });
+    const r = check(root);
     expect(r.status).toBe('FAIL');
     expect(r.note).toBe(
       [pm.named('claude', pm.missing('.claude/skills/setup')), pm.named('claude', pm.notRequired(SKILL.name, 2, 0))].join('; '),
@@ -461,7 +470,7 @@ describe('host.pointers', () => {
     const both = checkPointers(openDoctorRepo(two, probes(), { home: TMP }), probes());
     expect(both).toEqual({
       status: 'PASS',
-      note: [pm.counts('claude', skills, POINTERS.length - skills), pm.counts('codex', 0, null)].join('; '),
+      note: [pm.counts('claude', skills, POINTERS.length - skills), pm.counts('codex', CODEX_POINTERS.length, null)].join('; '),
     });
     expect(pm.counts('codex', 1, null)).toBe('codex: 1 skill');
   });

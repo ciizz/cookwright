@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 99,
+  "revision": 100,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -266,7 +266,7 @@
     },
     {
       "name": "implement:s6",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -274,11 +274,15 @@
           "stateRevision": 94,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_87d107bc-a8f"
+          "runId": "wf_87d107bc-a8f",
+          "endedAt": "2026-10-16T09:12:13.283Z",
+          "turnOutputTokens": 733063
         }
       ],
       "startCommit": "09e9e826b1f6a45bd6a8bb27d2ed033e4960f5f3",
-      "range": null
+      "range": null,
+      "endCommit": "5cd54072b197c475b1367b5b36b729d703a11ef6",
+      "endCode": "cbce581de95401873536293c7d49fa647b2518dd"
     },
     {
       "name": "review:setup",

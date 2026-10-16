@@ -102,6 +102,7 @@ const QUOTED = [
   ['is a link of yours', d.pointers.linkedParent('x', 'setup')],
   ['missing: pointers are symbolic links, which cookwright does not support on Windows', d.pointers.windows('x')],
   ['not written: this filesystem refuses symbolic links (', i.pointers.linkFailed('x', 'EPERM')],
+  ['not written (…); whatever stood there is unchanged', i.pointers.writeFailed('x', '…')],
   ['core.hooksPath is not set', d.hooks.pathUnset],
   ['hooks are managed elsewhere', messages.foreignHooks.path('.husky', 'local')],
   ['cookwright\'s hooks are not installed', messages.foreignHooks.dir('.git/hooks', ['pre-commit'])],

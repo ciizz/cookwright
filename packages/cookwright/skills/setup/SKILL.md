@@ -90,6 +90,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 |---|---|---|
 | FAIL | `… missing (run npx cookwright init)` | `npx cookwright init` |
 | FAIL | `… missing (run npx cookwright init)`, after init printed `pointer … not written: this filesystem refuses symbolic links (…)` | **stop at**: this filesystem (exFAT, some network mounts) refuses symbolic links, so init cannot write the pointer and the line does not clear; cookwright's backlog tracks it as B-010 |
+| FAIL | `… missing (run npx cookwright init)`, after init printed `pointer … not written (…); whatever stood there is unchanged` | **stop at**: init could not write in that directory (its permissions, or a disk error, as the code in brackets says); fixing that is the developer's, then `npx cookwright init` again |
 | FAIL | `… is an earlier pointer` | `npx cookwright init` |
 | WARN | `… does not point where cookwright is installed` | `npx cookwright init` |
 | WARN | `…: not installed where it points (npm install)` | `npm install` |

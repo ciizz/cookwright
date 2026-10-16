@@ -39,7 +39,7 @@ const rowLines = (rows) => {
   return rows.map((r) => `${r.action.padEnd(7)}  ${r.target.padEnd(width)}  ${r.note}`);
 };
 
-function init({ base, hosts, dry }, { cwd = process.cwd(), probes: over = {}, home, symlink } = {}) {
+function init({ base, hosts, dry }, { cwd = process.cwd(), probes: over = {}, home, symlink, rename } = {}) {
   const repo = openInitRepo(cwd, home ? { home } : {});
   const rows = preflight(repo, { probes: { ...PROBES, ...over }, base, hosts });
   console.log(dry ? m.dryHeader(repo.root) : m.header(repo.root));
@@ -49,8 +49,8 @@ function init({ base, hosts, dry }, { cwd = process.cwd(), probes: over = {}, ho
     console.log(m.dryFooter);
     return 0;
   }
-  const refused = applyRows(repo.root, rows, symlink ? { symlink } : {});
-  for (const { rel, code } of refused) console.log(m.pointers.linkFailed(rel, code));
+  const refused = applyRows(repo.root, rows, { ...(symlink && { symlink }), ...(rename && { rename }) });
+  for (const { rel, code, links } of refused) console.log((links ? m.pointers.linkFailed : m.pointers.writeFailed)(rel, code));
   if (refused.length) console.log('');
   return doctor([], { cwd, probes: over, home });
 }
@@ -64,7 +64,7 @@ function refuse(err, usage) {
   return 2;
 }
 
-/** `io.probes`, `io.home` and `io.symlink` are the tests' seams; the bin passes none. */
+/** `io.probes`, `io.home`, `io.symlink` and `io.rename` are the tests' seams; the bin passes none. */
 export function main(argv = [], io = {}) {
   let args;
   try {

@@ -24,7 +24,7 @@ To try a change that is not published yet, install the package as npm would publ
 
 ## Skills and workflows
 
-The package's skills (`setup`; `bundle`, Level 2 and experimental) and Claude Code's workflows reach a session through pointers: symbolic links init writes at the work tree's top, `.claude/skills/<name>` and `.claude/workflows/<name>.js` for Claude Code, `.agents/skills/<name>` for Codex, each into `node_modules/cookwright`. Nothing is copied, so an update of the package updates them. Commit the links.
+The package's skills (`setup`; `bundle`, Level 2 and experimental) and Claude Code's workflows reach a session through pointers: symbolic links init writes at the work tree's top, `.claude/skills/<name>` and `.claude/workflows/<name>.js` for Claude Code, `.agents/skills/<name>` for Codex, each into `node_modules/cookwright`. Nothing is copied, so an update of the package updates them. Commit the links. init replaces a link in one step, so one it could not rewrite stays as it was, and it names every pointer it could not write (a directory it may not write in, a filesystem that refuses links) after its report.
 
 - **A fresh clone** has the links but not their targets until `npm install`; doctor reads them as weak (`not installed where it points`) until then.
 - **A local install under `node_modules` only.** The links do not resolve with yarn Plug'n'Play or a global install.

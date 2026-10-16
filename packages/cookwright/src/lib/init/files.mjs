@@ -109,20 +109,37 @@ function writeFile(root, { rel, content, mode }) {
   if (mode !== undefined) fs.chmodSync(abs, mode);
 }
 
-/**
- * A link write: a link already at `rel` (an earlier pointer, by the step's own
- * reading) is removed, then the link is made. A refused link is returned as
- * `{ rel, code }`, never thrown: the run goes on and init reports it.
- */
-function writeLink(root, { rel, link }, symlink) {
-  const abs = path.join(root, rel);
-  if (isLink(abs)) fs.unlinkSync(abs);
-  fs.mkdirSync(path.dirname(abs), { recursive: true });
+const removeQuietly = (abs) => {
   try {
-    symlink(link, abs);
+    if (isLink(abs)) fs.unlinkSync(abs);
+  } catch {
+    // Best effort: the caller reports the failure that led here.
+  }
+};
+
+/**
+ * A link write: the link is made beside `rel` and renamed over it, so a link
+ * already there (an earlier pointer, by the step's own reading) is replaced at once
+ * and kept whole when anything fails. A failure is returned as `{ rel, code, links }`,
+ * never thrown: the run goes on and init reports it. `links` is true when it was the
+ * link itself the filesystem refused, false for its directory or the rename.
+ */
+function writeLink(root, { rel, link }, { symlink, rename }) {
+  const abs = path.join(root, rel);
+  const tmp = `${abs}.cookwright-${process.pid}`;
+  let step = 'dir';
+  try {
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    removeQuietly(tmp); // one a killed run left
+    step = 'link';
+    symlink(link, tmp);
+    step = 'rename';
+    rename(tmp, abs);
     return null;
   } catch (err) {
-    return { rel, code: err.code ?? String(err.message ?? err) };
+    if (step === 'rename') removeQuietly(tmp);
+    const code = err.code ?? String(err.message ?? err);
+    return { rel, code, links: step === 'link' && code !== 'EACCES' };
   }
 }
 
@@ -130,15 +147,15 @@ function writeLink(root, { rel, link }, symlink) {
  * Apply every row's file and link writes, in order, creating directories as needed;
  * then its git writes, so a config that activates files never precedes them. A git
  * failure is a refusal naming the files it leaves inert, which the next run
- * completes. Returns the link writes the filesystem refused. `symlink` is the
- * tests' seam.
+ * completes. Returns the link writes that failed. `symlink` and `rename` are the
+ * tests' seams.
  */
-export function applyRows(root, rows, { symlink = fs.symlinkSync } = {}) {
+export function applyRows(root, rows, { symlink = fs.symlinkSync, rename = fs.renameSync } = {}) {
   const writes = rows.flatMap((r) => r.writes);
   const refused = [];
   for (const w of writes.filter((x) => x.rel !== undefined)) {
     if (w.link === undefined) writeFile(root, w);
-    else refused.push(writeLink(root, w, symlink));
+    else refused.push(writeLink(root, w, { symlink, rename }));
   }
   for (const { git, inert } of writes.filter((x) => x.git)) {
     const r = gitRun(root, git);

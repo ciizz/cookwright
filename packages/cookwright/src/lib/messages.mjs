@@ -248,6 +248,7 @@ const init = {
     theirs: (name) => `your own ${name} shadows cookwright's`,
     linkedParent: (component) => `${component} is a link of yours`,
     linkFailed: (rel, code) => `pointer ${rel} not written: this filesystem refuses symbolic links (${code})`,
+    writeFailed: (rel, code) => `pointer ${rel} not written (${code}); whatever stood there is unchanged`,
   },
   gitWriteFailed: (args, detail, inert) =>
     `git ${args.join(' ')} failed: ${detail}; ${list(inert)} are written but inactive, rerun init`,

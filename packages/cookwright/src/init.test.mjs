@@ -883,6 +883,52 @@ describe('pointers: the skills and workflows', () => {
     expect(step(root).find((r) => r.target === SKILL.rel).action).toBe('kept');
   });
 
+  it('keeps an earlier pointer whole when its replacement fails, at the link or the rename, and leaves nothing beside it', () => {
+    const fails = (code) => () => {
+      throw Object.assign(new Error(code), { code });
+    };
+    for (const [seam, code, links] of [['symlink', 'EPERM', true], ['symlink', 'EACCES', false], ['rename', 'EACCES', false]]) {
+      const root = linkPackage(fresh());
+      write(root, '.claude/skills/.keep', '');
+      fs.symlinkSync('../../somewhere/old/bundle', path.join(root, SKILL.rel));
+      const rows = step(root, { past: ['../../somewhere/old/bundle'] }).filter((r) => r.target === SKILL.rel);
+      expect(applyRows(root, rows, { [seam]: fails(code) })).toEqual([{ rel: SKILL.rel, code, links }]);
+      expect(fs.readlinkSync(path.join(root, SKILL.rel))).toBe('../../somewhere/old/bundle');
+      expect(fs.readdirSync(path.join(root, '.claude/skills')).sort()).toEqual(['.keep', SKILL.file].sort());
+    }
+  });
+
+  // root ignores the modes this test sets.
+  it.skipIf(process.getuid?.() === 0)('reports a pointer it cannot write for want of permission, never a stack, and goes on', () => {
+    const skills = POINTERS.filter((p) => p.kind === 'skill');
+    // The directory cannot be made: .claude is read-only and .claude/skills absent.
+    const mk = linkPackage(fresh());
+    write(mk, '.claude/.keep', '');
+    const rows = step(mk).filter((r) => skills.some((p) => p.rel === r.target));
+    fs.chmodSync(path.join(mk, '.claude'), 0o555);
+    try {
+      expect(applyRows(mk, rows)).toEqual(skills.map(({ rel }) => ({ rel, code: 'EACCES', links: false })));
+    } finally {
+      fs.chmodSync(path.join(mk, '.claude'), 0o755);
+    }
+    // The link cannot be made: .claude/skills is read-only; the run goes on to doctor.
+    const root = linkPackage(fresh());
+    write(root, '.claude/skills/.keep', '');
+    fs.chmodSync(path.join(root, '.claude/skills'), 0o555);
+    try {
+      out.length = 0;
+      const code = main([], { cwd: root, home: TMP, probes: { ...GITLEAKS, claudeVersion: () => '2.1.281' } });
+      for (const { rel } of skills) expect(out).toContain(m.pointers.writeFailed(rel, 'EACCES'));
+      expect(code).toBe(1); // setup's pointer missing: drift, as doctor reads it
+      expect(exists(root, 'AGENTS.md')).toBe(true);
+    } finally {
+      fs.chmodSync(path.join(root, '.claude/skills'), 0o755);
+    }
+    expect(m.pointers.writeFailed('.claude/skills/x', 'EACCES')).toBe(
+      'pointer .claude/skills/x not written (EACCES); whatever stood there is unchanged',
+    );
+  });
+
   it('skips a link of the user’s, dangling or resolving, and a real directory or file, touching none', () => {
     const elsewhere = outside();
     const root = linkPackage(fresh());

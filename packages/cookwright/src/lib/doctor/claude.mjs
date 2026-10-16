@@ -52,15 +52,22 @@ export function checkClaudeRules(repo, probes) {
   return pass(m.hostRules.native(version));
 }
 
-/** The `command` of every SessionStart hook entry in a parsed settings object. */
-export function sessionStartCommands(settings) {
+/**
+ * Every SessionStart command hook in a parsed hooks file, as `{ command, matcher }`;
+ * `matcher` is its group's, undefined when the group has none.
+ */
+export function sessionStartHooks(settings) {
   const groups = settings?.hooks?.SessionStart;
   if (!Array.isArray(groups)) return [];
-  return groups
-    .flatMap((g) => (Array.isArray(g?.hooks) ? g.hooks : []))
-    .filter((h) => h?.type === 'command' && typeof h.command === 'string')
-    .map((h) => h.command);
+  return groups.flatMap((g) =>
+    (Array.isArray(g?.hooks) ? g.hooks : [])
+      .filter((h) => h?.type === 'command' && typeof h.command === 'string')
+      .map((h) => ({ command: h.command, matcher: g.matcher })),
+  );
 }
+
+/** The `command` of every SessionStart hook entry in a parsed settings object. */
+export const sessionStartCommands = (settings) => sessionStartHooks(settings).map((h) => h.command);
 
 /**
  * Detection is by equality with HOOK_COMMAND, never a substring search. `entry` is

@@ -28,7 +28,7 @@
       "default": 0
     },
     "hosts": {
-      "description": "Agent hosts this repo is set up for, each once. The first is the default host, whose rules files the CLI names; the bundle runner uses the first host that has workflows (claude).",
+      "description": "Agent hosts this repo is set up for, each once: init writes, and doctor checks, every host's session-start hook, rules and pointers. The first is the default host, whose rules files the CLI names; the bundle runner uses the first host that has workflows (claude).",
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,

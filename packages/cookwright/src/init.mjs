@@ -1,4 +1,4 @@
-// src/init.mjs — `cookwright init [--base <branch>] [--dry-run]`: take a repo to
+// src/init.mjs — `cookwright init [--base <branch>] [--hosts <host,…>] [--dry-run]`: take a repo to
 // Level 0. Non-interactive and idempotent: every step reports wrote, updated, kept
 // or skipped, and a second run changes no byte.
 //
@@ -16,7 +16,7 @@ import { PROBES } from './lib/probes.mjs';
 import { main as doctor } from './doctor.mjs';
 
 const m = messages.init;
-const FLAGS = ['base', 'dry-run'];
+const FLAGS = ['base', 'hosts', 'dry-run'];
 const BUNDLE_FLAGS = ['plan', 'split'];
 
 function readArgs(argv) {
@@ -27,7 +27,11 @@ function readArgs(argv) {
   onlyFlags(flags, FLAGS);
   const dry = flags['dry-run'];
   if (dry !== undefined && dry !== true) throw new Refusal(m.usage);
-  return { base: stringFlag(flags, 'base'), dry: dry === true };
+  const hosts = stringFlag(flags, 'hosts')
+    ?.split(',')
+    .map((h) => h.trim())
+    .filter(Boolean);
+  return { base: stringFlag(flags, 'base'), hosts, dry: dry === true };
 }
 
 const rowLines = (rows) => {
@@ -35,9 +39,9 @@ const rowLines = (rows) => {
   return rows.map((r) => `${r.action.padEnd(7)}  ${r.target.padEnd(width)}  ${r.note}`);
 };
 
-function init({ base, dry }, { cwd = process.cwd(), probes: over = {}, home, symlink } = {}) {
+function init({ base, hosts, dry }, { cwd = process.cwd(), probes: over = {}, home, symlink } = {}) {
   const repo = openInitRepo(cwd, home ? { home } : {});
-  const rows = preflight(repo, { probes: { ...PROBES, ...over }, base });
+  const rows = preflight(repo, { probes: { ...PROBES, ...over }, base, hosts });
   console.log(dry ? m.dryHeader(repo.root) : m.header(repo.root));
   for (const line of rowLines(rows)) console.log(line);
   console.log('');

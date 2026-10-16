@@ -15,12 +15,13 @@ import { messages as bundleMessages } from './lib/bundle/messages.mjs';
 import { TEMPLATE as CHANGELOG } from './lib/changelog/render.mjs';
 import { CONFIG_VERSION, DEFAULTS } from './lib/config.mjs';
 import { checkClaudeHook } from './lib/doctor/claude.mjs';
+import { checkCodexHook } from './lib/doctor/codex.mjs';
 import { checkPointers, hostPointers, shippedPieces } from './lib/doctor/hosts.mjs';
 import { openDoctorRepo } from './lib/doctor/repo.mjs';
 import { runChecks } from './lib/doctor/registry.mjs';
 import { levelLine } from './lib/doctor/report.mjs';
 import { shimText } from './lib/hooks/shims.mjs';
-import { HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
+import { CODEX_HOOK_COMMAND, HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { PROBES } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
@@ -479,6 +480,75 @@ describe('host.hook', () => {
       status: 'WARN',
       note: m.hostHook.past('.claude/settings.json'),
     });
+  });
+});
+
+describe('codex: host.rules and host.hook', () => {
+  const cm = m.codex;
+  const FILE = '.codex/hooks.json';
+  const HOOKS = (groups) => `${JSON.stringify({ hooks: { SessionStart: groups } }, null, 2)}\n`;
+  const ours = (matcher = 'startup|resume') => ({
+    ...(matcher === null ? {} : { matcher }),
+    hooks: [{ type: 'command', command: CODEX_HOOK_COMMAND, timeout: 10 }],
+  });
+  /** A Level 0 repo for `hosts`, the Codex hooks file in place unless `files` says otherwise. */
+  const repoFor = (hosts, files = {}) => level0({ [FILE]: HOOKS([ours()]), ...files }, { hosts });
+  const codexOnly = (files) => repoFor(['codex'], files);
+
+  it('passes every check on a Codex-only repo, and on a two-host one with each host named', () => {
+    const rows = doctor(codexOnly());
+    for (const [name, r] of Object.entries(rows)) expect([name, r.status]).toEqual([name, 'PASS']);
+    expect(rows['host.rules'].note).toBe(cm.rules.native('AGENTS.override.md'));
+    expect(rows['host.hook'].note).toBe(cm.hook.ok(FILE, '/hooks'));
+    expect(cm.hook.ok(FILE, '/hooks')).toBe('.codex/hooks.json carries the doctor hook (whether it is trusted is yours: /hooks)');
+    const two = doctor(repoFor(['claude', 'codex']));
+    for (const [name, r] of Object.entries(two)) expect([name, r.status]).toEqual([name, 'PASS']);
+    expect(two['host.rules'].note).toBe(
+      [m.byHost('claude', m.hostRules.native('2.1.281')), m.byHost('codex', cm.rules.native('AGENTS.override.md'))].join('; '),
+    );
+    expect(two['host.hook'].note).toBe(
+      [m.byHost('claude', m.hostHook.ok('.claude/settings.json')), m.byHost('codex', cm.hook.ok(FILE, '/hooks'))].join('; '),
+    );
+  });
+
+  it('WARNs an AGENTS.override.md on the path from the invocation directory, root-relative; FAILs no AGENTS.md', () => {
+    const rules = (root, opts) => doctor(root, opts)['host.rules'];
+    expect(rules(codexOnly({ 'AGENTS.override.md': '# mine\n' }))).toEqual({
+      status: 'WARN',
+      note: cm.rules.override(['AGENTS.override.md']),
+    });
+    const nested = codexOnly({ 'app/AGENTS.override.md': '# app\n' });
+    expect(rules(nested, { cwd: path.join(nested, 'app') })).toEqual({ status: 'WARN', note: cm.rules.override(['app/AGENTS.override.md']) });
+    expect(rules(nested).status).toBe('PASS'); // from the root, app/ is not on the path
+    expect(rules(codexOnly({ 'AGENTS.md': null }))).toEqual({ status: 'FAIL', note: cm.rules.none('AGENTS.md') });
+  });
+
+  it('FAILs the hook absent or unparseable, WARNs it under another matcher or an earlier command', () => {
+    const hook = (files) => doctor(codexOnly(files))['host.hook'];
+    expect(hook({ [FILE]: null })).toEqual({ status: 'FAIL', note: cm.hook.none(FILE) });
+    expect(hook({ [FILE]: HOOKS([{ hooks: [{ type: 'command', command: HOOK_COMMAND }] }]) })).toEqual({ status: 'FAIL', note: cm.hook.none(FILE) });
+    expect(hook({ [FILE]: '{ nope' })).toMatchObject({ status: 'FAIL', note: expect.stringMatching(/^\.codex\/hooks\.json is not valid JSON \(/) });
+    expect(hook({ [FILE]: HOOKS([ours('startup')]) })).toEqual({ status: 'WARN', note: cm.hook.matcher(FILE, 'startup', 'startup|resume') });
+    expect(hook({ [FILE]: HOOKS([ours(null)]) })).toEqual({ status: 'WARN', note: cm.hook.matcher(FILE, undefined, 'startup|resume') });
+    expect(cm.hook.matcher(FILE, undefined, 'startup|resume')).toBe(
+      '.codex/hooks.json has the doctor hook under no matcher, not startup|resume (run npx cookwright init)',
+    );
+    const root = codexOnly({ [FILE]: HOOKS([{ matcher: 'startup|resume', hooks: [{ type: 'command', command: 'old' }] }]) });
+    const entry = { ...HOSTS.codex, hookCommandsPast: ['old'] };
+    expect(checkCodexHook(openDoctorRepo(root, probes(), { home: TMP }), probes(), entry)).toEqual({
+      status: 'WARN',
+      note: m.hostHook.past(FILE),
+    });
+  });
+
+  it('names only the hosts not PASS, worst first, and reads the joined FAIL as drift', () => {
+    const rows = doctor(repoFor(['claude', 'codex'], { [FILE]: HOOKS([ours('startup')]), '.claude/settings.json': null }));
+    expect(rows['host.hook']).toEqual({
+      status: 'FAIL',
+      note: [m.byHost('claude', m.hostHook.none('.claude/settings.json')), m.byHost('codex', cm.hook.matcher(FILE, 'startup', 'startup|resume'))].join('; '),
+    });
+    const skipped = doctor(repoFor(['claude', 'codex']), { probes: probes({ claudeVersion: () => null }) });
+    expect(skipped['host.rules']).toEqual({ status: 'SKIP', note: m.byHost('claude', m.hostRules.noClaude) });
   });
 });
 

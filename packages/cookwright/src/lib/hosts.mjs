@@ -5,8 +5,9 @@
 // CLI never hardcodes any of these: it asks this table for the DEFAULT host, which
 // is the first entry of `hosts` in cookwright.json.
 //
-// Stage 0 knows one host. A second host is a second entry here plus an adapter
-// directory under the package's hosts/<name>/; nothing else changes.
+// A host is an entry here, its init steps (init/steps.mjs) and its doctor checks
+// (doctor/registry.mjs); an adapter directory under the package's hosts/<name>/
+// holds what it runs that is not a skill (Claude Code's workflows).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -59,19 +60,39 @@ const PLAYBOOK = 'docs/playbook.md';
 
 const HOOK_BIN = `${PACKAGE_DIR}/bin/cookwright.mjs`;
 
+/**
+ * The session-start command after `enter`, the step that enters the directory the
+ * package is installed under. No path is interpolated: each host's `enter` is fixed.
+ */
+const hookCommand = (enter) =>
+  [
+    enter,
+    `command -v node >/dev/null 2>&1 || { echo "${HOOK_LINES.noNode}"; exit 0; }`,
+    `[ -f ${HOOK_BIN} ] || { echo "${HOOK_LINES.notInstalled}"; exit 0; }`,
+    `node ${HOOK_BIN} doctor --hook || echo "${HOOK_LINES.crashed}"`,
+  ].join('; ');
+
 /** The SessionStart command init writes and doctor's `host.hook` looks for, verbatim. */
-export const HOOK_COMMAND = [
-  'cd "${CLAUDE_PROJECT_DIR:-.}"',
-  `command -v node >/dev/null 2>&1 || { echo "${HOOK_LINES.noNode}"; exit 0; }`,
-  `[ -f ${HOOK_BIN} ] || { echo "${HOOK_LINES.notInstalled}"; exit 0; }`,
-  `node ${HOOK_BIN} doctor --hook || echo "${HOOK_LINES.crashed}"`,
-].join('; ');
+export const HOOK_COMMAND = hookCommand('cd "${CLAUDE_PROJECT_DIR:-.}"');
 
 /** Earlier versions of HOOK_COMMAND: doctor WARNs on one, init replaces it. */
 export const HOOK_COMMANDS_PAST = Object.freeze([]);
 
+/**
+ * Codex's SessionStart command. Codex runs a hook in the session's cwd and sets no
+ * project variable, so the command enters the work tree's top first: the readout
+ * judges from there (a known limit: an AGENTS.override.md in a subdirectory the
+ * session started in is caught by doctor run there by hand, not by this line).
+ */
+export const CODEX_HOOK_COMMAND = hookCommand('cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)"');
+
+/** Earlier versions of CODEX_HOOK_COMMAND: doctor WARNs on one, init replaces it. */
+export const CODEX_HOOK_COMMANDS_PAST = Object.freeze([]);
+
 export const HOSTS = Object.freeze({
   claude: Object.freeze({
+    // The host's name in a line the user reads.
+    name: 'Claude Code',
     // Where the package keeps the adapter's workflow scripts, relative to the package.
     workflows: 'hosts/claude/workflows',
     // Where a session finds a skill, relative to the work tree's top: the pointers
@@ -91,6 +112,11 @@ export const HOSTS = Object.freeze({
     hookCommand: HOOK_COMMAND,
     hookCommandsPast: HOOK_COMMANDS_PAST,
     hookTimeout: 10,
+    // null: the hook has no matcher, so it runs on every SessionStart source, and a
+    // hook is identified by its command alone.
+    hookMatcher: null,
+    // The command a user trusts the hooks file with, named after init writes it; null: none.
+    hookTrust: null,
     // Any of these in the session's cwd or above makes Claude Code ignore a bare
     // AGENTS.md (~/.claude/CLAUDE.md does not count); a root CLAUDE.md carrying
     // `importLine` brings it back.
@@ -99,14 +125,27 @@ export const HOSTS = Object.freeze({
     // The first Claude Code release in which every session reads AGENTS.md.
     agentsNativeSince: '2.1.281',
   }),
-  // Its init steps, doctor checks and pointers arrive with its adapter (plan stage-3
-  // §4.4, Codex half); it has no workflow mechanism, so no bundle runner.
+  // No workflow mechanism, so no bundle runner and no Level 2 pointers.
   codex: Object.freeze({
-    rules: ['AGENTS.md'],
-    shadowing: Object.freeze([]),
-    importLine: null,
-    skillsDir: null,
+    name: 'Codex',
+    workflows: null,
+    // Codex scans .agents/skills from the cwd up to the repo root.
+    skillsDir: '.agents/skills',
     workflowsDir: null,
+    rules: ['AGENTS.md'],
+    // In a directory holding one, Codex reads it in place of the AGENTS.md beside it.
+    shadowing: Object.freeze(['AGENTS.override.md']),
+    importLine: null,
+    // The project hooks file; the user trusts its hooks once with /hooks, and again
+    // after a rewrite, so init rewrites it as rarely as it can.
+    settings: '.codex/hooks.json',
+    hookCommand: CODEX_HOOK_COMMAND,
+    hookCommandsPast: CODEX_HOOK_COMMANDS_PAST,
+    hookTimeout: 10,
+    // A Codex hook is identified by its command and its matcher: doctor at a fresh
+    // session and on resume, not after a clear or a compaction.
+    hookMatcher: 'startup|resume',
+    hookTrust: '/hooks',
   }),
 });
 

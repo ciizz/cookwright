@@ -14,8 +14,9 @@ import { openInitRepo } from './lib/init/repo.mjs';
 import { CONFIG_VERSION, DEFAULTS } from './lib/config.mjs';
 import { callLine, shimText } from './lib/hooks/shims.mjs';
 import { claudeHookStep } from './lib/init/claude.mjs';
+import { codexHookStep } from './lib/init/codex.mjs';
 import { ENV_LINES } from './lib/init/gitignore.mjs';
-import { HOOK_COMMAND, HOOK_LINES, HOSTS, SKILLS } from './lib/hosts.mjs';
+import { CODEX_HOOK_COMMAND, HOOK_COMMAND, HOOK_LINES, HOSTS, SKILLS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { PROBES, hasTool } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
@@ -80,6 +81,9 @@ function tree(root) {
 }
 
 const ROW = /^(wrote|updated|kept|skipped) +(\S+) +(.*)$/;
+
+/** The Codex hook step alone at `root`, for the host-table `entry`. */
+const codexHookStepFor = (root, entry) => codexHookStep({ root }, {}, entry);
 
 /** The claude pointers the package ships, at the top: path and link text for a root at the top. */
 const POINTERS = shippedPieces('claude').map((p) => {
@@ -217,7 +221,7 @@ describe('refusals', () => {
   it('refuses an unknown flag or a positional with the usage, and names bundle init for --plan', () => {
     const root = fresh();
     expect(init(root, ['--bogus']).code).toBe(2);
-    expect(err).toEqual([m.refused(messages.unknownFlag('bogus', ['base', 'dry-run'])), m.usage]);
+    expect(err).toEqual([m.refused(messages.unknownFlag('bogus', ['base', 'hosts', 'dry-run'])), m.usage]);
     expect(init(root, ['now']).code).toBe(2);
     expect(err).toEqual([m.refused(m.usage)]);
     expect(init(root, ['--plan', 'plan.md']).code).toBe(2);
@@ -1002,5 +1006,141 @@ describe('pointers: the skills and workflows', () => {
 
   it('names a level for every skill the package ships', () => {
     for (const p of shippedPieces('claude').filter((x) => x.kind === 'skill')) expect(Object.keys(SKILLS)).toContain(p.name);
+  });
+});
+
+describe('codex: --hosts, its rules row, .codex/hooks.json and its pointers', () => {
+  const FILE = '.codex/hooks.json';
+  const codex = HOSTS.codex;
+  const ours = { type: 'command', command: CODEX_HOOK_COMMAND, timeout: 10 };
+  const SETUP = { kind: 'skill', name: 'setup', file: 'setup', level: 0 };
+  const CODEX_POINTERS = shippedPieces('codex').map((p) => `.agents/skills/${p.file}`);
+  const hooksFile = (groups, indent = 2) => `${JSON.stringify({ hooks: { SessionStart: groups } }, null, indent)}\n`;
+  const kept = (root) => {
+    const before = tree(root);
+    expect(init(root).rows[FILE]).toEqual({ action: 'kept', note: m.hostHook.kept });
+    expect(tree(root)).toEqual(before);
+  };
+
+  it('writes both hosts on --hosts claude,codex, doctor passes, and a second run changes no byte', () => {
+    const root = linkPackage(fresh());
+    const { code, rows } = init(root, ['--hosts', 'claude,codex']);
+    expect(code).toBe(0);
+    expect(JSON.parse(read(root, 'cookwright.json')).hosts).toEqual(['claude', 'codex']);
+    expect(rows['AGENTS.override.md']).toEqual({ action: 'skipped', note: m.codex.native });
+    expect(rows[FILE]).toEqual({ action: 'wrote', note: `${m.hostHook.wrote}${m.hostHook.trust('Codex', '/hooks')}` });
+    expect(JSON.parse(read(root, FILE))).toEqual({ hooks: { SessionStart: [{ matcher: 'startup|resume', hooks: [ours] }] } });
+    expect(rows['.claude/settings.json'].action).toBe('wrote');
+    // Codex gets the skills it can run, never bundle or a workflow: it has no workflow mechanism.
+    expect(CODEX_POINTERS).not.toContain('.agents/skills/bundle');
+    for (const rel of CODEX_POINTERS) expect(rows[rel].action).toBe('wrote');
+    expect(Object.keys(rows).filter((t) => t.startsWith('.agents/'))).toEqual(CODEX_POINTERS);
+    expect(out).toContain('17 checks — 17 PASS, 0 FAIL, 0 WARN, 0 SKIP');
+    commit({ root }, {}, 'first run');
+    const before = tree(root);
+    const second = init(root);
+    expect(second.actions.filter((a) => a === 'wrote' || a === 'updated')).toEqual([]);
+    expect(tree(root)).toEqual(before);
+  });
+
+  it('writes Codex alone on --hosts codex: no .claude row, the rules row after the block row', () => {
+    const root = linkPackage(fresh());
+    const { code, rows } = init(root, ['--hosts', 'codex']);
+    expect(code).toBe(0);
+    expect(Object.keys(rows).filter((t) => t.startsWith('.claude') || t === 'CLAUDE.md')).toEqual([]);
+    expect(exists(root, '.claude')).toBe(false);
+    const targets = Object.keys(rows);
+    expect(targets.indexOf('AGENTS.override.md')).toBe(targets.indexOf('AGENTS.md') + 1);
+    expect(rows['AGENTS.md'].action).toBe('wrote');
+    expect(rows['AGENTS.override.md']).toEqual({ action: 'skipped', note: m.codex.native });
+    expect(JSON.parse(read(root, 'cookwright.json')).hosts).toEqual(['codex']);
+    expect(out).toContain('level 0 declared: complete');
+  });
+
+  it('names an AGENTS.override.md on the path as the rules row, and never touches it', () => {
+    const root = linkPackage(fresh());
+    write(root, 'AGENTS.override.md', '# mine\n');
+    write(root, 'app/AGENTS.override.md', '# app\n');
+    const { rows } = init(path.join(root, 'app'), ['--hosts', 'codex', '--dry-run']);
+    const found = ['app/AGENTS.override.md', 'AGENTS.override.md'];
+    expect(rows['app/AGENTS.override.md']).toEqual({ action: 'skipped', note: m.codex.override(found) });
+    init(root, ['--hosts', 'codex']);
+    expect(read(root, 'AGENTS.override.md')).toBe('# mine\n');
+    expect(init(root).rows['AGENTS.override.md']).toEqual({ action: 'skipped', note: m.codex.override(['AGENTS.override.md']) });
+  });
+
+  it('merges the hook into an existing file, its other hooks and indent kept, then keeps it byte for byte', () => {
+    const root = fresh();
+    write(root, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION, hosts: ['codex'] }));
+    const theirs = { matcher: 'startup', hooks: [{ type: 'command', command: 'echo hi' }] };
+    write(root, FILE, hooksFile([theirs], 4));
+    expect(init(root).rows[FILE]).toEqual({ action: 'updated', note: `${m.hostHook.added}${m.hostHook.trustAgain('Codex', '/hooks')}` });
+    expect(read(root, FILE)).toBe(hooksFile([theirs, { matcher: 'startup|resume', hooks: [ours] }], 4));
+    kept(root);
+  });
+
+  it('moves the hook from another matcher, a group of the user’s kept, then keeps it', () => {
+    const root = fresh();
+    write(root, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION, hosts: ['codex'] }));
+    const theirs = { type: 'command', command: 'echo hi' };
+    write(root, FILE, hooksFile([{ matcher: 'startup', hooks: [theirs, ours] }, { hooks: [ours] }]));
+    expect(init(root).rows[FILE]).toEqual({
+      action: 'updated',
+      note: `${m.hostHook.matcher('startup|resume')}${m.hostHook.trustAgain('Codex', '/hooks')}`,
+    });
+    expect(JSON.parse(read(root, FILE)).hooks.SessionStart).toEqual([
+      { matcher: 'startup', hooks: [theirs] },
+      { matcher: 'startup|resume', hooks: [ours] },
+    ]);
+    kept(root);
+  });
+
+  it('replaces an earlier command in place, and refuses a file that is not the shape Codex reads', () => {
+    const root = fresh();
+    write(root, FILE, hooksFile([{ matcher: 'startup|resume', hooks: [{ type: 'command', command: 'node old.mjs' }] }]));
+    const r = codexHookStepFor(root, { ...codex, hookCommandsPast: ['node old.mjs'] });
+    expect([r.action, r.note]).toEqual(['updated', `${m.hostHook.replaced}${m.hostHook.trustAgain('Codex', '/hooks')}`]);
+    expect(JSON.parse(r.writes[0].content).hooks.SessionStart).toEqual([
+      { matcher: 'startup|resume', hooks: [{ type: 'command', command: CODEX_HOOK_COMMAND }] },
+    ]);
+    const bad = fresh();
+    write(bad, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION, hosts: ['codex'] }));
+    write(bad, FILE, '{ "hooks": [] }\n');
+    expect(init(bad).code).toBe(2);
+    expect(err[0]).toBe(m.refused(m.settingsShape(FILE, 'hooks', 'Codex')));
+    expect(exists(bad, 'AGENTS.md')).toBe(false);
+  });
+
+  it('writes a Codex skill pointer at .agents/skills, and ships it only the skills it can run', () => {
+    const root = linkPackage(fresh());
+    const repo = openInitRepo(root, { home: TMP });
+    repo.config = { hosts: ['codex'], level: 0 };
+    const [r] = pointersStep('codex')(repo, { probes: PROBES, shipped: () => [SETUP] });
+    expect(r).toMatchObject({ action: 'wrote', target: '.agents/skills/setup' });
+    expect(r.writes).toEqual([{ rel: '.agents/skills/setup', link: '../../node_modules/cookwright/skills/setup' }]);
+    const pkg = fs.mkdtempSync(path.join(TMP, 'pkg-'));
+    for (const rel of ['skills/setup/SKILL.md', 'skills/bundle/SKILL.md', 'hosts/claude/workflows/bundle-phase.js']) write(pkg, rel, '');
+    expect(shippedPieces('codex', pkg)).toEqual([SETUP]);
+    expect(shippedPieces('claude', pkg).map((p) => p.name)).toEqual(['bundle', 'setup', 'bundle-phase']);
+  });
+
+  it('refuses --hosts and --base on an existing config, before any write; refuses an unknown host on a fresh one', () => {
+    const root = fresh();
+    write(root, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION }));
+    const before = tree(root);
+    expect(init(root, ['--hosts', 'codex']).code).toBe(2);
+    expect(err).toEqual([m.refused(m.config.existing('hosts', 'hosts'))]);
+    expect(init(root, ['--base', 'develop']).code).toBe(2);
+    expect(err).toEqual([m.refused(m.config.existing('base', 'baseBranch'))]);
+    expect(tree(root)).toEqual(before);
+    expect(m.config.existing('hosts', 'hosts')).toBe(
+      '--hosts applies to a fresh cookwright.json and this repo has one; change hosts there by hand, then rerun init',
+    );
+    const other = fresh();
+    expect(init(other, ['--hosts', 'claude,gemini']).code).toBe(2);
+    expect(err[0]).toMatch(/hosts: host "gemini" is not available/);
+    expect(init(other, ['--hosts', 'codex,codex']).code).toBe(2);
+    expect(err[0]).toMatch(/each host once/);
+    expect(tree(other)).toEqual({});
   });
 });

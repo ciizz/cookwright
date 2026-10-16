@@ -86,6 +86,21 @@ const doctor = {
       `no doctor SessionStart hook in ${file}, so doctor runs only by hand (${RUN_INIT}; a hook in settings.local.json or the user settings is not what init wires)`,
     invalid: (file, detail) => `${file} is not valid JSON (${detail})`,
   },
+  // A host check over several hosts: each host's note, by name.
+  byHost: (host, note) => `${host}: ${note}`,
+  codex: {
+    rules: {
+      native: (override) => `Codex reads AGENTS.md natively; no ${override} on the path`,
+      none: (file) => `no ${file} at the root, so Codex has no rules to read (${RUN_INIT})`,
+      override: (files) => `Codex reads ${list(files)} in place of the AGENTS.md beside it (yours, left alone)`,
+    },
+    hook: {
+      ok: (file, trust) => `${file} carries the doctor hook (whether it is trusted is yours: ${trust})`,
+      none: (file) => `no doctor SessionStart hook in ${file}, so doctor runs only by hand (${RUN_INIT})`,
+      matcher: (file, found, want) =>
+        `${file} has the doctor hook under ${found === undefined ? 'no matcher' : `matcher ${found}`}, not ${want} (${RUN_INIT})`,
+    },
+  },
   pointers: {
     counts: (host, skills, workflows) =>
       `${host}: ${skills} skill${skills === 1 ? '' : 's'}, ${workflows} workflow${workflows === 1 ? '' : 's'}`,
@@ -147,9 +162,9 @@ const doctor = {
 
 // init: the usage, the refusals, and one note per row of each step (plan §4.4).
 const init = {
-  usage: `usage: ${CLI} init [--base <branch>] [--dry-run]`,
+  usage: `usage: ${CLI} init [--base <branch>] [--hosts <host,…>] [--dry-run]`,
   refused: (detail) => `init: ${detail}`,
-  bundleFlag: (flag) => `--${flag} belongs to ${CLI} bundle init; ${CLI} init takes --base and --dry-run`,
+  bundleFlag: (flag) => `--${flag} belongs to ${CLI} bundle init; ${CLI} init takes --base, --hosts and --dry-run`,
   notWorkTree: (cwd) => `${cwd} is not inside a git work tree (init needs git and a repo: run git init first)`,
   notAFile: (rel) => `${rel} exists and is not a file; move it aside, then rerun`,
   notADir: (rel) => `${rel} exists and is not a directory; move it aside, then rerun`,
@@ -159,8 +174,8 @@ const init = {
   badBase: (base) => `--base ${JSON.stringify(base)} is not a valid branch name`,
   freshInvalid: (problems) => `the ${CONFIG_FILE} init would write is invalid: ${problems.join('; ')}`,
   settingsInvalid: (file, detail) => `${file} is not valid JSON (${detail}); fix it by hand, then rerun`,
-  settingsShape: (file, key) =>
-    `${key ? `${file}: ${key}` : file} is not the shape Claude Code reads (an object, its hooks an object, hooks.SessionStart a list); fix it by hand, then rerun`,
+  settingsShape: (file, key, host = 'Claude Code') =>
+    `${key ? `${file}: ${key}` : file} is not the shape ${host} reads (an object, its hooks an object, hooks.SessionStart a list); fix it by hand, then rerun`,
 
   header: (root) => `${CLI} init in ${root}`,
   dryHeader: (root) => `${CLI} init --dry-run in ${root}: nothing is written`,
@@ -170,6 +185,9 @@ const init = {
     wrote: (base, gate) => `baseBranch ${base}; ${gate}`,
     kept: (level) => `present, level ${level}; init never edits an existing config`,
     migrated: (from, to) => `version ${from}, migrated in memory; run ${CLI} migrate to write version ${to}`,
+    // --base and --hosts shape a fresh config; init never edits an existing one.
+    existing: (flag, key) =>
+      `--${flag} applies to a fresh ${CONFIG_FILE} and this repo has one; change ${key} there by hand, then rerun init`,
     gateTest: (run) => `gate: ${run}`,
     gateNone: (reason) => `gate: no checks (${reason})`,
     noPackage: 'no package.json',
@@ -206,7 +224,14 @@ const init = {
     kept: 'the doctor SessionStart hook is present',
     replaced: 'an earlier doctor hook replaced by the current one; the other settings kept',
     added: 'doctor SessionStart hook added; the other settings kept',
+    matcher: (matcher) => `the doctor hook moved under matcher ${matcher}; the other hooks kept`,
     relaid: RELAID,
+    trust: (host, command) => `; trust it in ${host} with ${command}`,
+    trustAgain: (host, command) => `; trust it again in ${host} with ${command}`,
+  },
+  codex: {
+    native: 'not needed: nothing overrides AGENTS.md, which Codex reads natively',
+    override: (files) => `yours: Codex reads ${list(files)} in place of the AGENTS.md beside it; left alone`,
   },
   pointers: {
     wrote: (target) => `links to ${target}`,

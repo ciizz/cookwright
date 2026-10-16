@@ -48,14 +48,14 @@ export function gateChecks(root) {
   return { checks: [{ ...TEST_CHECK }], note: m.gateTest(TEST_CHECK.run) };
 }
 
-/** The config init writes on a fresh repo, every path explicit. */
-export function freshConfig(root, base) {
+/** The config init writes on a fresh repo, every path explicit; `hosts` from --hosts. */
+export function freshConfig(root, base, hosts = DEFAULTS.hosts) {
   const gate = gateChecks(root);
   const raw = {
     $schema: SCHEMA_REF,
     version: DEFAULTS.version,
     level: DEFAULTS.level,
-    hosts: [...DEFAULTS.hosts],
+    hosts: [...hosts],
     baseBranch: detectBase(root, base),
     paths: { ...DEFAULTS.paths },
     gate: { checks: gate.checks },
@@ -64,9 +64,17 @@ export function freshConfig(root, base) {
   return { raw, note: m.wrote(raw.baseBranch, gate.note) };
 }
 
-/** Step 1. Sets `repo.config`, which every later step reads. */
+/** The flags that shape a fresh config, by the key each sets. */
+const FRESH_FLAGS = Object.freeze({ base: 'baseBranch', hosts: 'hosts' });
+
+/**
+ * Step 1. Sets `repo.config`, which every later step reads. --base and --hosts on an
+ * existing config are refused, never ignored: init never edits one.
+ */
 export function configStep(repo, io) {
   if (readTarget(repo.root, CONFIG_FILE) !== null) {
+    const flag = Object.keys(FRESH_FLAGS).find((f) => io[f] !== undefined);
+    if (flag) throw new Refusal(m.existing(flag, FRESH_FLAGS[flag]));
     try {
       repo.config = loadConfig(repo.root);
     } catch (err) {
@@ -77,7 +85,7 @@ export function configStep(repo, io) {
     const from = repo.config.migratedFrom;
     return row(KEPT, CONFIG_FILE, from === undefined ? m.kept(repo.config.level) : m.migrated(from, CONFIG_VERSION));
   }
-  const { raw, note } = freshConfig(repo.root, io.base);
+  const { raw, note } = freshConfig(repo.root, io.base, io.hosts);
   repo.config = withDefaults(raw);
   // The same validation as a loaded config, in preflight: init never writes a
   // config that doctor and every later run would refuse.

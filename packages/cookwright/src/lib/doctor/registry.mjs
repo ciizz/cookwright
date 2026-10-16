@@ -10,9 +10,10 @@
 
 import { TimedOut } from '../budget.mjs';
 import { messages } from '../messages.mjs';
-import { fail, skip } from '../verdict.mjs';
+import { FAIL, PASS, SKIP, WARN, fail, skip } from '../verdict.mjs';
 import { checkConfig, checkGit } from './basics.mjs';
 import { checkClaudeHook, checkClaudeRules } from './claude.mjs';
+import { checkCodexHook, checkCodexRules } from './codex.mjs';
 import { checkBacklog, checkChangelog, checkCloseouts, checkIds } from './homes.mjs';
 import { checkGateScripts, checkGitleaks, checkHookFile, checkHooksPath } from './hooks.mjs';
 import { checkPointers } from './hosts.mjs';
@@ -21,13 +22,26 @@ import { checkSecrets } from './secrets.mjs';
 
 const m = messages.doctor;
 
-/** Each host's two checks; a second host adds its pair here. */
+/** Each host's two checks; a host adds its pair here. */
 const HOST_CHECKS = Object.freeze({
   claude: { rules: checkClaudeRules, hook: checkClaudeHook },
+  codex: { rules: checkCodexRules, hook: checkCodexHook },
 });
 
-/** The default host's check of `kind` (the first configured host). */
-const hostCheck = (kind) => (repo, probes) => HOST_CHECKS[repo.config.hosts[0]][kind](repo, probes);
+const RANK = { [FAIL]: 0, [WARN]: 1, [SKIP]: 2, [PASS]: 3 };
+
+/**
+ * Every configured host's check of `kind`. One host: its verdict as it is. Several:
+ * the worst status, with each host's note by name, only those not PASS when any is not.
+ */
+const hostCheck = (kind) => (repo, probes) => {
+  const verdicts = repo.config.hosts.map((h) => [h, HOST_CHECKS[h][kind](repo, probes)]);
+  if (verdicts.length === 1) return verdicts[0][1];
+  const sorted = [...verdicts].sort(([, a], [, b]) => RANK[a.status] - RANK[b.status]);
+  const status = sorted[0][1].status;
+  const named = status === PASS ? verdicts : sorted.filter(([, v]) => v.status !== PASS);
+  return { status, note: named.map(([h, v]) => m.byHost(h, v.note)).join('; ') };
+};
 
 export const CHECKS = Object.freeze({
   config: { run: checkConfig },
@@ -38,9 +52,9 @@ export const CHECKS = Object.freeze({
   'backlog.ids': { run: checkIds, config: true },
   'rules.block': { run: checkBlock, config: true },
   'rules.size': { run: checkSize },
+  // Every configured host's rules, hook, and skill and workflow pointers.
   'host.rules': { run: hostCheck('rules'), config: true },
   'host.hook': { run: hostCheck('hook'), config: true },
-  // Every configured host's skill and workflow pointers, not the default host's only.
   'host.pointers': { run: (repo, probes) => checkPointers(repo, probes), config: true },
   'hooks.path': { run: checkHooksPath, git: true },
   'hooks.pre-commit': { run: checkHookFile('pre-commit'), git: true },

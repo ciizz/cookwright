@@ -8,15 +8,19 @@ import path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { main } from './init.mjs';
+import { applyRows } from './lib/init/files.mjs';
+import { pointersStep } from './lib/init/pointers.mjs';
+import { openInitRepo } from './lib/init/repo.mjs';
 import { CONFIG_VERSION, DEFAULTS } from './lib/config.mjs';
 import { callLine, shimText } from './lib/hooks/shims.mjs';
 import { claudeHookStep } from './lib/init/claude.mjs';
 import { ENV_LINES } from './lib/init/gitignore.mjs';
-import { HOOK_COMMAND, HOOK_LINES, HOSTS } from './lib/hosts.mjs';
+import { HOOK_COMMAND, HOOK_LINES, HOSTS, SKILLS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
-import { hasTool } from './lib/probes.mjs';
+import { PROBES, hasTool } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
-import { commit, gitInit, gitWithoutScopes, run, scratchRoot, stageOnly, v1Block } from './test-helpers.mjs';
+import { shippedPieces } from './lib/doctor/hosts.mjs';
+import { commit, gitInit, gitWithoutScopes, linkPackage, run, scratchRoot, stageOnly, v1Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-init-');
 const m = messages.init;
@@ -59,14 +63,15 @@ const hooksPath = (root) => {
   }
 };
 
-/** Every file under `root` but .git, as rel → text. */
+/** Every file under `root` but .git, as rel → text; a symbolic link as `-> <its text>`, never followed. */
 function tree(root) {
   const files = {};
   const walk = (dir) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       if (e.name === '.git') continue;
       const abs = path.join(dir, e.name);
-      if (e.isDirectory()) walk(abs);
+      if (e.isSymbolicLink()) files[path.relative(root, abs)] = `-> ${fs.readlinkSync(abs)}`;
+      else if (e.isDirectory()) walk(abs);
       else files[path.relative(root, abs)] = fs.readFileSync(abs, 'utf8');
     }
   };
@@ -75,6 +80,13 @@ function tree(root) {
 }
 
 const ROW = /^(wrote|updated|kept|skipped) +(\S+) +(.*)$/;
+
+/** The claude pointers the package ships, at the top: path and link text for a root at the top. */
+const POINTERS = shippedPieces('claude').map((p) => {
+  const rel = p.kind === 'skill' ? `.claude/skills/${p.file}` : `.claude/workflows/${p.file}`;
+  const inPackage = p.kind === 'skill' ? `skills/${p.file}` : `hosts/claude/workflows/${p.file}`;
+  return { ...p, rel, inPackage, text: `../../node_modules/cookwright/${inPackage}` };
+});
 
 /** gitleaks played present and running, so doctor's verdict never depends on this machine. */
 const GITLEAKS = {
@@ -98,8 +110,7 @@ function init(cwd, argv = [], { version = '2.1.281', probes = {} } = {}) {
 
 describe('a fresh repo', () => {
   it('writes every piece but the import, and doctor passes with no commits yet', () => {
-    const root = fresh();
-    write(root, 'node_modules/cookwright/bin/cookwright.mjs', ''); // the package, as npm installs it
+    const root = linkPackage(fresh()); // the package, as a workspace link installs it
     const { code, rows } = init(root);
     expect(code).toBe(0);
     expect(Object.fromEntries(Object.entries(rows).map(([t, r]) => [t, r.action]))).toEqual({
@@ -110,11 +121,20 @@ describe('a fresh repo', () => {
       'AGENTS.md': 'wrote',
       'CLAUDE.md': 'skipped',
       '.claude/settings.json': 'wrote',
+      ...Object.fromEntries(POINTERS.map(({ rel }) => [rel, 'wrote'])),
       '.gitignore': 'wrote',
       'hooks.path': 'wrote',
       '.githooks/pre-commit': 'wrote',
       '.githooks/pre-push': 'wrote',
     });
+    expect(POINTERS.map(({ rel }) => rel)).toEqual(
+      expect.arrayContaining(['.claude/skills/bundle', '.claude/workflows/bundle-phase.js', '.claude/workflows/docs-audit.js']),
+    );
+    for (const { rel, text } of POINTERS) {
+      expect(fs.readlinkSync(path.join(root, rel))).toBe(text);
+      expect(rows[rel].note).toBe(m.pointers.wrote(text));
+      expect(fs.existsSync(path.join(root, rel))).toBe(true); // it resolves
+    }
     expect(rows['CLAUDE.md'].note).toBe(m.hostRules.native('2.1.281'));
     expect(hooksPath(root)).toBe('.githooks');
     for (const name of ['pre-commit', 'pre-push']) {
@@ -804,5 +824,174 @@ describe('git hooks', () => {
     const again = init(root);
     expect(hookRows(again.rows).map((x) => x.action)).toEqual(['wrote', 'kept', 'kept']);
     expect(hooksPath(root)).toBe('.githooks');
+  });
+});
+
+describe('pointers: the skills and workflows', () => {
+  const outside = () => fs.mkdtempSync(path.join(TMP, 'outside-'));
+  const SKILL = POINTERS.find((p) => p.kind === 'skill');
+  const pointerRows = (rows) => POINTERS.map(({ rel }) => [rel, rows[rel]?.action]);
+  const all = (action) => POINTERS.map(({ rel }) => [rel, action]);
+
+  /** The pointers step alone, through openInitRepo and applyRows, with the step's seams. */
+  const step = (root, io = {}) => {
+    const repo = openInitRepo(root, { home: TMP });
+    repo.config = { hosts: ['claude'], level: 0 };
+    return pointersStep('claude')(repo, { probes: PROBES, ...io });
+  };
+
+  it('keeps every pointer on a second run, the tree byte-identical, each resolving', () => {
+    const root = linkPackage(fresh());
+    init(root);
+    const before = tree(root);
+    const second = init(root);
+    expect(pointerRows(second.rows)).toEqual(all('kept'));
+    for (const { rel } of POINTERS) expect(second.rows[rel].note).toBe(m.pointers.resolves);
+    expect(tree(root)).toEqual(before);
+  });
+
+  it('writes the same text without node_modules, saying so, and keeps it dangling', () => {
+    const root = fresh();
+    const first = init(root);
+    expect(first.code).toBe(0);
+    for (const { rel, text } of POINTERS) {
+      expect(fs.readlinkSync(path.join(root, rel))).toBe(text);
+      expect(first.rows[rel]).toEqual({ action: 'wrote', note: `${m.pointers.wrote(text)}${m.pointers.notYet}` });
+      expect(fs.existsSync(path.join(root, rel))).toBe(false);
+    }
+    const second = init(root);
+    for (const { rel } of POINTERS) expect(second.rows[rel]).toEqual({ action: 'kept', note: m.pointers.notInstalled });
+    expect(m.pointers.notInstalled).toBe('not installed where it points (npm install)');
+  });
+
+  it('replaces an earlier pointer, by its text', () => {
+    const root = linkPackage(fresh());
+    write(root, '.claude/skills/.keep', '');
+    fs.symlinkSync('../../somewhere/old/bundle', path.join(root, SKILL.rel));
+    const rows = step(root, { past: ['../../somewhere/old/bundle'] });
+    expect(rows.find((r) => r.target === SKILL.rel)).toMatchObject({ action: 'updated', note: m.pointers.past });
+    applyRows(root, rows);
+    expect(fs.readlinkSync(path.join(root, SKILL.rel))).toBe(SKILL.text);
+    expect(step(root).find((r) => r.target === SKILL.rel).action).toBe('kept');
+  });
+
+  it('skips a link of the user’s, dangling or resolving, and a real directory or file, touching none', () => {
+    const elsewhere = outside();
+    const root = linkPackage(fresh());
+    const [a, b, c] = POINTERS;
+    fs.mkdirSync(path.dirname(path.join(root, a.rel)), { recursive: true });
+    fs.mkdirSync(path.dirname(path.join(root, b.rel)), { recursive: true });
+    fs.symlinkSync('../../nowhere/mine', path.join(root, a.rel)); // dangling, another shape
+    fs.symlinkSync(elsewhere, path.join(root, b.rel)); // resolving, another directory
+    write(root, c.kind === 'skill' ? `${c.rel}/SKILL.md` : c.rel, 'mine');
+    const before = tree(root);
+    const { rows } = init(root, ['--dry-run']);
+    expect(rows[a.rel]).toEqual({ action: 'skipped', note: m.pointers.theirsLink(a.name) });
+    expect(rows[b.rel]).toEqual({ action: 'skipped', note: m.pointers.theirsLink(b.name) });
+    expect(rows[c.rel]).toEqual({ action: 'skipped', note: m.pointers.theirs(c.name) });
+    init(root);
+    const after = tree(root);
+    for (const rel of Object.keys(before).filter((k) => k.startsWith('.claude/s') || k.startsWith('.claude/w'))) {
+      expect([rel, after[rel]]).toEqual([rel, before[rel]]);
+    }
+    expect(fs.readdirSync(elsewhere)).toEqual([]);
+  });
+
+  it('skips the pointers under a linked .claude/skills or .claude, the target untouched, the other steps unaffected', () => {
+    const shared = outside();
+    const root = linkPackage(fresh());
+    fs.mkdirSync(path.join(root, '.claude'));
+    fs.symlinkSync(shared, path.join(root, '.claude/skills'));
+    const { code, rows } = init(root);
+    expect(code).toBe(0);
+    expect(rows[SKILL.rel]).toEqual({ action: 'skipped', note: m.pointers.linkedParent('.claude/skills') });
+    for (const p of POINTERS.filter((x) => x.kind === 'workflow')) expect(rows[p.rel].action).toBe('wrote');
+    expect(rows['AGENTS.md'].action).toBe('wrote');
+    expect(rows['.claude/settings.json'].action).toBe('wrote');
+    expect(fs.readdirSync(shared)).toEqual([]);
+
+    const settings = outside();
+    write(settings, 'settings.json', `${JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: HOOK_COMMAND }] }] } })}\n`);
+    const linked = linkPackage(fresh());
+    fs.symlinkSync(settings, path.join(linked, '.claude'));
+    const r = init(linked);
+    expect(r.code).toBe(0);
+    expect(r.rows['.claude/settings.json'].action).toBe('kept');
+    expect(pointerRows(r.rows)).toEqual(all('skipped'));
+    for (const { rel } of POINTERS) expect(r.rows[rel].note).toBe(m.pointers.linkedParent('.claude'));
+    expect(fs.readdirSync(settings)).toEqual(['settings.json']);
+  });
+
+  it('points from the top into a config root two levels below, the package there or hoisted to the top', () => {
+    for (const hoisted of [false, true]) {
+      const top = fresh();
+      const app = path.join(top, 'apps/mobile');
+      write(app, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION }));
+      linkPackage(hoisted ? top : app);
+      const first = init(app);
+      expect(first.code).toBe(0);
+      for (const p of POINTERS) {
+        const text = `../../${hoisted ? '' : 'apps/mobile/'}node_modules/cookwright/${p.inPackage}`;
+        expect(first.rows[`../../${p.rel}`]).toEqual({ action: 'wrote', note: m.pointers.wrote(text) });
+        expect(fs.readlinkSync(path.join(top, p.rel))).toBe(text);
+        expect(fs.existsSync(path.join(top, p.rel))).toBe(true);
+      }
+      expect(exists(app, '.claude/skills')).toBe(false);
+      const second = init(app);
+      for (const p of POINTERS) expect(second.rows[`../../${p.rel}`]).toEqual({ action: 'kept', note: m.pointers.resolves });
+    }
+  });
+
+  it('retargets a dangling pointer of ours once the package is installed elsewhere, and keeps it after', () => {
+    const top = fresh();
+    const app = path.join(top, 'apps/mobile');
+    write(app, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION }));
+    init(app); // no package anywhere: the config root's form
+    expect(fs.readlinkSync(path.join(top, SKILL.rel))).toBe(`../../apps/mobile/node_modules/cookwright/${SKILL.inPackage}`);
+    linkPackage(top); // then hoisted to the top
+    const text = `../../node_modules/cookwright/${SKILL.inPackage}`;
+    const r = init(app);
+    expect(r.rows[`../../${SKILL.rel}`]).toEqual({ action: 'updated', note: m.pointers.retargeted(text) });
+    expect(fs.readlinkSync(path.join(top, SKILL.rel))).toBe(text);
+    expect(init(app).rows[`../../${SKILL.rel}`].action).toBe('kept');
+  });
+
+  it('says ignored by git when the pointer is', () => {
+    const root = linkPackage(fresh());
+    write(root, '.gitignore', '.env\n.env.*\n!.env.example\n.claude/\n');
+    const { rows } = init(root);
+    for (const { rel, text } of POINTERS) expect(rows[rel].note).toBe(`${m.pointers.wrote(text)}${m.pointers.ignored}`);
+    expect(m.pointers.ignored).toBe('; ignored by git');
+  });
+
+  it('writes nothing on --dry-run', () => {
+    const root = linkPackage(fresh());
+    const { rows } = init(root, ['--dry-run']);
+    expect(pointerRows(rows)).toEqual(all('wrote'));
+    expect(exists(root, '.claude')).toBe(false);
+  });
+
+  it('reports a link the filesystem refuses after the rows, goes on, and exits as doctor does', () => {
+    const root = linkPackage(fresh());
+    const symlink = () => {
+      throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
+    };
+    out.length = 0;
+    const code = main([], { cwd: root, home: TMP, probes: { ...GITLEAKS, claudeVersion: () => '2.1.281' }, symlink });
+    const lines = POINTERS.map(({ rel }) => m.pointers.linkFailed(rel, 'EPERM'));
+    const at = out.indexOf(lines[0]);
+    expect(at).toBeGreaterThan(out.findIndex((l) => l.startsWith('wrote    .githooks/pre-push')));
+    expect(out.slice(at, at + lines.length)).toEqual(lines);
+    expect(m.pointers.linkFailed('.claude/skills/x', 'EPERM')).toBe(
+      'pointer .claude/skills/x not written: this filesystem refuses symbolic links (EPERM)',
+    );
+    expect(exists(root, '.githooks/pre-push')).toBe(true);
+    expect(exists(root, 'AGENTS.md')).toBe(true);
+    // At level 0 only a Level 0 pointer missing is drift; every one shipped today is Level 2.
+    expect(code).toBe(POINTERS.some((p) => p.level === 0) ? 1 : 0);
+  });
+
+  it('names a level for every skill the package ships', () => {
+    for (const p of shippedPieces('claude').filter((x) => x.kind === 'skill')) expect(Object.keys(SKILLS)).toContain(p.name);
   });
 });

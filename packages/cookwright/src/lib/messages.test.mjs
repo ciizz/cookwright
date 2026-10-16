@@ -47,6 +47,7 @@ const ALLOWED = {
   'src/lib/doctor/homes.mjs': ["'Open bugs'", "'Open enhancements'"], // the backlog's headings: content
   'src/lib/doctor/secrets.mjs': ["'git ls-files'"], // the command a probe failure names
   'src/lib/doctor/hooks.mjs': ["'git config core.hooksPath'", "'git rev-parse --git-path hooks'"], // the commands a probe failure names
+  'src/lib/doctor/hosts.mjs': ["'git ls-files'"], // the command a probe failure names
   'src/lib/probes.mjs': ['`git check-ignore ${rel}`', "'git check-ignore'"], // the command a probe failure names
   'src/lib/hooks/push.mjs': ["'git status'"], // the command a failure names
   'src/lib/rules/block.mjs': ['`<!-- cookwright:begin rules v${version} -->`'], // the marker: content

@@ -580,7 +580,7 @@ describe('end to end: a real git commit through the shim', () => {
     fs.mkdirSync(path.join(repo.root, 'node_modules'));
     fs.symlinkSync(PKG, path.join(repo.root, 'node_modules/cookwright'));
     init([], { cwd: repo.root, home: TMP, probes: { ...gitleaks(), claudeVersion: () => '2.1.281' } });
-    expect(out).toContain(`wrote    hooks.path             ${messages.init.hooks.pathSet('.githooks')}`);
+    expect(out.some((l) => /^wrote {4}hooks\.path +/.test(l) && l.endsWith(messages.init.hooks.pathSet('.githooks')))).toBe(true);
     expect(fs.readFileSync(path.join(repo.root, '.githooks/pre-commit'), 'utf8')).toBe(shimText('pre-commit'));
     const before = head(repo);
     const refused = gitCommit(repo, { 'src/a.mjs': 'a' });

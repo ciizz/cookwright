@@ -86,6 +86,22 @@ const doctor = {
       `no doctor SessionStart hook in ${file}, so doctor runs only by hand (${RUN_INIT}; a hook in settings.local.json or the user settings is not what init wires)`,
     invalid: (file, detail) => `${file} is not valid JSON (${detail})`,
   },
+  pointers: {
+    counts: (host, skills, workflows) =>
+      `${host}: ${skills} skill${skills === 1 ? '' : 's'}, ${workflows} workflow${workflows === 1 ? '' : 's'}`,
+    named: (host, note) => `${host}: ${note}`,
+    missing: (rel) => `${rel} missing (${RUN_INIT})`,
+    notRequired: (name, level, declared) => `${name} (Level ${level}) not required at level ${declared}; ${RUN_INIT} to add it`,
+    windows: (rel) =>
+      `${rel} missing: pointers are symbolic links, which cookwright does not support on Windows in this version`,
+    past: (rel) => `${rel} is an earlier pointer (${RUN_INIT})`,
+    theirsLink: (rel, name) => `${rel} is your own link; cookwright's ${name} is not reachable through it`,
+    theirs: (rel, name) => `${rel} is your own; it shadows cookwright's ${name}`,
+    linkedParent: (component, name) => `${component} is a link of yours; cookwright's ${name} is not reachable there`,
+    misdirected: (rel) => `${rel} does not point where cookwright is installed (${RUN_INIT})`,
+    notInstalled: (rel) => `${rel}: not installed where it points (npm install)`,
+    ignored: (rel) => `${rel} is ignored by git; git add -f ${rel} to track it`,
+  },
   hooks: {
     notWorkTree: 'not a git work tree',
     pathOk: (dir) => `core.hooksPath is ${dir} (local)`,
@@ -191,6 +207,19 @@ const init = {
     replaced: 'an earlier doctor hook replaced by the current one; the other settings kept',
     added: 'doctor SessionStart hook added; the other settings kept',
     relaid: RELAID,
+  },
+  pointers: {
+    wrote: (target) => `links to ${target}`,
+    notYet: '; not installed there yet (npm install)',
+    ignored: '; ignored by git',
+    resolves: 'resolves',
+    notInstalled: 'not installed where it points (npm install)',
+    past: 'earlier pointer replaced',
+    retargeted: (target) => `pointed where cookwright is not installed; now links to ${target}`,
+    theirsLink: (name) => `your own link; cookwright's ${name} is not reachable through it`,
+    theirs: (name) => `your own ${name} shadows cookwright's`,
+    linkedParent: (component) => `${component} is a link of yours`,
+    linkFailed: (rel, code) => `pointer ${rel} not written: this filesystem refuses symbolic links (${code})`,
   },
   gitWriteFailed: (args, detail, inert) =>
     `git ${args.join(' ')} failed: ${detail}; ${list(inert)} are written but inactive, rerun init`,

@@ -10,6 +10,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // The session-start hook's three fallback lines, and the command itself. They live
 // here, not in messages.mjs: hosts.mjs imports neither messages.mjs nor config.mjs,
@@ -24,6 +25,34 @@ export const HOOK_LINES = Object.freeze({
 
 /** Where a local install puts the package, relative to the directory it is installed in. */
 export const PACKAGE_DIR = 'node_modules/cookwright';
+
+/**
+ * The running package's own root. Used only to list what the package ships, never
+ * for a path that enters a prompt or a user's repo: those name PACKAGE_DIR.
+ */
+export const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+
+/** Where the package keeps its host-agnostic skills, relative to the package. */
+export const SKILLS_DIR = 'skills';
+
+/**
+ * The skills the package ships, by name: the level each belongs to and what a host
+ * needs for it (`workflows`: a host with a workflow mechanism). A pointer is written
+ * for a skill only when its directory under SKILLS_DIR holds a SKILL.md.
+ */
+export const SKILLS = Object.freeze({
+  setup: Object.freeze({ level: 0 }),
+  bundle: Object.freeze({ level: 2, needs: 'workflows' }),
+});
+
+/** The level the workflow scripts belong to: the bundle runner's. */
+export const WORKFLOWS_LEVEL = 2;
+
+/**
+ * Earlier pointer texts (`readlink`), the way HOOK_COMMANDS_PAST lists earlier hook
+ * commands: init replaces one, doctor FAILs it. No release has written a pointer yet.
+ */
+export const POINTER_TEXTS_PAST = Object.freeze([]);
 
 /** The package's own bundle playbook, relative to the package. */
 const PLAYBOOK = 'docs/playbook.md';
@@ -45,6 +74,9 @@ export const HOSTS = Object.freeze({
   claude: Object.freeze({
     // Where the package keeps the adapter's workflow scripts, relative to the package.
     workflows: 'hosts/claude/workflows',
+    // Where a session finds a skill, relative to the work tree's top: the pointers
+    // init writes into the installed package's skills. null: the host has no skills.
+    skillsDir: '.claude/skills',
     // Where a session finds a named workflow, relative to the work tree's top: the
     // pointers init writes into the installed package. null: the host has no workflows.
     workflowsDir: '.claude/workflows',
@@ -73,6 +105,7 @@ export const HOSTS = Object.freeze({
     rules: ['AGENTS.md'],
     shadowing: Object.freeze([]),
     importLine: null,
+    skillsDir: null,
     workflowsDir: null,
   }),
 });

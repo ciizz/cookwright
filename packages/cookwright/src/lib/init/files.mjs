@@ -21,7 +21,8 @@ export const SKIPPED = 'skipped';
 
 /**
  * One line of init's report. `writes` are file writes `{ rel, content, mode? }`
- * (root-relative; a mode with no content changes the mode only), or git writes
+ * (root-relative; a mode with no content changes the mode only), link writes
+ * `{ rel, link }` (a symbolic link at `rel` whose text is `link`), or git writes
  * `{ git: [args], inert: [rels] }`, run after every file write of the run.
  */
 export const row = (action, target, note, writes = []) => ({ action, target, note, writes });
@@ -52,12 +53,13 @@ export function linkOnPath(root, rel) {
 /**
  * Refuse, in preflight, any write that would land through a symbolic link: the
  * target or any directory between the root and it, since mkdir and writeFile
- * follow a linked parent out of the repo.
+ * follow a linked parent out of the repo. A link write is exempt for its final
+ * component only, which is the pointer it writes or replaces.
  */
 export function refuseLinks(root, rows) {
   for (const { writes } of rows) {
-    for (const { rel } of writes.filter((w) => w.rel !== undefined)) {
-      const link = linkOnPath(root, rel);
+    for (const w of writes.filter((x) => x.rel !== undefined)) {
+      const link = linkOnPath(root, w.link === undefined ? w.rel : path.posix.dirname(w.rel));
       if (link) throw new Refusal(m.symlink(link));
     }
   }
@@ -108,15 +110,39 @@ function writeFile(root, { rel, content, mode }) {
 }
 
 /**
- * Apply every row's file writes, in order, creating directories as needed; then its
- * git writes, so a config that activates files never precedes them. A git failure
- * is a refusal naming the files it leaves inert, which the next run completes.
+ * A link write: a link already at `rel` (an earlier pointer, by the step's own
+ * reading) is removed, then the link is made. A refused link is returned as
+ * `{ rel, code }`, never thrown: the run goes on and init reports it.
  */
-export function applyRows(root, rows) {
+function writeLink(root, { rel, link }, symlink) {
+  const abs = path.join(root, rel);
+  if (isLink(abs)) fs.unlinkSync(abs);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  try {
+    symlink(link, abs);
+    return null;
+  } catch (err) {
+    return { rel, code: err.code ?? String(err.message ?? err) };
+  }
+}
+
+/**
+ * Apply every row's file and link writes, in order, creating directories as needed;
+ * then its git writes, so a config that activates files never precedes them. A git
+ * failure is a refusal naming the files it leaves inert, which the next run
+ * completes. Returns the link writes the filesystem refused. `symlink` is the
+ * tests' seam.
+ */
+export function applyRows(root, rows, { symlink = fs.symlinkSync } = {}) {
   const writes = rows.flatMap((r) => r.writes);
-  for (const w of writes.filter((x) => x.rel !== undefined)) writeFile(root, w);
+  const refused = [];
+  for (const w of writes.filter((x) => x.rel !== undefined)) {
+    if (w.link === undefined) writeFile(root, w);
+    else refused.push(writeLink(root, w, symlink));
+  }
   for (const { git, inert } of writes.filter((x) => x.git)) {
     const r = gitRun(root, git);
     if (r.status !== 0) throw new Refusal(m.gitWriteFailed(git, r.stderr.trim() || `exit ${r.status}`, inert));
   }
+  return refused.filter(Boolean);
 }

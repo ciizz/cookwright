@@ -1,0 +1,146 @@
+{
+  "phase": "review:route",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/doctor/hosts.mjs",
+      "location": "line 141 (host.pointers)",
+      "problem": "host.pointers invokes probes.ignored() even when doctor has established Git is unavailable. With no work tree, tracked() returns an empty set, so every resolving pointer is treated as untracked and checked through Git. Violates the optional-tool rule.",
+      "severity": "P2",
+      "suggested_fix": "Represent tracking as unverified when repo.hasGit or repo.workTree is false, and skip the ignored-path check in that state.",
+      "failure_scenario": "On a machine without Git, resolving pointers cause git check-ignore to fail with ENOENT; the registry converts that exception into a host.pointers FAIL instead of reporting Git as skipped.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "hosts.mjs:123 tracked() returns an empty Set when !repo.workTree, so hosts.mjs:165 marks every resolving 'ours' pointer untracked. judge() at hosts.mjs:141 then calls probes.ignored(top, p.fromTop). That runs `git check-ignore` (lib/probes.mjs:62-70), which throws probeFailed on ENOENT or on exit 128 outside a work tree. registry.mjs:58 registers host.pointers without `git: true`, so the registry.mjs:71 skip does not apply. The registry.mjs:76-79 catch turns the throw into fail(checkThrew). Result: a FAIL where the optional-tool rule requires a skip, whenever Git is missing or the directory is not a work tree."
+    },
+    {
+      "file": "packages/cookwright/src/lib/bundle/phases.mjs",
+      "location": "line 158 (workflowPaths)",
+      "problem": "Playbook validation checks only existence, not that the target is a regular file.",
+      "severity": "P2",
+      "suggested_fix": "Use statSync(...).isFile() and issue the existing relative-path noPlaybook refusal for missing or non-file targets; also translate hash-time filesystem failures into that refusal.",
+      "failure_scenario": "If paths.playbook names a directory, bundle status succeeds and recommends launching the workflow, while bundle args later fails while hashing it. If it names a FIFO, hashing can block indefinitely.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "phases.mjs:158 checks only fs.existsSync(path.resolve(repo.root, playbook)). Hashing goes through sha256File (state.mjs:38-39), which calls fs.readFileSync. That throws EISDIR on a directory, and it would block on a FIFO. bundle.mjs:222 calls workflowPaths for status, so a directory passes there. workflowArgs (phases.mjs:173,184) then hashes the playbook via pointer() and fails. I read the code but did not run it. The directory case follows from the code. The FIFO hang is the same reasoning applied to readFileSync and is an unlikely misconfiguration."
+    },
+    {
+      "file": "packages/cookwright/src/migrate.mjs",
+      "location": "line 95 (migrate write)",
+      "problem": "Migration overwrites cookwright.json directly with writeFileSync; its failure handler cannot guarantee the existing config remains intact.",
+      "severity": "P2",
+      "suggested_fix": "Write and flush a temporary file in the same directory, preserve the original mode, then atomically rename it over cookwright.json; remove the temporary file on failure.",
+      "failure_scenario": "An ENOSPC, I/O error, or interrupted process after the file is opened with truncation can leave cookwright.json empty or partially written, despite reporting that it was not written.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/migrate.mjs:95 calls fs.writeFileSync directly on cookwright.json, which truncates and then writes in place. The catch at :96-97 throws m.writeFailed, which messages.mjs:306 words as 'cookwright.json not written: <code>'. An ENOSPC or I/O error after truncation, or an interrupted process, can leave the file empty or partial, so that message would be false. The repo already has a temp-file-plus-renameSync pattern (lib/bundle/state.mjs:74), and migrate.mjs does not use it. Severity is limited: the file is small and usually tracked in git, so the failure is rare and recoverable."
+    },
+    {
+      "file": "README.md",
+      "location": "README.md:20 (init bullet, written in b8d2743); packages/cookwright/src/lib/doctor/codex.mjs checkCodexHook; messages.doctor.codex.hook.ok",
+      "problem": "The README says init writes 'for each host a SessionStart hook that runs doctor (... Codex's in `.codex/hooks.json`, which you trust with `/hooks`)', and doctor's Codex `host.hook` PASSes once the file holds the command and matcher. That counts toward Level 0 'complete'. s4's own measurement contradicts the claim: under `codex exec` 0.145.0 no SessionStart hook from `.codex/hooks.json` ran in 3 runs. That held for cookwright's hook and for two marker hooks, with `--dangerously-bypass-hook-trust`, and with the project trusted. So nobody has seen Codex read this file location and shape. Plan §8 says 'the hook firing is not claimed', but the README line claims exactly that.",
+      "severity": "P2",
+      "suggested_fix": "Make the README match what was measured: the file is written and its firing is unmeasured. Optionally add the same caveat to the PASS note. Log a backlog item to measure an interactive Codex session after `/hooks` trust before s5 writes the Codex README paragraph. Until then, the QA leg's Codex step is the only evidence and should be named as such.",
+      "failure_scenario": "A Codex-only user runs `npx cookwright init --hosts codex`. doctor reads 17 PASS and `level 0 declared: complete`. If Codex does not load `<repo>/.codex/hooks.json` in that shape, or never runs SessionStart in the user's mode, no readout ever reaches a session. The Level 0 session-start doctor is silently absent, and doctor and the README both say it is there.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "README.md:20 says init writes a SessionStart hook that runs doctor for each host, Codex's in `.codex/hooks.json` 'which you trust with /hooks'. It has no caveat that firing is unmeasured, and the README has no other Codex text. docs/dev/bundles/stage-3/sessions/implement-s4-1.md:53 and :87 record that no SessionStart hook from that file ran under codex exec 0.145.0 in 3 runs, even with trust bypassed or the project trusted, and that 'Hook firing is not claimed'. plan.md:168 says the same. Doctor's codex.mjs checkCodexHook (about lines 49-62) PASSes on the command and matcher alone, and the README says doctor's `host.hook` check counts toward Level 0. Two points soften it. The doctor PASS text (messages.mjs:98) says only 'carries the doctor hook (whether it is trusted is yours: /hooks)', so it does not claim the hook fires. And the run was `codex exec`, which may skip hooks, so interactive Codex may well fire it. The unmeasured README claim is still real, and a Codex-only user reads 'complete' with no evidence the readout ever reaches a session."
+    },
+    {
+      "file": "packages/cookwright/src/lib/migrations.mjs",
+      "location": "dropStalePlaybook, outcome 'playbookAbsent' (lines 21-28)",
+      "problem": "The 1→2 migration preserves meaning only when `paths.playbook` is explicit. Under version 1 an absent key defaulted to `docs/playbook.md`, and under version 2 an absent key means the package's copy. A v1 file without the key, with a real playbook at `docs/playbook.md`, therefore silently changes meaning. The migration reports 'nothing to change (no paths.playbook)' in memory and in `migrate`, and bundle sessions switch to the package playbook. Disposition 3 bumps the version because the meaning of a key changes, yet this change in meaning is not migrated.",
+      "severity": "P3",
+      "suggested_fix": "In `dropStalePlaybook`, when the key is absent and `ctx.exists('docs/playbook.md')`, add `paths.playbook: 'docs/playbook.md'` (outcome 'playbookPinned', the user's own). Add a test with a v1 config that has no key and a file at the default path.",
+      "failure_scenario": "A user hand-trimmed their stage-1 config to the keys they changed, leaving `paths.playbook` to its default, and wrote their own `docs/playbook.md`. After upgrading, `bundle args` hashes `node_modules/cookwright/docs/playbook.md`. Every session follows the package's procedure instead of theirs, and neither doctor's `config` WARN nor `migrate` says so.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/migrations.mjs:21-23 returns 'playbookAbsent' unchanged when paths.playbook is undefined, without checking ctx.exists('docs/playbook.md'). At d3649b9, src/lib/config.mjs:32 DEFAULTS.paths.playbook = 'docs/playbook.md', so an absent key under v1 meant that file. The plan (§4.2 and disposition 2) makes an absent key mean the package copy from v2, and the migrate test at src/migrate.test.mjs:74 locks in 'nothing to change (no paths.playbook)'. Only the key's presence is migrated, so a v1 config trimmed of the key with a real docs/playbook.md silently switches to the package playbook. Stage 1 wrote the key into every fresh config, so the case needs a hand-trimmed config. That makes it narrow but real. A fix would keep the key whenever the key is absent and ctx.exists('docs/playbook.md') is true."
+    },
+    {
+      "file": "packages/cookwright/src/lib/doctor/codex.mjs",
+      "location": "overrideFiles / checkCodexRules; init/codex.mjs codexRulesStep",
+      "problem": "Any `AGENTS.override.md` between the invocation directory and the root makes Codex `host.rules` WARN (weak). Codex replaces an AGENTS.md only within the override's own directory. An override in `sub/` therefore leaves the root AGENTS.md, which holds the managed block, in force. Only a root-level override actually hides Level 0's rules. The WARN marks a harmless state as weak. s4 raised this as an open question and it was not decided.",
+      "severity": "P3",
+      "suggested_fix": "Make only an override in the config root's own directory WARN. Report a nested one as PASS with a note naming it, or record a `bundle decide` keeping disposition 21's reading with the reason.",
+      "failure_scenario": "A user keeps `packages/api/AGENTS.override.md` for one subdirectory and runs doctor there. `host.rules` reads WARN and the level line lists `weak: host.rules`, although Codex still reads the root AGENTS.md block. `/setup` (s5) then explains a shadowing that does not exist.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "plausible",
+      "evidence": "The mechanism holds. overrideFiles (doctor/codex.mjs:27-36) scans every directory from cwd to root, and checkCodexRules (:39-42) warns on any hit. The plan itself says an override replaces AGENTS.md per directory (plan.md:14), so a nested override leaves the root block in force. Plan lines 46 and 147 chose this on purpose: the WARN is meant to fire for a nested invocation directory. The message at messages.mjs:95 reads 'in place of the AGENTS.md beside it', which is accurate for a nested override. It never says the root rules are hidden. The nested directory's own AGENTS.md is hidden, though, so 'harmless' is arguable. Whether this deserves a WARN is a severity judgment, not a verifiable bug. Plan line 107 also tells /setup to explain the override, not to claim shadowing of the root."
+    },
+    {
+      "file": "packages/cookwright/src/bundle.mjs",
+      "location": "withPointerNote / workflowPaths (phases.mjs:154-162); pointers placed at the top by doctor/hosts.mjs readPointer",
+      "problem": "With a nested config root, workflow pointers go to `<top>/.claude/workflows/` while the Claude hook stays in `<root>/.claude/settings.json` (B-002). The plan documents only skills as discovered from the start directory up to the repo root. That named workflows are found from a parent directory's `.claude/workflows/` is unmeasured. `bundle status` checks only that the pointer exists at the top and prints `Workflow({ name: 'bundle-phase' })` with no note.",
+      "severity": "P3",
+      "suggested_fix": "Measure whether a Claude Code session started in a nested directory resolves a named workflow from the top's `.claude/workflows/` (s6's fresh-session listing can cover it). Record the result, or add it to backlog item §9(f) beside the hook placement.",
+      "failure_scenario": "A monorepo has `cookwright.json` in `apps/mobile`, and the developer opens Claude Code there so the doctor hook runs. If workflows load only from the session directory's `.claude/workflows/`, `Workflow({ name: 'bundle-phase' })` fails with no such workflow, while `bundle status` printed the call with no `run init` note.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "plausible",
+      "evidence": "phases.mjs:154-162 puts the workflow pointer at upToTop(repo), the work tree top, and bundle.mjs:221-225 only checks that the pointer exists. Plan line 13 says only skills are discovered from the start directory up to the repo root. Named workflows are said only to load from `.claude/workflows/`. The plan's measurement (line 16) was a flat scratch repo, with no nested start directory. Nothing in the diff or plan measures parent-directory workflow discovery or notes it for a nested root. I could not refute it and did not run Claude Code to test it."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff d3649b9..f6fd3df via Codex (gpt-5.6-sol, high effort, read-only, 40-command cap)",
+    "AGENTS.md rules and plan.md scope per Codex task",
+    "hosts.mjs, phases.mjs, migrate.mjs, state.mjs",
+    "git diff d3649b9..f6fd3df: every source file in packages/cookwright/src (hosts.mjs, config.mjs, migrations.mjs, migrate.mjs, bundle.mjs, bundle/phases.mjs, bundle/messages.mjs, init/{files,hostfile,pointers,codex,claude,config,steps}.mjs, init.mjs, doctor/{hosts,codex,claude,basics,registry}.mjs, levels.mjs, messages.mjs), plus the schema, package.json files, cookwright.json, the .claude links, AGENTS.md, README.md, the moved playbook and SKILL.md",
+    "plan §2 dispositions 1-27 and §4.1-4.4, §4.8, §6 and §10 (s1-s4) checked against the code",
+    "HOOK_COMMAND unchanged byte for byte against the base commit (disposition 16), checked with node",
+    "ownership-by-text regex, hoisted and nested target computation, misdirected/retarget path, linkedParent and ENOTDIR states, refuseLinks exemption, symlinkSync failure path",
+    "hostfile matcher move, past-command replacement, Codex hook check, multi-host hostCheck aggregation",
+    "loader in-memory migration, newer-version refusal, migrate reserialize and relaid note, validatePaths optional playbook",
+    "bundle status/args refusals (no workflow host, missing playbook), named Workflow form, pointer note",
+    "no remaining runtime references to config.paths.playbook or the old hosts/ paths",
+    "session reports s1-s4: open questions and measurements",
+    "committed diff scanned for local paths and private data: none found",
+    "vitest suite: 16 files, 389 tests passing at HEAD"
+  ],
+  "notes": "Codex run completed in the foreground without hitting the ceiling (session 01a143d9-0813-7572-b4eb-fcb2affe4e1b). Findings transcribed verbatim, none added. Full output at the scratchpad file codex.out.\n---\nI found no P1, and nothing in this range leaks a secret or a local path. One P2: the Codex hook is claimed to run doctor at session start (README, and the Codex host.hook PASS that counts toward Level 0 'complete'), but s4's own measurement saw no SessionStart hook fire from .codex/hooks.json, even with trust bypassed. I also have three P3s: an absent v1 paths.playbook is not migrated, a nested AGENTS.override.md reads as weak, and named-workflow discovery from a nested config root is unmeasured.\n\nThe plan's s1-s4 deliverables are present and tested, including deviations recorded with bundle decide (the misdirected/retargeted pointer state, the Windows message with no backlog id until s5). I could not run my own scenario experiments in scratch repos: setting up a git repo was denied, since this role is read-only. The findings rest on reading the code and the session reports.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a143d9-0813-7572-b4eb-fcb2affe4e1b",
+    "partialReportPath": null
+  }
+}

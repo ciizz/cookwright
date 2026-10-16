@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 79,
+  "revision": 82,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -203,7 +203,7 @@
     },
     {
       "name": "review:route",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -211,14 +211,18 @@
           "stateRevision": 77,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_a843be2e-3e8"
+          "runId": "wf_a843be2e-3e8",
+          "endedAt": "2026-10-16T08:46:49.039Z",
+          "turnOutputTokens": 650146
         }
       ],
       "startCommit": "f6fd3df2b9c3f3b1ce5da5d84701f08ef772adbd",
       "range": {
         "from": "d3649b954391a9b0ba20742ef7ce554cde5d72e4",
         "to": "f6fd3df2b9c3f3b1ce5da5d84701f08ef772adbd"
-      }
+      },
+      "endCommit": "83cc2ee323f9e9ede2fe1d27cf93d21a3c10eb28",
+      "endCode": "46d884987a838626f7521926e61eb2eda265b5b1"
     },
     {
       "name": "fix:route",
@@ -427,6 +431,24 @@
       "at": "2026-10-16T07:33:59.155Z",
       "stored": true,
       "head": "f5b418335f54c538a17c4beaaf77070dc0abf306"
+    },
+    {
+      "phase": "review:route",
+      "path": "docs/dev/bundles/stage-3/findings/review-route-1.json",
+      "counts": {
+        "confirmed": 5,
+        "plausible": 2,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 4,
+        "P3": 3
+      },
+      "at": "2026-10-16T08:46:17.439Z",
+      "stored": true,
+      "head": "83cc2ee323f9e9ede2fe1d27cf93d21a3c10eb28"
     }
   ],
   "reports": [
@@ -763,6 +785,13 @@
       "actor": "orchestrator",
       "source": "implement:s4 open question 4, 2026-10-16",
       "text": "Rule 3: .codex/hooks.json is written at the config root like .claude/settings.json, and with a nested config root the Codex hook's cd to the work tree's top finds no cookwright.json and no package unless hoisted, the B-002 class; s5's backlog line for plan §9 (f) names the Codex hook beside Claude's. The twenty-one s4 strings go to the developer in one batch.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T08:46:48.870Z",
+      "actor": "orchestrator",
+      "source": "review:route findings, 2026-10-16",
+      "text": "fix:route applies: finding 0 (rule 1, rule 3: host.pointers never runs git when doctor has no git or no work tree; tracking is then unverified and the ignored check is skipped, the pointer's verdict resting on the link alone; a test with hasGit false and one outside a work tree); finding 1 (rule 3: the playbook the bundle commands point at must be a regular file, statSync().isFile(), and a filesystem error while hashing any pointed-at file becomes the same one-line refusal, never an absolute path on the terminal); finding 2 (rule 1: migrate writes through a temporary file in the same directory and renameSync over cookwright.json, the mode kept, the temporary removed on failure, the pattern of lib/bundle/state.mjs, so 'not written' is always true); finding 3 (rule 3: the README's init bullet says the Codex hook file is written and that its firing is confirmed only in an interactive Codex session after /hooks, since no hook ran under codex exec; doctor's PASS note gains the same caveat in two words; s5 keeps that wording in its Codex paragraph; the QA leg on the personal app is the evidence, named as such); finding 4 (rule 5, rule 3: the 1→2 step pins paths.playbook to docs/playbook.md when the key is absent and a file exists there, outcome playbookPinned, 'the user's own', with a test, since a version-1 absent key meant that path); finding 5 (rule 2: only an AGENTS.override.md in the config root's own directory hides Level 0's rules and WARNs; a nested one is PASS with a note naming it, in doctor and in init's row, with tests; disposition 21's walk stays for the naming). Finding 6 (rule 3) needs no code: s6's fresh-session measurement opens one session in a subdirectory of this repo and records whether the named workflow and the skills resolve from the top's .claude/; if not, backlog §9 (f) gains the workflow placement beside the hook's.",
       "claim": true
     }
   ],

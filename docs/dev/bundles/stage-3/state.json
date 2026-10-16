@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 109,
+  "revision": 111,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -309,7 +309,7 @@
     },
     {
       "name": "fix:setup",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -317,11 +317,15 @@
           "stateRevision": 105,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_2194c3d8-58e"
+          "runId": "wf_2194c3d8-58e",
+          "endedAt": "2026-10-16T09:24:54.583Z",
+          "turnOutputTokens": 798096
         }
       ],
       "startCommit": "9f6a70ce954cb112cc7c50a57b6a744cb4652418",
-      "range": null
+      "range": null,
+      "endCommit": "301611ddf4251c05925663efdeba5038ab42a0b0",
+      "endCode": "45f31ffcfb9efcde92ad1c59bc57736b5479f6af"
     },
     {
       "name": "implement:s7",
@@ -983,6 +987,13 @@
       "actor": "orchestrator",
       "source": "review:setup findings, 2026-10-16",
       "text": "fix:setup applies: finding 3 (rule 1, rule 2: the setup loop gains a stop rule: a remedy that refuses, or a line that reads the same after its remedy, is shown with the command's output and stopped at, except that a refusal naming another check's line (init refusing on an invalid settings file) sends the loop to that line's recipe; a row for init's 'pointer … not written: this filesystem refuses symbolic links' that stops and names B-010); finding 1 (rule 3: an 'At the end' pass handles the guidance that sits on PASS rows, the no-gate-checks offer and the Codex /hooks trust, so an all-PASS readout still gets them); finding 4 (rule 3: README First run says a Codex user runs init --hosts codex or claude,codex, limits the session-start doctor line to Claude Code, and for Codex says to trust the hook with /hooks and run doctor by hand until E-027 is measured, step 5 pointing at the Codex section); finding 5 (rule 3: the README's Windows bullet says what the code does, a pointer checked out as a text file reads as 'your own' and only a pointer init could not write reads as the Windows WARN, and E-029's line gains that win32 should read a regular file holding our link text as the Windows state); finding 6 (rule 5: the recipe test checks a fixed list of doctor message fragments beside messages.doctor, so the exhaustive table cannot go stale silently). Finding 0 was rejected by the verifier (the README's release block is for a user's app repo, where the root package is the package; this repo's own release is the plan's §8 instruction). Finding 2 (rule 8, the doc-sync letter): no change; the plan sequenced s5 as skill, block, then README and backlog, the window lies inside one unmerged branch, and a docSync rule tying the skills and the block to the README is backlogged as wanted once (rule 6).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T09:24:54.332Z",
+      "actor": "orchestrator",
+      "source": "fix:setup report and open question, 2026-10-16",
+      "text": "No history rewrite (the playbook: never rebase a running bundle; the state names those ids; the split lay inside one unmerged branch and the new doc-sync rule prevents the next one). Rule 6, over the review disposition: the 'setup' doc-sync rule in this repo's cookwright.json (the setup skill and the managed block need README.md staged) is accepted as built rather than backlogged, since it is config of this repo, ten lines, and the fix session measured it on its own commits. Rule 8: two commits carried COOKWRIGHT_SKIP=doc-sync with their reasons; one message-only amend carried COOKWRIGHT_SKIP=doc-sync,secrets without a reason in its message, on a tree identical to the commit that had just passed both checks, noted here as the trace the escape itself leaves none of. Accepted as built: the loop's new step 4 (a remedy that does not clear its line stops the loop, an init refusal naming a file makes that fix the next remedy), the 'At the end' pass over the PASS lines that carry advice, the B-010 row, the Windows row matching the 'your own' line on Windows and E-029's note, the fragment test pairing the recipe's quoted notes with the messages. The eleven fix:setup strings (the loop's steps, the three rows, the README's First run steps, the Windows bullet, the Developing line) go to the developer with the s5 batch.",
       "claim": true
     }
   ],

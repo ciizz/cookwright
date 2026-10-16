@@ -1362,6 +1362,19 @@ describe('the package’s playbook and the workflow pointer', () => {
     expect(errors.at(-1)).toBe('bundle args: the playbook is not at ops/playbook.md (paths.playbook names it)');
   });
 
+  it('refuses args and status when paths.playbook names a directory, never an EISDIR', () => {
+    const { cli, root } = runningBundle('pkg-own-dir', {
+      config: { paths: { playbook: 'ops/playbook' } },
+      link: ({ root: r }) => linkPackage(r),
+    });
+    fs.mkdirSync(path.join(root, 'ops/playbook'), { recursive: true });
+    const line = 'the playbook is not at ops/playbook (paths.playbook names it)';
+    expect(cli('status', 'demo')).toBe(2);
+    expect(errors.at(-1)).toBe(`bundle status: ${line}`);
+    expect(cli('args', 'demo', 'plan-review')).toBe(2);
+    expect(errors.at(-1)).toBe(`bundle args: ${line}`);
+  });
+
   it('refuses a config whose hosts have no workflows, and runs on the first host that has them', () => {
     const codex = runningBundle('hosts-codex', {
       config: { hosts: ['codex'] },

@@ -155,14 +155,32 @@ export function workflowPaths(repo) {
   const script = workflowScript(repo.config, WORKFLOW);
   if (!script) throw new Error(messages.noWorkflowHost(workflowHosts(), repo.config.hosts));
   const playbook = playbookPath(repo.config, repo);
-  if (!fs.existsSync(path.resolve(repo.root, playbook))) {
-    throw new Error(messages.noPlaybook(playbook, repo.config.paths.playbook !== undefined));
-  }
+  if (!isRegularFile(path.resolve(repo.root, playbook))) throw noPlaybook(repo, playbook);
   return { playbook, pointer: path.posix.join(upToTop(repo), script) };
 }
 
+/** A regular file at `abs`, links followed: never a directory or a FIFO a hash would block on. */
+const isRegularFile = (abs) => {
+  try {
+    return fs.statSync(abs).isFile();
+  } catch {
+    return false;
+  }
+};
+
+const noPlaybook = (repo, rel) => new Error(messages.noPlaybook(rel, repo.config.paths.playbook !== undefined));
+
 /** `{ path, sha }` of a root-relative file, the shape every pointed-at file takes. */
 const pointer = (repo, rel) => ({ path: rel, sha: sha256File(path.resolve(repo.root, rel)) });
+
+/** The playbook's pointer; a read that fails after the check is the same one-line refusal. */
+function playbookPointer(repo, rel) {
+  try {
+    return pointer(repo, rel);
+  } catch {
+    throw noPlaybook(repo, rel);
+  }
+}
 
 /** Workflow `args` for a running phase — see the invariant at the top of the file. */
 export function workflowArgs(state, name, repo) {
@@ -181,7 +199,7 @@ export function workflowArgs(state, name, repo) {
     codex: phase.runs.at(-1).codex ?? false,
     state: bundleRel(repo, state.slug, 'state.json'),
     plan: pointer(repo, state.plan.path),
-    playbook: pointer(repo, paths.playbook),
+    playbook: playbookPointer(repo, paths.playbook),
     ...(rules.length ? { rules: rules.map((f) => pointer(repo, f)) } : {}),
   };
   const slice = sliceOfPhase(state, name);

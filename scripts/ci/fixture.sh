@@ -2,7 +2,8 @@
 # The harness fixture (E-014): a real create-expo-app scaffold, the committed
 # overlay appended, then the package's published shape (an npm pack tarball)
 # installed and init, doctor, the hooks, changelog and migrate run against it.
-# Runs locally and in CI: bash scripts/ci/fixture.sh. KEEP=1 keeps the temp dir.
+# Runs locally and in CI: bash scripts/ci/fixture.sh. KEEP=1 keeps the temp dir;
+# FIXTURE_STRICT=1 turns a missing tool from a skip into a failure.
 #
 # The scaffold is pinned, and bumped deliberately: a harness CI that goes red
 # on an upstream scaffold release is rot. create-expo-app fetches its template
@@ -26,10 +27,12 @@ MSG_OK="fixture: PASS, every step as expected"
 fail() { printf "$MSG_FAIL" "$1" >&2; exit 1; }
 step() { printf "$MSG_STEP" "$1"; }
 
-# Absence is a skip locally; in CI (CI set) a missing tool is a failure.
+# A missing tool is a skip, exit 0. FIXTURE_STRICT=1, set by this repo's
+# workflow and nothing else, makes it a failure: there a skip would be a
+# green job that tested nothing.
 need() {
   command -v "$1" >/dev/null 2>&1 && return 0
-  [ -n "${CI:-}" ] && fail "needs $1"
+  [ "${FIXTURE_STRICT:-}" = 1 ] && fail "needs $1"
   printf "$MSG_SKIP" "$1"
   exit 0
 }

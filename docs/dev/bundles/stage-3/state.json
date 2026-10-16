@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 45,
+  "revision": 46,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -89,7 +89,7 @@
   "phases": [
     {
       "name": "plan-review",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -111,11 +111,15 @@
           "stateRevision": 37,
           "planSha": "7d646aca1932a037",
           "codex": true,
-          "runId": "wf_e9ea8fdb-457"
+          "runId": "wf_e9ea8fdb-457",
+          "endedAt": "2026-10-16T07:34:53.511Z",
+          "turnOutputTokens": 360071
         }
       ],
       "startCommit": "c879136d563eea0c1fee89e05d8ae6d43b3fc093",
-      "range": null
+      "range": null,
+      "endCommit": "4089b283cfc75919296e99c46a243c5bd8595da0",
+      "endCode": "51a90fc98af1bcbd58da9785b833feded490f7c2"
     },
     {
       "name": "implement:s1",

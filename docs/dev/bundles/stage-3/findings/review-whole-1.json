@@ -1,0 +1,188 @@
+{
+  "phase": "review:whole",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/doctor/hosts.mjs",
+      "location": "lines 36-53 and 108-109",
+      "problem": "Expected pointer inventory is derived from files present in the installed package; a declared skill such as setup that is absent vanishes from shippedPieces(), so neither init nor doctor checks it.",
+      "severity": "P2",
+      "suggested_fix": "Build the expected skill inventory from the static SKILLS manifest, then separately report a missing package target. Add a test that removes skills/setup/SKILL.md and verifies host.pointers cannot PASS.",
+      "failure_scenario": "A malformed tarball or interrupted install omits skills/setup/SKILL.md while the CLI remains installed. Doctor reports host.pointers PASS and Level 0 complete, but /setup or $setup cannot be invoked.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "plausible",
+      "evidence": "The mechanism holds. packages/cookwright/src/lib/doctor/hosts.mjs:36-53 builds the expected set only from directories that contain a SKILL.md, and :108-109 feeds that set to hostPointers. A skill listed in SKILLS (lib/hosts.mjs:44) but missing on disk is never produced, so no pointer is expected and judge() never fails it. The risk is partly covered. The build-time test lib/skills.test.mjs:37 asserts the shipped skills equal Object.keys(SKILLS), so a bad tarball is meant to be caught before publish. init.test.mjs:1012 checks the reverse direction. Nothing at runtime compares SKILLS to the installed files, so a damaged install still gets PASS. I did not check whether another doctor check covers package integrity, and I did not run the code, so I could not refute it. The impact is narrow, since it needs a corrupt or partial install and the CLI itself must still run."
+    },
+    {
+      "file": "README.md",
+      "location": "lines 68-74",
+      "problem": "Release commands operate on the repo root, whose package is cookwright-monorepo, private and unversioned; they do not bump or publish packages/cookwright.",
+      "severity": "P2",
+      "suggested_fix": "Use explicit workspace commands, e.g. npm version ... --workspace packages/cookwright --no-git-tag-version and npm publish --workspace packages/cookwright, and commit packages/cookwright/package.json plus the root lockfile.",
+      "failure_scenario": "Following the documented release sequence versions the wrong package or fails; the final npm publish targets the private monorepo rather than the cookwright package, blocking the release.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "rejected",
+      "evidence": "README.md:68-74 (at 960c4ff) is user-facing release guidance for a user's own repo, whose root package.json is their package, and it ends with 'npm publish is last, for a package that is published at all'. The cookwright-monorepo root (package.json: private, workspaces packages/*) is not what a user follows. The 'Developing cookwright' section does not tell anyone to release with these commands, so the scenario does not arise."
+    },
+    {
+      "file": "packages/cookwright/src/lib/doctor/codex.mjs",
+      "location": "lines 59-63; early return in packages/cookwright/src/lib/init/hostfile.mjs:87",
+      "problem": "Codex hook validation PASSes as soon as one copy has the correct matcher, ignoring duplicate copies of the same command under wrong matchers. Init likewise returns kept before removing those duplicates.",
+      "severity": "P2",
+      "suggested_fix": "Inspect every matching command before returning PASS. Warn when any copy has the wrong matcher, and have init remove or relocate wrong-matcher duplicates even when a correct copy exists. Add a mixed correct-plus-wrong matcher test.",
+      "failure_scenario": ".codex/hooks.json contains the doctor hook under both startup|resume and compact. Doctor reports PASS and init changes nothing, but doctor still executes during compaction, contrary to the configured lifecycle behavior.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "codex.mjs:59 returns pass when mine.some(matcher === entry.hookMatcher), ignoring other copies under wrong matchers; hostfile.mjs:87 returns kept when hasHook (a .some over all copies) is true, before unmatch() at line ~63 can run, so a duplicate under 'compact' persists with doctor PASS and init no-op. The plan (lines 46, 97) defines hook identity as command+matcher and only covers the 'wrong matcher with no correct copy' case; the duplicate case is unhandled. Impact (hook firing on compact) rests on Codex matcher semantics, which I did not verify, and the scenario requires a hand-edited file."
+    },
+    {
+      "file": "packages/cookwright/src/lib/init/files.mjs",
+      "location": "lines 117-125",
+      "problem": "Only symlink() is inside the error handler. Failures from unlinkSync() or mkdirSync() escape as ordinary errors; init rethrows them and can print a Node stack instead of the promised clean diagnosis.",
+      "severity": "P2",
+      "suggested_fix": "Catch the complete link-write operation and convert filesystem failures into the same structured refusal/reporting path, including unlink and directory-creation errors.",
+      "failure_scenario": "A pointer needs updating inside a directory the user can read but cannot modify. unlinkSync() throws EACCES, causing init to crash rather than print one 'pointer ... not written' line and continue to doctor.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "plausible",
+      "evidence": "files.mjs:117-125 at 960c4ff: isLink/unlinkSync (118) and mkdirSync (119) sit outside the try that wraps only symlink() (120-125), so an EACCES from either escapes writeLink and applyRows (141) as a raw error. The plan (plan.md:95) promises the clean 'not written' line only for a symlinkSync that throws. I did not confirm how the CLI top level prints a non-Refusal error. writeFile (files.mjs:98-107) has the same raw-throw behaviour, so this is consistent with the rest of init and partly by design."
+    },
+    {
+      "file": "packages/cookwright/src/lib/init/files.mjs",
+      "location": "lines 117-125",
+      "problem": "Updating a pointer is non-atomic: the existing link is deleted before the replacement is created, so a failure loses a previously usable pointer.",
+      "severity": "P3",
+      "suggested_fix": "Create a temporary sibling symlink first and rename it over the existing pointer, cleaning up the temporary entry on failure. Preserve the old link whenever replacement cannot be completed.",
+      "failure_scenario": "Init retargets an earlier or misdirected pointer; after unlink succeeds, symlink creation fails (transient filesystem error or exhausted inodes). Init reports the failure but leaves the skill/workflow pointer absent.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "files.mjs:118 unlinks the existing link, then 119-122 mkdir and symlink. A failure after the unlink leaves no pointer. The plan (plan.md:95) specifies remove-then-link, so the behaviour is deliberate. The loss is limited because the failure is reported and the next init run recreates the pointer, which is why it is P3."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§8 QA leg; README.md ## Updating step 2; packages/cookwright/skills/setup/SKILL.md description",
+      "problem": "The QA leg is written as: open Claude Code on the personal app, see three lines (`config` WARN, `rules.block` FAIL stale, `host.pointers` FAIL missing), then \"run /setup and let it drive migrate, init and the rerun of doctor\". On that repo `/setup` cannot exist yet. The skill reaches a session only through the `.claude/skills/setup` pointer, and that pointer's absence is the expected `host.pointers` FAIL. The stale v2 block in the user's AGENTS.md doesn't name the skill either. The README's Updating step 2 ends with \"The `setup` skill walks the same readout\", and the SKILL.md description lists \"after updating the cookwright package\" as a trigger. Both promise the skill on the one path where it is missing. The SKILL.md itself admits it is reachable only after init.",
+      "severity": "P2",
+      "suggested_fix": "Change the QA leg and the README's Updating step so the first update runs `npx cookwright init` (or the session's agent runs it from the FAIL line), and `/setup` runs only after that, in a new session if the host does not hot-reload skills. Or record the QA leg's deviation with `bundle decide` before the QA phase starts.",
+      "failure_scenario": "An existing stage-2 user (the QA app) runs `npm install` with the new tarball and opens Claude Code. The session-start line shows `host.pointers` FAIL `.claude/skills/setup missing`. Typing `/setup` as the plan and README say gives an unknown-skill reply, so the QA round cannot run as planned and its notes record a harness failure that is really a plan error.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "docs/dev/bundles/stage-3/plan.md:171 has the QA leg open Claude Code on the personal app, expect `host.pointers` FAIL missing, then run `/setup`. Plan §4.5 (line 101) and SKILL.md line 8 both say the skill exists only once init has written the pointer, so the missing `.claude/skills/setup` pointer is exactly what the FAIL reports. The stale v2 block names no skill. README.md:22 (Updating step 2) ends with 'The `setup` skill walks the same readout', and packages/cookwright/skills/setup/SKILL.md:3 lists 'after updating the cookwright package' as a trigger. Both promise the skill on the one path where its pointer is absent, so `/setup` there would be unknown. The plan's own mitigation (line 159) runs init by hand only in the dogfood step, not in the QA leg."
+    },
+    {
+      "file": "packages/cookwright/src/lib/hosts.mjs",
+      "location": "rulesFiles / defaultHost (line ~170), used by src/lib/bundle/phases.mjs:192 workflowArgs",
+      "problem": "Stage 3 changed `workflowScript` to pick the first configured host that has workflows, so `hosts: [\"codex\",\"claude\"]` runs the bundle in Claude Code. The rules files hashed and named in every Workflow prompt still come from `defaultHost` (hosts[0], Codex), whose list is only `AGENTS.md`. CLAUDE.md is dropped from `args.rules`, though the bundle runs in Claude Code and the README allows CLAUDE.md to be the whole rules file. No test covers `rules` for the codex-first order; the bundle test checks only the playbook path and the status line.",
+      "severity": "P3",
+      "suggested_fix": "Take the rules files from the same host `workflowScript` picks (the first host with workflows), or from the union of the configured hosts' lists. Add a bundle test for `[\"codex\",\"claude\"]` that asserts CLAUDE.md is in `args.rules`.",
+      "failure_scenario": "A repo with `hosts: [\"codex\",\"claude\"]` and its own rules in CLAUDE.md (after `@AGENTS.md`). `bundle args` emits `rules: [AGENTS.md]` only, so sessions are never told to read CLAUDE.md. An edit to CLAUDE.md does not change any hashed pointer, so a resumed Workflow replays cached sessions that ran under the old rules.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "hosts.mjs:170 rulesFiles = defaultHost(config).rules, defaultHost = HOSTS[hosts[0]] (hosts.mjs:155); codex rules is ['AGENTS.md'] (hosts.mjs:~135). workflowScript (hosts.mjs:164-167) picks the first workflow host, i.e. claude, for hosts:['codex','claude']. phases.mjs:192 builds args.rules from rulesFiles, so CLAUDE.md is left out. config.test.mjs:415 asserts ['AGENTS.md'] for codex-first and does not examine the mismatch with the Workflow host."
+    },
+    {
+      "file": "packages/cookwright/src/lib/hosts.mjs",
+      "location": "CODEX_HOOK_COMMAND; src/lib/init/hostfile.mjs hookFileStep (writes `<config root>/.codex/hooks.json`); src/lib/doctor/codex.mjs checkCodexHook; README.md ## Codex",
+      "problem": "The Codex hook command was written in this stage. It always `cd`s to the work tree's top, then tests `node_modules/cookwright/bin/cookwright.mjs` there and runs doctor from there. For a config root below the top (the README's documented `apps/mobile` monorepo case), the package sits under `apps/mobile/node_modules`, so the hook prints `package not installed (npm install)`. If the package is hoisted to the top, doctor from the top finds no cookwright.json (findRoot only walks up), so the hook prints the no-config refusal. Either way the hook never gives a readout. Doctor's Codex `host.hook` still PASSes, because it only checks that `<config root>/.codex/hooks.json` holds the command and matcher, and that file is not where `<repo>/.codex/hooks.json` would be read. The README's Codex paragraph and B-002/E-034 describe only the Claude command and the shims, not this new instance.",
+      "severity": "P3",
+      "suggested_fix": "State the limit in the README's Codex paragraph and in B-002/E-034 (Codex hook plus nested config root: no readout). Or have `host.hook` WARN for Codex when the config root is not the work tree's top, rather than PASS.",
+      "failure_scenario": "In a monorepo with `apps/mobile/cookwright.json` and cookwright installed in `apps/mobile`, run `npx cookwright init --hosts claude,codex` from `apps/mobile`. Doctor reports Codex `host.hook` PASS. Every Codex session-start hook then prints `cookwright doctor skipped: package not installed (npm install)`, and running `npm install` as told changes nothing.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "confirmed",
+      "evidence": "hosts.mjs:87 CODEX_HOOK_COMMAND cds to git top, then tests top/node_modules/cookwright/bin/cookwright.mjs (hosts.mjs:60-72). hostfile.mjs:79-84 writes entry.settings relative to repo.root (the config root). doctor/codex.mjs:49-60 checks only that the file at repo.root holds the command and matcher, so PASS does not reflect whether the hook works. config.mjs:79-88 findRoot only walks up, so doctor from the top cannot find apps/mobile/cookwright.json. B-002 and E-034 (backlog.md:7,39) name the Claude hook and git shims, and README.md:37 and :58 do not describe this Codex case. B-002's last sentence says the hook commands do not handle it, which partly covers the class."
+    },
+    {
+      "file": "README.md",
+      "location": "## Skills and workflows, bullet \"A skill of your own with the same name\"; plan Decision 2",
+      "problem": "Decision 2 and the README say a skill of the user's own named `setup` shadows cookwright's \"with a WARN\" from doctor. Doctor only inspects the project path `.claude/skills/setup`. Claude Code also resolves same-name skills across levels, with personal (`~/.claude/skills/<name>`) taking precedence over project as documented (not measured in this bundle). A personal `setup` skill would then hide cookwright's with no doctor line, while `host.pointers` reads PASS. That claim is wider than what the check covers.",
+      "severity": "P3",
+      "suggested_fix": "Narrow the README bullet to project-level skills and say a personal `~/.claude/skills/setup` also wins, unreported. Or add a WARN in `host.pointers` when `<home>/.claude/skills/<name>` exists for a shipped skill (doctor already carries `repo.home`).",
+      "failure_scenario": "A developer has a personal `~/.claude/skills/setup` from another toolkit. After init, doctor reads `host.pointers` PASS (`claude: 2 skills, 2 workflows`). `/setup` in the session runs their personal skill instead of cookwright's walkthrough, and nothing reports why.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "plausible",
+      "evidence": "README.md:32 limits its claim to a user's own skill 'at .claude/skills/setup', and plan.md:92 and 'host.pointers' only inspect the project pointer path. Plan Decision 1 (plan.md:20) says more broadly that 'a user's own setup shadows ours with a WARN'. A personal ~/.claude/skills/setup is not inspected, so doctor would stay PASS. The README text is accurate as written. Whether personal skills take precedence over project skills was not measured in this bundle, so I could not confirm that the shadowing happens or refute it."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "CHARTER.md, AGENTS.md and the Stage 3 plan",
+    "Commit list, changed-file inventory, stats and whitespace validation for 51a90fc..960c4ff",
+    "Config loading, version migration, schema, migrate",
+    "Host tables, init steps, pointer ownership/writing, doctor aggregation, Claude and Codex hooks",
+    "Bundle playbook/workflow path resolution",
+    "Setup skill recipes and their coverage tests",
+    "CI workflow, Expo fixture, packaging manifest, README, release instructions",
+    "Relevant init, doctor, bundle, migration and skill tests by inspection",
+    "npx cookwright doctor: 17 PASS",
+    "git diff --check: clean",
+    "Plan docs/dev/bundles/stage-3/plan.md §1-§10 against the range 51a90fc..960c4ff (git diff --stat, git log)",
+    "Prior slice findings (review-route-1, review-setup-1, review-ci-1), so already-fixed items are not repeated",
+    "src/lib/hosts.mjs: PACKAGE_DIR/PACKAGE_ROOT, installedPackage, playbookPath, workflowScript, HOSTS.codex, hook commands",
+    "src/lib/doctor/hosts.mjs: shippedPieces, readPointer ownership-by-text regex, misdirected, tracked/ignored gating, judge level rule, win32 branch",
+    "src/lib/init/pointers.mjs, init/files.mjs (link write, refuseLinks exemption, applyRows refused links), init/steps.mjs everyHost",
+    "src/lib/init/hostfile.mjs (command+matcher identity, replacePast, unmatch), init/codex.mjs, doctor/codex.mjs (overrideFiles walk, hook check), doctor/registry.mjs multi-host aggregation",
+    "src/lib/config.mjs applyMigrations/loadConfig/migratedFrom, OPTIONAL_PATHS in validatePaths, schema version enum; src/lib/migrations.mjs (drop/keep/pin); src/migrate.mjs (raw read, link refusal, atomic replace, dry-run)",
+    "src/lib/init/config.mjs --hosts/--base refusal on existing config; src/init.mjs --hosts parsing",
+    "src/bundle.mjs nextAction/withPointerNote, phases.mjs workflowPaths/playbook refusal; ran `bundle status stage-3` and `bundle args stage-3 review:whole` read-only",
+    "packages/cookwright/skills/setup/SKILL.md recipe vs doctor statuses in src/lib/doctor/*.mjs; skills.test.mjs quote ties",
+    "Block v3 in agents-block.md and this repo's AGENTS.md; ran doctor on this repo read-only (17 PASS, level 0 complete); doctor --hook output",
+    "npm pack tarball contents (hosts, skills, docs shipped, tests excluded)",
+    ".github/workflows/ci.yml and scripts/ci/fixture.sh (strict mode, pins, gitleaks sha check, assertions)",
+    "README.md First run / Updating / Skills and workflows / Codex / Commands / Releases against the code",
+    "Backlog: E-007/E-012/E-013 closed, E-014 narrowed, B-002 amended, new ids B-010, E-029..E-036",
+    "Diff scanned for local paths and private details (none found); function-length heuristic over changed modules"
+  ],
+  "notes": "Codex ran (session 01a1441a-2f43-7af2-8cbe-f0c66245ad87, gpt-5.6-sol, high effort) and finished within the ceiling with 37 read-only commands. It did not execute the test suite. Findings are transcribed as Codex reported them. Full output: <local path>\n---\nThe diff mostly delivers the plan: pointers decided by link text, the level rule for Level 2 pointers, the in-memory v1 migration, migrate's atomic write, the bundle refusals, block v3, the setup recipe tied to messages, and the CI fixture. On this repo, doctor reads 17 PASS and `bundle status` prints the named Workflow form.\n\nOne P2: the QA leg as planned cannot start, because `/setup` is exactly the pointer that is missing on an existing user's repo before init runs.\n\nThree P3s, all claims wider than the code or an uncovered combination:\n- the rules files for a codex-first host order;\n- the Codex hook with a nested config root;\n- a personal-level `setup` skill shadowing cookwright's with no doctor line. The precedence is documented by Claude Code, not measured here, so this one is plausible rather than confirmed.\n\nI could not do the end-to-end scratch run (git init plus npm install of the tarball in the scratchpad): the permission system denied that command. The behaviors above come from reading the code plus read-only runs of doctor, `bundle status`/`args` and `npm pack`.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a1441a-2f43-7af2-8cbe-f0c66245ad87",
+    "partialReportPath": null
+  }
+}

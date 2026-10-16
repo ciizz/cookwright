@@ -1,14 +1,21 @@
 // src/lib/doctor/basics.mjs — the `config` and `git` checks.
 
+import { CONFIG_VERSION } from '../config.mjs';
 import { fail, pass, warn } from '../verdict.mjs';
 import { messages } from '../messages.mjs';
 import { gitRun } from './repo.mjs';
 
 const m = messages.doctor;
 
-/** The config loaded: PASS with its level; else the loader's message, verbatim. */
+/**
+ * The config loaded: PASS with its level; WARN when it loaded only by migrating an
+ * older version in memory (weak, never drift: every check still runs); else the
+ * loader's message, verbatim.
+ */
 export function checkConfig(repo) {
-  return repo.config ? pass(m.config.ok(repo.config.level)) : fail(repo.configError);
+  if (!repo.config) return fail(repo.configError);
+  const from = repo.config.migratedFrom;
+  return from === undefined ? pass(m.config.ok(repo.config.level)) : warn(m.config.migrated(from, CONFIG_VERSION));
 }
 
 /**

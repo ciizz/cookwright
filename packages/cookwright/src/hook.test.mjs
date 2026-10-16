@@ -15,7 +15,7 @@ import { openDoctorRepo } from './lib/doctor/repo.mjs';
 import { runChecks } from './lib/doctor/registry.mjs';
 import { TimedOut } from './lib/budget.mjs';
 import { generate } from './lib/changelog/state.mjs';
-import { CONFIG_FILE } from './lib/config.mjs';
+import { CONFIG_FILE, CONFIG_VERSION } from './lib/config.mjs';
 import { CLI, messages } from './lib/messages.mjs';
 import { callLine, callsCookwright, shimText } from './lib/hooks/shims.mjs';
 import { hasTool } from './lib/probes.mjs';
@@ -129,7 +129,7 @@ describe('without a usable config', () => {
 
   it('names the loader’s message on an invalid one, and a secrets FAIL still exits 10', () => {
     const repo = repoAt();
-    const bad = { version: 1, hooks: { docSync: [{ name: 'x', code: [':(foo)x'], docs: ['d'] }] } };
+    const bad = { version: CONFIG_VERSION, hooks: { docSync: [{ name: 'x', code: [':(foo)x'], docs: ['d'] }] } };
     fs.writeFileSync(path.join(repo.root, CONFIG_FILE), JSON.stringify(bad));
     expect(hook(repo, 'pre-commit')).toBe(0);
     expect(line('doc-sync')).toEqual({
@@ -475,9 +475,9 @@ describe('pre-push', () => {
 
   it('SKIPs both with the loader’s message when the config is invalid', () => {
     const repo = pushRepo();
-    fs.writeFileSync(path.join(repo.root, CONFIG_FILE), '{"version": 2}');
+    fs.writeFileSync(path.join(repo.root, CONFIG_FILE), '{"version": 0}');
     expect(push(repo)).toBe(0);
-    expect(line('gate').note).toBe(`${CONFIG_FILE} invalid: version must be 1; run ${CLI} doctor`);
+    expect(line('gate').note).toBe(`${CONFIG_FILE} invalid: version must be ${CONFIG_VERSION}; run ${CLI} doctor`);
     expect(line('changelog').note).toBe(line('gate').note);
   });
 });
@@ -606,7 +606,7 @@ describe('end to end: a real git commit through the shim', () => {
     const top = gitInit(path.join(TMP, `nested-${(n += 1)}`));
     const repo = { root: path.join(top, 'apps/mobile') };
     fs.mkdirSync(repo.root, { recursive: true });
-    fs.writeFileSync(path.join(repo.root, CONFIG_FILE), JSON.stringify({ version: 1, hooks: { docSync: [RULE] } }));
+    fs.writeFileSync(path.join(repo.root, CONFIG_FILE), JSON.stringify({ version: CONFIG_VERSION, hooks: { docSync: [RULE] } }));
     const outer = { root: top };
     commit(outer, { 'README.md': 'x', 'apps/mobile/docs/guide.md': 'g' }, 'init');
     fs.appendFileSync(path.join(top, '.git/info/exclude'), 'node_modules\n');

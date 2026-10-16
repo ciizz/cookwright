@@ -1,11 +1,12 @@
 // src/lib/init/config.mjs — step 1: cookwright.json. Absent → written with every key
-// explicit; present → loaded (a refusal if invalid) and kept, never edited.
+// explicit; present → loaded (a refusal if invalid; an older version migrated in
+// memory) and kept, never edited.
 
 import fs from 'node:fs';
 import path from 'node:path';
 
 import { Refusal } from '../cli.mjs';
-import { CONFIG_FILE, DEFAULTS, loadConfig, validateConfig, withDefaults } from '../config.mjs';
+import { CONFIG_FILE, CONFIG_VERSION, DEFAULTS, loadConfig, validateConfig, withDefaults } from '../config.mjs';
 import { messages } from '../messages.mjs';
 import { KEPT, WROTE, readTarget, row } from './files.mjs';
 import { detectBase } from './repo.mjs';
@@ -71,7 +72,10 @@ export function configStep(repo, io) {
     } catch (err) {
       throw new Refusal(err.message); // the loader's message, verbatim
     }
-    return row(KEPT, CONFIG_FILE, m.kept(repo.config.level));
+    // An older version loads migrated in memory; init keeps the file as it is and
+    // says how to write it, since only `migrate` edits a config.
+    const from = repo.config.migratedFrom;
+    return row(KEPT, CONFIG_FILE, from === undefined ? m.kept(repo.config.level) : m.migrated(from, CONFIG_VERSION));
   }
   const { raw, note } = freshConfig(repo.root, io.base);
   repo.config = withDefaults(raw);

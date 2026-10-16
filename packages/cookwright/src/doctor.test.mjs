@@ -13,7 +13,7 @@ import { main } from './doctor.mjs';
 import { BUDGET_MS, TimedOut } from './lib/budget.mjs';
 import { messages as bundleMessages } from './lib/bundle/messages.mjs';
 import { TEMPLATE as CHANGELOG } from './lib/changelog/render.mjs';
-import { DEFAULTS } from './lib/config.mjs';
+import { CONFIG_VERSION, DEFAULTS } from './lib/config.mjs';
 import { checkClaudeHook } from './lib/doctor/claude.mjs';
 import { openDoctorRepo } from './lib/doctor/repo.mjs';
 import { runChecks } from './lib/doctor/registry.mjs';
@@ -79,7 +79,7 @@ let n = 0;
 function level0(files = {}, config = null, { hooksPath = '.githooks' } = {}) {
   const repo = scratchRepo(TMP, `r${(n += 1)}`);
   const all = { ...LEVEL0_FILES, ...files };
-  if (config) all['cookwright.json'] = JSON.stringify({ version: 1, ...config });
+  if (config) all['cookwright.json'] = JSON.stringify({ version: CONFIG_VERSION, ...config });
   writeAll(repo.root, all);
   commit(repo, {}, 'level 0');
   installPackage(repo.root);
@@ -128,11 +128,24 @@ describe('config', () => {
     }
   });
 
+  it('WARNs a version-1 config migrated in memory, and runs every other check as on a current one', () => {
+    const v1 = JSON.stringify({ version: 1, paths: { playbook: 'docs/playbook.md' } });
+    const rows = doctor(level0({ 'cookwright.json': v1 }));
+    expect(rows.config).toEqual({ status: 'WARN', note: m.config.migrated(1, CONFIG_VERSION) });
+    expect(m.config.migrated(1, 2)).toBe(
+      'valid at version 2 after migrating from 1 in memory; run npx cookwright migrate to write it',
+    );
+    const current = doctor(level0());
+    for (const name of Object.keys(current).filter((k) => k !== 'config')) {
+      expect([name, rows[name]]).toEqual([name, current[name]]);
+    }
+  });
+
   it('joins several loader problems on one line', () => {
     const root = level0();
-    write(root, 'cookwright.json', JSON.stringify({ version: 2, level: 3 }));
+    write(root, 'cookwright.json', JSON.stringify({ version: 0, level: 3 }));
     const { note } = doctor(root).config;
-    expect(note).toMatch(/^cookwright\.json: version must be 1; level must be one of 0/);
+    expect(note).toMatch(new RegExp(`^cookwright\\.json: version must be ${CONFIG_VERSION}; level must be one of 0`));
     expect(note).not.toMatch(/\n/);
   });
 });
@@ -140,7 +153,7 @@ describe('config', () => {
 describe('git', () => {
   it('PASSes an unborn HEAD named baseBranch, noting no commits yet', () => {
     const root = gitInit(path.join(TMP, 'unborn'));
-    write(root, 'cookwright.json', JSON.stringify({ version: 1 }));
+    write(root, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION }));
     expect(doctor(root).git).toEqual({ status: 'PASS', note: m.git.unborn('main') });
   });
 
@@ -151,7 +164,7 @@ describe('git', () => {
 
   it('FAILs outside a work tree, and SKIPs the git checks with git absent', () => {
     const root = path.join(TMP, 'plain');
-    write(root, 'cookwright.json', JSON.stringify({ version: 1 }));
+    write(root, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION }));
     const rows = doctor(root);
     expect(rows.git).toEqual({ status: 'FAIL', note: m.git.notWorkTree });
     expect(rows['secrets.env']).toEqual({ status: 'SKIP', note: m.secrets.notWorkTree });
@@ -277,7 +290,7 @@ describe('host.rules', () => {
   it('scans the root’s ancestors, but not the home directory’s .claude/', () => {
     const parent = path.join(TMP, 'ancestor');
     const root = gitInit(path.join(parent, 'repo'));
-    commit({ root }, { 'cookwright.json': JSON.stringify({ version: 1 }), ...LEVEL0_FILES }, 'l0');
+    commit({ root }, { 'cookwright.json': JSON.stringify({ version: CONFIG_VERSION }), ...LEVEL0_FILES }, 'l0');
     write(parent, '.claude/CLAUDE.md', '# user memory\n');
     expect(rules(root, { home: parent }).status).toBe('PASS');
     expect(rules(root, { home: TMP })).toEqual({
@@ -474,7 +487,7 @@ describe('git hooks', () => {
     const top = gitInit(path.join(TMP, `nested-top-${(n += 1)}`));
     const app = path.join(top, 'apps/mobile');
     const { '.githooks/pre-commit': a, '.githooks/pre-push': b, ...rest } = LEVEL0_FILES;
-    const config = JSON.stringify({ version: 1 });
+    const config = JSON.stringify({ version: CONFIG_VERSION });
     writeAll(app, { ...rest, 'cookwright.json': config, '.githooks/pre-commit': a, '.githooks/pre-push': b }); // B-007's place
     commit({ root: top }, {}, 'level 0 in apps/mobile');
     installPackage(app);
@@ -546,7 +559,7 @@ describe('tools.gitleaks', () => {
   it('runs the dry run at the work tree top when cookwright.json is below it', () => {
     const top = gitInit(path.join(TMP, `nested-gitleaks-${(n += 1)}`));
     const app = path.join(top, 'apps/mobile');
-    writeAll(app, { 'cookwright.json': JSON.stringify({ version: 1 }) });
+    writeAll(app, { 'cookwright.json': JSON.stringify({ version: CONFIG_VERSION }) });
     const roots = [];
     const scanStaged = (root) => {
       roots.push(root);
@@ -633,6 +646,12 @@ describe('the readout', () => {
     expect(doc(level0({}, { baseBranch: 'trunk' }), [], { claudeVersion: () => null })).toBe(0);
     expect(out).toContain('level 0 declared: complete; weak: git; unverified: host.rules');
     expect(out).toContain('16 checks — 14 PASS, 0 FAIL, 1 WARN, 1 SKIP');
+  });
+
+  it('reads a version-1 config as weak, not drift', () => {
+    const v1 = JSON.stringify({ version: 1, paths: { playbook: 'docs/playbook.md' } });
+    expect(doc(level0({ 'cookwright.json': v1 }))).toBe(0);
+    expect(out).toContain('level 0 declared: complete; weak: config');
   });
 
   it('reads gitleaks absent as unverified, and the level complete', () => {

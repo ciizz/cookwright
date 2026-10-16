@@ -1276,7 +1276,7 @@ describe('the package’s playbook and the workflow pointer', () => {
     const top = gitInit(path.join(TMP, name));
     const root = path.join(top, rel);
     fs.mkdirSync(root, { recursive: true });
-    fs.writeFileSync(path.join(root, 'cookwright.json'), JSON.stringify({ version: 1, ...config }));
+    fs.writeFileSync(path.join(root, 'cookwright.json'), JSON.stringify({ version: 2, ...config }));
     link({ top, root });
     commit({ root: top }, { [path.posix.join(rel, 'CLAUDE.md')]: 'rules' }, 'main');
     run(top, 'git', ['checkout', '-q', '-b', 'bundle/demo']);

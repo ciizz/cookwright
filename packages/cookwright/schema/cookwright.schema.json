@@ -13,8 +13,11 @@
       "type": "string"
     },
     "version": {
-      "description": "Config format version. Bumped only with a migration.",
-      "const": 1
+      "description": "Config format version, bumped only with a migration. 2 is current; a version-1 file is migrated in memory and loads, and npx cookwright migrate writes it at version 2.",
+      "enum": [
+        1,
+        2
+      ]
     },
     "level": {
       "description": "The level this repo declares. doctor measures it: a piece the level requires that is missing is drift.",

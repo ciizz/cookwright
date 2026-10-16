@@ -10,9 +10,11 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import {
   CONFIG_FILE,
+  CONFIG_VERSION,
   DEFAULTS,
   KNOWN_KEYS,
   OPTIONAL_PATHS,
+  applyMigrations,
   findRoot,
   loadConfig,
   nonCodePathspecs,
@@ -30,6 +32,7 @@ import {
   workflowScript,
 } from './hosts.mjs';
 import { KNOWN_LEVELS } from './levels.mjs';
+import { MIGRATIONS } from './migrations.mjs';
 import { gitInit, linkPackage } from '../test-helpers.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -47,11 +50,11 @@ function repoWith(name, config) {
   return dir;
 }
 
-const valid = () => withDefaults({ version: 1 });
+const valid = () => withDefaults({ version: CONFIG_VERSION });
 
 describe('findRoot', () => {
   it('walks up from a nested directory to the config', () => {
-    const dir = repoWith('nested', { version: 1 });
+    const dir = repoWith('nested', { version: CONFIG_VERSION });
     expect(fs.realpathSync(findRoot(path.join(dir, 'a/b')))).toBe(fs.realpathSync(dir));
   });
 
@@ -62,7 +65,7 @@ describe('findRoot', () => {
   });
 
   it('never climbs past the work tree: an enclosing directory’s config is not this repo’s', () => {
-    const outer = repoWith('enclosing', { version: 1 });
+    const outer = repoWith('enclosing', { version: CONFIG_VERSION });
     const inner = gitInit(path.join(outer, 'a/inner'));
     fs.mkdirSync(path.join(inner, 'src'));
     const top = workTreeRoot(path.join(inner, 'src'));
@@ -71,7 +74,7 @@ describe('findRoot', () => {
     // Unbounded, the walk would have found the enclosing one.
     expect(fs.realpathSync(findRoot(inner))).toBe(fs.realpathSync(outer));
     // A config at the work tree's top is still found from below it.
-    fs.writeFileSync(path.join(inner, CONFIG_FILE), '{"version":1}');
+    fs.writeFileSync(path.join(inner, CONFIG_FILE), JSON.stringify({ version: CONFIG_VERSION }));
     expect(findRoot(path.join(inner, 'src'), { stopAt: top })).toBe(inner);
   });
 
@@ -82,7 +85,7 @@ describe('findRoot', () => {
 
 describe('loadConfig', () => {
   it('applies the defaults one level deep', () => {
-    const dir = repoWith('defaults', { version: 1, paths: { bundles: 'state/bundles' } });
+    const dir = repoWith('defaults', { version: CONFIG_VERSION, paths: { bundles: 'state/bundles' } });
     const config = loadConfig(dir);
     expect(config.level).toBe(0);
     expect(config.paths.changelog).toBe('CHANGELOG.md');
@@ -99,7 +102,7 @@ describe('loadConfig', () => {
     expect(() => loadConfig(repoWith('broken', '{ nope'))).toThrow(/cookwright\.json: /);
     expect(() => loadConfig(repoWith('array', '[]'))).toThrow(/must be a JSON object/);
     expect(() => loadConfig(repoWith('null', 'null'))).toThrow(/must be a JSON object/);
-    expect(() => loadConfig(repoWith('empty', {}))).toThrow(/version must be 1/);
+    expect(() => loadConfig(repoWith('empty', {}))).toThrow(`version must be ${CONFIG_VERSION}`);
   });
 
   it('refuses a paths, gate or hooks that is not an object instead of defaulting it', () => {
@@ -110,7 +113,7 @@ describe('loadConfig', () => {
         ['paths', 'paths must be an object'],
       ]) {
         const dir = repoWith(`not-object-${key}-${JSON.stringify(value).replace(/\W/g, '') || 'x'}`, {
-          version: 1,
+          version: CONFIG_VERSION,
           [key]: value,
         });
         expect(() => loadConfig(dir)).toThrow(line);
@@ -119,15 +122,83 @@ describe('loadConfig', () => {
   });
 
   it('normalizes a trailing slash so the gate’s dirty-path exclusion matches', () => {
-    const dir = repoWith('slash', { version: 1, paths: { bundles: 'state/bundles/' } });
+    const dir = repoWith('slash', { version: CONFIG_VERSION, paths: { bundles: 'state/bundles/' } });
     expect(loadConfig(dir).paths.bundles).toBe('state/bundles');
   });
 
   it('reports every problem at once', () => {
-    const dir = repoWith('bad', { version: 2, hosts: [], baseBranch: '', typo: 1 });
+    const dir = repoWith('bad', { version: 0, hosts: [], baseBranch: '', typo: 1 });
     expect(() => loadConfig(dir)).toThrow(
-      /unknown key "typo"[\s\S]*version must be 1[\s\S]*hosts must be a non-empty list[\s\S]*baseBranch/,
+      /unknown key "typo"[\s\S]*version must be 2[\s\S]*hosts must be a non-empty list[\s\S]*baseBranch/,
     );
+  });
+});
+
+describe('an older version, migrated in memory', () => {
+  const stale = { version: 1, paths: { playbook: 'docs/playbook.md' } };
+
+  it('loads a version-1 config with the stale playbook key dropped, and says it migrated', () => {
+    const dir = repoWith('v1-stale', stale);
+    const config = loadConfig(dir);
+    expect(config.version).toBe(CONFIG_VERSION);
+    expect(config.paths.playbook).toBeUndefined();
+    expect(config.migratedFrom).toBe(1);
+    expect(JSON.parse(fs.readFileSync(path.join(dir, CONFIG_FILE), 'utf8'))).toEqual(stale); // nothing written
+  });
+
+  it('keeps the key when a playbook is there, or when it names another path', () => {
+    const dir = repoWith('v1-own', stale);
+    fs.mkdirSync(path.join(dir, 'docs'));
+    fs.writeFileSync(path.join(dir, 'docs/playbook.md'), 'mine');
+    expect(loadConfig(dir).paths.playbook).toBe('docs/playbook.md');
+    expect(loadConfig(dir).migratedFrom).toBe(1);
+    const other = repoWith('v1-other', { version: 1, paths: { playbook: 'ops/playbook.md' } });
+    expect(loadConfig(other).paths.playbook).toBe('ops/playbook.md');
+  });
+
+  it('sets no migratedFrom on a current config', () => {
+    expect(Object.hasOwn(loadConfig(repoWith('v-current', { version: CONFIG_VERSION })), 'migratedFrom')).toBe(false);
+  });
+
+  it('refuses a newer version naming the update, and keeps today’s line for any other', () => {
+    expect(() => loadConfig(repoWith('v3', { version: 3 }))).toThrow(
+      new Error(
+        `${CONFIG_FILE}: version 3 is newer than this cookwright's 2: update cookwright (npm install cookwright@latest)`,
+      ),
+    );
+    for (const [i, version] of [0, -1, 1.5, '1', null].entries()) {
+      expect(() => loadConfig(repoWith(`v-bad-${i}`, { version }))).toThrow(`version must be ${CONFIG_VERSION}`);
+    }
+  });
+
+  it('still validates the migrated result', () => {
+    expect(() => loadConfig(repoWith('v1-invalid', { ...stale, hosts: ['gemini'] }))).toThrow(/host "gemini"/);
+  });
+
+  it('runs an injected chain in order, from the version the file says', () => {
+    const seen = [];
+    const step = (n) => (raw) => {
+      seen.push([n, raw.version]);
+      return { raw: { ...raw, level: 0 }, outcome: `step${n}` };
+    };
+    const migrations = { 0: step(0), 1: step(1) };
+    const dir = repoWith('v0-chain', { version: 0 });
+    expect(loadConfig(dir, { migrations }).migratedFrom).toBe(0);
+    expect(seen).toEqual([
+      [0, 0],
+      [1, 1],
+    ]);
+    // A chain with a gap is not a chain: the validator names the version.
+    expect(() => loadConfig(dir, { migrations: { 1: step(1) } })).toThrow(`version must be ${CONFIG_VERSION}`);
+  });
+
+  it('never changes the object it migrates, and reports one step per version', () => {
+    const raw = structuredClone(stale);
+    const out = applyMigrations(raw, { exists: () => false });
+    expect(raw).toEqual(stale);
+    expect(out.raw).toEqual({ version: 2, paths: {} });
+    expect(out.steps).toEqual([{ from: 1, to: 2, outcome: 'playbookDropped', detail: 'docs/playbook.md' }]);
+    expect(applyMigrations({ version: CONFIG_VERSION }, { exists: () => false })).toBeNull();
   });
 });
 
@@ -308,7 +379,11 @@ describe('the schema and the validator agree', () => {
       expect(Object.hasOwn(p.paths.properties[key], 'default')).toBe(false);
       expect(Object.hasOwn(DEFAULTS.paths, key)).toBe(false);
     }
-    expect(p.version.const).toBe(DEFAULTS.version);
+    expect(DEFAULTS.version).toBe(CONFIG_VERSION);
+    // The schema accepts what the loader loads: the current version and every
+    // version a migration starts from.
+    const loadable = [CONFIG_VERSION, ...Object.keys(MIGRATIONS).map(Number)].sort();
+    expect([...p.version.enum].sort()).toEqual(loadable);
     expect(p.hooks.properties.docSync.default).toEqual(DEFAULTS.hooks.docSync);
   });
 

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll } from 'vitest';
 
-import { CONFIG_FILE, loadConfig } from './lib/config.mjs';
+import { CONFIG_FILE, CONFIG_VERSION, loadConfig } from './lib/config.mjs';
 
 /** This package's own directory, the target of `linkPackage`. */
 export const PACKAGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,7 +60,7 @@ export function gitWithoutScopes(parent) {
 /** A scratch git repo `parent/name` with a cookwright.json (defaults unless overridden), as `repo`. */
 export function scratchRepo(parent, name, config = {}) {
   const dir = gitInit(path.join(parent, name));
-  fs.writeFileSync(path.join(dir, CONFIG_FILE), JSON.stringify({ version: 1, ...config }));
+  fs.writeFileSync(path.join(dir, CONFIG_FILE), JSON.stringify({ version: CONFIG_VERSION, ...config }));
   return { root: dir, config: loadConfig(dir) };
 }
 

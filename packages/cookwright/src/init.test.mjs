@@ -8,7 +8,7 @@ import path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { main } from './init.mjs';
-import { DEFAULTS } from './lib/config.mjs';
+import { CONFIG_VERSION, DEFAULTS } from './lib/config.mjs';
 import { callLine, shimText } from './lib/hooks/shims.mjs';
 import { claudeHookStep } from './lib/init/claude.mjs';
 import { ENV_LINES } from './lib/init/gitignore.mjs';
@@ -128,7 +128,7 @@ describe('a fresh repo', () => {
     expect(read(root, '.gitignore')).toBe('.env\n.env.*\n!.env.example\n');
     expect(exists(root, 'CLAUDE.md')).toBe(false);
     const config = JSON.parse(read(root, 'cookwright.json'));
-    expect(config).toMatchObject({ version: 1, level: 0, hosts: ['claude'], baseBranch: 'main' });
+    expect(config).toMatchObject({ version: CONFIG_VERSION, level: 0, hosts: ['claude'], baseBranch: 'main' });
     expect(config.paths).toEqual(DEFAULTS.paths);
     expect(config.gate).toEqual({ checks: [] });
     expect(config.hooks).toEqual({ docSync: [] });
@@ -235,7 +235,7 @@ describe('refusals', () => {
 
   it('refuses an invalid existing config with the loader message, before any write', () => {
     const root = fresh();
-    write(root, 'cookwright.json', '{ "version": 1, "hosts": ["gemini"] }');
+    write(root, 'cookwright.json', '{ "version": 2, "hosts": ["gemini"] }');
     const before = tree(root);
     expect(init(root).code).toBe(2);
     expect(err[0]).toMatch(/host "gemini" is not available in this version of cookwright/);
@@ -263,9 +263,21 @@ describe('refusals', () => {
 });
 
 describe('cookwright.json', () => {
+  it('keeps a version-1 config byte for byte, migrated in memory, naming migrate', () => {
+    const root = fresh();
+    const text = '{"version":1,"paths":{"playbook":"docs/playbook.md"}}';
+    write(root, 'cookwright.json', text);
+    const { code, rows } = init(root);
+    expect(code).toBe(0);
+    expect(rows['cookwright.json']).toEqual({ action: 'kept', note: m.config.migrated(1, CONFIG_VERSION) });
+    expect(m.config.migrated(1, 2)).toBe('version 1, migrated in memory; run npx cookwright migrate to write version 2');
+    expect(read(root, 'cookwright.json')).toBe(text);
+    expect(exists(root, 'docs/playbook.md')).toBe(false);
+  });
+
   it('keeps an existing config byte for byte, even without level', () => {
     const root = fresh();
-    const text = '{"version":1,"paths":{"backlog":"notes/todo/backlog.md"}}';
+    const text = '{"version":2,"paths":{"backlog":"notes/todo/backlog.md"}}';
     write(root, 'cookwright.json', text);
     const { rows } = init(root);
     expect(rows['cookwright.json']).toEqual({ action: 'kept', note: m.config.kept(0) });
@@ -682,7 +694,7 @@ describe('git hooks', () => {
   it('writes the shims at the work tree top when cookwright.json is below it, entering the config root', () => {
     const top = fresh();
     const app = path.join(top, 'apps/mobile');
-    write(app, 'cookwright.json', JSON.stringify({ version: 1 }));
+    write(app, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION }));
     const nested = ['hooks.path', '../../.githooks/pre-commit', '../../.githooks/pre-push'];
     const first = init(app);
     expect(first.code).toBe(0);
@@ -697,7 +709,7 @@ describe('git hooks', () => {
   it('keeps a user’s hook at the top that enters the config root and calls cookwright', () => {
     const top = fresh();
     const app = path.join(top, 'apps/mobile');
-    write(app, 'cookwright.json', JSON.stringify({ version: 1 }));
+    write(app, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION }));
     for (const line of [`cd apps/mobile && exec ${callLine('pre-commit')}`, `${callLine('pre-commit', 'apps/mobile')} || exit 1`]) {
       userHook(top, `#!/bin/sh\n${line}\n`);
       expect([line, init(app).rows['../../.githooks/pre-commit']]).toEqual([line, { action: 'kept', note: m.hooks.calls }]);

@@ -16,9 +16,10 @@ import path from 'node:path';
 import { TimedOut, runBounded } from './budget.mjs';
 import { KNOWN_HOSTS } from './hosts.mjs';
 import { KNOWN_LEVELS } from './levels.mjs';
+import { MIGRATIONS } from './migrations.mjs';
 
 export const CONFIG_FILE = 'cookwright.json';
-export const CONFIG_VERSION = 1;
+export const CONFIG_VERSION = 2;
 
 export const DEFAULTS = Object.freeze({
   version: CONFIG_VERSION,
@@ -86,8 +87,54 @@ export function findRoot(cwd = process.cwd(), { stopAt } = {}) {
   }
 }
 
-/** Read, default and validate the config at `root`; throws one message per load. */
-export function loadConfig(root) {
+/** The loader's error for `problems`, one per line under the file's name. */
+export const invalidConfig = (problems) => new Error(`${CONFIG_FILE}:\n  ${problems.join('\n  ')}`);
+
+/** The refusal for a config written by a newer cookwright. */
+export const newerVersion = (version) =>
+  `${CONFIG_FILE}: version ${version} is newer than this cookwright's ${CONFIG_VERSION}: update cookwright (npm install cookwright@latest)`;
+
+/** The migration context for the config root `root`: is anything at `rel`, a dangling link included. */
+export function migrationContext(root) {
+  return {
+    exists: (rel) => {
+      try {
+        fs.lstatSync(path.join(root, rel));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  };
+}
+
+/**
+ * `raw` carried to CONFIG_VERSION through `migrations`, as `{ raw, steps }` with one
+ * `{ from, to, outcome, detail }` per step; null when there is nothing to run (the
+ * current version, or a version the chain does not start from: the validator names
+ * it). A newer version throws its refusal. `raw` itself is never changed.
+ */
+export function applyMigrations(raw, ctx, migrations = MIGRATIONS) {
+  const from = raw.version;
+  if (Number.isInteger(from) && from > CONFIG_VERSION) throw new Error(newerVersion(from));
+  if (!Number.isInteger(from) || from >= CONFIG_VERSION) return null;
+  for (let v = from; v < CONFIG_VERSION; v += 1) if (!Object.hasOwn(migrations, v)) return null;
+  let current = raw;
+  const steps = [];
+  for (let v = from; v < CONFIG_VERSION; v += 1) {
+    const { raw: next, outcome, detail } = migrations[v](current, ctx);
+    current = { ...next, version: v + 1 }; // an existing key keeps its place
+    steps.push({ from: v, to: v + 1, outcome, detail });
+  }
+  return { raw: current, steps };
+}
+
+/**
+ * Read, migrate, default and validate the config at `root`; throws one message per
+ * load. An older version is migrated in memory and loads, with `migratedFrom` set,
+ * so no user is ever blocked by a version bump; only `cookwright migrate` writes it.
+ */
+export function loadConfig(root, { migrations = MIGRATIONS } = {}) {
   const file = path.join(root, CONFIG_FILE);
   let raw;
   try {
@@ -96,9 +143,11 @@ export function loadConfig(root) {
     throw new Error(`${CONFIG_FILE}: ${err.code === 'ENOENT' ? 'not found' : err.message}`);
   }
   if (!isObj(raw)) throw new Error(`${CONFIG_FILE}: must be a JSON object`);
-  const config = withDefaults(raw);
+  const migrated = applyMigrations(raw, migrationContext(root), migrations);
+  const config = withDefaults(migrated ? migrated.raw : raw);
   const problems = validateConfig(config);
-  if (problems.length) throw new Error(`${CONFIG_FILE}:\n  ${problems.join('\n  ')}`);
+  if (problems.length) throw invalidConfig(problems);
+  if (migrated) config.migratedFrom = raw.version;
   return config;
 }
 

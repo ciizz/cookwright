@@ -27,7 +27,10 @@ const doctor = {
   needsGit: 'skipped, needs git, run setup',
   configInvalid: 'config invalid',
 
-  config: { ok: (level) => `valid, level ${level}` },
+  config: {
+    ok: (level) => `valid, level ${level}`,
+    migrated: (from, to) => `valid at version ${to} after migrating from ${from} in memory; run ${CLI} migrate to write it`,
+  },
   git: {
     ok: (base) => `work tree, baseBranch ${base}`,
     unborn: (base) => `work tree, baseBranch ${base} (no commits yet)`,
@@ -148,6 +151,7 @@ const init = {
   config: {
     wrote: (base, gate) => `baseBranch ${base}; ${gate}`,
     kept: (level) => `present, level ${level}; init never edits an existing config`,
+    migrated: (from, to) => `version ${from}, migrated in memory; run ${CLI} migrate to write version ${to}`,
     gateTest: (run) => `gate: ${run}`,
     gateNone: (reason) => `gate: no checks (${reason})`,
     noPackage: 'no package.json',

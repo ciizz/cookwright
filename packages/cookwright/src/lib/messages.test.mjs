@@ -27,6 +27,7 @@ const SCANNED = [
   'src/lib/init',
   'src/lib/doctor',
   'src/lib/levels.mjs',
+  'src/lib/migrations.mjs',
   'src/lib/probes.mjs',
   'src/lib/rules/block.mjs',
   'src/lib/changelog',

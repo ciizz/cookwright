@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 59,
+  "revision": 61,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -143,7 +143,7 @@
     },
     {
       "name": "implement:s2",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -151,11 +151,15 @@
           "stateRevision": 55,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_dcfbc156-f7b"
+          "runId": "wf_dcfbc156-f7b",
+          "endedAt": "2026-10-16T08:00:04.499Z",
+          "turnOutputTokens": 465212
         }
       ],
       "startCommit": "d4c93497ac943fa0a0d2a00022dc0104c8ec80e1",
-      "range": null
+      "range": null,
+      "endCommit": "c6980132d4adb120829e4b464a95d9105fe200a4",
+      "endCode": "560dd3051813a977df392c17b6c879893ca3760f"
     },
     {
       "name": "implement:s3",
@@ -631,6 +635,13 @@
       "actor": "orchestrator",
       "source": "implement:s1 open question 5, 2026-10-16",
       "text": "Accepted as built pending the developer's strings batch: bundle status prints the missing-pointer line as a separate 'note     : …' line under 'next', a new label in the status readout; the eight s1 strings go to the developer in one batch.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T08:00:04.360Z",
+      "actor": "orchestrator",
+      "source": "implement:s2 open questions, 2026-10-16",
+      "text": "Accepted as built: the single README Commands bullet for migrate landed with its commit (the doc-sync rule), and s5 reconciles it with the Updating section it writes (plan §7.5); this repo's cookwright.json stays at version 1 until s6 runs migrate (plan §7.1), so doctor here reads 'config' WARN and 'level 0 declared: complete; weak: config' in the meantime, the in-memory path working as designed (the dry run measured '1 → 2: nothing to change (no paths.playbook)' plus the relaid note). Two wording changes from the plan accepted: the init row carries the exact migrate command, the kept outcome names the path. The twenty-five s2 strings go to the developer in one batch.",
       "claim": true
     }
   ],

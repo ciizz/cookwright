@@ -11,6 +11,7 @@ The repo's own harness config (this file, the hooks, the bundle runner, `docs/de
 - `packages/cookwright/` — the npm package: everything a user installs. `lifted/` holds files copied verbatim from Leeka awaiting extraction; it must be empty before v1.
 - `packages/cookwright/hosts/` — the files a host's adapter ships, per host (`claude/workflows/`; Codex has no workflows, so its adapter is code only, under `src/lib/`); `packages/cookwright/skills/` the skills, host-agnostic (`setup`, `bundle`); `packages/cookwright/docs/playbook.md` the bundle playbook. All three ship in the tarball.
 - `.claude/` — the pointers `npx cookwright init` writes (`skills/<name>`, `workflows/<name>.js`), symbolic links into `node_modules/cookwright`, here the workspace link to the package. Tracked; init rewrites them, never edit them by hand.
+- `scripts/ci/fixture.sh` — the harness fixture, `bash scripts/ci/fixture.sh`: a pinned `create-expo-app` scaffold with `fixtures/expo-overlay/` appended, the package installed from its `npm pack` tarball, then init, doctor, a commit through the hooks, changelog and migrate run against it. The pinned versions are bumped deliberately, by hand.
 - `docs/` — user documentation. `docs/dev/` — kickoffs, closeouts and bundle state for people building cookwright.
 - `CLAUDE.local.md` — gitignored, machine-local pointers. Never commit a local path anywhere else.
 

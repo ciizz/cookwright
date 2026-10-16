@@ -5,8 +5,9 @@
 //   per session, review/fix per slice, the whole-branch pass, QA, closeout). This CLI
 //   records each phase, runs the gate between them, emits the Workflow `args`, stores
 //   what sessions returned, and runs the landing check. The procedure itself is the
-//   playbook (`paths.playbook` in cookwright.json); the entry point is the `/bundle`
-//   skill; the Workflow script belongs to the host adapter (hosts/<host>/workflows/).
+//   playbook (the package's docs/playbook.md, or `paths.playbook` in cookwright.json);
+//   the entry point is the `/bundle` skill; the Workflow script belongs to the host
+//   adapter (the package's hosts/<host>/workflows/, reached through a pointer).
 //
 // WHY: scripts own facts, models own judgment. Before this, the orchestrator carried
 //   commits, gate results and run ids in its context and relayed them into prompts —

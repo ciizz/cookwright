@@ -3,7 +3,7 @@
 How a feature bundle runs across many fresh-context sessions with one orchestrator. This is the judgment layer; what a script enforces is not repeated here:
 
 - **The state:** the bundle CLI (`npx cookwright bundle`, written `bundle …` below), its only writer. It reads `cookwright.json` at the repo root for the paths named `<paths.x>` here.
-- **The phase order and the schemas:** the host's `bundle-phase` workflow (`hosts/<host>/workflows/bundle-phase.js`).
+- **The phase order and the schemas:** the host's `bundle-phase` workflow (`hosts/<host>/workflows/bundle-phase.js` in the package).
 
 The entry point is the `/bundle` skill. The repo's rules file (`AGENTS.md`, which a `CLAUDE.md` may import) applies throughout; this file names the few rules a phase needs.
 

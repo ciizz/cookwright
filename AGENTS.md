@@ -9,7 +9,8 @@ The repo's own harness config (this file, the hooks, the bundle runner, `docs/de
 ## Layout
 
 - `packages/cookwright/` — the npm package: everything a user installs. `lifted/` holds files copied verbatim from Leeka awaiting extraction; it must be empty before v1.
-- `hosts/` — one adapter per agent host (`claude/`, `codex/`, ...).
+- `packages/cookwright/hosts/` — one adapter per agent host (`claude/`, `codex/`, ...); `packages/cookwright/skills/` the skills, host-agnostic; `packages/cookwright/docs/playbook.md` the bundle playbook. All three ship in the tarball.
+- `.claude/` — this repo's pointers into `node_modules/cookwright`, the workspace link to the package.
 - `docs/` — user documentation. `docs/dev/` — kickoffs, closeouts and bundle state for people building cookwright.
 - `CLAUDE.local.md` — gitignored, machine-local pointers. Never commit a local path anywhere else.
 

@@ -5,7 +5,7 @@ description: Run an approved feature bundle across fresh-context sessions — st
 
 # /bundle
 
-**Start or resume a feature bundle. The procedure is the playbook (`paths.playbook` in `cookwright.json`, `docs/playbook.md` by default); read it first, every time. This skill is only the entry sequence.**
+**Start or resume a feature bundle. The procedure is the playbook (the package's copy, `node_modules/cookwright/docs/playbook.md`, unless `paths.playbook` in `cookwright.json` names yours); read it first, every time. This skill is only the entry sequence.**
 
 The CLI is `npx cookwright bundle`, written `bundle …` below. Run it from anywhere inside the repo; it finds `cookwright.json` upward.
 

@@ -21,7 +21,7 @@ To try a change that is not published yet, install from a checkout of this repo 
 - `npx cookwright doctor` checks that Level 0 is still in place and names anything missing: 16 checks, the git hooks, gitleaks and the gate's npm scripts among them. A hooks setup managed elsewhere (husky, lefthook) reads as weak, not missing, and gitleaks not installed as unverified. The hook runs it as `doctor --hook` at every session start, and that form never fails a session. Its git calls share a two-second budget, so a stalled git yields a one-line diagnosis, not a killed hook.
 - `npx cookwright changelog [--check | --unreleased | --adopt]` generates the changelog from the release tags (`vX.Y.Z`) and the conventional commit subjects between them: `feat`, `fix` and `perf` are listed, the rest counted as internal, and a release's date and notes come from its annotated tag body (`released: YYYY-MM-DD`, `note: …`). It is never edited by hand. `--check` exits 1 when the file is missing, not generated or out of date, and a refusal (a git failure, a file it cannot read or write) exits 2; `--unreleased` prints what no release tag holds yet. A changelog it did not generate is replaced only with `--adopt`, so keep a copy of what you want from it.
 - `npx cookwright hook <pre-commit|pre-push>` is what the git hooks call; you rarely run it by hand (see Git hooks below).
-- `npx cookwright bundle …` runs a feature bundle across fresh-context sessions. The procedure is `docs/playbook.md`, and the Claude Code adapter is under `hosts/claude/`.
+- `npx cookwright bundle …` runs a feature bundle across fresh-context sessions. The procedure is the package's playbook (`node_modules/cookwright/docs/playbook.md`, or your own named by `paths.playbook`), and the Claude Code adapter is under `hosts/claude/` in the package.
 
 ## Git hooks
 
@@ -54,7 +54,7 @@ The tag body is `key: value` lines: `released` dates the heading, `note` becomes
 
 ## Developing cookwright
 
-This repo runs its own bundles through the runner, and init has been run on it, so its git hooks are live: every commit runs the secret scan and one doc-sync rule (the bundle CLI and workflow need `docs/playbook.md` or the bundle skill staged), and every push runs `npm test` and the changelog check.
+This repo runs its own bundles through the runner, and init has been run on it, so its git hooks are live: every commit runs the secret scan and one doc-sync rule (the bundle CLI and workflow need `packages/cookwright/docs/playbook.md` or the bundle skill staged), and every push runs `npm test` and the changelog check.
 
 ```bash
 npm ci && npm test

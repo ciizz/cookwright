@@ -1,1 +1,1 @@
-../../hosts/claude/workflows/docs-audit.js
+../../node_modules/cookwright/hosts/claude/workflows/docs-audit.js

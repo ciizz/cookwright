@@ -6,7 +6,7 @@
 // is the first entry of `hosts` in cookwright.json.
 //
 // Stage 0 knows one host. A second host is a second entry here plus an adapter
-// directory under hosts/<name>/; nothing else changes.
+// directory under the package's hosts/<name>/; nothing else changes.
 
 import path from 'node:path';
 

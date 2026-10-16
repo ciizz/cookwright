@@ -14,6 +14,9 @@
     "bin",
     "src",
     "schema",
+    "hosts",
+    "skills",
+    "docs",
     "!src/**/*.test.mjs",
     "!src/test-helpers.mjs"
   ],

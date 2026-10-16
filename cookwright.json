@@ -7,8 +7,7 @@
   "paths": {
     "bundles": "docs/dev/bundles",
     "closeouts": "docs/dev/closeouts",
-    "backlog": "docs/dev/backlog.md",
-    "playbook": "docs/playbook.md"
+    "backlog": "docs/dev/backlog.md"
   },
   "gate": {
     "checks": [{ "name": "test", "run": "npm test" }]
@@ -21,9 +20,12 @@
           "packages/cookwright/src/bundle.mjs",
           "packages/cookwright/src/lib/bundle/*",
           ":!*.test.mjs",
-          "hosts/claude/workflows/bundle-phase.js"
+          "packages/cookwright/hosts/claude/workflows/bundle-phase.js"
         ],
-        "docs": ["docs/playbook.md", "hosts/claude/skills/bundle/SKILL.md"]
+        "docs": [
+          "packages/cookwright/docs/playbook.md",
+          "packages/cookwright/skills/bundle/SKILL.md"
+        ]
       }
     ]
   }

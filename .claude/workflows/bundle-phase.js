@@ -1,1 +1,1 @@
-../../hosts/claude/workflows/bundle-phase.js
+../../node_modules/cookwright/hosts/claude/workflows/bundle-phase.js

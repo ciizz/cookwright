@@ -25,6 +25,11 @@ describe('levels', () => {
     }
   });
 
+  it('requires host.pointers at Level 0, a check the registry runs', () => {
+    expect(LEVELS[0].requires).toContain('host.pointers');
+    expect(Object.keys(CHECKS)).toContain('host.pointers');
+  });
+
   it('requires only checks doctor runs', () => {
     for (const level of KNOWN_LEVELS) {
       for (const name of LEVELS[level].requires) expect(Object.keys(CHECKS)).toContain(name);
@@ -41,6 +46,7 @@ describe('levels', () => {
       'rules.block',
       'host.rules',
       'host.hook',
+      'host.pointers',
       'hooks.path',
       'hooks.pre-commit',
       'hooks.pre-push',

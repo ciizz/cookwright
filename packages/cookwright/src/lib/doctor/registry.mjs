@@ -15,6 +15,7 @@ import { checkConfig, checkGit } from './basics.mjs';
 import { checkClaudeHook, checkClaudeRules } from './claude.mjs';
 import { checkBacklog, checkChangelog, checkCloseouts, checkIds } from './homes.mjs';
 import { checkGateScripts, checkGitleaks, checkHookFile, checkHooksPath } from './hooks.mjs';
+import { checkPointers } from './hosts.mjs';
 import { checkBlock, checkSize } from './rules.mjs';
 import { checkSecrets } from './secrets.mjs';
 
@@ -39,6 +40,8 @@ export const CHECKS = Object.freeze({
   'rules.size': { run: checkSize },
   'host.rules': { run: hostCheck('rules'), config: true },
   'host.hook': { run: hostCheck('hook'), config: true },
+  // Every configured host's skill and workflow pointers, not the default host's only.
+  'host.pointers': { run: (repo, probes) => checkPointers(repo, probes), config: true },
   'hooks.path': { run: checkHooksPath, git: true },
   'hooks.pre-commit': { run: checkHookFile('pre-commit'), git: true },
   'hooks.pre-push': { run: checkHookFile('pre-push'), git: true },

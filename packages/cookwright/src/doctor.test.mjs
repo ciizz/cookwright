@@ -15,8 +15,10 @@ import { messages as bundleMessages } from './lib/bundle/messages.mjs';
 import { TEMPLATE as CHANGELOG } from './lib/changelog/render.mjs';
 import { CONFIG_VERSION, DEFAULTS } from './lib/config.mjs';
 import { checkClaudeHook } from './lib/doctor/claude.mjs';
+import { checkPointers, hostPointers, shippedPieces } from './lib/doctor/hosts.mjs';
 import { openDoctorRepo } from './lib/doctor/repo.mjs';
 import { runChecks } from './lib/doctor/registry.mjs';
+import { levelLine } from './lib/doctor/report.mjs';
 import { shimText } from './lib/hooks/shims.mjs';
 import { HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
@@ -63,9 +65,30 @@ function writeAll(root, files) {
   }
 }
 
-/** The package's bin at `dir`, as npm installs it there: untracked, git told to ignore it. */
+/** Each claude pointer the package ships: its path from the top, its link text, and the target in the package. */
+const POINTERS = shippedPieces('claude').map((piece) => {
+  const p = hostPointers({ root: TMP }, 'claude', { shipped: () => [piece] })[0];
+  return { ...piece, rel: p.rel, text: p.target, inPackage: path.posix.relative('node_modules/cookwright', path.posix.join(path.posix.dirname(p.rel), p.target)) };
+});
+
+/** The pointers at `root`, as init writes them; a path `files` names (a body or null) is left to `files`. */
+function writePointers(root, files = {}) {
+  for (const { rel, text } of POINTERS.filter((x) => !Object.hasOwn(files, x.rel))) {
+    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+    fs.symlinkSync(text, path.join(root, rel));
+  }
+}
+
+/**
+ * The package at `dir`, as npm installs it there: its package.json, its bin and every pointer target
+ * (`skills/<name>/SKILL.md`, `hosts/claude/workflows/<name>.js`), untracked, git told
+ * to ignore it.
+ */
 function installPackage(dir) {
-  writeAll(dir, { 'node_modules/cookwright/bin/cookwright.mjs': '' });
+  const targets = Object.fromEntries(
+    POINTERS.map(({ inPackage }) => [`node_modules/cookwright/${inPackage}${inPackage.endsWith('.js') ? '' : '/SKILL.md'}`, '']),
+  );
+  writeAll(dir, { 'node_modules/cookwright/package.json': '{}', 'node_modules/cookwright/bin/cookwright.mjs': '', ...targets });
   const exclude = run(dir, 'git', ['rev-parse', '--git-path', 'info/exclude']);
   fs.mkdirSync(path.dirname(path.resolve(dir, exclude)), { recursive: true });
   fs.appendFileSync(path.resolve(dir, exclude), 'node_modules\n');
@@ -73,14 +96,16 @@ function installPackage(dir) {
 
 let n = 0;
 /**
- * A healthy Level 0 repo, `files` overriding (null deletes) before the commit, with
- * core.hooksPath set locally to `hooksPath` (null: unset) and the package installed.
+ * A healthy Level 0 repo, `files` overriding (null deletes; a pointer's path too)
+ * before the commit, with the pointers committed, core.hooksPath set locally to
+ * `hooksPath` (null: unset) and the package installed.
  */
 function level0(files = {}, config = null, { hooksPath = '.githooks' } = {}) {
   const repo = scratchRepo(TMP, `r${(n += 1)}`);
   const all = { ...LEVEL0_FILES, ...files };
   if (config) all['cookwright.json'] = JSON.stringify({ version: CONFIG_VERSION, ...config });
   writeAll(repo.root, all);
+  writePointers(repo.root, files);
   commit(repo, {}, 'level 0');
   installPackage(repo.root);
   if (hooksPath) run(repo.root, 'git', ['config', '--local', 'core.hooksPath', hooksPath]);
@@ -98,8 +123,9 @@ const write = (root, rel, body) => {
 };
 
 describe('a Level 0 repo', () => {
-  it('passes every check', () => {
+  it('passes every check, seventeen of them', () => {
     const rows = doctor(level0());
+    expect(Object.keys(rows)).toHaveLength(17);
     for (const [name, r] of Object.entries(rows)) expect([name, r.status]).toEqual([name, 'PASS']);
     expect(rows.config.note).toBe(m.config.ok(0));
     expect(rows.git.note).toBe(m.git.ok('main'));
@@ -299,6 +325,129 @@ describe('host.rules', () => {
     });
     write(parent, 'CLAUDE.md', '# above\n');
     expect(rules(root, { home: parent }).note).toBe(m.hostRules.shadowed(['../CLAUDE.md'], '@AGENTS.md'));
+  });
+});
+
+describe('host.pointers', () => {
+  const pm = m.pointers;
+  const SKILL = POINTERS.find((x) => x.rel.startsWith('.claude/skills/'));
+  const skills = POINTERS.filter((x) => x.rel.startsWith('.claude/skills/')).length;
+  const LEVEL0_SKILL = [{ kind: 'skill', name: 'setup', file: 'setup', level: 0 }];
+  const check = (root, io = {}, p = probes()) => checkPointers(openDoctorRepo(root, p, { home: TMP }), p, io);
+  const link = (root, rel, text) => {
+    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+    fs.symlinkSync(text, path.join(root, rel));
+  };
+
+  it('PASSes every pointer of ours that resolves, with the counts', () => {
+    expect(doctor(level0())['host.pointers']).toEqual({
+      status: 'PASS',
+      note: pm.counts('claude', skills, POINTERS.length - skills),
+    });
+    expect(pm.counts('claude', 1, 2)).toBe('claude: 1 skill, 2 workflows');
+  });
+
+  it('FAILs a missing Level 0 pointer as drift, and WARNs a missing Level 2 one at level 0', () => {
+    const root = level0();
+    expect(check(root, { shipped: () => LEVEL0_SKILL })).toEqual({
+      status: 'FAIL',
+      note: pm.named('claude', pm.missing('.claude/skills/setup')),
+    });
+    expect(pm.missing('.claude/skills/setup')).toBe('.claude/skills/setup missing (run npx cookwright init)');
+    const rows = runChecks(openDoctorRepo(root, probes(), { home: TMP }), probes()).map(([name, r]) =>
+      name === 'host.pointers' ? [name, check(root, { shipped: () => LEVEL0_SKILL })] : [name, r],
+    );
+    expect(levelLine(DEFAULTS, rows)).toBe('level 0 declared: drift, 1 piece(s) missing: host.pointers');
+
+    const r = doctor(level0({ [SKILL.rel]: null }))['host.pointers'];
+    expect(r).toEqual({ status: 'WARN', note: pm.named('claude', pm.notRequired(SKILL.name, 2, 0)) });
+    expect(pm.notRequired('bundle', 2, 0)).toBe('bundle (Level 2) not required at level 0; run npx cookwright init to add it');
+  });
+
+  it('reads a Level 2 pointer missing as weak, the level complete', () => {
+    const out = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((...a) => out.push(a.join(' ')));
+    try {
+      expect(main([], { cwd: level0({ [SKILL.rel]: null }), home: TMP, probes: probes() })).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(out).toContain('level 0 declared: complete; weak: host.pointers');
+  });
+
+  it('WARNs a pointer of ours whose target is not installed', () => {
+    const root = level0();
+    fs.rmSync(path.join(root, 'node_modules/cookwright', SKILL.inPackage), { recursive: true });
+    expect(doctor(root)['host.pointers']).toEqual({ status: 'WARN', note: pm.named('claude', pm.notInstalled(SKILL.rel)) });
+    expect(pm.notInstalled('.claude/skills/x')).toBe('.claude/skills/x: not installed where it points (npm install)');
+  });
+
+  it('WARNs an untracked pointer git ignores, naming git add -f; PASSes an untracked one it does not', () => {
+    const ignoredRoot = level0({ ...Object.fromEntries(POINTERS.map(({ rel }) => [rel, null])), '.gitignore': `${LEVEL0_FILES['.gitignore']}.claude/skills/\n` });
+    for (const { rel, text } of POINTERS) link(ignoredRoot, rel, text);
+    expect(doctor(ignoredRoot)['host.pointers']).toEqual({ status: 'WARN', note: pm.named('claude', pm.ignored(SKILL.rel)) });
+    expect(pm.ignored('.claude/skills/x')).toBe('.claude/skills/x is ignored by git; git add -f .claude/skills/x to track it');
+    const plain = level0(Object.fromEntries(POINTERS.map(({ rel }) => [rel, null])));
+    for (const { rel, text } of POINTERS) link(plain, rel, text);
+    expect(doctor(plain)['host.pointers'].status).toBe('PASS');
+  });
+
+  it('FAILs an earlier pointer, by its text', () => {
+    const root = level0({ [SKILL.rel]: null });
+    link(root, SKILL.rel, '../../old/place/bundle');
+    expect(check(root, { past: ['../../old/place/bundle'] })).toEqual({ status: 'FAIL', note: pm.named('claude', pm.past(SKILL.rel)) });
+    expect(check(root)).toEqual({ status: 'WARN', note: pm.named('claude', pm.theirsLink(SKILL.rel, SKILL.name)) });
+  });
+
+  it('WARNs the user’s own link, file or directory, and a linked parent, naming each', () => {
+    const elsewhere = fs.mkdtempSync(path.join(TMP, 'own-'));
+    const theirLink = level0({ [SKILL.rel]: null });
+    link(theirLink, SKILL.rel, elsewhere);
+    expect(doctor(theirLink)['host.pointers']).toEqual({ status: 'WARN', note: pm.named('claude', pm.theirsLink(SKILL.rel, SKILL.name)) });
+    const theirDir = level0({ [SKILL.rel]: null, [`${SKILL.rel}/SKILL.md`]: 'mine' });
+    expect(doctor(theirDir)['host.pointers']).toEqual({ status: 'WARN', note: pm.named('claude', pm.theirs(SKILL.rel, SKILL.name)) });
+    const linkedParent = level0({ [SKILL.rel]: null });
+    fs.rmSync(path.join(linkedParent, '.claude/skills'), { recursive: true, force: true });
+    link(linkedParent, '.claude/skills', elsewhere);
+    expect(doctor(linkedParent)['host.pointers']).toEqual({
+      status: 'WARN',
+      note: pm.named('claude', pm.linkedParent('.claude/skills', SKILL.name)),
+    });
+  });
+
+  it('WARNs a missing pointer on Windows, whatever its level', () => {
+    const root = level0();
+    expect(check(root, { shipped: () => LEVEL0_SKILL, platform: 'win32' })).toEqual({
+      status: 'WARN',
+      note: pm.named('claude', pm.windows('.claude/skills/setup')),
+    });
+  });
+
+  it('WARNs a pointer of ours left dangling where the package is installed elsewhere, naming init', () => {
+    const top = gitInit(path.join(TMP, `nested${(n += 1)}`));
+    const app = path.join(top, 'apps/mobile');
+    write(app, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION }));
+    installPackage(top);
+    for (const p of POINTERS) link(top, p.rel, `../../apps/mobile/${path.posix.relative('../..', p.text)}`);
+    const r = check(app);
+    expect(r.status).toBe('WARN');
+    expect(r.note).toBe(POINTERS.map((p) => pm.named('claude', pm.misdirected(`../../${p.rel}`))).join('; '));
+  });
+
+  it('names what is not PASS worst first, every host joined', () => {
+    const root = level0({ [SKILL.rel]: null });
+    const shipped = (host) => (host === 'claude' ? [...LEVEL0_SKILL, ...shippedPieces(host)] : []);
+    const r = check(root, { shipped });
+    expect(r.status).toBe('FAIL');
+    expect(r.note).toBe(
+      [pm.named('claude', pm.missing('.claude/skills/setup')), pm.named('claude', pm.notRequired(SKILL.name, 2, 0))].join('; '),
+    );
+    const two = level0({}, { hosts: ['claude', 'codex'] });
+    const both = checkPointers(openDoctorRepo(two, probes(), { home: TMP }), probes());
+    expect(both).toEqual({
+      status: 'PASS',
+      note: [pm.counts('claude', skills, POINTERS.length - skills), pm.counts('codex', 0, 0)].join('; '),
+    });
   });
 });
 
@@ -628,10 +777,10 @@ describe('the readout', () => {
 
   it('prints every check, the counts, the level line and the next level', () => {
     expect(doc(level0())).toBe(0);
-    expect(out).toHaveLength(20);
+    expect(out).toHaveLength(21);
     expect(out[0]).toBe(`PASS  ${'config'.padEnd('hooks.pre-commit'.length)}  ${m.config.ok(0)}`);
     expect(out.slice(-3)).toEqual([
-      '16 checks — 16 PASS, 0 FAIL, 0 WARN, 0 SKIP',
+      '17 checks — 17 PASS, 0 FAIL, 0 WARN, 0 SKIP',
       'level 0 declared: complete',
       'next: Level 1 is not available in this version of cookwright',
     ]);
@@ -645,7 +794,7 @@ describe('the readout', () => {
   it('names what is weak or unverified, and still reads complete', () => {
     expect(doc(level0({}, { baseBranch: 'trunk' }), [], { claudeVersion: () => null })).toBe(0);
     expect(out).toContain('level 0 declared: complete; weak: git; unverified: host.rules');
-    expect(out).toContain('16 checks — 14 PASS, 0 FAIL, 1 WARN, 1 SKIP');
+    expect(out).toContain('17 checks — 15 PASS, 0 FAIL, 1 WARN, 1 SKIP');
   });
 
   it('reads a version-1 config as weak, not drift', () => {
@@ -711,7 +860,7 @@ describe('--hook', () => {
     expect(hook(level0({ '.claude/settings.json': null }))).toBe(0);
     expect(out).toEqual([
       `FAIL  host.hook  ${m.hostHook.none('.claude/settings.json')}`,
-      'cookwright doctor: 16 checks — 15 PASS, 1 FAIL, 0 WARN, 0 SKIP',
+      'cookwright doctor: 17 checks — 16 PASS, 1 FAIL, 0 WARN, 0 SKIP',
       'level 0 declared: drift, 1 piece(s) missing: host.hook',
     ]);
   });

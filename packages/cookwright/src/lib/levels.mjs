@@ -19,6 +19,7 @@ export const LEVELS = Object.freeze({
       'rules.block',
       'host.rules',
       'host.hook',
+      'host.pointers',
       'hooks.path',
       'hooks.pre-commit',
       'hooks.pre-push',

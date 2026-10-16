@@ -30,7 +30,7 @@ The repo's own harness config (this file, the hooks, the bundle runner, `docs/de
 - `docs/dev/closeouts/` — one past-tense file per shipped bundle.
 - `docs/dev/bundles/` — bundle state, written only by the runner.
 
-<!-- cookwright:begin rules v2 -->
+<!-- cookwright:begin rules v3 -->
 This block is managed by cookwright. `npx cookwright init` refreshes it from the package, so an edit between the markers is lost on the next refresh. Your own rules go outside the markers, above or below.
 
 ## State homes
@@ -60,7 +60,7 @@ When `npx cookwright init` has installed the hooks (`.githooks/`): pre-commit sc
 
 ## Session start
 
-`cookwright doctor` runs at session start and its readout is in your context. Deal with a FAIL before any other work. A WARN names its next step: take it, or log it in the backlog. If no doctor line reached you, run `npx cookwright doctor`.
+`cookwright doctor` runs at session start and its readout is in your context. Deal with a FAIL before any other work. A WARN names its next step: take it, or log it in the backlog. If no doctor line reached you, run `npx cookwright doctor`. On a FAIL whose line does not clear it, on an update, or when the developer asks, the `setup` skill walks doctor's readout.
 
 ## Secrets
 

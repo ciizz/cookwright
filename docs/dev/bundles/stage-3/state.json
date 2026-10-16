@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 137,
+  "revision": 139,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -415,7 +415,7 @@
     },
     {
       "name": "fix:whole",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -423,11 +423,15 @@
           "stateRevision": 133,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_db559cbc-2fb"
+          "runId": "wf_db559cbc-2fb",
+          "endedAt": "2026-10-16T10:09:01.518Z",
+          "turnOutputTokens": 981498
         }
       ],
       "startCommit": "e70096d1171465a0cb5c4e2d447aa5dd47ee1c7f",
-      "range": null
+      "range": null,
+      "endCommit": "77d16e77aabf6ce3dbc7f6d7c9fd2ac58e04c5ed",
+      "endCode": "94242a824b279f5481797a654a1bf94f0385ea1e"
     },
     {
       "name": "qa",
@@ -1187,6 +1191,13 @@
       "actor": "orchestrator",
       "source": "review:whole findings, 2026-10-16",
       "text": "fix:whole applies: finding 0 (rule 3: the expected pointer inventory comes from the static SKILLS table plus the host adapter's shipped workflows, and a declared skill whose SKILL.md is absent from the installed package is FAIL 'package damaged … (npm install)', never a silent PASS; test with skills/setup/SKILL.md removed from the fake install); finding 2 (rule 3: a Codex hook identity is command and matcher for every copy: doctor WARNs when any copy sits under another matcher even beside a correct one, and init moves or removes the duplicates; a mixed-matchers test); finding 3 (rule 1: the whole link write, the unlink, the mkdir and the symlink, sits inside the handler, so an EACCES is the one 'not written' line and init goes on); finding 4 (rule 1: a pointer is replaced through a temporary sibling link renamed over it, the old link surviving a failed replacement); finding 5 (rule 3: README Updating step 2 says the first update after this release runs npx cookwright init, which writes the setup pointer, and the setup skill walks the readout from the next session; the setup skill's description keeps 'after updating' since it holds once init has run; the QA leg deviates from plan §8 accordingly: doctor's three lines, migrate and init by hand or by the session's agent from the FAIL lines, then a new session running /setup to complete, recorded as the round's notes); finding 6 (rule 3: the rules files hashed into every prompt come from the host the bundle runs in, the first configured host with workflows, with a test for hosts [codex, claude] asserting CLAUDE.md in args.rules); finding 7 (rule 3 and rule 2: Codex host.hook WARNs when the config root is below the work tree's top, since the hook runs doctor from the top and finds no config there, naming B-002; the README's Codex paragraph and B-002's line name the Codex hook beside Claude's); finding 8 (rule 3: the README's shadowing bullet is narrowed to the project path doctor reads and says a personal ~/.claude/skills/setup would also win, unreported and unmeasured). Finding 1 was rejected by the verifier (the README's release block is a user's app repo's). P3s are fixed here because each is small and the fix session is already open; none blocks.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T10:09:01.183Z",
+      "actor": "orchestrator",
+      "source": "fix:whole report and open question, 2026-10-16",
+      "text": "Rule 3: accepted as built over the review disposition for finding 0: an installed package missing a declared skill's SKILL.md reads host.pointers WARN 'not installed where it points (npm install)' rather than FAIL 'package damaged', since the line names the one remedy and a skill pointer counts as resolving only when its SKILL.md exists; the inventory comes from the SKILLS table. Accepted as built: the Codex stray-matcher WARN and init removing the copies; the atomic pointer replacement through a sibling link and rename with every failure reported on one line; the rules files from the host the bundle runs in; the Codex nested-root WARN naming B-002; the README's Updating and shadowing text; E-037 (a doctor WARN for a personal skill of the same name once the precedence is measured). The QA leg's deviation from plan §8 was recorded with the review:whole dispositions (finding 5): migrate and init first, then /setup in a new session. The four fix:whole strings go to the developer with the whole-branch batch.",
       "claim": true
     }
   ],

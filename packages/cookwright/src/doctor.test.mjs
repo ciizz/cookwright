@@ -393,6 +393,20 @@ describe('host.pointers', () => {
     expect(doctor(plain)['host.pointers'].status).toBe('PASS');
   });
 
+  it('never asks git whether a pointer is ignored when git cannot answer', () => {
+    const ignored = () => {
+      throw new Error('spawnSync git ENOENT');
+    };
+    const noGit = probes({ hasTool: (t) => t !== 'git', ignored });
+    expect(doctor(level0(), { probes: noGit })['host.pointers'].status).toBe('PASS');
+    const outside = path.join(TMP, `outside${(n += 1)}`);
+    write(outside, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION }));
+    writeAll(outside, { 'node_modules/cookwright/package.json': '{}' });
+    writePointers(outside);
+    for (const { inPackage } of POINTERS) write(outside, `node_modules/cookwright/${inPackage}${inPackage.endsWith('.js') ? '' : '/SKILL.md'}`, '');
+    expect(check(outside, {}, probes({ ignored })).status).toBe('PASS');
+  });
+
   it('FAILs an earlier pointer, by its text', () => {
     const root = level0({ [SKILL.rel]: null });
     link(root, SKILL.rel, '../../old/place/bundle');

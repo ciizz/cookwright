@@ -126,7 +126,11 @@ function tracked(repo, rels) {
   return new Set(r.stdout.split('\0').filter(Boolean));
 }
 
-/** One pointer's verdict. `untracked` holds the top-relative paths git does not track. */
+/**
+ * One pointer's verdict. `untracked` holds the top-relative paths git does not track;
+ * it is empty when tracking cannot be read (no git, no work tree), so the ignored
+ * probe never runs where git cannot answer (rule: every piece is optional).
+ */
 function judge(p, { level, platform, untracked, probes, top }) {
   if (p.state === 'none') {
     if (platform === 'win32') return warn(m.windows(p.rel));
@@ -161,8 +165,9 @@ export function checkPointers(repo, probes, { platform = process.platform, ...io
   const byHost = repo.config.hosts.map((host) => [host, hostPointers(repo, host, io)]);
   const all = byHost.flatMap(([, ps]) => ps);
   const ours = all.filter((p) => p.state === 'ours' && p.resolves).map((p) => p.fromTop);
-  const known = tracked(repo, ours);
-  const untracked = new Set(ours.filter((rel) => !known.has(rel)));
+  const gitReads = repo.hasGit && repo.workTree;
+  const known = gitReads ? tracked(repo, ours) : null;
+  const untracked = new Set(gitReads ? ours.filter((rel) => !known.has(rel)) : []);
   const ctx = { level: repo.config.level, platform, untracked, probes, top };
   const verdicts = all.map((p) => ({ p, v: judge(p, ctx) }));
   const open = verdicts.filter(({ v }) => v.status !== PASS).sort((a, b) => RANK[a.v.status] - RANK[b.v.status]);

@@ -177,9 +177,9 @@ const real = (p) => {
   }
 };
 
-/** The work tree's top from the config root, POSIX, empty when they are one directory. */
-export const upToTop = ({ root, top = root }) =>
-  path.relative(real(root), real(top)).split(path.sep).join('/');
+/** The work tree's top from the config root, POSIX, empty when they are one directory or there is no top (no git). */
+export const upToTop = ({ root, top }) =>
+  path.relative(real(root), real(top ?? root)).split(path.sep).join('/');
 
 /**
  * The installed package, relative to the config root: its own `node_modules`, else

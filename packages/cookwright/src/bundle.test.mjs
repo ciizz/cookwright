@@ -54,7 +54,16 @@ import {
   lockPath,
   probePid,
 } from './lib/rig-lock.mjs';
-import { commit, gitInit, run, scratchRepo as scratchRepoIn, scratchRoot } from './test-helpers.mjs';
+import { sha256File } from './lib/bundle/state.mjs';
+import {
+  PACKAGE,
+  commit,
+  gitInit,
+  linkPackage,
+  run,
+  scratchRepo as scratchRepoIn,
+  scratchRoot,
+} from './test-helpers.mjs';
 
 const TMP = scratchRoot('bundle-test-');
 // These repos keep their own playbook (`paths.playbook`, written by each test as
@@ -1236,5 +1245,98 @@ describe('the CLI', () => {
     const stored = JSON.parse(fs.readFileSync(path.join(bdir, 'findings/plan-review-2.json'), 'utf8'));
     expect(stored.issues[0].evidence).toBe(decided.decisions.at(-1).text);
     expect(cli('status', 'paths')).toBe(0);
+  });
+});
+
+// ── the package's playbook and the workflow pointer ──────────────────────────
+
+describe('the package’s playbook and the workflow pointer', () => {
+  const logs = [];
+  const errors = [];
+  let spies;
+  beforeAll(() => {
+    spies = [
+      vi.spyOn(console, 'log').mockImplementation((...a) => logs.push(a.join(' '))),
+      vi.spyOn(console, 'error').mockImplementation((...a) => errors.push(a.join(' '))),
+    ];
+  });
+  afterAll(() => spies.forEach((s) => s.mockRestore()));
+  afterEach(() => {
+    logs.length = 0;
+    errors.length = 0;
+  });
+
+  const PACKAGE_PLAYBOOK = sha256File(path.join(PACKAGE, 'docs/playbook.md'));
+
+  /**
+   * A bundle `demo` on its branch with plan-review running, its config at `rel`
+   * below the work tree top (`config` merged in), driven by the CLI from there.
+   */
+  function runningBundle(name, { rel = '', config = {}, link = () => {} } = {}) {
+    const top = gitInit(path.join(TMP, name));
+    const root = path.join(top, rel);
+    fs.mkdirSync(root, { recursive: true });
+    fs.writeFileSync(path.join(root, 'cookwright.json'), JSON.stringify({ version: 1, ...config }));
+    link({ top, root });
+    commit({ root: top }, { [path.posix.join(rel, 'CLAUDE.md')]: 'rules' }, 'main');
+    run(top, 'git', ['checkout', '-q', '-b', 'bundle/demo']);
+    const plan = path.join(TMP, `${name}-plan.md`);
+    const split = path.join(TMP, `${name}-split.json`);
+    fs.writeFileSync(plan, 'the plan');
+    fs.writeFileSync(split, JSON.stringify({ slices: [{ id: 'core', sessions: [{ id: 's1', scope: '§1' }] }] }));
+    const cli = (...argv) => main(argv, { cwd: root });
+    expect(cli('init', 'demo', '--plan', plan, '--split', split)).toBe(0);
+    commit({ root: top }, {}, 'chore(bundle): demo initialized');
+    expect(cli('phase', 'demo', 'start', 'plan-review')).toBe(0);
+    logs.length = 0;
+    return { top, root, cli };
+  }
+
+  const argsOf = (cli) => {
+    expect(cli('args', 'demo', 'plan-review')).toBe(0);
+    return JSON.parse(logs.at(-1));
+  };
+
+  it('points args at the installed package’s playbook through node_modules, with its hash', () => {
+    const { cli } = runningBundle('pkg-root', { link: ({ root }) => linkPackage(root) });
+    expect(argsOf(cli).playbook).toEqual({
+      path: 'node_modules/cookwright/docs/playbook.md',
+      sha: PACKAGE_PLAYBOOK,
+    });
+  });
+
+  it('reads a package hoisted to the top from a nested config root, and status agrees', () => {
+    const { top, cli } = runningBundle('pkg-hoisted', {
+      rel: 'apps/mobile',
+      link: ({ top: t }) => linkPackage(t),
+    });
+    expect(argsOf(cli).playbook).toEqual({
+      path: '../../node_modules/cookwright/docs/playbook.md',
+      sha: PACKAGE_PLAYBOOK,
+    });
+    expect(cli('status', 'demo')).toBe(0);
+    const next = logs.filter((l) => /^(next|note) /.test(l)).join('\n');
+    expect(next).toMatch(
+      /^next {5}: Workflow\(\{ name: 'bundle-phase', args: <output of `npx cookwright bundle args demo plan-review`> \}\)/,
+    );
+    expect(next).toMatch(/\nnote {5}: run init: the workflow pointer \.\.\/\.\.\/\.claude\/workflows\/bundle-phase\.js is missing$/);
+    // With the pointer at the top, the note goes.
+    fs.mkdirSync(path.join(top, '.claude/workflows'), { recursive: true });
+    fs.symlinkSync('../../node_modules/cookwright/hosts/claude/workflows/bundle-phase.js', path.join(top, '.claude/workflows/bundle-phase.js'));
+    logs.length = 0;
+    expect(cli('status', 'demo')).toBe(0);
+    expect(logs.join('\n')).not.toMatch(/run init/);
+    expect(fs.existsSync(path.join(top, '.claude/workflows/bundle-phase.js'))).toBe(true); // resolves
+  });
+
+  it('prefers the config root’s own install to the top’s', () => {
+    const { cli } = runningBundle('pkg-both', {
+      rel: 'apps/mobile',
+      link: ({ top, root }) => {
+        linkPackage(top);
+        linkPackage(root);
+      },
+    });
+    expect(argsOf(cli).playbook.path).toBe('node_modules/cookwright/docs/playbook.md');
   });
 });

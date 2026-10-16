@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 115,
+  "revision": 117,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -329,7 +329,7 @@
     },
     {
       "name": "implement:s7",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -337,11 +337,15 @@
           "stateRevision": 111,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_95cfe734-50b"
+          "runId": "wf_95cfe734-50b",
+          "endedAt": "2026-10-16T09:34:40.604Z",
+          "turnOutputTokens": 832437
         }
       ],
       "startCommit": "5feeb69f7f2691d2f6e5a8a0d65ad15d6c1323dc",
-      "range": null
+      "range": null,
+      "endCommit": "f814cf33d858a2be4bd6a3611262b826e21cc8a3",
+      "endCode": "2999c153ff47486ea872f4d7a25d3fe506ef3c7b"
     },
     {
       "name": "review:ci",
@@ -1023,6 +1027,13 @@
       "actor": "orchestrator",
       "source": "fix:setup report and open question, 2026-10-16",
       "text": "No history rewrite (the playbook: never rebase a running bundle; the state names those ids; the split lay inside one unmerged branch and the new doc-sync rule prevents the next one). Rule 6, over the review disposition: the 'setup' doc-sync rule in this repo's cookwright.json (the setup skill and the managed block need README.md staged) is accepted as built rather than backlogged, since it is config of this repo, ten lines, and the fix session measured it on its own commits. Rule 8: two commits carried COOKWRIGHT_SKIP=doc-sync with their reasons; one message-only amend carried COOKWRIGHT_SKIP=doc-sync,secrets without a reason in its message, on a tree identical to the commit that had just passed both checks, noted here as the trace the escape itself leaves none of. Accepted as built: the loop's new step 4 (a remedy that does not clear its line stops the loop, an init refusal naming a file makes that fix the next remedy), the 'At the end' pass over the PASS lines that carry advice, the B-010 row, the Windows row matching the 'your own' line on Windows and E-029's note, the fragment test pairing the recipe's quoted notes with the messages. The eleven fix:setup strings (the loop's steps, the three rows, the README's First run steps, the Windows bullet, the Developing line) go to the developer with the s5 batch.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T09:34:40.339Z",
+      "actor": "orchestrator",
+      "source": "implement:s7 open questions, 2026-10-16 (the developer's amendment 1)",
+      "text": "Property 3 and rule 3: the fixture pins two versions, not one: create-expo-app@5.0.0 and the template expo-template-blank-typescript@58.0.21, both printed on the script's first line and bumped by hand, because the CLI alone resolves --template blank-typescript to whatever the template's latest is, and an Expo SDK release would turn CI red through it. Read as the amendment's intent (a harness CI never goes red on an upstream release); the developer may amend. Measured from the registry on 2026-10-16: the pinned and the floating scaffolds were byte-identical. Accepted as built: the fixture job runs Node 22 because Expo 58 requires it, the test matrix keeps Node 20 and 22; the script's extra assertions (a second init leaves the tree clean; init kept the scaffold's AGENTS.md text, the overlay's rule and the scaffold's settings) are measured facts the review may cut; AGENTS.md's Layout gained a line for scripts/ci/ and ci.yml under the doc-sync rule; the scaffold's --no-agents-md path is not exercised. The actions are pinned by commit (checkout v7.0.1, setup-node v7.0.0) and gitleaks by version and sha256 recomputed on the tarball. ci.workflow stays unset (disposition 8); E-014's line is narrowed as plan §9 says. The s7 strings (the fixture's lines, the overlay's rule, the job names, the Layout line) go to the developer in one batch.",
       "claim": true
     }
   ],

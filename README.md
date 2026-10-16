@@ -28,7 +28,7 @@ The package's skills (`setup`; `bundle`, Level 2 and experimental) and Claude Co
 
 - **A fresh clone** has the links but not their targets until `npm install`; doctor reads them as weak (`not installed where it points`) until then.
 - **A local install under `node_modules` only.** The links do not resolve with yarn Plug'n'Play or a global install.
-- **Windows** is not supported in this version: git checks a symbolic link out as a text file unless `core.symlinks` is on, and doctor reports a missing pointer there as weak, naming why.
+- **Windows** is not supported in this version: git checks a symbolic link out as a text file unless `core.symlinks` is on, and doctor then reads a committed pointer as a file of your own (`is your own; it shadows cookwright's …`). Only a pointer init could not write reads as weak naming Windows (backlog item E-029).
 - **A skill of your own with the same name** (a directory or a link of yours at `.claude/skills/setup`) wins. init leaves it alone and doctor says that cookwright's is unreachable under that name.
 - **A Level 2 pointer you do not want** (`bundle`, the workflows): removing it reads as weak, not drift, at Level 0, and the next `npx cookwright init` writes it back.
 

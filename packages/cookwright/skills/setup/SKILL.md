@@ -94,8 +94,8 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | WARN | `…: not installed where it points (npm install)` | `npm install` |
 | WARN | `… is ignored by git; git add -f … to track it` | with consent, the `git add -f <path>` the line names |
 | WARN | `… (Level 2) not required at level 0 …` | **stop at**: a Level 2 piece they removed; say `npx cookwright init` would write it back |
+| WARN | `… missing: pointers are symbolic links, which cookwright does not support on Windows …`; on Windows also `… is your own; it shadows cookwright's …` for a pointer the repo commits (git checked the link out as a text file) | **stop at**: explain that Windows is not supported in this version; cookwright's backlog tracks it as E-029 |
 | WARN | `… is your own link …`, `… is your own; it shadows cookwright's …`, `… is a link of yours …` | **stop at**: explain that cookwright's skill or workflow is unreachable under that name while theirs is there |
-| WARN | `… missing: pointers are symbolic links, which cookwright does not support on Windows …` | **stop at**: explain; cookwright's backlog tracks it as E-029 |
 
 ### Git hooks
 

@@ -1,0 +1,45 @@
+{
+  "phase": "plan-review",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.5 lines 86-89",
+      "problem": "The 'each non-PASS line' recipe is incomplete and sometimes host-wrong: no coverage of invalid/non-integer config versions, user-owned pointer conflicts, linked pointer parents, other pointer WARN states; 'host.rules shadowed -> README import paragraph' is a Claude remedy, not for Codex AGENTS.override.md.",
+      "severity": "P2",
+      "suggested_fix": "Make the recipe exhaustive by check, status/subreason and host, with explicit 'chosen state; explain and stop' outcomes and remediation or escalation for every emitted doctor variant.",
+      "failure_scenario": "A Codex repo with AGENTS.override.md is told to add a Claude @AGENTS.md import which cannot clear the warning; other non-PASS states get no action.",
+      "verdict": "rejected",
+      "evidence": "Resolved by disposition 25 and §4.5 lines 105-109. The table now names every variant re-check 1 listed: `rules.block` newer (npm install cookwright@latest, ask first) and malformed (repair the markers by hand with consent), `host.rules` old Claude Code (init writes the import), `host.hook` invalid JSON (repair by hand with consent), `git` WARN base branch missing, the Codex `host.hook` wrong-matcher WARN (init), and `host.pointers` not required at level 0 (a chosen state: explain and stop). Codex override is a separate chosen state from Claude shadowed. Line 109 adds a catch-all: 'Any line the table does not name → show it, say the table has no recipe for it, stop', so every line doctor emits now gets a defined action."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "§4.4 line 78; §6 line 119",
+      "problem": "Graceful handling of filesystems refusing symlinks conflicts with the planned doctor verdict: init continues but doctor reports the missing pointer as FAIL on non-Windows.",
+      "severity": "P2",
+      "suggested_fix": "Define a durable way to distinguish unsupported symlinks from ordinary drift, or narrow the support claim and backlog it. Test final init exit code and subsequent doctor behavior.",
+      "failure_scenario": "On a filesystem without symlink support, init does other writes then exits nonzero because doctor sees drift the user cannot clear; later doctor runs keep failing, violating 'every piece optional'.",
+      "verdict": "rejected",
+      "evidence": "Resolved by disposition 26 and §9 'Backlog, opened' (g): 'a non-Windows filesystem that refuses symbolic links (exFAT, some network mounts): init reports the refused link and doctor FAILs host.pointers there with no way to clear it, a bug by rule 2, to be fixed with a durable marker or a non-link pointer form'. The narrowed claim now has its stable backlog id. One stale clause is left: §4.4 line 95 and disposition 19 still say 'only Windows is backlogged for it', which contradicts §9 (g). That is a wording fix for the implementer, not the original defect."
+    },
+    {
+      "file": "docs/dev/bundles/stage-3/plan.md",
+      "location": "Host description line 14; §4.4 lines 65 and 80",
+      "problem": "Codex rules check looks only for AGENTS.override.md beside root AGENTS.md, contradicting the stated directory-walk behavior; a nearer override between invocation dir and root is ignored.",
+      "severity": "P2",
+      "suggested_fix": "Scan from invocation directory through the config/work-tree root for override files, report root-relative names, and test a nested invocation directory.",
+      "failure_scenario": "apps/mobile/AGENTS.override.md overrides root instructions for a session started there while doctor reports host.rules PASS.",
+      "verdict": "rejected",
+      "evidence": "Resolved as a declared, backlogged limit (disposition 27, §4.4 line 82, §9 (h)). The check walks from the invocation directory up through the root (§4.4 line 97, tested at §6 line 147 with a nested invocation directory). The plan now says plainly that the Codex hook enters the top first, so its session-start readout misses a subdirectory override. It names a by-hand `npx cookwright doctor` run in that subdirectory as the way to catch one, and backlogs `doctor --from <dir>` as (h). The plan meets the backlog discipline by logging the gap instead of fixing it here. One gap is left: §4.4 says the README's Codex paragraph states this limit, but §7.5's spec for that paragraph lists only `.agents/skills/`, `.codex/hooks.json` and `/hooks`. s5 should add the limit sentence to it."
+    }
+  ],
+  "checked": [
+    "§4.5 lines 86-89",
+    "§4.4 line 78; §6 line 119",
+    "Host description line 14; §4.4 lines 65 and 80"
+  ],
+  "notes": "I re-checked the 3 non-rejected issues (indices 6, 9, 11) from plan-review-2.json against plan.md (sha256 prefix 7d646aca1932a037 verified). All 3 are resolved by dispositions 25-27 and §9 (g), (h). Two stale wording leftovers do not reopen any finding. First, §4.4 line 95 and disposition 19 still say 'only Windows is backlogged', which contradicts §9 (g). Second, §7.5's README Codex paragraph does not list the top-of-tree readout limit that §4.4 says the README states.",
+  "timedOut": false,
+  "incomplete": [],
+  "recheckOf": "docs/dev/bundles/stage-3/findings/plan-review-2.json"
+}

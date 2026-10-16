@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 42,
+  "revision": 44,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -271,6 +271,24 @@
       "at": "2026-10-16T07:30:57.390Z",
       "stored": true,
       "head": "be7bf23a746c38f974a59d4c7dc07516cafc5a53"
+    },
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-3/findings/plan-review-3.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 0,
+        "rejected": 3,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      },
+      "at": "2026-10-16T07:33:59.155Z",
+      "stored": true,
+      "head": "f5b418335f54c538a17c4beaaf77070dc0abf306"
     }
   ],
   "reports": [],
@@ -498,6 +516,13 @@
       "actor": "orchestrator",
       "source": "plan-review re-check 1, finding 11 (disposition 27)",
       "text": "Rule 3 and rule 6: the Codex hook enters the work tree's top before running doctor, so its session-start readout judges from the top and misses an AGENTS.override.md in a subdirectory the session started in; the limit is stated in plan §4.4 and the README's Codex paragraph, and doctor --from <dir> is backlogged (plan §9 h), wanted once.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:34:26.491Z",
+      "actor": "orchestrator",
+      "source": "plan-review re-check 2 notes, 2026-10-16",
+      "text": "Rule 3: re-check 2 judged every finding resolved (30 of 30) and named two wording leftovers that reopen nothing; both are fixed in the plan after the record, without a further run: disposition 19 and §4.4 now point at §9 (g) beside the Windows item instead of 'only Windows is backlogged', and §7.5's README Codex paragraph carries the disposition-27 limit. The implement sessions read the plan at its current sha.",
       "claim": true
     }
   ],

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 7,
+  "revision": 20,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -250,6 +250,97 @@
       "actor": "developer",
       "source": "chat 2026-10-16, plan approval (amendment 2, plan §7/§8)",
       "text": "The README's Releases section carries the exact release order and §8's developer's-hands list follows it: npm version X.Y.Z --no-git-tag-version, commit; git tag -a vX.Y.Z -m 'released: YYYY-MM-DD' plus note: lines; npx cookwright changelog, commit; git push --follow-tags (pre-push runs the gate and the changelog check); npm publish. The first release after this bundle is 0.1.0.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:48.386Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 1",
+      "text": "Rule 4: the host adapters and the playbook move into the package (packages/cookwright/hosts/, packages/cookwright/docs/playbook.md, packages/cookwright/skills/): logic is imported from the package and the package is the tarball. The charter's 'one monorepo, one version number' stands; AGENTS.md's Layout follows the move.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:48.445Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 2",
+      "text": "Rule 5 and rule 4: paths.playbook becomes optional; absent means the package's own copy. A stored copy of the playbook in a user repo rots; a user who writes their own keeps the key, a chosen state.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:48.496Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 3",
+      "text": "Rule 1, rule 2 and property 4: version goes to 2 because disposition 2 changes what an existing key means, and no user is ever blocked by it: the loader applies the migration chain in memory, a version-1 file loads, every check runs, and config is WARN 'migrated in memory; run npx cookwright migrate to write it' (weak, not drift). Only a newer version FAILs, naming the package update.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:48.551Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 4",
+      "text": "Rule 1: init never refuses on the package's absence (Level 0, property 1); a pointer written before npm install is a correct link that resolves later. Only the bundle commands that build prompt pointers (status, args) refuse, with one line naming the config root, when the playbook they would point at is missing (rule 7, rule 3: a path outside the repo would be scrubbed and the prompt would point at nothing).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:48.608Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 5",
+      "text": "Rule 4, rule 1 and rule 2: a pointer's link text is compared first; ours and resolving PASS, ours and not resolving WARN 'not installed where it points (npm install)', never FAIL; missing FAIL 'run init'; other text resolving nowhere is an earlier pointer (init updated; doctor FAIL run init); a link of theirs that resolves, or a real directory, is a chosen state (skipped; WARN naming it). 'Installed' means the target resolves, never bin/cookwright.mjs alone.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:48.671Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 6",
+      "text": "Rule 3 and rule 2: the pointer target is the installed package where it is: <config root>/node_modules/cookwright, else <top>/node_modules/cookwright when hoisted; both texts are ours. The hook commands of both hosts carry the config root when it is below the top, closing the hook half of B-002 for nested roots; B-002 narrows to a linked worktree without node_modules and a package installed elsewhere.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:48.738Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 7",
+      "text": "Rule 6: the Codex adapter is built (the charter names Codex at launch; E-007's decision names its pointers) as its own session so it can be cut. Its host.hook claims only what it reads: the file carries the doctor line; trust is not measured and the line says so (rule 3).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:48.794Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 8",
+      "text": "Rule 3: the CI workflow cannot run in this bundle (no git remote, measured), and ci.workflow set now would make bundle check FAIL here (gh run list fails without a remote, check.mjs:116-124), so ci.workflow is the developer's, set with the first push. The fixture is a script measured locally; the closeout says the GitHub run is unverified.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:48.846Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 9",
+      "text": "Rule 3 and rule 2: no Windows CI job in this stage; a permanently red job is rot (property 3) and continue-on-error is a PASS with a footnote. The job lands green with the bundle that fixes B-008/B-009; backlogged there.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:48.898Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 10",
+      "text": "Rule 2: one doctor check, host.pointers, covers skills and workflows per host, required at Level 0 (setup is Level 0; a host without workflows has fewer pointers, not a FAIL). Seventeen checks.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:48.949Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 11",
+      "text": "Charter ('Levels 1 and 2 installable, flagged experimental'): every host gets the pointers its capabilities allow (bundle and the workflows need a host with workflows, so Codex gets setup only), and each SKILL.md's first line names its level and flag (bundle: Level 2, experimental).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:49.001Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 12",
+      "text": "Rule 6: Codex's 32 KiB rules cap is not added to rules.size; backlogged with the figure. No /docs-audit skill (E-003 stays open); the workflow moves and gets its pointer.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:49.054Z",
+      "actor": "orchestrator",
+      "source": "kickoff 2026-10-16, the Decision 1 precondition, measured in a scratch repo with one-shot Claude Code 2.1.301 sessions",
+      "text": "Measured before bundle init: (1) a .claude/skills/zzz-probe symlink into node_modules/fakepkg/skills/zzz-probe was listed and invoked, the session replying the skill's own text PROBE-OK; (2) a .claude/workflows/zzz-flow.js symlink into node_modules/fakepkg/workflows/zzz-flow.js ran as the named workflow zzz-flow and returned {\"probe\":\"FLOW-OK\"}; (3) in a second scratch repo with the same two links and no node_modules, the session answered NO to the skill and NONE to any warning or error. The pointer route stands; the plugin fallback is not needed.",
       "claim": true
     }
   ],

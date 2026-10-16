@@ -12,7 +12,7 @@ In your app's repo (a git repo), in order:
 2. `npx cookwright init`, which takes the repo to Level 0 and names every file it wrote; commit them by path.
 3. Open your agent host (Claude Code, or Codex) in the repo.
 4. The doctor line appears at session start: `cookwright doctor: level 0 complete`, or the checks that are not PASS.
-5. For anything not PASS, run the `setup` skill (`/setup` in Claude Code, `$setup` in Codex). It runs doctor, applies one remedy for the first line that is not PASS, runs doctor again, and stops at what is yours to decide.
+5. For anything not PASS, run the `setup` skill (`/setup` in Claude Code, `$setup` in Codex). It runs doctor, applies one remedy for the first line that is not PASS, runs doctor again, and stops at what is yours to decide or at a line its remedy did not clear.
 
 To try a change that is not published yet, install the package as npm would publish it: `npm pack` in a checkout's `packages/cookwright`, then `npm install --save-dev /path/to/cookwright-X.Y.Z.tgz` in your repo. Installing the directory itself links `node_modules/cookwright` outside your repo, which the pointers below are not made for.
 

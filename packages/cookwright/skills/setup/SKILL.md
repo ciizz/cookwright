@@ -22,7 +22,8 @@ It is reached once `npx cookwright init` has run (init writes the pointer that m
 1. Run `npx cookwright doctor` and read the whole readout: one line per check (`STATUS  check  note`), then the counts, the level line and the `next:` line.
 2. Take the first line that is not PASS and that you have not already stopped at in this run. Find it in the recipe below by its check, its status and its note.
 3. Apply exactly one remedy, show the command's own output lines, then go back to 1. Never act on a readout taken before the last remedy.
-4. Stop when every line is PASS, or when every line left is one the recipe says to **stop at**: explain each of those in a sentence, take no action on it, and move on to the next line.
+4. **A remedy that does not clear its line.** When the remedy refuses (it exits non-zero, or prints an `init: …` or `migrate: …` refusal), when the next readout shows the line as it was, or when the developer declines it, show the command's output and the line, and **stop at** that line: never apply the same remedy to the same line twice in a run. One exception: a refusal that names a file to fix by hand (`… is not valid JSON (…); fix it by hand, then rerun`, `… is not the shape … reads …; fix it by hand, then rerun`, `… is a symbolic link and init does not write through one …`, `… exists and is not a file; move it aside, then rerun`) makes that fix the next remedy: show the refusal, make the fix it names with consent, then go back to 1.
+5. Stop when every line is PASS, or when every line left is one you stopped at: explain each of those in a sentence and take no action on it.
 
 A line the recipe does not name: show it, say this skill has no recipe for it, and **end** the walkthrough there. Never improvise a remedy. A line that **ends** the walkthrough also ends it.
 
@@ -87,6 +88,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | status | note | remedy |
 |---|---|---|
 | FAIL | `… missing (run npx cookwright init)` | `npx cookwright init` |
+| FAIL | `… missing (run npx cookwright init)`, after init printed `pointer … not written: this filesystem refuses symbolic links (…)` | **stop at**: this filesystem (exFAT, some network mounts) refuses symbolic links, so init cannot write the pointer and the line does not clear; cookwright's backlog tracks it as B-010 |
 | FAIL | `… is an earlier pointer` | `npx cookwright init` |
 | WARN | `… does not point where cookwright is installed` | `npx cookwright init` |
 | WARN | `…: not installed where it points (npm install)` | `npm install` |

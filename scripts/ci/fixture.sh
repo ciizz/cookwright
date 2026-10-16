@@ -8,6 +8,11 @@
 # The scaffold is pinned, and bumped deliberately: a harness CI that goes red
 # on an upstream scaffold release is rot. create-expo-app fetches its template
 # from npm at the template's latest version, so the template is pinned too.
+# The pins fix the files the scaffold writes, not what gets installed: the
+# scaffold's dependencies (expo ~58, typescript ~6 and every transitive one)
+# and create-expo-app's own float within their ranges, with no lockfile
+# (E-036). A red install or scaffold step with no cookwright change is an
+# upstream release, not a regression. Lifecycle scripts are not run.
 set -euo pipefail
 
 CREATE_EXPO_APP_VERSION="5.0.0"
@@ -84,7 +89,7 @@ overlay() {
 
 install_package() {
   step "npm install --save-dev <tarball>"
-  npm install --save-dev --no-audit --no-fund "$TARBALL"
+  npm install --save-dev --ignore-scripts --no-audit --no-fund "$TARBALL"
 }
 
 init() {

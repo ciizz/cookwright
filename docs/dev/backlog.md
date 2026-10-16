@@ -38,6 +38,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 - **E-033** (2026-10-16) An opt-out for a Level 2 pointer a user does not want (`bundle`, the workflows): today removing one reads as weak and the next init writes it back.
 - **E-034** (2026-10-16) Hook commands and git shims that find a package hoisted to the work tree's top for a nested config root, as the pointers do; measure first where each host loads its settings file for a session started at the top and one started in the config root (B-002).
 - **E-035** (2026-10-16) `doctor --from <dir>`, so a hook that must enter the work tree's top can still judge the session's own directory: Codex's session-start hook misses an `AGENTS.override.md` in the subdirectory a session started in.
+- **E-036** (2026-10-16) A committed lockfile for the fixture's scaffold in `fixtures/expo-overlay/`, installed with `npm ci` before the tarball, so the dependency tree `scripts/ci/fixture.sh` installs is pinned like the scaffold's files; regenerated with each scaffold bump. Needs a networked run to generate. Found by review:ci of stage-3.
 
 ## Closed
 

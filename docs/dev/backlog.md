@@ -32,6 +32,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 - **E-024** (2026-10-15) The pre-push checks run in a temporary worktree per pushed sha, so they judge the pushed commit rather than the working tree. Today a dirty tree skips both checks, and a pushed sha that is not HEAD is not tested.
 - **E-025** (2026-10-15) Several config roots in one work tree (two apps of a monorepo, each with its own `cookwright.json`): the shims at the top enter one config root only, so a second app's init reads the first app's shim as foreign and skips. One shim fanning out to every config root, when a second app asks for it. Found by fix:hooks of stage-2.
 - **E-026** (2026-10-15) init refreshes a shim that carries the managed header (an earlier cookwright's text, or another config root) as it refreshes the rules block, and doctor reads it as `earlier shim (run init)` rather than foreign. Must land before `shimText` ever changes: the first change would make every installed shim read as foreign. Found by fix:hooks of stage-2.
+- **E-027** (2026-10-16) Measure whether Codex runs the SessionStart hook init writes in `.codex/hooks.json`: under `codex exec` 0.145.0 no hook from that file fired in 3 runs (trust bypassed, project trusted), so an interactive session after `/hooks` trust is the open measurement, due before the README's Codex paragraph claims the readout; until then the QA leg's Codex step is the only evidence.
 
 ## Closed
 

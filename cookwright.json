@@ -1,8 +1,10 @@
 {
   "$schema": "./packages/cookwright/schema/cookwright.schema.json",
-  "version": 1,
+  "version": 2,
   "level": 0,
-  "hosts": ["claude"],
+  "hosts": [
+    "claude"
+  ],
   "baseBranch": "main",
   "paths": {
     "bundles": "docs/dev/bundles",
@@ -10,7 +12,12 @@
     "backlog": "docs/dev/backlog.md"
   },
   "gate": {
-    "checks": [{ "name": "test", "run": "npm test" }]
+    "checks": [
+      {
+        "name": "test",
+        "run": "npm test"
+      }
+    ]
   },
   "hooks": {
     "docSync": [

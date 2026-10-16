@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 105,
+  "revision": 106,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -309,9 +309,18 @@
     },
     {
       "name": "fix:setup",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-16T09:17:48.278Z",
+          "stateRevision": 105,
+          "planSha": "6cfa81884bddb0a6",
+          "codex": true
+        }
+      ],
+      "startCommit": "9f6a70ce954cb112cc7c50a57b6a744cb4652418",
+      "range": null
     },
     {
       "name": "implement:s7",

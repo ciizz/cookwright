@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 83,
+  "revision": 86,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -233,7 +233,8 @@
           "startedAt": "2026-10-16T08:46:49.375Z",
           "stateRevision": 82,
           "planSha": "6cfa81884bddb0a6",
-          "codex": true
+          "codex": true,
+          "runId": "wf_955acdcb-214"
         }
       ],
       "startCommit": "29b905cf494f46a567b35fdd697d710ce5962a8e",
@@ -384,6 +385,19 @@
           "ms": 34545
         }
       ]
+    },
+    {
+      "commit": "b229fbc86e23cfc5f1918a7bf8c1a054d38da25c",
+      "at": "2026-10-16T08:55:01.963Z",
+      "slice": "route",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 30787
+        }
+      ]
     }
   ],
   "findings": [
@@ -483,6 +497,12 @@
       "phase": "implement:s4",
       "path": "docs/dev/bundles/stage-3/sessions/implement-s4-1.md",
       "at": "2026-10-16T08:32:58.278Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:route",
+      "path": "docs/dev/bundles/stage-3/sessions/fix-route-1.md",
+      "at": "2026-10-16T08:54:11.140Z",
       "stored": true
     }
   ],

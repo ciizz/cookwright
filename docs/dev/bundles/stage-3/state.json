@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 73,
+  "revision": 77,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -183,7 +183,7 @@
     },
     {
       "name": "implement:s4",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -191,11 +191,15 @@
           "stateRevision": 69,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_09dced94-04e"
+          "runId": "wf_09dced94-04e",
+          "endedAt": "2026-10-16T08:33:55.824Z",
+          "turnOutputTokens": 590921
         }
       ],
       "startCommit": "b171a8667c9cd2b43888722a26b3f2740a1447db",
-      "range": null
+      "range": null,
+      "endCommit": "c2e8cd142015bc12e9326c7f6a3f4d499a6dfaf8",
+      "endCode": "46d884987a838626f7521926e61eb2eda265b5b1"
     },
     {
       "name": "review:route",
@@ -725,6 +729,27 @@
       "actor": "orchestrator",
       "source": "implement:s3 open questions 1, 3, 4, 5, 6 and 7, 2026-10-16",
       "text": "Accepted as built: (1) the hook-command checkpoint was not built, per disposition 16; (3) the Windows pointer WARN names no backlog id yet, s5 adds the id when it opens the item (rule 3: no id invented before it exists); (4) no setup pointer is written until s5 ships skills/setup/SKILL.md, the derived expectations pick it up then, the Level 0 drift path is tested through the shipped seam; (5) doctor/hosts.mjs importing linkOnPath from init/files.mjs is the first doctor-to-init import, no cycle, changelog and migrate already import it there; (6) a linked parent directory is WARN like the user's own, and a file where the pointer's directory would be (ENOTDIR) is the user's entry (rule 2, chosen states); (7) codex reads '0 skills, 0 workflows' and init with codex in hosts throws in the pointers step until s4, as the s1 decision accepted. Commit 9a72ca4 went through with COOKWRIGHT_SKIP=doc-sync and its reason in the message (rule 8). The twenty-five s3 strings go to the developer in one batch.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T08:33:55.050Z",
+      "actor": "orchestrator",
+      "source": "implement:s4 open question 1, 2026-10-16",
+      "text": "Rule 3: whether the Codex SessionStart hook fires is unmeasured: under codex exec 0.145.0 no hook from .codex/hooks.json ran in three runs, trust bypassed or granted by config, so the file's shape is documented only. Nothing claims it: doctor's host.hook PASS names the file's text and leaves trust to the user, the README (s5) says the hook is confirmed only in an interactive Codex session after /hooks, and the QA leg checks it there when Codex is installed on the personal app. The developer's ~/.codex was not touched (rule 7).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T08:33:55.537Z",
+      "actor": "orchestrator",
+      "source": "implement:s4 open questions 2, 3 and 5, 2026-10-16",
+      "text": "Accepted as built (rule 3, rule 2): the Codex rules row writes nothing and mirrors Claude's skipped row, targeting the override ('not needed: nothing overrides AGENTS.md, which Codex reads natively'), naming the nearest override when one exists; an AGENTS.override.md anywhere from the invocation directory up through the config root is WARN as a chosen state, the note saying it replaces the AGENTS.md beside it (a nested override does not unread the root's block, and the WARN stands as the plan's chosen-state verdict); a global override under ~/.codex is outside the plan; with one host the host.rules and host.hook notes are unchanged, with several each note carries its host's name, worst first, SKIP ranking between WARN and PASS.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T08:33:55.638Z",
+      "actor": "orchestrator",
+      "source": "implement:s4 open question 4, 2026-10-16",
+      "text": "Rule 3: .codex/hooks.json is written at the config root like .claude/settings.json, and with a nested config root the Codex hook's cd to the work tree's top finds no cookwright.json and no package unless hoisted, the B-002 class; s5's backlog line for plan §9 (f) names the Codex hook beside Claude's. The twenty-one s4 strings go to the developer in one batch.",
       "claim": true
     }
   ],

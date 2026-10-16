@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 123,
+  "revision": 126,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -379,7 +379,8 @@
           "startedAt": "2026-10-16T09:39:54.217Z",
           "stateRevision": 122,
           "planSha": "6cfa81884bddb0a6",
-          "codex": true
+          "codex": true,
+          "runId": "wf_7fe02a7f-6f7"
         }
       ],
       "startCommit": "5e4777536871f5a397b6c725cd3ef0c953a63e0f",
@@ -553,6 +554,19 @@
           "ms": 32620
         }
       ]
+    },
+    {
+      "commit": "536f4c547f035af99c5a6e02a7a28fe0f85d403d",
+      "at": "2026-10-16T09:45:04.685Z",
+      "slice": "ci",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 42898
+        }
+      ]
     }
   ],
   "findings": [
@@ -718,6 +732,12 @@
       "phase": "implement:s7",
       "path": "docs/dev/bundles/stage-3/sessions/implement-s7-1.md",
       "at": "2026-10-16T09:33:48.634Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:ci",
+      "path": "docs/dev/bundles/stage-3/sessions/fix-ci-1.md",
+      "at": "2026-10-16T09:44:05.812Z",
       "stored": true
     }
   ],

@@ -29,20 +29,20 @@ const listDir = (abs) => {
 
 /**
  * What the package ships for `host`: `{ kind, name, file, level }` per piece, where
- * `file` is the entry's name in the host's directory. A skill is a directory under
- * the package's skills holding a SKILL.md, written only for a host it can run on; a
- * workflow is a `*.js` under the host adapter's workflows.
+ * `file` is the entry's name in the host's directory. A skill is an entry of the
+ * SKILLS manifest, never what a directory listing finds, so a skill missing from a
+ * damaged install is still expected (its pointer reads as not resolving); it is
+ * written only for a host it can run on. A workflow is a `*.js` under the host
+ * adapter's workflows.
  */
 export function shippedPieces(host, root = PACKAGE_ROOT) {
   const entry = HOSTS[host];
   const skills = !entry.skillsDir
     ? []
-    : listDir(path.join(root, SKILLS_DIR))
-        .filter((e) => e.isDirectory() && isFile(path.join(root, SKILLS_DIR, e.name, 'SKILL.md')))
-        .map((e) => e.name)
-        .filter((name) => SKILLS[name]?.needs !== 'workflows' || entry.workflowsDir)
+    : Object.keys(SKILLS)
+        .filter((name) => SKILLS[name].needs !== 'workflows' || entry.workflowsDir)
         .sort()
-        .map((name) => ({ kind: 'skill', name, file: name, level: SKILLS[name]?.level ?? WORKFLOWS_LEVEL }));
+        .map((name) => ({ kind: 'skill', name, file: name, level: SKILLS[name].level }));
   const workflows = !entry.workflowsDir
     ? []
     : listDir(path.join(root, entry.workflows))
@@ -60,6 +60,9 @@ const layout = (host, piece) => {
     ? { dir: entry.skillsDir, inPackage: `${SKILLS_DIR}/${piece.file}` }
     : { dir: entry.workflowsDir, inPackage: `${entry.workflows}/${piece.file}` };
 };
+
+/** Whether `abs` holds the piece: a skill's SKILL.md, a workflow's script. */
+const holds = (piece, abs) => (piece.kind === 'skill' ? isFile(path.join(abs, 'SKILL.md')) : fs.existsSync(abs));
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -87,7 +90,8 @@ export function readPointer(repo, host, piece, past = POINTER_TEXTS_PAST) {
   const abs = path.join(repo.root, rel);
   const pkg = installedPackage(repo) ?? PACKAGE_DIR;
   const target = posix(path.relative(path.dirname(abs), path.join(repo.root, pkg, inPackage)));
-  const base = { ...piece, host, rel, fromTop, target, resolves: false, targetResolves: fs.existsSync(path.join(path.dirname(abs), target)) };
+  const targetResolves = holds(piece, path.join(path.dirname(abs), target));
+  const base = { ...piece, host, rel, fromTop, target, resolves: false, targetResolves };
   const parent = linkOnPath(top, dir);
   if (parent) return { ...base, state: 'linkedParent', parent: join(at.up, parent) };
   let st;
@@ -99,7 +103,7 @@ export function readPointer(repo, host, piece, past = POINTER_TEXTS_PAST) {
   }
   if (!st.isSymbolicLink()) return { ...base, state: 'theirs' };
   const text = fs.readlinkSync(abs);
-  const resolves = fs.existsSync(abs);
+  const resolves = holds(piece, abs);
   const state = past.includes(text) ? 'past' : oursPattern(at.rel, inPackage).test(text) ? 'ours' : 'theirsLink';
   return { ...base, state, text, resolves };
 }

@@ -393,6 +393,13 @@ describe('host.pointers', () => {
     expect(pm.notInstalled('.claude/skills/x')).toBe('.claude/skills/x: not installed where it points (npm install)');
   });
 
+  it('expects every skill the manifest lists, so a damaged install missing a SKILL.md never reads PASS', () => {
+    const root = level0();
+    fs.rmSync(path.join(root, 'node_modules/cookwright', SETUP.inPackage, 'SKILL.md'));
+    expect(shippedPieces('claude', path.join(root, 'node_modules/cookwright')).map((x) => x.name)).toContain('setup');
+    expect(doctor(root)['host.pointers']).toEqual({ status: 'WARN', note: pm.named('claude', pm.notInstalled(SETUP.rel)) });
+  });
+
   it('WARNs an untracked pointer git ignores, naming git add -f; PASSes an untracked one it does not', () => {
     const ignoredRoot = level0({ ...Object.fromEntries(POINTERS.map(({ rel }) => [rel, null])), '.gitignore': `${LEVEL0_FILES['.gitignore']}.claude/skills/\n` });
     for (const { rel, text } of POINTERS) link(ignoredRoot, rel, text);

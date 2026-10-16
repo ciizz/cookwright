@@ -38,8 +38,9 @@ export const SKILLS_DIR = 'skills';
 
 /**
  * The skills the package ships, by name: the level each belongs to and what a host
- * needs for it (`workflows`: a host with a workflow mechanism). A pointer is written
- * for a skill only when its directory under SKILLS_DIR holds a SKILL.md.
+ * needs for it (`workflows`: a host with a workflow mechanism). This list, not the
+ * installed files, is what init writes pointers for and doctor expects; a pointer
+ * resolves when its target holds a SKILL.md.
  */
 export const SKILLS = Object.freeze({
   setup: Object.freeze({ level: 0 }),

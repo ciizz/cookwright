@@ -1123,7 +1123,8 @@ describe('codex: --hosts, its rules row, .codex/hooks.json and its pointers', ()
     expect(r).toMatchObject({ action: 'wrote', target: '.agents/skills/setup' });
     expect(r.writes).toEqual([{ rel: '.agents/skills/setup', link: '../../node_modules/cookwright/skills/setup' }]);
     const pkg = fs.mkdtempSync(path.join(TMP, 'pkg-'));
-    for (const rel of ['skills/setup/SKILL.md', 'skills/bundle/SKILL.md', 'hosts/claude/workflows/bundle-phase.js']) write(pkg, rel, '');
+    // setup's SKILL.md left out: the manifest, not the package's files, names the skills.
+    for (const rel of ['skills/bundle/SKILL.md', 'hosts/claude/workflows/bundle-phase.js']) write(pkg, rel, '');
     expect(shippedPieces('codex', pkg)).toEqual([SETUP]);
     expect(shippedPieces('claude', pkg).map((p) => p.name)).toEqual(['bundle', 'setup', 'bundle-phase']);
   });

@@ -117,7 +117,11 @@ commit_through_hooks() {
   [ "$(git config core.hooksPath)" = ".githooks" ] || fail "core.hooksPath is not .githooks"
   git add -A
   git commit -m "chore: cookwright init" 2>&1 | tee "$WORK/commit.out" || fail "the commit was refused"
-  expect "$WORK/commit.out" "^pre-commit +(PASS|SKIP) +secrets " "the pre-commit hook did not run"
+  if command -v gitleaks >/dev/null 2>&1; then
+    expect "$WORK/commit.out" "^pre-commit +PASS +secrets " "gitleaks is on PATH but the hook's secrets scan is not PASS"
+  else
+    expect "$WORK/commit.out" "^pre-commit +(PASS|SKIP) +secrets " "the pre-commit hook did not run"
+  fi
   [ -z "$(git status --porcelain)" ] || fail "the tree is dirty after the commit"
 }
 

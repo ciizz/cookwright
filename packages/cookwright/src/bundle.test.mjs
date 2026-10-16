@@ -1339,4 +1339,47 @@ describe('the package’s playbook and the workflow pointer', () => {
     });
     expect(argsOf(cli).playbook.path).toBe('node_modules/cookwright/docs/playbook.md');
   });
+
+  it('refuses args and status, exit 2, when the package is not installed and no playbook is configured', () => {
+    const { cli } = runningBundle('pkg-none');
+    const line =
+      'the playbook is not at node_modules/cookwright/docs/playbook.md (cookwright is not installed under ' +
+      'the config root or the work tree top: npm install --save-dev cookwright)';
+    expect(cli('args', 'demo', 'plan-review')).toBe(2);
+    expect(errors.at(-1)).toBe(`bundle args: ${line}`);
+    expect(cli('status', 'demo')).toBe(2);
+    expect(errors.at(-1)).toBe(`bundle status: ${line}`);
+    expect(logs).toEqual([]); // refused before any line, never an ENOENT with a machine path
+    expect(errors.join('\n')).not.toContain(TMP);
+  });
+
+  it('refuses naming paths.playbook when the playbook it names is missing', () => {
+    const { cli } = runningBundle('pkg-own-missing', {
+      config: { paths: { playbook: 'ops/playbook.md' } },
+      link: ({ root }) => linkPackage(root),
+    });
+    expect(cli('args', 'demo', 'plan-review')).toBe(2);
+    expect(errors.at(-1)).toBe('bundle args: the playbook is not at ops/playbook.md (paths.playbook names it)');
+  });
+
+  it('refuses a config whose hosts have no workflows, and runs on the first host that has them', () => {
+    const codex = runningBundle('hosts-codex', {
+      config: { hosts: ['codex'] },
+      link: ({ root }) => linkPackage(root),
+    });
+    const line = 'the bundle runner needs a host with workflows (claude); hosts is [codex]';
+    expect(codex.cli('args', 'demo', 'plan-review')).toBe(2);
+    expect(errors.at(-1)).toBe(`bundle args: ${line}`);
+    expect(codex.cli('status', 'demo')).toBe(2);
+    expect(errors.at(-1)).toBe(`bundle status: ${line}`);
+
+    const both = runningBundle('hosts-codex-claude', {
+      config: { hosts: ['codex', 'claude'] },
+      link: ({ root }) => linkPackage(root),
+    });
+    expect(argsOf(both.cli).playbook.path).toBe('node_modules/cookwright/docs/playbook.md');
+    expect(both.cli('status', 'demo')).toBe(0);
+    expect(logs.join('\n')).toMatch(/next {5}: Workflow\(\{ name: 'bundle-phase'/);
+    expect(logs.join('\n')).toMatch(/run init: the workflow pointer \.claude\/workflows\/bundle-phase\.js is missing/);
+  });
 });

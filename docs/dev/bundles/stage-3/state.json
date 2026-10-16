@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 82,
+  "revision": 83,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -226,9 +226,18 @@
     },
     {
       "name": "fix:route",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-16T08:46:49.375Z",
+          "stateRevision": 82,
+          "planSha": "6cfa81884bddb0a6",
+          "codex": true
+        }
+      ],
+      "startCommit": "29b905cf494f46a567b35fdd697d710ce5962a8e",
+      "range": null
     },
     {
       "name": "implement:s5",

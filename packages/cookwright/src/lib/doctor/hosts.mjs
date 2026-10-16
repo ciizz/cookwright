@@ -144,10 +144,10 @@ function judge(p, { level, platform, untracked, probes, top }) {
 
 const RANK = { [FAIL]: 0, [WARN]: 1, [PASS]: 2 };
 
-/** `claude: 1 skill, 2 workflows`, from a host's pointers. */
+/** `claude: 1 skill, 2 workflows`, from a host's pointers; a host with no workflows (codex) names skills only. */
 const counts = (host, pointers) => {
   const n = (kind) => pointers.filter((p) => p.kind === kind).length;
-  return m.counts(host, n('skill'), n('workflow'));
+  return m.counts(host, n('skill'), HOSTS[host].workflowsDir ? n('workflow') : null);
 };
 
 /**

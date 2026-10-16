@@ -103,7 +103,7 @@ const doctor = {
   },
   pointers: {
     counts: (host, skills, workflows) =>
-      `${host}: ${skills} skill${skills === 1 ? '' : 's'}, ${workflows} workflow${workflows === 1 ? '' : 's'}`,
+      `${host}: ${skills} skill${skills === 1 ? '' : 's'}${workflows === null ? '' : `, ${workflows} workflow${workflows === 1 ? '' : 's'}`}`,
     named: (host, note) => `${host}: ${note}`,
     missing: (rel) => `${rel} missing (${RUN_INIT})`,
     notRequired: (name, level, declared) => `${name} (Level ${level}) not required at level ${declared}; ${RUN_INIT} to add it`,

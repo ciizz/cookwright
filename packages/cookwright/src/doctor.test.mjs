@@ -447,8 +447,9 @@ describe('host.pointers', () => {
     const both = checkPointers(openDoctorRepo(two, probes(), { home: TMP }), probes());
     expect(both).toEqual({
       status: 'PASS',
-      note: [pm.counts('claude', skills, POINTERS.length - skills), pm.counts('codex', 0, 0)].join('; '),
+      note: [pm.counts('claude', skills, POINTERS.length - skills), pm.counts('codex', 0, null)].join('; '),
     });
+    expect(pm.counts('codex', 1, null)).toBe('codex: 1 skill');
   });
 });
 

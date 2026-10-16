@@ -88,6 +88,7 @@ const QUOTED = [
   ['no doctor SessionStart hook in', d.codex.hook.none('x')],
   ['has an earlier version of the doctor hook', d.hostHook.past('x')],
   ['has the doctor hook under', d.codex.hook.matcher('x', 'startup', 'startup|resume')],
+  ['also has the doctor hook under', d.codex.hook.stray('x', 'compact', 'startup|resume')],
   ['is not valid JSON (', d.hostHook.invalid('x', 'y')],
   ['whether it is trusted is yours: /hooks', d.codex.hook.ok('x', '/hooks')],
   ['missing (run npx cookwright init)', d.pointers.missing('x')],

@@ -43,8 +43,9 @@ export function checkCodexRules(repo) {
 }
 
 /**
- * PASS: the hooks file carries the doctor hook, by command and matcher. Whether the
- * user trusted it is not measured, and the line says so.
+ * PASS: the hooks file carries the doctor hook, by command and matcher, and no copy
+ * of it under another matcher (which would run doctor on that event too). Whether
+ * the user trusted it is not measured, and the line says so.
  */
 export function checkCodexHook(repo, probes, entry = host) {
   const file = entry.settings;
@@ -58,8 +59,11 @@ export function checkCodexHook(repo, probes, entry = host) {
   }
   const hooks = sessionStartHooks(settings);
   const mine = hooks.filter((h) => h.command === entry.hookCommand);
-  if (mine.some((h) => h.matcher === entry.hookMatcher)) return pass(m.hook.ok(file, entry.hookTrust));
-  if (mine.length) return warn(m.hook.matcher(file, mine[0].matcher, entry.hookMatcher));
+  const right = mine.some((h) => h.matcher === entry.hookMatcher);
+  const stray = mine.find((h) => h.matcher !== entry.hookMatcher);
+  if (right && stray) return warn(m.hook.stray(file, stray.matcher, entry.hookMatcher));
+  if (right) return pass(m.hook.ok(file, entry.hookTrust));
+  if (stray) return warn(m.hook.matcher(file, stray.matcher, entry.hookMatcher));
   if (hooks.some((h) => entry.hookCommandsPast.includes(h.command))) return warn(messages.doctor.hostHook.past(file));
   return fail(m.hook.none(file));
 }

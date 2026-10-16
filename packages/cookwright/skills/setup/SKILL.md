@@ -80,6 +80,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | `host.hook` | FAIL | `no doctor SessionStart hook in …` | `npx cookwright init` |
 | `host.hook` | WARN | `… has an earlier version of the doctor hook` | `npx cookwright init` |
 | `host.hook`, Codex | WARN | `… has the doctor hook under …, not startup\|resume` | `npx cookwright init` |
+| `host.hook`, Codex | WARN | `… also has the doctor hook under …, beside startup\|resume` | `npx cookwright init` |
 | `host.hook` | FAIL | `… is not valid JSON (…)` | show the parse error; with consent, repair the file by hand |
 | `host.hook`, Codex | PASS | `… whether it is trusted is yours: /hooks` | at the end (see "At the end") |
 

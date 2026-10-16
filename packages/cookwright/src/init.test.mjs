@@ -1099,6 +1099,22 @@ describe('codex: --hosts, its rules row, .codex/hooks.json and its pointers', ()
     kept(root);
   });
 
+  it('removes a copy of the hook under another matcher beside the right one, then keeps it', () => {
+    const root = fresh();
+    write(root, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION, hosts: ['codex'] }));
+    const theirs = { type: 'command', command: 'echo hi' };
+    write(root, FILE, hooksFile([{ matcher: 'startup|resume', hooks: [ours] }, { matcher: 'compact', hooks: [theirs, ours] }]));
+    expect(init(root).rows[FILE]).toEqual({
+      action: 'updated',
+      note: `${m.hostHook.stray('startup|resume')}${m.hostHook.trustAgain('Codex', '/hooks')}`,
+    });
+    expect(JSON.parse(read(root, FILE)).hooks.SessionStart).toEqual([
+      { matcher: 'startup|resume', hooks: [ours] },
+      { matcher: 'compact', hooks: [theirs] },
+    ]);
+    kept(root);
+  });
+
   it('replaces an earlier command in place, and refuses a file that is not the shape Codex reads', () => {
     const root = fresh();
     write(root, FILE, hooksFile([{ matcher: 'startup|resume', hooks: [{ type: 'command', command: 'node old.mjs' }] }]));

@@ -99,6 +99,8 @@ const doctor = {
       none: (file) => `no doctor SessionStart hook in ${file}, so doctor runs only by hand (${RUN_INIT})`,
       matcher: (file, found, want) =>
         `${file} has the doctor hook under ${found === undefined ? 'no matcher' : `matcher ${found}`}, not ${want} (${RUN_INIT})`,
+      stray: (file, found, want) =>
+        `${file} also has the doctor hook under ${found === undefined ? 'no matcher' : `matcher ${found}`}, beside ${want} (${RUN_INIT})`,
     },
   },
   pointers: {
@@ -225,6 +227,7 @@ const init = {
     replaced: 'an earlier doctor hook replaced by the current one; the other settings kept',
     added: 'doctor SessionStart hook added; the other settings kept',
     matcher: (matcher) => `the doctor hook moved under matcher ${matcher}; the other hooks kept`,
+    stray: (matcher) => `the doctor hook's copies under matchers other than ${matcher} removed; the other hooks kept`,
     relaid: RELAID,
     trust: (host, command) => `; trust it in ${host} with ${command}`,
     trustAgain: (host, command) => `; trust it again in ${host} with ${command}`,

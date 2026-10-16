@@ -564,6 +564,10 @@ describe('codex: host.rules and host.hook', () => {
     expect(hook({ [FILE]: '{ nope' })).toMatchObject({ status: 'FAIL', note: expect.stringMatching(/^\.codex\/hooks\.json is not valid JSON \(/) });
     expect(hook({ [FILE]: HOOKS([ours('startup')]) })).toEqual({ status: 'WARN', note: cm.hook.matcher(FILE, 'startup', 'startup|resume') });
     expect(hook({ [FILE]: HOOKS([ours(null)]) })).toEqual({ status: 'WARN', note: cm.hook.matcher(FILE, undefined, 'startup|resume') });
+    expect(hook({ [FILE]: HOOKS([ours(), ours('compact')]) })).toEqual({ status: 'WARN', note: cm.hook.stray(FILE, 'compact', 'startup|resume') });
+    expect(cm.hook.stray(FILE, 'compact', 'startup|resume')).toBe(
+      '.codex/hooks.json also has the doctor hook under matcher compact, beside startup|resume (run npx cookwright init)',
+    );
     expect(cm.hook.matcher(FILE, undefined, 'startup|resume')).toBe(
       '.codex/hooks.json has the doctor hook under no matcher, not startup|resume (run npx cookwright init)',
     );

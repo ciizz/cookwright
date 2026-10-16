@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 126,
+  "revision": 128,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -372,7 +372,7 @@
     },
     {
       "name": "fix:ci",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -380,11 +380,15 @@
           "stateRevision": 122,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_7fe02a7f-6f7"
+          "runId": "wf_7fe02a7f-6f7",
+          "endedAt": "2026-10-16T09:45:05.251Z",
+          "turnOutputTokens": 880411
         }
       ],
       "startCommit": "5e4777536871f5a397b6c725cd3ef0c953a63e0f",
-      "range": null
+      "range": null,
+      "endCommit": "abf33e047416db7cae2c1a665ecd54aa7d48588a",
+      "endCode": "536f4c547f035af99c5a6e02a7a28fe0f85d403d"
     },
     {
       "name": "review:whole",
@@ -1105,6 +1109,13 @@
       "actor": "orchestrator",
       "source": "review:ci findings, 2026-10-16",
       "text": "fix:ci applies: finding 0 (rule 3: the fixture parses .claude/settings.json and asserts the scaffold's enabledPlugins entry with its value, not the key's name); finding 3 (rule 3 and the playbook's landing: ci.yml's push trigger gains 'bundle/**' so a pushed bundle branch starts the run that bundle check asks gh for once ci.workflow is set; the playbook's merge is a fast-forward with no PR); finding 2 (rule 3: the scaffold's own .git is removed and the fixture makes exactly one baseline commit, so 'git init, one commit' is true); finding 5 (rule 7 and rule 1: the fixture tests the app's own repo, never an enclosing one, before git init, add and commit); finding 6 (rule 3: with gitleaks on PATH the commit step expects 'pre-commit PASS secrets', the doctor step's own bar, and accepts SKIP only when gitleaks is absent); finding 1 (rule 3, narrowed: the fixture is this repo's test harness, not a product check, so in CI a missing tool must fail the job rather than skip into a green run, which the AGENTS.md rule does not cover; CI=false and an empty CI read as not CI, and the script header states the exception); finding 4 (property 3, rule 3 and rule 6, narrowed: the scaffold's dependency tree floats within its ranges and that is said in the script header and in AGENTS.md's Layout line, so a red fixture from an upstream patch is read as such; the install runs with --ignore-scripts, since the fixture tests cookwright and not the scaffold's lifecycle scripts; a committed lockfile for the scaffold is backlogged as wanted once).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T09:45:04.955Z",
+      "actor": "orchestrator",
+      "source": "fix:ci report and open question, 2026-10-16",
+      "text": "Rule 6: no lockfile for the fixture's scaffold in this bundle; E-036 holds it with its justification (a networked run generates it, regenerated with each scaffold bump), and the float is stated in the script's header and AGENTS.md's Layout line, with the install run without lifecycle scripts. Accepted as built: the ci.yml push trigger covers bundle/** branches; the fixture parses the scaffold's settings and requires its plugin entry with its value; it starts from a fresh repo of the app's own with one baseline commit; with gitleaks on PATH the hook's scan must PASS; a missing tool skips with exit 0 unless FIXTURE_STRICT=1, which only the ci.yml fixture job sets (the review's narrowed disposition, keyed on an explicit variable rather than CI). Two commits carried COOKWRIGHT_SKIP=doc-sync with their reasons (rule 8). The fix:ci strings (the two new failure reasons, the Layout line, E-036) go to the developer with the s7 batch.",
       "claim": true
     }
   ],

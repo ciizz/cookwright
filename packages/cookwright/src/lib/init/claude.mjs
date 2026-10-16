@@ -12,7 +12,7 @@ import { HOSTS } from '../hosts.mjs';
 import { messages } from '../messages.mjs';
 import { atLeast } from '../probes.mjs';
 import { RULES_FILE, hasImport } from '../rules/block.mjs';
-import { KEPT, SKIPPED, UPDATED, WROTE, eolOf, readTarget, row } from './files.mjs';
+import { KEPT, SKIPPED, UPDATED, WROTE, eolOf, readTarget, reserialize, row } from './files.mjs';
 
 const m = messages.init;
 const host = HOSTS.claude;
@@ -74,15 +74,6 @@ function replacePast(settings, entry) {
   return found;
 }
 
-/** The file's own indent (two spaces when it has none). */
-const indentOf = (text) => /^([ \t]+)"/m.exec(text)?.[1] ?? '  ';
-
-/** `settings` as JSON in `text`'s indent, line ending and final newline. */
-function serialize(settings, text) {
-  const tail = /\n$/.test(text) ? eolOf(text) : '';
-  return JSON.stringify(settings, null, indentOf(text)).split('\n').join(eolOf(text)) + tail;
-}
-
 /** Step 5. No matcher: doctor runs on startup, resume, clear and compact. */
 export function claudeHookStep(repo, io, entry = host) {
   const file = entry.settings;
@@ -102,7 +93,7 @@ export function claudeHookStep(repo, io, entry = host) {
   }
   // The file is re-serialised: say so when that changes more than the hook (a
   // one-line array, unusual spacing), rather than claim the rest is untouched.
-  const relaid = serialize(JSON.parse(text), text) !== text;
+  const relaid = reserialize(JSON.parse(text), text) !== text;
   const note = `${replaced ? m.hostHook.replaced : m.hostHook.added}${relaid ? m.hostHook.relaid : ''}`;
-  return row(UPDATED, file, note, [{ rel: file, content: serialize(settings, text) }]);
+  return row(UPDATED, file, note, [{ rel: file, content: reserialize(settings, text) }]);
 }

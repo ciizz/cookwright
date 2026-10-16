@@ -35,7 +35,7 @@ describe('dispatch', () => {
 
   it('prints the usage and exits 2 on an unknown or missing command', async () => {
     expect(await dispatch(['bogus'])).toBe(2);
-    expect(errors.at(-1)).toBe(`usage: ${CLI} <init|doctor|changelog|hook|bundle> …`);
+    expect(errors.at(-1)).toBe(`usage: ${CLI} <init|doctor|changelog|hook|migrate|bundle> …`);
     expect(await dispatch([])).toBe(2);
     expect(await dispatch(['toString'])).toBe(2); // not an inherited property
   });
@@ -54,6 +54,14 @@ describe('dispatch', () => {
     expect(await dispatch(['changelog', '--check'], { cwd: repo.root })).toBe(1);
     expect(errors.at(-1)).toMatch(/^CHANGELOG\.md: missing; /);
     expect(await dispatch(['changelog', '--check', '--adopt'], { cwd: repo.root })).toBe(2);
+  });
+
+  it('hands `migrate` and its flags to the migrate command', async () => {
+    const repo = scratchRepo(TMP, 'migrate');
+    expect(await dispatch(['migrate', '--dry-run'], { cwd: repo.root })).toBe(0);
+    expect(logs.at(-1)).toBe('cookwright.json: already at version 2');
+    expect(await dispatch(['migrate', '--force'], { cwd: repo.root })).toBe(2);
+    expect(errors.at(-1)).toBe(`usage: ${CLI} migrate [--dry-run]`);
   });
 
   it('hands `hook` and git’s arguments to the hook command', async () => {

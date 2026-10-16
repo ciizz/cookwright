@@ -84,6 +84,19 @@ export const withEol = (text, eol) => (eol === '\n' ? text : text.split('\n').jo
 /** `text` ending in a newline, the file's own, unless it is empty. */
 export const endLine = (text, eol) => (text === '' || /\n$/.test(text) ? text : text + eol);
 
+/** A JSON file's own indent (two spaces when it has none). */
+const indentOf = (text) => /^([ \t]+)"/m.exec(text)?.[1] ?? '  ';
+
+/**
+ * `obj` as JSON in the indent, line ending and final newline of `text`, the file it
+ * replaces. Standard layout otherwise: a caller compares `reserialize(JSON.parse(text),
+ * text)` with `text` to say when that relays more than the keys it changed.
+ */
+export function reserialize(obj, text) {
+  const tail = /\n$/.test(text) ? eolOf(text) : '';
+  return JSON.stringify(obj, null, indentOf(text)).split('\n').join(eolOf(text)) + tail;
+}
+
 function writeFile(root, { rel, content, mode }) {
   const abs = path.join(root, rel);
   if (content !== undefined) {

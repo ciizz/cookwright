@@ -1,6 +1,6 @@
 // src/lib/messages.mjs — every user-facing line of the `cookwright` bin, the shared
-// CLI pieces (cli.mjs), init, doctor, changelog and hook, in one place, and the invocation
-// they name themselves by. The bundle CLI's own guidance stays in
+// CLI pieces (cli.mjs), init, doctor, migrate, changelog and hook, in one place, and
+// the invocation they name themselves by. The bundle CLI's own guidance stays in
 // lib/bundle/messages.mjs, which builds its invocation from CLI below.
 //
 // Import rule (no module cycle can form): this file may import from config.mjs;
@@ -14,6 +14,8 @@ export const CLI = 'npx cookwright';
 
 const list = (names) => names.join(', ');
 const RUN_INIT = `run ${CLI} init`;
+/** Appended when a JSON file is rewritten in a layout other than the one it had. */
+const RELAID = ' (the file is rewritten in standard JSON layout, its indent kept)';
 
 // doctor: one note per verdict of each check (plan §4.8), then the readout's lines.
 const doctor = {
@@ -188,7 +190,7 @@ const init = {
     kept: 'the doctor SessionStart hook is present',
     replaced: 'an earlier doctor hook replaced by the current one; the other settings kept',
     added: 'doctor SessionStart hook added; the other settings kept',
-    relaid: ' (the file is rewritten in standard JSON layout, its indent kept)',
+    relaid: RELAID,
   },
   gitWriteFailed: (args, detail, inert) =>
     `git ${args.join(' ')} failed: ${detail}; ${list(inert)} are written but inactive, rerun init`,
@@ -222,6 +224,32 @@ const foreignHooks = {
   absolutePath: 'an absolute path',
   outsidePath: 'a path outside the repo',
   gitHooksDir: "git's hooks directory",
+};
+
+// migrate: the usage, the refusals, one line per migration step, the outcome
+// (stage-3 plan §4.3). Each step's outcome is a key lib/migrations.mjs returns.
+const migrate = {
+  usage: `usage: ${CLI} migrate [--dry-run]`,
+  refused: (detail) => `migrate: ${detail}`,
+  noConfig: (cwd) => `no ${CONFIG_FILE} at or above ${cwd}; ${RUN_INIT}`,
+  notAFile: `${CONFIG_FILE} exists and is not a file; move it aside, then rerun`,
+  symlink: (rel) =>
+    `${rel} is a symbolic link and migrate does not write through one; replace it with the real file, then rerun`,
+  readFailed: (code) => `${CONFIG_FILE}: ${code}`,
+  notJson: (detail) => `${CONFIG_FILE}: ${detail}`,
+  notObject: `${CONFIG_FILE}: must be a JSON object`,
+  current: (version) => `${CONFIG_FILE}: already at version ${version}`,
+  step: (from, to, text) => `${from} → ${to}: ${text}`,
+  outcomes: {
+    playbookDropped: (rel) => `paths.playbook dropped (${rel} was never written; the package's playbook applies)`,
+    playbookKept: (rel) => `paths.playbook kept (${rel}, your own playbook)`,
+    playbookAbsent: () => 'nothing to change (no paths.playbook)',
+  },
+  invalid: (problems) => `the migrated ${CONFIG_FILE} would be invalid: ${problems.join('; ')}; nothing written`,
+  wrote: (version, relaid) => `${CONFIG_FILE} written at version ${version}${relaid ? RELAID : ''}`,
+  dry: (version, relaid) =>
+    `dry run: ${CONFIG_FILE} would be written at version ${version}${relaid ? RELAID : ''}; nothing written`,
+  writeFailed: (code) => `${CONFIG_FILE} not written: ${code}`,
 };
 
 // changelog: the usage, the refusals, the lines of each mode (plan §4.4). The
@@ -338,6 +366,7 @@ export const messages = {
   foreignHooks,
   doctor,
   init,
+  migrate,
   changelog,
   hook,
 };

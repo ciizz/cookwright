@@ -11,6 +11,7 @@ const COMMANDS = {
   doctor: () => import('./doctor.mjs'),
   changelog: () => import('./changelog.mjs'),
   hook: () => import('./hook.mjs'),
+  migrate: () => import('./migrate.mjs'),
   bundle: () => import('./bundle.mjs'),
 };
 

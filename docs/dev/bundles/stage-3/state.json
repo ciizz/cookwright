@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 1,
+  "revision": 5,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -200,6 +200,35 @@
   "findings": [],
   "reports": [],
   "qaRounds": [],
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-16T07:07:10.915Z",
+      "actor": "developer",
+      "source": "chat 2026-10-16, plan approval (Decision 1)",
+      "text": "Claude Code skills and workflows reach a user repo as pointers: init writes symlinks .claude/skills/<name> and .claude/workflows/<name>.js into the installed package (node_modules/cookwright), the same mechanism Codex needs (.agents/skills/ pointers). The 2026-10-15 decision 'Claude Code users receive skills through the plugin' is superseded. Precondition before bundle init: one Claude Code session in a scratch repo measures a skill pointer into node_modules listing the skill, the same pointer dangling neither listing it nor breaking the session, and one named workflow run through a .claude/workflows/<name>.js pointer into node_modules running to its return value, since the bundle runner depends on that route.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:10.984Z",
+      "actor": "developer",
+      "source": "chat 2026-10-16, plan approval (Decision 2)",
+      "text": "The setup skill is named setup, as E-012 names it; a user's own skill of that name shadows it with a WARN; a later rename costs one updated row per user.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:11.036Z",
+      "actor": "developer",
+      "source": "chat 2026-10-16, plan approval (amendment 1, plan §4.7)",
+      "text": "scripts/ci/fixture.sh pins create-expo-app to an exact version as one constant, prints it on the script's first output line, and the version is bumped deliberately: a harness CI that goes red on an upstream scaffold release is property-3 rot.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:07:11.088Z",
+      "actor": "developer",
+      "source": "chat 2026-10-16, plan approval (amendment 2, plan §7/§8)",
+      "text": "The README's Releases section carries the exact release order and §8's developer's-hands list follows it: npm version X.Y.Z --no-git-tag-version, commit; git tag -a vX.Y.Z -m 'released: YYYY-MM-DD' plus note: lines; npx cookwright changelog, commit; git push --follow-tags (pre-push runs the gate and the changelog check); npm publish. The first release after this bundle is 0.1.0.",
+      "claim": true
+    }
+  ],
   "costs": []
 }

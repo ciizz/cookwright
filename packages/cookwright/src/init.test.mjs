@@ -897,6 +897,15 @@ describe('pointers: the skills and workflows', () => {
     expect(fs.readdirSync(elsewhere)).toEqual([]);
   });
 
+  it('skips a pointer whose directory is a file of the user’s, before any write', () => {
+    const root = linkPackage(fresh());
+    write(root, '.claude/skills', 'mine');
+    const { code, rows } = init(root);
+    expect(code).toBe(0);
+    expect(rows[SKILL.rel]).toEqual({ action: 'skipped', note: m.pointers.theirs(SKILL.name) });
+    expect(read(root, '.claude/skills')).toBe('mine');
+  });
+
   it('skips the pointers under a linked .claude/skills or .claude, the target untouched, the other steps unaffected', () => {
     const shared = outside();
     const root = linkPackage(fresh());

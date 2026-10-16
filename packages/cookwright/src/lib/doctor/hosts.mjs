@@ -93,8 +93,9 @@ export function readPointer(repo, host, piece, past = POINTER_TEXTS_PAST) {
   let st;
   try {
     st = fs.lstatSync(abs);
-  } catch {
-    return { ...base, state: 'none' };
+  } catch (err) {
+    // ENOTDIR: a file of the user's stands where the pointer's directory would be.
+    return { ...base, state: err.code === 'ENOENT' ? 'none' : 'theirs' };
   }
   if (!st.isSymbolicLink()) return { ...base, state: 'theirs' };
   const text = fs.readlinkSync(abs);

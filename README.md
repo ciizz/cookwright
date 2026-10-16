@@ -82,7 +82,7 @@ The tag body is `key: value` lines: `released` dates the heading, `note` becomes
 
 ## Developing cookwright
 
-This repo runs its own bundles through the runner, and init has been run on it, so its git hooks are live: every commit runs the secret scan and one doc-sync rule (the bundle CLI and workflow need `packages/cookwright/docs/playbook.md` or the bundle skill staged), and every push runs `npm test` and the changelog check.
+This repo runs its own bundles through the runner, and init has been run on it, so its git hooks are live: every commit runs the secret scan and two doc-sync rules (the bundle CLI and workflow need `packages/cookwright/docs/playbook.md` or the bundle skill staged; the setup skill and the managed rules block need `README.md` staged), and every push runs `npm test` and the changelog check.
 
 ```bash
 npm ci && npm test

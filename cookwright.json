@@ -33,6 +33,16 @@
           "packages/cookwright/docs/playbook.md",
           "packages/cookwright/skills/bundle/SKILL.md"
         ]
+      },
+      {
+        "name": "setup",
+        "code": [
+          "packages/cookwright/skills/setup/SKILL.md",
+          "packages/cookwright/src/lib/rules/agents-block.md"
+        ],
+        "docs": [
+          "README.md"
+        ]
       }
     ]
   }

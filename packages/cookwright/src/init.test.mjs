@@ -21,7 +21,7 @@ import { messages } from './lib/messages.mjs';
 import { PROBES, hasTool } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
 import { shippedPieces } from './lib/doctor/hosts.mjs';
-import { commit, gitInit, gitWithoutScopes, linkPackage, run, scratchRoot, stageOnly, v1Block } from './test-helpers.mjs';
+import { commit, gitInit, gitWithoutScopes, linkPackage, run, scratchRoot, stageOnly, v1Block, v2Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-init-');
 const m = messages.init;
@@ -409,14 +409,18 @@ describe('the rules block', () => {
     expect(read(root, 'AGENTS.md')).toBe(`above\n\n${BLOCK}\nbelow, with an <!-- cookwright:end --> mention\n`);
   });
 
-  it('refreshes a v1 block to v2, the text outside the markers byte-identical', () => {
+  it.each([
+    ['v1', v1Block],
+    ['v2', v2Block],
+  ])('refreshes a %s block to v3, the text outside the markers byte-identical', (_, older) => {
     const root = fresh();
     const above = '# My rules\n\n- mine, with a `<!-- cookwright:end -->` mention\n\n';
     const below = '\n## More of mine\n\nThe Unreleased section is history.\n';
-    write(root, 'AGENTS.md', `${above}${v1Block(BLOCK)}\n${below}`);
-    expect(init(root).rows['AGENTS.md']).toEqual({ action: 'updated', note: m.block.refreshed(2) });
+    write(root, 'AGENTS.md', `${above}${older(BLOCK)}\n${below}`);
+    expect(init(root).rows['AGENTS.md']).toEqual({ action: 'updated', note: m.block.refreshed(3) });
     expect(read(root, 'AGENTS.md')).toBe(`${above}${BLOCK}\n${below}`);
     expect(BLOCK).toContain('COOKWRIGHT_SKIP=doc-sync git commit');
+    expect(BLOCK).toContain('the `setup` skill walks doctor');
     expect(init(root).rows['AGENTS.md'].action).toBe('kept');
   });
 

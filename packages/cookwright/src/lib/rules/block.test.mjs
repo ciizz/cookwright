@@ -14,6 +14,10 @@ import {
   renderBlock,
   renderTemplate,
 } from './block.mjs';
+import { v2Block } from '../../test-helpers.mjs';
+
+/** The paragraph after `heading` in `text`. */
+const paragraph = (text, heading) => text.split(`${heading}\n\n`)[1].split('\n\n')[0];
 
 const config = { ...DEFAULTS, paths: { ...DEFAULTS.paths, backlog: 'notes/todo.md' } };
 const block = renderBlock(config);
@@ -27,6 +31,17 @@ describe('renderBlock', () => {
     expect(block).toContain('`notes/todo.md`');
     expect(block).toContain(`\`${CLI} init\``);
     expect(block).not.toMatch(/\{\{|\r/);
+  });
+
+  it('is v3, whose Session start points at the setup skill', () => {
+    expect(RULES_VERSION).toBe(3);
+    expect(paragraph(block, '## Session start')).toContain(
+      "On a FAIL whose line does not clear it, on an update, or when the developer asks, the `setup` skill walks doctor's readout.",
+    );
+  });
+
+  it('reads a v2 block as stale', () => {
+    expect(blockState(`${v2Block(block)}\n`, block)).toMatchObject({ state: 'stale', version: 2 });
   });
 
   it('refuses a placeholder with no value', () => {

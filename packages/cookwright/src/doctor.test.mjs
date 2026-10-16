@@ -25,7 +25,7 @@ import { CODEX_HOOK_COMMAND, HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { PROBES } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
-import { commit, gitInit, gitWithoutScopes, run, scratchRepo, scratchRoot, stageOnly, v1Block } from './test-helpers.mjs';
+import { commit, gitInit, gitWithoutScopes, run, scratchRepo, scratchRoot, stageOnly, v1Block, v2Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-doctor-');
 const m = messages.doctor;
@@ -259,8 +259,11 @@ describe('rules', () => {
     });
   });
 
-  it('FAILs a v1 block as stale', () => {
-    expect(state(`# Rules\n\n${v1Block(block)}\n`)).toEqual({ status: 'FAIL', note: m.block.stale('AGENTS.md') });
+  it.each([
+    ['v1', v1Block],
+    ['v2', v2Block],
+  ])('FAILs a %s block as stale', (_, older) => {
+    expect(state(`# Rules\n\n${older(block)}\n`)).toEqual({ status: 'FAIL', note: m.block.stale('AGENTS.md') });
   });
 
   it('renders the block with the repo’s own paths', () => {

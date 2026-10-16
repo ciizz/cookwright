@@ -86,11 +86,24 @@ export function commit(repo, files, msg) {
   return run(dir, 'git', ['rev-parse', 'HEAD']);
 }
 
+/** The sentence v3 added to the block's Session start (stage 3). */
+const SETUP_SENTENCE = / On a FAIL whose line does not clear it, on an update, or when the developer asks, the `setup` skill walks doctor's readout\./;
+
+/** The managed block as v2 shipped it (stage 2), from a v3 render: the v2 marker, no setup sentence. */
+export function v2Block(v3) {
+  const out = v3
+    .replace(/^<!-- cookwright:begin rules v3 -->$/m, '<!-- cookwright:begin rules v2 -->')
+    .replace(SETUP_SENTENCE, '');
+  if (/rules v3|`setup` skill/.test(out)) throw new Error('v2Block: the v3 render changed shape');
+  return out;
+}
+
 /**
- * The managed block as v1 shipped it (stage 1), from a v2 render: the v1 marker,
+ * The managed block as v1 shipped it (stage 1), from a v3 render: the v1 marker,
  * the hand-kept changelog line, no doc-sync enforcement, no Git hooks section.
  */
-export function v1Block(v2) {
+export function v1Block(v3) {
+  const v2 = v2Block(v3);
   const out = v2
     .replace(/^<!-- cookwright:begin rules v2 -->$/m, '<!-- cookwright:begin rules v1 -->')
     .replace(/^- User-visible changes: .*$/m, '- User-visible changes: the Unreleased section of `CHANGELOG.md`.')

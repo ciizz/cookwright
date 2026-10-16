@@ -27,7 +27,7 @@ When `{{cli}} init` has installed the hooks (`.githooks/`): pre-commit scans the
 
 ## Session start
 
-`cookwright doctor` runs at session start and its readout is in your context. Deal with a FAIL before any other work. A WARN names its next step: take it, or log it in the backlog. If no doctor line reached you, run `{{cli}} doctor`.
+`cookwright doctor` runs at session start and its readout is in your context. Deal with a FAIL before any other work. A WARN names its next step: take it, or log it in the backlog. If no doctor line reached you, run `{{cli}} doctor`. On a FAIL whose line does not clear it, on an update, or when the developer asks, the `setup` skill walks doctor's readout.
 
 ## Secrets
 

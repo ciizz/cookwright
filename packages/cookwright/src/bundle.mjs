@@ -56,6 +56,7 @@ import {
 } from './lib/bundle/git.mjs';
 import { messages } from './lib/bundle/messages.mjs';
 import {
+  WORKFLOW,
   WORKFLOW_KINDS,
   finishPhase,
   kindOf,
@@ -66,6 +67,7 @@ import {
   doneBlocker,
   setRunId,
   workflowArgs,
+  workflowPaths,
 } from './lib/bundle/phases.mjs';
 import {
   bundleRel,
@@ -82,7 +84,6 @@ import {
 } from './lib/bundle/state.mjs';
 import { Refusal, need, numberFlag, onlyFlags, parseArgv, stringFlag } from './lib/cli.mjs';
 import { findRoot, loadConfig, workTreeRoot } from './lib/config.mjs';
-import { workflowScript } from './lib/hosts.mjs';
 
 const now = () => new Date().toISOString();
 
@@ -93,13 +94,14 @@ const readStdin = () => fs.readFileSync(0, 'utf8');
 
 // ── the repo ─────────────────────────────────────────────────────────────────
 
-/** The repo = { root, config }: the checkout holding cookwright.json above `cwd`,
- * never above the git work tree `cwd` is in. */
+/** The repo = { root, top, config }: the checkout holding cookwright.json above `cwd`,
+ * never above the git work tree `cwd` is in, whose top is `top`. */
 export function openRepo(cwd) {
-  const root = findRoot(cwd, { stopAt: workTreeRoot(cwd) });
+  const top = workTreeRoot(cwd);
+  const root = findRoot(cwd, { stopAt: top });
   if (!root) throw new Refusal(messages.noConfig);
   try {
-    return { root, config: loadConfig(root) };
+    return { root, top: top ?? root, config: loadConfig(root) };
   } catch (err) {
     throw new Refusal(err.message);
   }
@@ -186,13 +188,14 @@ function cmdStatus(repo, pos) {
   const state = loadState(repo, slug);
   const phase = currentPhase(state);
   const lastGate = state.gates.at(-1);
+  const next = nextAction(repo, state, phase); // first: a refusal prints nothing else
   console.log(`bundle   : ${state.slug} (${state.branch}, base ${state.base.slice(0, 8)})`);
   console.log(`plan     : ${state.plan.path}`);
   console.log(`phases   : ${state.phases.map((p) => `${p.name}[${p.status}]`).join(' ')}`);
   console.log(
     `last gate: ${lastGate ? `${lastGate.passed ? passLabel(lastGate) : 'FAIL'} on ${lastGate.commit.slice(0, 8)}` : 'none'}`,
   );
-  console.log(`next     : ${nextAction(repo, state, phase)}`);
+  console.log(`next     : ${next}`);
   return 0;
 }
 
@@ -204,14 +207,33 @@ export function nextAction(repo, state, phase) {
   const kind = kindOf(phase.name);
   if (kind === 'qa' && state.qaRounds.length === 0) return next.qaRound(slug);
   if (!WORKFLOW_KINDS.has(kind)) return next.outsideWorkflow(slug, phase.name);
-  const script = workflowScript(repo.config, 'bundle-phase');
   // Resume ONLY a run in flight: a finished run replayed from cache would hand back
   // its old result — for a QA round, a review of code it never saw.
   const run = phase.runs.at(-1);
-  if (run?.runId && !run.endedAt) return next.resume(script, run.runId, slug, phase.name);
-  if (run?.runId) return next.afterRun(slug, phase.name);
-  return next.launch(script, slug, phase.name);
+  if (run?.runId && run.endedAt) return next.afterRun(slug, phase.name);
+  const call = run?.runId
+    ? next.resume(WORKFLOW, run.runId, slug, phase.name)
+    : next.launch(WORKFLOW, slug, phase.name);
+  return withPointerNote(repo, call);
 }
+
+/** A Workflow call, refused without a host or playbook, and noted when its pointer is missing. */
+function withPointerNote(repo, call) {
+  const { pointer } = workflowPaths(repo);
+  return entryAt(path.resolve(repo.root, pointer))
+    ? call
+    : `${call}\nnote     : ${messages.pointerMissing(pointer)}`;
+}
+
+/** Anything at `abs`, a dangling link included (lstat, never followed). */
+const entryAt = (abs) => {
+  try {
+    fs.lstatSync(abs);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 function cmdArgs(repo, pos) {
   const state = openBundle(repo, pos[0]);

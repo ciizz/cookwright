@@ -235,10 +235,10 @@ describe('refusals', () => {
 
   it('refuses an invalid existing config with the loader message, before any write', () => {
     const root = fresh();
-    write(root, 'cookwright.json', '{ "version": 1, "hosts": ["codex"] }');
+    write(root, 'cookwright.json', '{ "version": 1, "hosts": ["gemini"] }');
     const before = tree(root);
     expect(init(root).code).toBe(2);
-    expect(err[0]).toMatch(/host "codex" is not available in this version of cookwright/);
+    expect(err[0]).toMatch(/host "gemini" is not available in this version of cookwright/);
     expect(tree(root)).toEqual(before);
   });
 

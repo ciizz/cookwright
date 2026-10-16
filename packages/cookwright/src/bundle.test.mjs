@@ -57,7 +57,10 @@ import {
 import { commit, gitInit, run, scratchRepo as scratchRepoIn, scratchRoot } from './test-helpers.mjs';
 
 const TMP = scratchRoot('bundle-test-');
-const scratchRepo = (name, config) => scratchRepoIn(TMP, name, config);
+// These repos keep their own playbook (`paths.playbook`, written by each test as
+// docs/playbook.md); the package's own copy, through node_modules, has its tests below.
+const scratchRepo = (name, config = {}) =>
+  scratchRepoIn(TMP, name, { ...config, paths: { playbook: 'docs/playbook.md', ...config.paths } });
 
 const SPLIT = {
   slices: [
@@ -340,9 +343,7 @@ describe('phases and the args invariant', () => {
     // a FINISHED run is never resumed — its cache would hand back the old result
     expect(nextAction(repo, state, phase)).toMatch(/or a rerun: `phase demo start fix:schema`/);
     delete phase.runs.at(-1).endedAt;
-    expect(nextAction(repo, state, phase)).toMatch(
-      /scriptPath: 'hosts\/claude\/workflows\/bundle-phase.js', resumeFromRunId: 'wf_9'/,
-    );
+    expect(nextAction(repo, state, phase)).toMatch(/^Workflow\(\{ name: 'bundle-phase', resumeFromRunId: 'wf_9'/);
     expect(nextAction(repo, state, null)).toMatch(/bundle check/);
     expect(nextAction(repo, state, { name: 'qa', status: 'running', runs: [] })).toMatch(
       /record a QA round/,
@@ -1099,7 +1100,7 @@ describe('the CLI', () => {
     });
     expect(typeof args.codex).toBe('boolean');
     expect(cli('status')).toBe(0); // the slug resolves from the branch
-    expect(logs.join('\n')).toMatch(/Workflow\(\{ scriptPath: 'hosts\/claude\/workflows\/bundle-phase\.js'/);
+    expect(logs.join('\n')).toMatch(/Workflow\(\{ name: 'bundle-phase', args: /);
     expect(cli('check', '--ci')).toBe(0);
     expect(logs.join('\n')).toMatch(/SKIP  repo  no repo-wide checks configured/);
     // The skipped check is on the recorded event, and status reads it back.

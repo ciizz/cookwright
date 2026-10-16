@@ -8,6 +8,7 @@
 // Stage 0 knows one host. A second host is a second entry here plus an adapter
 // directory under the package's hosts/<name>/; nothing else changes.
 
+import fs from 'node:fs';
 import path from 'node:path';
 
 // The session-start hook's three fallback lines, and the command itself. They live
@@ -21,7 +22,13 @@ export const HOOK_LINES = Object.freeze({
   crashed: 'cookwright doctor crashed (exit $?)',
 });
 
-const HOOK_BIN = 'node_modules/cookwright/bin/cookwright.mjs';
+/** Where a local install puts the package, relative to the directory it is installed in. */
+export const PACKAGE_DIR = 'node_modules/cookwright';
+
+/** The package's own bundle playbook, relative to the package. */
+const PLAYBOOK = 'docs/playbook.md';
+
+const HOOK_BIN = `${PACKAGE_DIR}/bin/cookwright.mjs`;
 
 /** The SessionStart command init writes and doctor's `host.hook` looks for, verbatim. */
 export const HOOK_COMMAND = [
@@ -36,9 +43,11 @@ export const HOOK_COMMANDS_PAST = Object.freeze([]);
 
 export const HOSTS = Object.freeze({
   claude: Object.freeze({
-    // Where this repo keeps the adapter's workflow scripts, relative to the root.
+    // Where the package keeps the adapter's workflow scripts, relative to the package.
     workflows: 'hosts/claude/workflows',
-    skills: 'hosts/claude/skills',
+    // Where a session finds a named workflow, relative to the work tree's top: the
+    // pointers init writes into the installed package. null: the host has no workflows.
+    workflowsDir: '.claude/workflows',
     // The files the host reads its rules from, in the order a session should read
     // them; whichever exist are hashed into every prompt. The charter puts rules in
     // AGENTS.md; Claude Code also reads CLAUDE.md, which may be the whole rules file
@@ -58,6 +67,14 @@ export const HOSTS = Object.freeze({
     // The first Claude Code release in which every session reads AGENTS.md.
     agentsNativeSince: '2.1.281',
   }),
+  // Its init steps, doctor checks and pointers arrive with its adapter (plan stage-3
+  // §4.4, Codex half); it has no workflow mechanism, so no bundle runner.
+  codex: Object.freeze({
+    rules: ['AGENTS.md'],
+    shadowing: Object.freeze([]),
+    importLine: null,
+    workflowsDir: null,
+  }),
 });
 
 export const KNOWN_HOSTS = Object.keys(HOSTS);
@@ -65,9 +82,48 @@ export const KNOWN_HOSTS = Object.keys(HOSTS);
 /** The adapter of the default host (the first configured one). */
 export const defaultHost = (config) => HOSTS[config.hosts[0]];
 
-/** Root-relative path of a workflow script of the default host. */
-export const workflowScript = (config, name) =>
-  path.posix.join(defaultHost(config).workflows, `${name}.js`);
+/** The configured hosts that have workflows, and every known one that does. */
+export const workflowHosts = (hosts = KNOWN_HOSTS) => hosts.filter((h) => HOSTS[h].workflowsDir);
+
+/**
+ * The pointer to workflow `name` of the first configured host that has workflows,
+ * relative to the work tree's top; null when no configured host has any.
+ */
+export function workflowScript(config, name) {
+  const [host] = workflowHosts(config.hosts);
+  return host ? path.posix.join(HOSTS[host].workflowsDir, `${name}.js`) : null;
+}
 
 /** Root-relative paths of the default host's candidate rules files. */
 export const rulesFiles = (config) => defaultHost(config).rules;
+
+const real = (p) => {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+};
+
+/** The work tree's top from the config root, POSIX, empty when they are one directory. */
+export const upToTop = ({ root, top = root }) =>
+  path.relative(real(root), real(top)).split(path.sep).join('/');
+
+/**
+ * The installed package, relative to the config root: its own `node_modules`, else
+ * the work tree top's when the root is below the top (a package hoisted there), the
+ * first that holds a package.json; null when neither does.
+ */
+export function installedPackage(repo) {
+  const up = upToTop(repo);
+  const candidates = [PACKAGE_DIR, ...(up ? [`${up}/${PACKAGE_DIR}`] : [])];
+  return candidates.find((rel) => fs.existsSync(path.join(repo.root, rel, 'package.json'))) ?? null;
+}
+
+/**
+ * The playbook every bundle session reads, relative to the config root: the user's
+ * own when `paths.playbook` names one, else the installed package's copy (the
+ * config-root form when the package is not installed, so a refusal can name it).
+ */
+export const playbookPath = (config, repo) =>
+  config.paths.playbook ?? path.posix.join(installedPackage(repo) ?? PACKAGE_DIR, PLAYBOOK);

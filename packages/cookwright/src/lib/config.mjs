@@ -29,12 +29,14 @@ export const DEFAULTS = Object.freeze({
     bundles: 'docs/bundles',
     closeouts: 'docs/closeouts',
     backlog: 'docs/backlog.md',
-    playbook: 'docs/playbook.md',
     changelog: 'CHANGELOG.md',
   },
   gate: { checks: [], flakes: {} },
   hooks: { docSync: [] },
 });
+
+/** Paths with no default: absent means the package's own (the playbook, hosts.mjs). */
+export const OPTIONAL_PATHS = Object.freeze(['playbook']);
 
 /** Every key the validator knows, per object — the schema test compares these. */
 export const KNOWN_KEYS = Object.freeze({
@@ -189,6 +191,7 @@ function validatePaths(paths) {
   if (!isObj(paths)) return ['paths must be an object'];
   const out = unknownKeys(paths, KNOWN_KEYS.paths, 'paths');
   for (const key of KNOWN_KEYS.paths) {
+    if (OPTIONAL_PATHS.includes(key) && paths[key] === undefined) continue;
     if (!isRelPath(paths[key])) out.push(`paths.${key} must be a root-relative path inside the repo`);
   }
   // No two paths may nest or coincide: the gate ignores dirt under `bundles`, so a

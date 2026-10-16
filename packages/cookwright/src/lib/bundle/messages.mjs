@@ -13,6 +13,17 @@ export const messages = {
   usage: (commands) => `usage: ${BUNDLE_CLI} <${commands.join('|')}> …`,
   noConfig: `no ${CONFIG_FILE} here or in any parent directory — run from inside a cookwright repo`,
 
+  // what a Workflow call needs: the playbook its prompts point at, a host that runs it
+  noPlaybook: (rel, configured) =>
+    `the playbook is not at ${rel} (${
+      configured
+        ? 'paths.playbook names it'
+        : 'cookwright is not installed under the config root or the work tree top: npm install --save-dev cookwright'
+    })`,
+  noWorkflowHost: (withWorkflows, hosts) =>
+    `the bundle runner needs a host with workflows (${withWorkflows.join(', ')}); hosts is [${hosts.join(', ')}]`,
+  pointerMissing: (rel) => `run init: the workflow pointer ${rel} is missing`,
+
   // gate
   skippedNeeds: (tool) => `skipped, needs ${tool}, run setup`,
   skippedNotFound: (cmd) => `skipped, command not found: ${cmd}`,
@@ -45,13 +56,13 @@ export const messages = {
       `record a QA round (\`record ${slug} qa\` with your notes on stdin), or \`phase ${slug} done qa --no-device "<why>"\``,
     outsideWorkflow: (slug, phase) =>
       `${phase} runs outside the Workflow — finish it, then \`phase ${slug} done ${phase}\``,
-    resume: (script, runId, slug, phase) =>
-      `Workflow({ scriptPath: '${script}', resumeFromRunId: '${runId}', args: ` +
+    resume: (workflow, runId, slug, phase) =>
+      `Workflow({ name: '${workflow}', resumeFromRunId: '${runId}', args: ` +
       `<output of \`${BUNDLE_CLI} args ${slug} ${phase}\`> })`,
     afterRun: (slug, phase) =>
       `record the run's results, gate, \`phase ${slug} done ${phase}\` — or a rerun: \`phase ${slug} start ${phase}\``,
-    launch: (script, slug, phase) =>
-      `Workflow({ scriptPath: '${script}', args: <output of ` +
+    launch: (workflow, slug, phase) =>
+      `Workflow({ name: '${workflow}', args: <output of ` +
       `\`${BUNDLE_CLI} args ${slug} ${phase}\`> }), then \`phase ${slug} run ${phase} --run-id <id>\``,
   },
 };

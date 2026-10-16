@@ -110,11 +110,11 @@ describe('a Level 0 repo', () => {
 
 describe('config', () => {
   it('names an unknown host verbatim and SKIPs what needs the config', () => {
-    const root = level0({}, { hosts: ['codex'] });
+    const root = level0({}, { hosts: ['gemini'] });
     const rows = doctor(root);
     expect(rows.config.status).toBe('FAIL');
     expect(rows.config.note).toBe(
-      'cookwright.json: hosts: host "codex" is not available in this version of cookwright (known: claude)',
+      'cookwright.json: hosts: host "gemini" is not available in this version of cookwright (known: claude, codex)',
     );
     const needConfig = ['homes.backlog', 'homes.closeouts', 'homes.changelog', 'backlog.ids', 'gate.scripts'];
     for (const name of [...needConfig, 'rules.block', 'host.rules', 'host.hook']) {
@@ -651,7 +651,7 @@ describe('the readout', () => {
   });
 
   it('reads an invalid config as level unknown, and exits 1', () => {
-    expect(doc(level0({}, { hosts: ['codex'] }))).toBe(1);
+    expect(doc(level0({}, { hosts: ['gemini'] }))).toBe(1);
     expect(out.at(-1)).toBe('level unknown: config invalid');
     expect(out.join('\n')).not.toMatch(/^FAIL {2}host\./m);
   });

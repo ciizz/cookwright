@@ -12,6 +12,7 @@ import {
   CONFIG_FILE,
   DEFAULTS,
   KNOWN_KEYS,
+  OPTIONAL_PATHS,
   findRoot,
   loadConfig,
   nonCodePathspecs,
@@ -20,9 +21,16 @@ import {
   withDefaults,
   workTreeRoot,
 } from './config.mjs';
-import { KNOWN_HOSTS, rulesFiles, workflowScript } from './hosts.mjs';
+import {
+  KNOWN_HOSTS,
+  installedPackage,
+  playbookPath,
+  rulesFiles,
+  workflowHosts,
+  workflowScript,
+} from './hosts.mjs';
 import { KNOWN_LEVELS } from './levels.mjs';
-import { gitInit } from '../test-helpers.mjs';
+import { gitInit, linkPackage } from '../test-helpers.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCHEMA = JSON.parse(
@@ -132,10 +140,14 @@ describe('validateConfig', () => {
 
   it('refuses an unknown or repeated host and keeps the known ones listed', () => {
     expect(problems({ hosts: ['gemini'] })).toMatch(
-      /hosts: host "gemini" is not available in this version of cookwright \(known: claude\)/,
+      /hosts: host "gemini" is not available in this version of cookwright \(known: claude, codex\)/,
     );
     expect(problems({ hosts: 'claude' })).toMatch(/non-empty list/);
     expect(problems({ hosts: ['claude', 'claude'] })).toMatch(/each host once/);
+    expect(problems({ hosts: ['codex', 'codex'] })).toMatch(/each host once/);
+    for (const hosts of [['codex'], ['claude', 'codex'], ['codex', 'claude']]) {
+      expect([hosts, problems({ hosts })]).toEqual([hosts, '']);
+    }
     expect(problems({ $schema: 1 })).toMatch(/\$schema must be a string/);
   });
 
@@ -153,10 +165,26 @@ describe('validateConfig', () => {
     expect(changelog('../CHANGELOG.md')).toMatch(/paths\.changelog/);
     expect(changelog('docs/bundles/CHANGELOG.md')).toMatch(/paths\.bundles and paths\.changelog overlap/);
     expect(changelog('docs/closeouts')).toMatch(/paths\.changelog and paths\.closeouts overlap/);
-    expect(changelog('docs/playbook.md')).toMatch(/paths\.changelog and paths\.playbook overlap/);
+    const withPlaybook = { ...DEFAULTS.paths, playbook: 'docs/playbook.md' };
+    expect(problems({ paths: { ...withPlaybook, changelog: 'docs/playbook.md' } })).toMatch(
+      /paths\.changelog and paths\.playbook overlap/,
+    );
     const playbook = { ...DEFAULTS.paths, playbook: 'docs/closeouts/playbook.md' };
     expect(problems({ paths: playbook })).toMatch(/paths\.closeouts and paths\.playbook overlap/);
     expect(nonCodePathspecs(valid())).not.toContain(':(exclude)CHANGELOG.md'); // a changelog line is code
+  });
+
+  it('takes paths.playbook as optional: absent is valid, present is held to the path rules', () => {
+    expect(DEFAULTS.paths.playbook).toBeUndefined();
+    expect(valid().paths.playbook).toBeUndefined();
+    expect(validateConfig(valid())).toEqual([]);
+    const playbook = (p) => problems({ paths: { ...DEFAULTS.paths, playbook: p } });
+    expect(playbook('docs/playbook.md')).toBe('');
+    expect(playbook('/docs/playbook.md')).toMatch(/paths\.playbook must be a root-relative path/);
+    expect(playbook('../playbook.md')).toMatch(/paths\.playbook must be a root-relative path/);
+    expect(playbook('')).toMatch(/paths\.playbook must be a root-relative path/);
+    expect(playbook(null)).toMatch(/paths\.playbook must be a root-relative path/);
+    expect(playbook('docs/bundles/playbook.md')).toMatch(/paths\.bundles and paths\.playbook overlap/);
   });
 
   it('refuses paths that escape the root, are absolute, or are the root itself', () => {
@@ -275,6 +303,11 @@ describe('the schema and the validator agree', () => {
     for (const key of KNOWN_KEYS.paths) {
       expect(p.paths.properties[key].default).toBe(DEFAULTS.paths[key]);
     }
+    for (const key of OPTIONAL_PATHS) {
+      expect(KNOWN_KEYS.paths).toContain(key);
+      expect(Object.hasOwn(p.paths.properties[key], 'default')).toBe(false);
+      expect(Object.hasOwn(DEFAULTS.paths, key)).toBe(false);
+    }
     expect(p.version.const).toBe(DEFAULTS.version);
     expect(p.hooks.properties.docSync.default).toEqual(DEFAULTS.hooks.docSync);
   });
@@ -295,8 +328,38 @@ describe('derived values', () => {
     ]);
   });
 
-  it('resolves the default host’s workflow script and rules files', () => {
-    expect(workflowScript(valid(), 'bundle-phase')).toBe('hosts/claude/workflows/bundle-phase.js');
+  it('resolves the workflow pointer of the first host with workflows, and the default host’s rules files', () => {
+    expect(workflowScript(valid(), 'bundle-phase')).toBe('.claude/workflows/bundle-phase.js');
     expect(rulesFiles(valid())).toEqual(['AGENTS.md', 'CLAUDE.md']);
+    const hosts = (list) => ({ ...valid(), hosts: list });
+    expect(workflowScript(hosts(['codex', 'claude']), 'bundle-phase')).toBe('.claude/workflows/bundle-phase.js');
+    expect(rulesFiles(hosts(['codex', 'claude']))).toEqual(['AGENTS.md']);
+    expect(workflowScript(hosts(['codex']), 'bundle-phase')).toBeNull();
+    expect(workflowHosts()).toEqual(['claude']);
+  });
+
+  it('finds the installed package at the config root, else hoisted to the work tree top', () => {
+    const top = gitInit(path.join(TMP, 'installed'));
+    const app = path.join(top, 'apps/mobile');
+    fs.mkdirSync(app, { recursive: true });
+    const nested = { root: app, top };
+    expect(installedPackage(nested)).toBeNull();
+    expect(playbookPath(valid(), nested)).toBe('node_modules/cookwright/docs/playbook.md');
+    linkPackage(top);
+    expect(installedPackage(nested)).toBe('../../node_modules/cookwright');
+    expect(playbookPath(valid(), nested)).toBe('../../node_modules/cookwright/docs/playbook.md');
+    expect(fs.existsSync(path.join(app, playbookPath(valid(), nested)))).toBe(true);
+    linkPackage(app);
+    expect(installedPackage(nested)).toBe('node_modules/cookwright');
+    expect(installedPackage({ root: top })).toBe('node_modules/cookwright');
+    // A directory without a package.json is not an install.
+    const bare = path.join(TMP, 'bare-install');
+    fs.mkdirSync(path.join(bare, 'node_modules/cookwright'), { recursive: true });
+    expect(installedPackage({ root: bare })).toBeNull();
+  });
+
+  it('reads the playbook the config names before the package’s', () => {
+    const own = { ...valid(), paths: { ...valid().paths, playbook: 'ops/playbook.md' } };
+    expect(playbookPath(own, { root: TMP })).toBe('ops/playbook.md');
   });
 });

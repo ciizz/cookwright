@@ -7,9 +7,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { fileURLToPath } from 'node:url';
+
 import { afterAll } from 'vitest';
 
 import { CONFIG_FILE, loadConfig } from './lib/config.mjs';
+
+/** This package's own directory, the target of `linkPackage`. */
+export const PACKAGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** A command's trimmed stdout; throws on a non-zero exit. */
 export const run = (cwd, cmd, args) => execFileSync(cmd, args, { cwd, encoding: 'utf8' }).trim();
@@ -93,4 +98,17 @@ export function v1Block(v2) {
     .replace(/^## Git hooks\n\n.*\n\n/m, '');
   if (out === v2 || /COOKWRIGHT_SKIP|rules v2/.test(out)) throw new Error('v1Block: the v2 render changed shape');
   return out;
+}
+
+/**
+ * Install this package at `dir/node_modules/cookwright` as a symlink, the way a
+ * workspace link does, and hide `node_modules` from git in the repo `dir` is in.
+ */
+export function linkPackage(dir) {
+  fs.mkdirSync(path.join(dir, 'node_modules'), { recursive: true });
+  fs.symlinkSync(PACKAGE, path.join(dir, 'node_modules/cookwright'));
+  const exclude = run(dir, 'git', ['rev-parse', '--git-path', 'info/exclude']);
+  fs.mkdirSync(path.dirname(path.resolve(dir, exclude)), { recursive: true });
+  fs.appendFileSync(path.resolve(dir, exclude), 'node_modules\n');
+  return dir;
 }

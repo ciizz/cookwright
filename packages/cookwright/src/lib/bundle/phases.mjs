@@ -15,8 +15,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { rulesFiles } from '../hosts.mjs';
-import { BUNDLE_CLI } from './messages.mjs';
+import { playbookPath, rulesFiles, upToTop, workflowHosts, workflowScript } from '../hosts.mjs';
+import { BUNDLE_CLI, messages } from './messages.mjs';
 import { relativeFiles, scrubLocalPaths, scrubValue } from './scrub.mjs';
 import { bundleDir, bundleRel, findPhase, sha256File, sliceOfPhase } from './state.mjs';
 
@@ -142,6 +142,25 @@ export function finishPhase(
   return phase;
 }
 
+/** The named Workflow every bundle phase runs through. */
+export const WORKFLOW = 'bundle-phase';
+
+/**
+ * What a Workflow call needs, checked before any path is hashed: a configured host
+ * that has workflows, and the playbook its prompts point at. Returns the config-root
+ * relative paths of the playbook and of the workflow's pointer (at the work tree's
+ * top); throws one line naming what is missing.
+ */
+export function workflowPaths(repo) {
+  const script = workflowScript(repo.config, WORKFLOW);
+  if (!script) throw new Error(messages.noWorkflowHost(workflowHosts(), repo.config.hosts));
+  const playbook = playbookPath(repo.config, repo);
+  if (!fs.existsSync(path.resolve(repo.root, playbook))) {
+    throw new Error(messages.noPlaybook(playbook, repo.config.paths.playbook !== undefined));
+  }
+  return { playbook, pointer: path.posix.join(upToTop(repo), script) };
+}
+
 /** `{ path, sha }` of a root-relative file, the shape every pointed-at file takes. */
 const pointer = (repo, rel) => ({ path: rel, sha: sha256File(path.resolve(repo.root, rel)) });
 
@@ -151,6 +170,7 @@ export function workflowArgs(state, name, repo) {
   const kind = kindOf(name);
   if (!WORKFLOW_KINDS.has(kind)) throw new Error(`${name} is not a Workflow phase`);
   if (phase.status !== 'running') throw new Error(`start ${name} first (bundle phase start)`);
+  const paths = workflowPaths(repo);
   const rules = rulesFiles(repo.config).filter((f) => fs.existsSync(path.join(repo.root, f)));
   const args = {
     phase: kind,
@@ -161,7 +181,7 @@ export function workflowArgs(state, name, repo) {
     codex: phase.runs.at(-1).codex ?? false,
     state: bundleRel(repo, state.slug, 'state.json'),
     plan: pointer(repo, state.plan.path),
-    playbook: pointer(repo, repo.config.paths.playbook),
+    playbook: pointer(repo, paths.playbook),
     ...(rules.length ? { rules: rules.map((f) => pointer(repo, f)) } : {}),
   };
   const slice = sliceOfPhase(state, name);

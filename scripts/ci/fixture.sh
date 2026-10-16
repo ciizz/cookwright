@@ -68,7 +68,12 @@ overlay() {
   step "overlay, git init, one commit"
   cat "$OVERLAY/AGENTS.md" >> "$APP/AGENTS.md"
   cd "$APP"
-  git rev-parse --git-dir >/dev/null 2>&1 || git init -q
+  # The scaffold's own repo and "Initial commit" go: the fixture starts from
+  # one controlled commit, in a repo of the app's own even when the temp dir
+  # lies inside another work tree.
+  rm -rf .git
+  git init -q
+  [ "$(git rev-parse --show-toplevel)" = "$(pwd -P)" ] || fail "the app is not its own repo"
   git add -A
   git commit -qm "fixture: the scaffold with the overlay"
   git log --oneline

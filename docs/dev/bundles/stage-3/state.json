@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 128,
+  "revision": 129,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -392,9 +392,21 @@
     },
     {
       "name": "review:whole",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-16T09:45:05.484Z",
+          "stateRevision": 128,
+          "planSha": "6cfa81884bddb0a6",
+          "codex": true
+        }
+      ],
+      "startCommit": "960c4ff22b9d91d74383abce83af489602731baf",
+      "range": {
+        "from": "51a90fc98af1bcbd58da9785b833feded490f7c2",
+        "to": "960c4ff22b9d91d74383abce83af489602731baf"
+      }
     },
     {
       "name": "fix:whole",

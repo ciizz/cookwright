@@ -23,7 +23,7 @@ It is reached once `npx cookwright init` has run (init writes the pointer that m
 2. Take the first line that is not PASS and that you have not already stopped at in this run. Find it in the recipe below by its check, its status and its note.
 3. Apply exactly one remedy, show the command's own output lines, then go back to 1. Never act on a readout taken before the last remedy.
 4. **A remedy that does not clear its line.** When the remedy refuses (it exits non-zero, or prints an `init: …` or `migrate: …` refusal), when the next readout shows the line as it was, or when the developer declines it, show the command's output and the line, and **stop at** that line: never apply the same remedy to the same line twice in a run. One exception: a refusal that names a file to fix by hand (`… is not valid JSON (…); fix it by hand, then rerun`, `… is not the shape … reads …; fix it by hand, then rerun`, `… is a symbolic link and init does not write through one …`, `… exists and is not a file; move it aside, then rerun`) makes that fix the next remedy: show the refusal, make the fix it names with consent, then go back to 1.
-5. Stop when every line is PASS, or when every line left is one you stopped at: explain each of those in a sentence and take no action on it.
+5. Stop when every line is PASS, or when every line left is one you stopped at: explain each of those in a sentence and take no action on it. Then do what "At the end" says, which covers the PASS lines that carry advice.
 
 A line the recipe does not name: show it, say this skill has no recipe for it, and **end** the walkthrough there. Never improvise a remedy. A line that **ends** the walkthrough also ends it.
 
@@ -81,7 +81,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | `host.hook` | WARN | `… has an earlier version of the doctor hook` | `npx cookwright init` |
 | `host.hook`, Codex | WARN | `… has the doctor hook under …, not startup\|resume` | `npx cookwright init` |
 | `host.hook` | FAIL | `… is not valid JSON (…)` | show the parse error; with consent, repair the file by hand |
-| `host.hook`, Codex | PASS | `… whether it is trusted is yours: /hooks` | after init wrote or rewrote `.codex/hooks.json`, say to trust it in Codex with `/hooks`, again after every rewrite |
+| `host.hook`, Codex | PASS | `… whether it is trusted is yours: /hooks` | at the end (see "At the end") |
 
 ### Skill and workflow pointers (`host.pointers`)
 
@@ -115,7 +115,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | status | note | remedy |
 |---|---|---|
 | FAIL | a line naming an npm script `package.json` does not define | name the script; with consent, add it to `package.json` or fix the check in `gate.checks` |
-| PASS | `no gate checks configured` | once, at the end: say pre-push runs nothing, and offer a gate check (`npx tsc --noEmit`, `npx expo lint`, their call), written into `gate.checks` with consent |
+| PASS | `no gate checks configured` | at the end (see "At the end") |
 
 ### Secrets (`secrets.env`)
 
@@ -138,5 +138,8 @@ With consent, add the host (`claude`, `codex`) to `hosts` in `cookwright.json` b
 
 ## At the end
 
+- Read the last readout's PASS lines once for the two that carry advice, and act on each that is there:
+  - a Codex `host.hook` line reading `whether it is trusted is yours: /hooks`, when init wrote or rewrote `.codex/hooks.json` in this walkthrough: say to trust the hook in Codex with `/hooks`, and again after every rewrite of that file;
+  - a `gate.scripts` line reading `no gate checks configured`: say pre-push runs nothing, and offer a gate check (`npx tsc --noEmit`, `npx expo lint`, their call), written into `gate.checks` with consent.
 - Print the level line and the `next:` line of the last readout.
 - Name every file init, migrate or you wrote in this walkthrough, so the developer commits them by path (`git add <paths>`, never `-A`).

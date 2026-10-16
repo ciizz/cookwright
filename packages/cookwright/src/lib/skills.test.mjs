@@ -55,4 +55,11 @@ describe('the setup skill', () => {
   it('has a recipe for every check doctor runs', () => {
     for (const check of Object.keys(CHECKS)) expect(text).toContain(`\`${check}\``);
   });
+
+  it('acts on every PASS row of its recipe at the end, since the loop skips PASS lines', () => {
+    const end = text.slice(text.indexOf('## At the end'));
+    const notes = [...text.matchAll(/^\|.*\| PASS \| `(?:… )?([^`]+)`/gm)].map((m) => m[1]);
+    expect(notes.length).toBeGreaterThan(0);
+    for (const note of notes) expect(end).toContain(note);
+  });
 });

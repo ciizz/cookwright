@@ -154,6 +154,10 @@ describe('an older version, migrated in memory', () => {
     expect(loadConfig(dir).migratedFrom).toBe(1);
     const other = repoWith('v1-other', { version: 1, paths: { playbook: 'ops/playbook.md' } });
     expect(loadConfig(other).paths.playbook).toBe('ops/playbook.md');
+    const trimmed = repoWith('v1-trimmed', { version: 1 });
+    fs.mkdirSync(path.join(trimmed, 'docs'));
+    fs.writeFileSync(path.join(trimmed, 'docs/playbook.md'), 'mine');
+    expect(loadConfig(trimmed).paths.playbook).toBe('docs/playbook.md'); // the key version 1 defaulted to
   });
 
   it('sets no migratedFrom on a current config', () => {

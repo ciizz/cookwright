@@ -33,5 +33,21 @@ describe('1 → 2: the stale paths.playbook', () => {
     for (const raw of [{ version: 1 }, { version: 1, paths: {} }, { version: 1, paths: 'x' }, { version: 1, paths: null }]) {
       expect(step(raw, ctx())).toEqual({ raw, outcome: 'playbookAbsent' });
     }
+    for (const raw of [{ version: 1, paths: 'x' }, { version: 1, paths: null }]) {
+      expect(step(raw, ctx([STALE_PLAYBOOK]))).toEqual({ raw, outcome: 'playbookAbsent' });
+    }
+  });
+
+  it('writes the version-1 default in when the key is absent and a playbook is there', () => {
+    const bare = { version: 1, level: 0 };
+    const before = structuredClone(bare);
+    expect(step(bare, ctx([STALE_PLAYBOOK]))).toEqual({
+      raw: { version: 1, level: 0, paths: { playbook: STALE_PLAYBOOK } },
+      outcome: 'playbookPinned',
+      detail: STALE_PLAYBOOK,
+    });
+    expect(bare).toEqual(before);
+    const trimmed = { version: 1, paths: { backlog: 'x.md' } };
+    expect(step(trimmed, ctx([STALE_PLAYBOOK])).raw).toEqual({ version: 1, paths: { backlog: 'x.md', playbook: STALE_PLAYBOOK } });
   });
 });

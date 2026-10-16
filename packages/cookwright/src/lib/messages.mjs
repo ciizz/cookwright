@@ -298,6 +298,7 @@ const migrate = {
     playbookDropped: (rel) => `paths.playbook dropped (${rel} was never written; the package's playbook applies)`,
     playbookKept: (rel) => `paths.playbook kept (${rel}, your own playbook)`,
     playbookAbsent: () => 'nothing to change (no paths.playbook)',
+    playbookPinned: (rel) => `paths.playbook set to ${rel} (your own playbook, which version 1 read when the key was absent)`,
   },
   invalid: (problems) => `the migrated ${CONFIG_FILE} would be invalid: ${problems.join('; ')}; nothing written`,
   wrote: (version, relaid) => `${CONFIG_FILE} written at version ${version}${relaid ? RELAID : ''}`,

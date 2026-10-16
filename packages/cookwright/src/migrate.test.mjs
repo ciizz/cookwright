@@ -83,6 +83,16 @@ describe('1 → 2', () => {
     expect(read(root)).toBe('{\n  "version": 2\n}\n');
   });
 
+  it('writes the key in when it is absent and a playbook is at the version-1 default', () => {
+    const root = repoWith({ version: 1, level: 0 });
+    fs.mkdirSync(path.join(root, 'docs'));
+    fs.writeFileSync(path.join(root, 'docs/playbook.md'), 'mine');
+    expect(migrate(root)).toBe(0);
+    expect(out[0]).toBe('1 → 2: paths.playbook set to docs/playbook.md (your own playbook, which version 1 read when the key was absent)');
+    expect(JSON.parse(read(root))).toEqual({ version: 2, level: 0, paths: { playbook: 'docs/playbook.md' } });
+    expect(loadConfig(root).paths.playbook).toBe('docs/playbook.md');
+  });
+
   it('keeps the file’s indent, CRLF line endings and missing final newline', () => {
     const tab = `${JSON.stringify(STALE, null, '\t')}\n`;
     const crlf = JSON.stringify(STALE, null, 4).split('\n').join('\r\n');

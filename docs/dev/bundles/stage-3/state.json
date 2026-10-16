@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 102,
+  "revision": 105,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -286,7 +286,7 @@
     },
     {
       "name": "review:setup",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -294,14 +294,18 @@
           "stateRevision": 100,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_8e2b64f2-4b6"
+          "runId": "wf_8e2b64f2-4b6",
+          "endedAt": "2026-10-16T09:17:47.933Z",
+          "turnOutputTokens": 767800
         }
       ],
       "startCommit": "2bc8f07e6667a082defab898591136360844e99d",
       "range": {
         "from": "396e8af447f4ff36148a240ff166baf583ac902d",
         "to": "2bc8f07e6667a082defab898591136360844e99d"
-      }
+      },
+      "endCommit": "45d774fe8117c5751e4d533128fc8ebe6b851938",
+      "endCode": "cbce581de95401873536293c7d49fa647b2518dd"
     },
     {
       "name": "fix:setup",
@@ -543,6 +547,24 @@
       "at": "2026-10-16T08:46:17.439Z",
       "stored": true,
       "head": "83cc2ee323f9e9ede2fe1d27cf93d21a3c10eb28"
+    },
+    {
+      "phase": "review:setup",
+      "path": "docs/dev/bundles/stage-3/findings/review-setup-1.json",
+      "counts": {
+        "confirmed": 4,
+        "plausible": 2,
+        "rejected": 1,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 3,
+        "P3": 3
+      },
+      "at": "2026-10-16T09:17:20.442Z",
+      "stored": true,
+      "head": "45d774fe8117c5751e4d533128fc8ebe6b851938"
     }
   ],
   "reports": [
@@ -925,6 +947,13 @@
       "actor": "orchestrator",
       "source": "implement:s6 report and the orchestrator's measurement, 2026-10-16 (plan §7.4, §8; review:route finding 6; E-028)",
       "text": "Rule 3, measured with one-shot Claude Code 2.1.301 sessions after s6's init: a fresh session at this repo's root listed setup, bundle, bundle-phase and docs-audit, all pointers into node_modules/cookwright, and its context carried 'SessionStart:startup hook success: cookwright doctor: level 0 complete'; a session started in packages/cookwright/src listed the same four, so skills and named workflows are found through the work tree top's .claude/ from a session below it. E-028 is closed on that evidence in the backlog (its Claude half; the hook placement for a nested config root stays B-002's). s6's two open questions accepted: migrate's parenthetical 'the file is rewritten in standard JSON layout, its indent kept' is the relaid note §7.1 expected, and the running session picking up the setup skill as soon as init wrote its pointer is noted as an observation, the fresh-session listing above being the measurement. s6 added no product string.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T09:17:47.761Z",
+      "actor": "orchestrator",
+      "source": "review:setup findings, 2026-10-16",
+      "text": "fix:setup applies: finding 3 (rule 1, rule 2: the setup loop gains a stop rule: a remedy that refuses, or a line that reads the same after its remedy, is shown with the command's output and stopped at, except that a refusal naming another check's line (init refusing on an invalid settings file) sends the loop to that line's recipe; a row for init's 'pointer … not written: this filesystem refuses symbolic links' that stops and names B-010); finding 1 (rule 3: an 'At the end' pass handles the guidance that sits on PASS rows, the no-gate-checks offer and the Codex /hooks trust, so an all-PASS readout still gets them); finding 4 (rule 3: README First run says a Codex user runs init --hosts codex or claude,codex, limits the session-start doctor line to Claude Code, and for Codex says to trust the hook with /hooks and run doctor by hand until E-027 is measured, step 5 pointing at the Codex section); finding 5 (rule 3: the README's Windows bullet says what the code does, a pointer checked out as a text file reads as 'your own' and only a pointer init could not write reads as the Windows WARN, and E-029's line gains that win32 should read a regular file holding our link text as the Windows state); finding 6 (rule 5: the recipe test checks a fixed list of doctor message fragments beside messages.doctor, so the exhaustive table cannot go stale silently). Finding 0 was rejected by the verifier (the README's release block is for a user's app repo, where the root package is the package; this repo's own release is the plan's §8 instruction). Finding 2 (rule 8, the doc-sync letter): no change; the plan sequenced s5 as skill, block, then README and backlog, the window lies inside one unmerged branch, and a docSync rule tying the skills and the block to the README is backlogged as wanted once (rule 6).",
       "claim": true
     }
   ],

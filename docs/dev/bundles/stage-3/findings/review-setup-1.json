@@ -1,0 +1,148 @@
+{
+  "phase": "review:setup",
+  "stored": true,
+  "issues": [
+    {
+      "file": "README.md",
+      "location": "line 65 (Releases block)",
+      "problem": "The release block runs npm version and npm publish without selecting packages/cookwright. From the root, npm selects the private cookwright-monorepo while the publishable cookwright workspace stays unchanged. Also deviates from plan section 8, which puts npm version in packages/cookwright.",
+      "severity": "P1",
+      "suggested_fix": "Use workspace-qualified commands: npm version 1.2.0 --workspace packages/cookwright --no-git-tag-version and npm publish --workspace packages/cookwright; commit packages/cookwright/package.json and the root package-lock.json.",
+      "failure_scenario": "A developer versions the private root, creates and pushes v1.2.0, then npm publish fails or targets the wrong package. The tag no longer matches the package version intended for release.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "rejected",
+      "evidence": "README.md:60-77 (Releases) is user-facing guidance for an app repo, where the root package.json is the package ('for a package that is published at all'). The monorepo-root problem does not apply to it. The packages/cookwright instruction is for this repo's own first release (plan.md:172, 'developer's hands'), a different audience."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "line 22 (loop), lines 83 and 116",
+      "problem": "The loop processes only non-PASS lines and stops when all are PASS, but required guidance sits on PASS rows: Codex hook trust (line 83) and the 'no gate checks configured' warning (line 116). Tests only check that each check name appears.",
+      "severity": "P2",
+      "suggested_fix": "Add a finalization pass before stopping that handles advisory PASS rows, or move those actions into the 'At the end' section. Add tests for the all-PASS/no-gate and Codex-hook-trust walkthroughs.",
+      "failure_scenario": "A fresh Expo repo with no gate checks reaches 17 PASS, so setup exits without warning that pre-push runs nothing or offering a gate. Likewise, after init writes a valid Codex hook, its PASS trust instruction may never be handled.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "plausible",
+      "evidence": "SKILL.md:22-25 define the loop on non-PASS lines and stop when all are PASS, yet rows at :83 (Codex hook trust, PASS) and :116 (no gate checks, PASS, 'once, at the end') are PASS-only guidance. The 'At the end' section (:137-140) does not mention the gate warning. Trust guidance is partly covered by 'Adding a host' (:135), and an agent might follow the :116 'at the end' wording anyway, so the scenario is not certain."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md; packages/cookwright/src/lib/rules/agents-block.md; cookwright.json",
+      "location": "SKILL.md:1, agents-block.md:27, cookwright.json:23",
+      "problem": "Commits eccdd28 and 96b977f add the setup feature and managed-rule behavior, but README and backlog sync arrives later in c2206b2, violating AGENTS.md doc sync (same commit). hooks.docSync does not cover setup skills or managed-rule changes, so hooks let the split pass.",
+      "severity": "P3",
+      "suggested_fix": "Fold the relevant README/backlog changes into their originating feature commits and extend hooks.docSync to cover setup-skill and managed-rules changes.",
+      "failure_scenario": "Bisecting or cherry-picking either feature commit yields a shipped feature with stale setup/update docs and stale backlog state.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "plausible",
+      "evidence": "The facts hold. Commit eccdd28 (setup SKILL.md) and commit 96b977f (agents-block.md and block.mjs) touch no README or backlog file. Commit c2206b2 later changes only README.md and docs/dev/backlog.md. cookwright.json:23-36 defines a single docSync rule, 'playbook', which covers only bundle.mjs, lib/bundle/*, bundle-phase.js, playbook.md and skills/bundle/SKILL.md. So the hook cannot flag the split. I could not refute the impact scenario, but it is mild. The plan, docs/dev/bundles/stage-3/plan.md:192, deliberately sequences the s5 slice as checkpoints (skill, then block with tests, then README and backlog), and the README text is specified at plan.md:162. The window between commits sits inside one unmerged bundle branch. The AGENTS.md 'same commit' rule is breached in letter, but only transiently, and a bisect or cherry-pick of a single feature commit is unlikely."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "## The loop, steps 2-4 (and the Recipe rows whose remedy is `npx cookwright init` / `npm install`)",
+      "problem": "The loop has no rule for a remedy that refuses or does not clear its line. Step 2 picks the first line that is not PASS and that you have not already stopped at, and step 3 applies its remedy and goes back to doctor. A line whose remedy failed is not marked as stopped at, so the same remedy gets applied to it again with no end. Plan §4.5 promises a loop that ends at `complete` or at chosen states, and plan §4.6 points the block at the skill for a FAIL whose line does not clear. The table has no row for an init refusal, and none for the permanent FAIL of disposition 26 / B-010.",
+      "severity": "P2",
+      "suggested_fix": "Add a stop rule to the loop: if a remedy refuses (non-zero exit, or a `init: …`/`migrate: …` refusal line), or the same line reads the same after its remedy, show the command's output and the line, then stop at it. Exception: when the refusal names another check's line (for example `.claude/settings.json is not valid JSON`), go to that line's recipe. Add a row for init's `pointer … not written: this filesystem refuses symbolic links` that stops and names B-010.",
+      "failure_scenario": "After `npm install cookwright@latest`, a user's repo has a stale v2 block, and a `.claude/settings.json` with a hand-added trailing comma. Doctor lists `rules.block FAIL stale` before `host.hook FAIL … is not valid JSON`. /setup runs `npx cookwright init` for rules.block. init refuses the whole run before any write (steps.mjs: 'any refusal throws before a single write') with `.claude/settings.json is not valid JSON …; fix it by hand`. Doctor reads rules.block FAIL again and the skill runs init again, indefinitely, never reaching host.hook's hand-repair row. The same endless loop happens on an exFAT/network mount (B-010): host.pointers FAIL missing, then init, then the same FAIL. It also happens with B-002's nested config root: hooks.pre-commit WARN not installed, then `npm install`, then the same WARN.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "SKILL.md:23-27: step 2 skips only lines 'stopped at', which the recipe applies to explicit 'stop at' rows; step 3 reruns doctor after any remedy with no rule for a remedy that fails or leaves the line unchanged. Recipe rows :65, :79, :89, :92 prescribe init or npm install with no refusal row. init does refuse on invalid settings JSON (messages.mjs:176 settingsInvalid; init.test.mjs:249), so rules.block FAIL stays and the loop repeats init."
+    },
+    {
+      "file": "README.md",
+      "location": "## First run, steps 2-5",
+      "problem": "First run is given as the in-order path for 'Claude Code, or Codex', but step 2 runs `npx cookwright init` with the default `hosts: [\"claude\"]`. For a Codex user it writes no `.agents/skills/setup` and no `.codex/hooks.json`. Steps 4-5 then promise a doctor line at session start and `$setup` in Codex. Both are false on this path. The doctor-line promise is also wider than the evidence even with `--hosts codex`: E-027 records that the Codex hook never fired under `codex exec`, and the Codex section itself says the firing is unmeasured. The hook also needs `/hooks` trust first, which First run never mentions.",
+      "severity": "P2",
+      "suggested_fix": "In step 2, say Codex users run `npx cookwright init --hosts codex` (or `claude,codex`). Limit step 4's session-start doctor line to Claude Code, and for Codex say to trust the hook with `/hooks` and run `npx cookwright doctor` by hand until E-027 is measured. Or point step 5's `$setup` at the Codex section.",
+      "failure_scenario": "A Codex-only developer follows First run exactly. init writes `.claude/settings.json` and `.claude/skills/*` only. They open Codex, and no doctor line appears. They type `$setup` and Codex has no such skill, because `.agents/skills/setup` was never written. Nothing on the path tells them `--hosts codex` was needed.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "README.md:11-15 First run runs plain `npx cookwright init`; README.md:41 says `--hosts` defaults to `claude`, and README.md:37 says Codex pointers and `.codex/hooks.json` are written only with `codex` in hosts. Step 5 promises `$setup` in Codex, which then does not exist. Step 4's doctor-line promise and the missing `/hooks` trust step conflict with README.md:37 ('unmeasured', 'did not under codex exec')."
+    },
+    {
+      "file": "README.md",
+      "location": "## Skills and workflows, the Windows bullet",
+      "problem": "The bullet says git checks a symbolic link out as a text file without `core.symlinks`, and that 'doctor reports a missing pointer there as weak, naming why'. The realistic Windows case is a clone of a repo whose pointers are committed. There the pointer is a regular text file, not missing. `readPointer` (doctor/hosts.mjs) reads any non-link file as state `theirs`, so doctor WARNs `.claude/skills/setup is your own; it shadows cookwright's setup` and never names Windows. The setup skill's Windows row matches only the `missing: pointers are symbolic links…` note, so its 'your own' row would tell the user they have their own skill shadowing cookwright's. The README promises more than the code delivers.",
+      "severity": "P3",
+      "suggested_fix": "Narrow the README to what the code does: on Windows a pointer checked out as a text file reads as 'your own', and only a pointer init could not write reads as the Windows WARN. Or log on E-029 that win32 should read a regular file holding our link text as the Windows state, not `theirs`.",
+      "failure_scenario": "A Windows developer clones a cookwright-initialised repo with `core.symlinks=false` and runs `npm install`, then `npx cookwright doctor`. host.pointers reads WARN `claude: .claude/skills/bundle is your own; it shadows cookwright's bundle; claude: .claude/skills/setup is your own; …`, which is not the 'missing… naming why' the README promised. If an agent follows the setup recipe, it explains a user-owned shadowing skill that does not exist.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "README.md:31 promises a missing-pointer weak note naming Windows. src/lib/doctor/hosts.mjs:100 returns state 'theirs' for any non-symlink file, which is what a core.symlinks=false checkout of committed pointers produces. The Windows message at hosts.mjs:136 fires only for state 'none' on win32. The 'theirs' pointer takes the 'your own' WARN path (doctor.test.mjs:436), and skills/setup/SKILL.md:96 matches the Windows row only on the 'missing: pointers are symbolic links' note."
+    },
+    {
+      "file": "packages/cookwright/src/lib/skills.test.mjs",
+      "location": "describe('the setup skill') — 'has a recipe for every check doctor runs'",
+      "problem": "The only test of the recipe checks that each registry check name appears somewhere in backticks. Nothing ties the recipe's note patterns to the notes in messages.mjs, so the 'exhaustive table' of disposition 25 can go stale silently. Once that happens, the skill's 'a line the recipe does not name → end' rule ends walkthroughs that should have gone on.",
+      "severity": "P3",
+      "suggested_fix": "Add a test that checks each doctor message's stable fragment (for example `does not point where cookwright is installed`, `is ignored by git`, `not required at level`, `is newer than this cookwright`, `is not valid JSON`) appears in SKILL.md. A small fixed list next to messages.doctor is enough.",
+      "failure_scenario": "A later change rewords `pointers.notInstalled` or `hostHook.past` in messages.mjs, and the suite stays green. /setup then meets a line its table no longer names and ends the walkthrough at a WARN whose remedy is `npm install` or `init`.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/skills.test.mjs:55-57 only asserts each Object.keys(CHECKS) name appears in backticks in the setup SKILL.md. Nothing compares the recipe's literal note patterns with messages.mjs. skills/setup/SKILL.md:92 hand-copies `…: not installed where it points (npm install)`, which mirrors messages.mjs:117. SKILL.md:27 says a line the recipe does not name makes the walkthrough end. Rewording messages.mjs:117 or the hostHook.past note at :84 would leave the suite green while the recipe goes stale."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "Codex ran at high effort, read-only, 18 read-only commands, on range 396e8af..2bc8f07",
+    "CHARTER.md and cookwright doctor (17 PASS)",
+    "plan section 8 release order vs README",
+    "setup SKILL.md loop vs PASS-row guidance",
+    "commit-level doc sync",
+    "git diff 396e8af..2bc8f07 (all 17 files; state.json skimmed for the E-028 and s6 decisions)",
+    "plan.md §4.5, §4.6, §7, §9 checked against the setup SKILL.md, the block v3, README, AGENTS.md Layout and the backlog",
+    "every SKILL.md recipe row checked against the notes and statuses doctor actually emits (messages.mjs; doctor/basics, homes, rules, claude, codex, hooks, hosts, secrets, registry, report)",
+    "init refusal behaviour (steps.mjs 'any refusal throws before a single write', hostfile.mjs) against the loop",
+    "pointer ownership reader (doctor/hosts.mjs readPointer) against the README's Windows claim",
+    "README First run / Updating / Skills and workflows / Codex / Releases checked against defaults (hosts: ['claude']), the hook output (report.mjs renderReport) and E-027",
+    "skills.test.mjs, block.test.mjs, test-helpers v2Block/v1Block, doctor.test.mjs and init.test.mjs changes",
+    "package.json files list, the shipped hosts/ and skills/ trees, this repo's .claude pointers",
+    "npx cookwright doctor run read-only on the branch: 17 PASS, level 0 complete",
+    "session reports s5/s6 checked for local paths or secrets: none",
+    "managed block sentence matches plan §4.6 word for word; RULES_VERSION 3"
+  ],
+  "notes": "Transcribed faithfully from Codex output. Codex could not run npm test: the read-only sandbox blocked Vitest creating .vite-temp, and the worktree stayed clean. Codex session id 01a143fc-11aa-7472-899a-32269f65d401. Full output: <local path>\n---\nThe range covers implement:s5 (setup skill, block v3, README, backlog) and implement:s6 (migrate, init and the setup pointer on this repo, AGENTS.md Layout, E-028 closure). No security issue found: no secrets, no local paths, no env files. The skill's own rules forbid env files, --no-verify, -A and secret values. Doctor on the branch reads 17 PASS. The two P2s: the /setup loop has no rule for a remedy that refuses or leaves its line unchanged, so an init refusal on another file, B-010 or B-002 sends it round forever; and README First run's Codex path is wrong (the default hosts leave out codex, and the session-start readout is claimed without evidence, see E-027). Minor and not filed: E-028's closure rests on a session listing the skills and workflows, not on invoking `Workflow({name})` from a subdirectory. That is acceptable given the kickoff's flat invocation measurement. The setup skill names cookwright's internal E-029, which a user cannot look up because the package does not ship docs/dev. In the Closed section, a blank line after E-028 splits the Closed list.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a143fc-11aa-7472-899a-32269f65d401",
+    "partialReportPath": null
+  }
+}

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 97,
+  "revision": 98,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -888,6 +888,13 @@
       "actor": "orchestrator",
       "source": "implement:s5 open questions, 2026-10-16",
       "text": "Accepted as built: (1) rule 2 and rule 3: the setup loop stops when every line is PASS or every line left is one the recipe says to stop at, not at 'complete' alone, since doctor prints 'complete; weak: config' while the in-memory migration is still open and the loop must run migrate; a line with no recipe ends the walkthrough; (2) rule 3: the recipe follows the statuses doctor emits today (backlog.ids WARN, rules.block newer WARN, tools.gitleaks SKIP) and names the rows the plan's table lacked (homes.backlog headings, a misdirected pointer, a hook path that is not a file, an env file not ignored, git absent, doctor's own could-not-run and unverified lines), held by a test that the skill names every registered check; (3) property 5 and rule 7: a cookwright backlog id (E-029, the Windows pointers) in the shipped skill is acceptable, the backlog being public in the open-source repo and holding nothing private; (4) E-014's narrowed line stays for s7, whose checkpoint it is; (5) rule 3 and disposition 23: the README's route to try an unpublished checkout is npm pack plus the tarball, never npm install <directory>, which links node_modules/cookwright outside the repo. On this repo doctor now reads the QA leg's three lines (config WARN migrated in memory, rules.block FAIL stale, host.pointers FAIL .claude/skills/setup missing) until s6 runs migrate and init, as plan §7 expects. The s5 strings (the setup skill's description and body, the bundle skill's level line, the block v3 sentence, the README sections) go to the developer in one batch.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T09:11:17.728Z",
+      "actor": "orchestrator",
+      "source": "implement:s6 report and the orchestrator's measurement, 2026-10-16 (plan §7.4, §8; review:route finding 6; E-028)",
+      "text": "Rule 3, measured with one-shot Claude Code 2.1.301 sessions after s6's init: a fresh session at this repo's root listed setup, bundle, bundle-phase and docs-audit, all pointers into node_modules/cookwright, and its context carried 'SessionStart:startup hook success: cookwright doctor: level 0 complete'; a session started in packages/cookwright/src listed the same four, so skills and named workflows are found through the work tree top's .claude/ from a session below it. E-028 is closed on that evidence in the backlog (its Claude half; the hook placement for a nested config root stays B-002's). s6's two open questions accepted: migrate's parenthetical 'the file is rewritten in standard JSON layout, its indent kept' is the relaid note §7.1 expected, and the running session picking up the setup skill as soon as init wrote its pointer is noted as an observation, the fresh-session listing above being the measurement. s6 added no product string.",
       "claim": true
     }
   ],

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 38,
+  "revision": 42,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -110,7 +110,8 @@
           "startedAt": "2026-10-16T07:32:24.337Z",
           "stateRevision": 37,
           "planSha": "7d646aca1932a037",
-          "codex": true
+          "codex": true,
+          "runId": "wf_e9ea8fdb-457"
         }
       ],
       "startCommit": "c879136d563eea0c1fee89e05d8ae6d43b3fc093",
@@ -476,6 +477,27 @@
       "actor": "orchestrator",
       "source": "plan-review round 1, findings 26, 27, 28, 29 and 15 (disposition 24)",
       "text": "Rule 3: the schema's version accepts what the loader accepts (enum [1, 2], 1 migrated in memory) with a parity test (schema versions = {CONFIG_VERSION} ∪ keys(MIGRATIONS)); 'first line' means the first body line after the frontmatter, with a test that each shipped SKILL.md opens with frontmatter holding name and description; workflowScript picks the first configured host that has workflowsDir and refuses only when none has; the QA leg expects three lines; doctor/basics.mjs (checkConfig's WARN) joins s2's surface.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:32:48.565Z",
+      "actor": "orchestrator",
+      "source": "plan-review re-check 1, finding 6 (disposition 25)",
+      "text": "Rule 3: the /setup recipe table names every line doctor emits today (rules.block newer and malformed, host.rules old Claude Code, host.hook invalid JSON, git WARN, the Codex matcher WARN, the Level 2 pointer WARN), and a line the table does not name is shown and stopped at, never improvised on.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:32:48.632Z",
+      "actor": "orchestrator",
+      "source": "plan-review re-check 1, finding 9 (disposition 26)",
+      "text": "Rule 2 and the backlog discipline: a non-Windows filesystem that refuses symbolic links is a permanent FAIL the user cannot clear in this stage, a bug by rule 2; it gets a stable backlog id (plan §9 g) rather than silence.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-16T07:32:48.722Z",
+      "actor": "orchestrator",
+      "source": "plan-review re-check 1, finding 11 (disposition 27)",
+      "text": "Rule 3 and rule 6: the Codex hook enters the work tree's top before running doctor, so its session-start readout judges from the top and misses an AGENTS.override.md in a subdirectory the session started in; the limit is stated in plan §4.4 and the README's Codex paragraph, and doctor --from <dir> is backlogged (plan §9 h), wanted once.",
       "claim": true
     }
   ],

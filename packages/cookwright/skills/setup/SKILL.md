@@ -114,7 +114,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 
 | status | note | remedy |
 |---|---|---|
-| FAIL | a line naming an npm script `package.json` does not define | name the script; with consent, add it to `package.json` or fix the check in `gate.checks` |
+| FAIL | `gate check "…" runs npm script "…", which package.json does not define …`, or `…, but there is no package.json at the root …` | name the script; with consent, add it to `package.json` or fix the check in `gate.checks` |
 | PASS | `no gate checks configured` | at the end (see "At the end") |
 
 ### Secrets (`secrets.env`)

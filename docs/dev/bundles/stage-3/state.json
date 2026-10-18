@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 157,
+  "revision": 159,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -435,7 +435,7 @@
     },
     {
       "name": "qa",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -457,14 +457,18 @@
           "stateRevision": 152,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_8340dc3f-322"
+          "runId": "wf_8340dc3f-322",
+          "endedAt": "2026-10-18T12:59:25.822Z",
+          "turnOutputTokens": 1071025
         }
       ],
       "startCommit": "642f4c0dbd67b8386cedf803650a524624a3998b",
       "range": {
         "from": "642f4c0dbd67b8386cedf803650a524624a3998b",
         "to": "HEAD"
-      }
+      },
+      "endCommit": "27146ca18cd9caf103c6e886d98ee9dd985bf655",
+      "endCode": "ddc7dcd2d1da6717fbe696c58050f6d01c966f75"
     },
     {
       "name": "closeout",
@@ -1350,6 +1354,13 @@
       "actor": "orchestrator",
       "source": "qa fix run 2 report and findings, 2026-10-18",
       "text": "Open questions (rule 2, rule 3): the two init strings belong in this bundle, since a row note that names the wrong procedure for the surface this bundle ships is a defect of the bundle, not a backlog entry; the strings go to the developer's batch. The developer's own words were 'hooks shows installed 1, $setup is listed, committed', and the hook's readout is the orchestrator's observation of their screenshot (the agent's 'level 0 complete' with no command run), as the earlier decision records; the round record is the runner's and stays. 'At the work tree's top' is where it was measured; a subdirectory start is unmeasured and the text claims nothing about it. Findings, a third run fixes all four: finding 0 and finding 2 (rule 3, P2 and P3, the same strings): init's trust note says to open or restart Codex at the work tree's top, trust the hook with /hooks, then start a new session for the readout; trustAgain the same with 'again'; one concrete output assertion for each, not derived from the helper. Finding 1 (rule 3, P3): the README's parenthesis is limited to the first write, which is what round 1 measured; a rewrite's /hooks state is unmeasured and the text says only that the restart-and-trust remedy holds for both. Finding 3 (rule 3, P3): doctor's Codex host.hook PASS note says Codex reads the file at startup ('whether it is trusted is yours: restart Codex, then /hooks'), with the doctor test, skills.test and the setup skill's recipe row following; a user with no readout reads that line first. Rule 7: nothing beyond those texts and their tests.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-18T12:59:25.435Z",
+      "actor": "orchestrator",
+      "source": "qa fix run 3 report and finding, 2026-10-18",
+      "text": "Rule 6 and the playbook's residue: the one P3 (the README's Codex paragraph and the setup skill's add-host and end lines say 'restart Codex' where init's note says 'open or restart'; worst case one extra restart) stays in the record as residue and goes to the backlog with the closeout's state-home update rather than a fourth run for three words. The fix session's note on plan.md line 97 quoting the old doctor string: the plan is the record of what was planned, not of what shipped, and is not edited after the fact (rule 2). Accepted as built: the three strings and the README and skill texts of run 3, batched to the developer. The gate covers the new HEAD.",
       "claim": true
     }
   ],

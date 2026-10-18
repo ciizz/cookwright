@@ -231,8 +231,10 @@ const init = {
     matcher: (matcher) => `the doctor hook moved under matcher ${matcher}; the other hooks kept`,
     stray: (matcher) => `the doctor hook's copies under matchers other than ${matcher} removed; the other hooks kept`,
     relaid: RELAID,
-    trust: (host, command) => `; ${host} reads it at startup: restart ${host} at the work tree's top, then trust it with ${command}`,
-    trustAgain: (host, command) => `; ${host} reads it at startup: restart ${host} at the work tree's top, then trust it again with ${command}`,
+    trust: (host, command) =>
+      `; ${host} reads it at startup: open or restart ${host} at the work tree's top, trust it with ${command}, then start a new session for the readout`,
+    trustAgain: (host, command) =>
+      `; ${host} reads it at startup: open or restart ${host} at the work tree's top, trust it again with ${command}, then start a new session for the readout`,
   },
   codex: {
     native: 'not needed: nothing overrides AGENTS.md, which Codex reads natively',

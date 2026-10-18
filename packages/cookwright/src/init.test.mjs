@@ -1079,6 +1079,9 @@ describe('codex: --hosts, its rules row, .codex/hooks.json and its pointers', ()
     expect(JSON.parse(read(root, 'cookwright.json')).hosts).toEqual(['claude', 'codex']);
     expect(rows['AGENTS.override.md']).toEqual({ action: 'skipped', note: m.codex.native });
     expect(rows[FILE]).toEqual({ action: 'wrote', note: `${m.hostHook.wrote}${m.hostHook.trust('Codex', '/hooks')}` });
+    expect(rows[FILE].note).toBe(
+      "SessionStart hook runs doctor; Codex reads it at startup: open or restart Codex at the work tree's top, trust it with /hooks, then start a new session for the readout",
+    );
     expect(JSON.parse(read(root, FILE))).toEqual({ hooks: { SessionStart: [{ matcher: 'startup|resume', hooks: [ours] }] } });
     expect(rows['.claude/settings.json'].action).toBe('wrote');
     // Codex gets the skills it can run, never bundle or a workflow: it has no workflow mechanism.
@@ -1124,7 +1127,11 @@ describe('codex: --hosts, its rules row, .codex/hooks.json and its pointers', ()
     write(root, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION, hosts: ['codex'] }));
     const theirs = { matcher: 'startup', hooks: [{ type: 'command', command: 'echo hi' }] };
     write(root, FILE, hooksFile([theirs], 4));
-    expect(init(root).rows[FILE]).toEqual({ action: 'updated', note: `${m.hostHook.added}${m.hostHook.trustAgain('Codex', '/hooks')}` });
+    const { action, note } = init(root).rows[FILE];
+    expect({ action, note }).toEqual({ action: 'updated', note: `${m.hostHook.added}${m.hostHook.trustAgain('Codex', '/hooks')}` });
+    expect(note).toBe(
+      "doctor SessionStart hook added; the other settings kept; Codex reads it at startup: open or restart Codex at the work tree's top, trust it again with /hooks, then start a new session for the readout",
+    );
     expect(read(root, FILE)).toBe(hooksFile([theirs, { matcher: 'startup|resume', hooks: [ours] }], 4));
     kept(root);
   });

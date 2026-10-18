@@ -137,12 +137,12 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 
 ## Adding a host
 
-With consent, add the host (`claude`, `codex`) to `hosts` in `cookwright.json` by hand (init never edits an existing config), then run `npx cookwright init`, then the loop. For Codex, say to trust the hook in Codex with `/hooks`, and again after any rewrite of `.codex/hooks.json`.
+With consent, add the host (`claude`, `codex`) to `hosts` in `cookwright.json` by hand (init never edits an existing config), then run `npx cookwright init`, then the loop. For Codex, say that Codex reads `.codex/hooks.json` only at startup: restart Codex at the work tree's top, trust the hook there with `/hooks`, and the readout comes in the next new session; the same restart and trust again after any rewrite of that file.
 
 ## At the end
 
 - Read the last readout's PASS lines once for the two that carry advice, and act on each that is there:
-  - a Codex `host.hook` line reading `whether it is trusted is yours: /hooks`, when init wrote or rewrote `.codex/hooks.json` in this walkthrough: say to trust the hook in Codex with `/hooks`, and again after every rewrite of that file;
+  - a Codex `host.hook` line reading `whether it is trusted is yours: /hooks`, when init wrote or rewrote `.codex/hooks.json` in this walkthrough: say that Codex reads that file only at startup: restart Codex at the work tree's top, trust the hook there with `/hooks`, and the readout comes in the next new session; the same restart and trust again after every rewrite of that file;
   - a `gate.scripts` line reading `no gate checks configured`: say pre-push runs nothing, and offer a gate check (`npx tsc --noEmit`, `npx expo lint`, their call), written into `gate.checks` with consent.
 - Print the level line and the `next:` line of the last readout.
 - Name every file init, migrate or you wrote in this walkthrough, so the developer commits them by path (`git add <paths>`, never `-A`).

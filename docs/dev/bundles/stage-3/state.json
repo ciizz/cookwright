@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 151,
+  "revision": 152,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -1299,6 +1299,13 @@
       "actor": "orchestrator",
       "source": "qa run 1 review findings, 2026-10-18",
       "text": "A second qa run fixes all five. Finding 0 (rule 3, P2): the README's first-run steps say to open Codex, trust the hook with /hooks, then start a new Codex session for the readout, since the file is read at startup and the measured line came in a new session. Finding 2 (rule 3, P2): the same restart holds after init writes or rewrites .codex/hooks.json: the setup skill's 'adding a host' and end-of-walk lines, init's hostHook trust and trustAgain strings, and the README's Codex paragraph say 'start a new Codex session from the work tree's top, then trust it with /hooks'; two changed strings go to the developer's batch. Findings 1 and 3 (rule 3, P3, confirmed): the README attributes the codex exec result to its own measurement, Codex 0.145.0 on 2026-10-16, three runs, apart from the interactive one of 2026-10-18. Finding 4 (rule 3, P3): the hook firing is measured by what the orchestrator saw in the developer's screenshot of the new Codex session (the agent answered 'level 0 complete' to 'what did cookwright doctor report at session start?' with no command shown, before /hooks showed installed 1 and active 1), so the claim stands; the wording changes: in both hosts the readout reaches the agent's context, not the screen, so the README's step 4 says to ask the agent for it rather than 'appears'; the round record is the runner's and is not amended. Rule 7: the fix stays on the texts the findings name; no code.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-18T12:51:22.613Z",
+      "actor": "orchestrator",
+      "source": "qa fix run 2 report and findings, 2026-10-18",
+      "text": "Open questions (rule 2, rule 3): the two init strings belong in this bundle, since a row note that names the wrong procedure for the surface this bundle ships is a defect of the bundle, not a backlog entry; the strings go to the developer's batch. The developer's own words were 'hooks shows installed 1, $setup is listed, committed', and the hook's readout is the orchestrator's observation of their screenshot (the agent's 'level 0 complete' with no command run), as the earlier decision records; the round record is the runner's and stays. 'At the work tree's top' is where it was measured; a subdirectory start is unmeasured and the text claims nothing about it. Findings, a third run fixes all four: finding 0 and finding 2 (rule 3, P2 and P3, the same strings): init's trust note says to open or restart Codex at the work tree's top, trust the hook with /hooks, then start a new session for the readout; trustAgain the same with 'again'; one concrete output assertion for each, not derived from the helper. Finding 1 (rule 3, P3): the README's parenthesis is limited to the first write, which is what round 1 measured; a rewrite's /hooks state is unmeasured and the text says only that the restart-and-trust remedy holds for both. Finding 3 (rule 3, P3): doctor's Codex host.hook PASS note says Codex reads the file at startup ('whether it is trusted is yours: restart Codex, then /hooks'), with the doctor test, skills.test and the setup skill's recipe row following; a user with no readout reads that line first. Rule 7: nothing beyond those texts and their tests.",
       "claim": true
     }
   ],

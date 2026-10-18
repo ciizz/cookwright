@@ -95,7 +95,7 @@ const doctor = {
       override: (files) => `Codex reads ${list(files)} in place of the AGENTS.md beside it (yours, left alone)`,
     },
     hook: {
-      ok: (file, trust) => `${file} carries the doctor hook (whether it is trusted is yours: ${trust})`,
+      ok: (file, trust) => `${file} carries the doctor hook, which Codex reads at startup (whether it is trusted is yours: restart Codex, then ${trust})`,
       none: (file) => `no doctor SessionStart hook in ${file}, so doctor runs only by hand (${RUN_INIT})`,
       matcher: (file, found, want) =>
         `${file} has the doctor hook under ${found === undefined ? 'no matcher' : `matcher ${found}`}, not ${want} (${RUN_INIT})`,

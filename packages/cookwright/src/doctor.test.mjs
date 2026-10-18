@@ -534,7 +534,9 @@ describe('codex: host.rules and host.hook', () => {
     for (const [name, r] of Object.entries(rows)) expect([name, r.status]).toEqual([name, 'PASS']);
     expect(rows['host.rules'].note).toBe(cm.rules.native('AGENTS.override.md'));
     expect(rows['host.hook'].note).toBe(cm.hook.ok(FILE, '/hooks'));
-    expect(cm.hook.ok(FILE, '/hooks')).toBe('.codex/hooks.json carries the doctor hook (whether it is trusted is yours: /hooks)');
+    expect(cm.hook.ok(FILE, '/hooks')).toBe(
+      '.codex/hooks.json carries the doctor hook, which Codex reads at startup (whether it is trusted is yours: restart Codex, then /hooks)',
+    );
     const two = doctor(repoFor(['claude', 'codex']));
     for (const [name, r] of Object.entries(two)) expect([name, r.status]).toEqual([name, 'PASS']);
     expect(two['host.rules'].note).toBe(

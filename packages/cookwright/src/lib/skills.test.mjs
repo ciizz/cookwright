@@ -92,7 +92,7 @@ const QUOTED = [
   ['which finds no cookwright.json for this config root (', d.codex.hook.nested('x', 'apps/mobile')],
   ['), so it gives no readout', d.codex.hook.nested('x', 'apps/mobile')],
   ['is not valid JSON (', d.hostHook.invalid('x', 'y')],
-  ['whether it is trusted is yours: /hooks', d.codex.hook.ok('x', '/hooks')],
+  ['whether it is trusted is yours: restart Codex, then /hooks', d.codex.hook.ok('x', '/hooks')],
   ['missing (run npx cookwright init)', d.pointers.missing('x')],
   ['is an earlier pointer', d.pointers.past('x')],
   ['does not point where cookwright is installed', d.pointers.misdirected('x')],

@@ -83,7 +83,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | `host.hook`, Codex | WARN | `… also has the doctor hook under …, beside startup\|resume` | `npx cookwright init` |
 | `host.hook`, Codex | WARN | `… which finds no cookwright.json for this config root (…), so it gives no readout …` | **stop at**: explain that Codex's hook enters the work tree's top, so for a `cookwright.json` below it the session-start line says nothing useful; run `npx cookwright doctor` from the config root by hand; cookwright's backlog tracks it as B-002 |
 | `host.hook` | FAIL | `… is not valid JSON (…)` | show the parse error; with consent, repair the file by hand |
-| `host.hook`, Codex | PASS | `… whether it is trusted is yours: /hooks` | at the end (see "At the end") |
+| `host.hook`, Codex | PASS | `… whether it is trusted is yours: restart Codex, then /hooks` | at the end (see "At the end") |
 
 ### Skill and workflow pointers (`host.pointers`)
 
@@ -142,7 +142,7 @@ With consent, add the host (`claude`, `codex`) to `hosts` in `cookwright.json` b
 ## At the end
 
 - Read the last readout's PASS lines once for the two that carry advice, and act on each that is there:
-  - a Codex `host.hook` line reading `whether it is trusted is yours: /hooks`, when init wrote or rewrote `.codex/hooks.json` in this walkthrough: say that Codex reads that file only at startup: restart Codex at the work tree's top, trust the hook there with `/hooks`, and the readout comes in the next new session; the same restart and trust again after every rewrite of that file;
+  - a Codex `host.hook` line reading `whether it is trusted is yours: restart Codex, then /hooks`, when init wrote or rewrote `.codex/hooks.json` in this walkthrough: say that Codex reads that file only at startup: restart Codex at the work tree's top, trust the hook there with `/hooks`, and the readout comes in the next new session; the same restart and trust again after every rewrite of that file;
   - a `gate.scripts` line reading `no gate checks configured`: say pre-push runs nothing, and offer a gate check (`npx tsc --noEmit`, `npx expo lint`, their call), written into `gate.checks` with consent.
 - Print the level line and the `next:` line of the last readout.
 - Name every file init, migrate or you wrote in this walkthrough, so the developer commits them by path (`git add <paths>`, never `-A`).

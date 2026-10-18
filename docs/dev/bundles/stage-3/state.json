@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 167,
+  "revision": 168,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -472,7 +472,7 @@
     },
     {
       "name": "closeout",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -487,14 +487,18 @@
           "stateRevision": 163,
           "planSha": "6cfa81884bddb0a6",
           "codex": true,
-          "runId": "wf_1402d53f-9a4"
+          "runId": "wf_1402d53f-9a4",
+          "endedAt": "2026-10-18T13:11:34.264Z",
+          "turnOutputTokens": 1117871
         }
       ],
       "startCommit": "85e2a149ff2ecc47836fd3dfcec708a2a6e9e46e",
       "range": {
         "from": "51a90fc98af1bcbd58da9785b833feded490f7c2",
         "to": "85e2a149ff2ecc47836fd3dfcec708a2a6e9e46e"
-      }
+      },
+      "endCommit": "014745b55cd9256b7dd463d9691d36edf8fe4e0d",
+      "endCode": "ddc7dcd2d1da6717fbe696c58050f6d01c966f75"
     }
   ],
   "gates": [

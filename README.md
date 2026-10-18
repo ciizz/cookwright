@@ -11,7 +11,7 @@ In your app's repo (a git repo), in order:
 1. `npm install --save-dev cookwright`
 2. `npx cookwright init`, which takes the repo to Level 0 and names every file it wrote; commit them by path. init sets the repo up for Claude Code by default; for Codex run `npx cookwright init --hosts codex` instead, or `--hosts claude,codex` for both.
 3. Open your agent host (Claude Code, or Codex) in the repo. Codex reads its hooks file only at startup: open it after init, or restart it, at the work tree's top, trust the session-start hook with `/hooks`, then start a new session (see Codex).
-4. In Claude Code, the doctor line appears at session start: `cookwright doctor: level 0 complete`, or the checks that are not PASS. In Codex the same line appears once the hook is trusted (see Codex).
+4. At session start the hook's doctor readout reaches the agent's context, not your screen: `cookwright doctor: level 0 complete`, or the checks that are not PASS. Ask the agent what doctor reported. In Codex it arrives once the hook is trusted, in a new session (see Codex). If no readout reached the agent, run `npx cookwright doctor` yourself.
 5. For anything not PASS, run the `setup` skill (`/setup` in Claude Code, `$setup` in Codex). It runs doctor, applies one remedy for the first line that is not PASS, runs doctor again, and stops at what is yours to decide or at a line its remedy did not clear.
 
 To try a change that is not published yet, install the package as npm would publish it: `npm pack` in a checkout's `packages/cookwright`, then `npm install --save-dev /path/to/cookwright-X.Y.Z.tgz` in your repo. Installing the directory itself links `node_modules/cookwright` outside your repo, which the pointers below are not made for.

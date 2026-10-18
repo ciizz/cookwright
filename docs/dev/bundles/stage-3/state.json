@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 149,
+  "revision": 151,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -794,6 +794,24 @@
       "at": "2026-10-18T12:45:02.809Z",
       "stored": true,
       "head": "95f2041312901883eaac09dad77fd00ee2994e65"
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-3/findings/qa-2.json",
+      "counts": {
+        "confirmed": 3,
+        "plausible": 1,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 1,
+        "P3": 3
+      },
+      "at": "2026-10-18T12:51:22.301Z",
+      "stored": true,
+      "head": "ed45eee0a288009f617d446324f895e9d23a8d09"
     }
   ],
   "reports": [
@@ -867,6 +885,12 @@
       "phase": "qa",
       "path": "docs/dev/bundles/stage-3/sessions/qa-1.md",
       "at": "2026-10-18T12:45:02.662Z",
+      "stored": true
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-3/sessions/qa-2.md",
+      "at": "2026-10-18T12:51:22.227Z",
       "stored": true
     }
   ],

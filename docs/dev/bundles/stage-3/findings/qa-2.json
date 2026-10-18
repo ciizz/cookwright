@@ -1,0 +1,101 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/messages.mjs",
+      "location": "hostHook.trust and hostHook.trustAgain, lines 234-235",
+      "problem": "The init messages stop after 'restart ... then trust.' They omit the additional new session required after trust for the SessionStart hook to fire. The first-write message also always says 'restart,' although the documented first-run sequence runs init before Codex has been opened. README and the setup skill have the full lifecycle, but the CLI output named by QA finding 2 does not.",
+      "severity": "P2",
+      "suggested_fix": "Make trust say to open or restart Codex at the work-tree top, trust the hook, then start another new session for the readout. Make trustAgain give the equivalent restart, trust again, new-session sequence. Add a concrete output assertion rather than deriving the expected value from the same message helper.",
+      "failure_scenario": "A user runs init from an existing Codex session, restarts, trusts the hook, and stays in that session. No doctor readout arrives because startup happened before trust; the user may conclude the hook is broken or skip the health check. A terminal-first user is also told to restart Codex before ever opening it.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "messages.mjs:234-235 end at 'then trust it with <cmd>'. README.md:13,37 and skills/setup/SKILL.md:140 add 'the readout comes in the next new session'. Both trust strings always say 'restart', including the first write (init.test.mjs:1081), though README step 3 allows opening Codex after init."
+    },
+    {
+      "file": "README.md",
+      "location": "line 37, Codex paragraph: 'a Codex already open when init writes or rewrites it lists no hook to trust (`/hooks` shows SessionStart installed 0)'",
+      "problem": "The claim is wider than the measurement. Round 1 measured only the first write: the file did not exist when Codex started, and /hooks showed installed 0. On a rewrite, the open Codex read the earlier file at startup. It would most likely list that earlier hook (installed 1, possibly trusted already), not 'installed 0'. The README states the rewrite case as a measured fact with a specific screen state that nobody observed.",
+      "severity": "P3",
+      "suggested_fix": "Limit the parenthesis to the first write: 'a Codex already open when init first writes it lists no hook to trust (/hooks shows SessionStart installed 0); after a rewrite it still holds the earlier file'. Keep the restart-and-trust remedy for both cases.",
+      "failure_scenario": "A user reruns init from a terminal while Codex is open, for example to move the hook to the startup|resume matcher, which rewrites .codex/hooks.json. They open /hooks expecting 'installed 0' as the README says. They see installed 1 and active 1 from the earlier, already-trusted entry, conclude no restart or re-trust is needed, and keep running the stale hook state until Codex restarts on its own.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "README.md:37 says a Codex already open when init 'writes or rewrites' the file 'lists no hook to trust (`/hooks` shows SessionStart installed 0)'. The only measurement behind it is docs/dev/bundles/stage-3/qa/round-1.md:8, where the file did not exist when Codex started and /hooks showed installed 0. No rewrite case was observed. The README's own premise, that Codex reads the file only at startup, implies an open Codex still holds the earlier hook on a rewrite, so installed 0 is unlikely there. The README states the rewrite screen state as measured fact when nobody observed it. The wording should be limited to the first-write case, or the rewrite case marked unmeasured."
+    },
+    {
+      "file": "packages/cookwright/src/lib/messages.mjs",
+      "location": "lines 234-235, hostHook.trust / hostHook.trustAgain",
+      "problem": "init's note now says to restart Codex and trust with /hooks. It leaves out the third measured step: the readout arrives only in the next new session after trust, not in the session where /hooks was used. The README (step 3, the Codex paragraph) and the setup skill (lines 140 and 145), changed in the same commit, all include that step, so the three texts disagree. init's row note is the text a user sees at the moment they act.",
+      "severity": "P3",
+      "suggested_fix": "Append the new-session step to both strings, e.g. '; Codex reads it at startup: restart Codex at the work tree's top, trust it with /hooks, then start a new session for the readout'. The tests build their expectations from the functions, so they need no change.",
+      "failure_scenario": "A user runs `npx cookwright init --hosts codex` and follows only init's printed note. They restart Codex, trust the hook with /hooks, and ask the agent what doctor reported. Nothing reached the agent, because the hook ran at startup before trust. They conclude the hook does not work in Codex and stop relying on it, or rerun init, which changes nothing.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "messages.mjs:234-235 omit the new-session-after-trust step that README.md:37 and skills/setup/SKILL.md:140,145 state, so the three texts disagree. Same root cause as finding 0."
+    },
+    {
+      "file": "packages/cookwright/src/lib/messages.mjs",
+      "location": "line 98, doctor codex hook.ok: '... carries the doctor hook (whether it is trusted is yours: /hooks)'",
+      "problem": "The fix added the startup-read restart guidance to init, the setup skill and the README, but not to doctor's Codex host.hook PASS line. That line still sends the user to /hooks alone. The new README step 4 sends Codex users with no readout to run doctor by hand, and that is when they read this line. The setup skill adds the restart only 'when init wrote or rewrote .codex/hooks.json in this walkthrough', so a file written earlier, outside a /setup walk, gets no restart note.",
+      "severity": "P3",
+      "suggested_fix": "Either say in the doctor string that Codex reads the file at startup (e.g. 'whether it is trusted is yours: restart Codex, then /hooks'), with the skills.test.mjs and doctor.test.mjs expectations and the SKILL.md table row (line 86) updated to match, or log a backlog entry for it.",
+      "failure_scenario": "A user runs init in a terminal while Codex is already open, then sees no readout in Codex. Following README step 4, they run `npx cookwright doctor` by hand and read 'whether it is trusted is yours: /hooks'. /hooks shows SessionStart installed 0, so there is nothing to trust, and doctor gives no hint that a restart is needed.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "plausible",
+      "evidence": "messages.mjs:98 hook.ok says only 'whether it is trusted is yours: /hooks', with no restart hint. README.md:14 sends a user with no readout to run doctor by hand. Doctor cannot tell whether Codex was restarted since the file was written, so the line may be deliberately neutral; the gap is real but the fix is a judgment call."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 642f4c0..HEAD across README.md, SKILL.md, messages.mjs, backlog",
+    "commits 5c63c4e, c2a5a74, ed45eee",
+    "QA round-1 notes and findings qa-1.json",
+    "codex init hook tests",
+    "git log and git diff 642f4c0..HEAD (README.md, docs/dev/backlog.md, setup SKILL.md, messages.mjs, qa round-1 notes, session report, findings/qa-1.json, state.json additions)",
+    "git show of 5c63c4e, c2a5a74, ed45eee: messages, scope, doc-sync pairing (5c63c4e changes README with the strings; c2a5a74 carries its COOKWRIGHT_SKIP=doc-sync reason)",
+    "hostHook.trust/trustAgain call sites in init/hostfile.mjs and their test expectations in init.test.mjs",
+    "npm test: 17 files, 478 tests passed",
+    "Codex host entry in hosts.mjs (settings .codex/hooks.json, hook enters git top) against the 'work tree's top' wording and B-002/E-034",
+    "Remaining /hooks guidance: doctor codex hook.ok string, SKILL.md table row 86, README, docs/ and package docs",
+    "Each fix checked against the qa-1 findings dispositions in state.json (findings 0-4)",
+    "README claims checked against round-1 notes and the closed E-027 line (0.145.0 exec vs 0.163.0 interactive attribution now split correctly)",
+    "plan.md section 4 (Codex hook, host.hook claims only what it reads) and playbook QA phase and Reviewer role",
+    "secrets and private-path scan of the added text: none found"
+  ],
+  "notes": "Codex ran in the foreground with high effort and finished within the ceiling; one P2 finding transcribed. Codex could not run npm test (read-only sandbox: Vitest could not create node_modules/.vite-temp); the README attribution and agent-context wording fixes were judged consistent with the QA evidence. Output at <local path>\n---\nThe fix covers the dispositioned findings. README now credits the codex exec result to 0.145.0 on 2026-10-16. Step 4 now says the readout reaches the agent and to run doctor by hand when it does not. init, the setup skill and the README now give the restart-then-trust order. Tests pass (478/478). No secrets or private paths were added, and the strings stay in messages.mjs. Remaining gaps are three P3s, all about wording: (1) the README states the rewrite case as 'installed 0', but only the first write was measured; (2) init's note leaves out the new-session step that the README and the skill include; (3) doctor's Codex host.hook line still says only '/hooks'. Process notes for the orchestrator: 5c63c4e changes code (messages.mjs). Under the playbook's QA step 3 ('Gate whenever the round changed code'), the earlier decision that the gate stands on 94242a82 because the round 'changed docs only' no longer applies, so the gate needs to run on the new HEAD. Also, the finding-4 decision text says the agent answered 'level 0 complete' 'before /hooks showed installed 1 and active 1'. Read literally, that contradicts the README's 'after /hooks trust, a new session's agent received the doctor readout'. It is probably the order of the screenshots, not of the events; the round notes give the order the README uses.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": null,
+    "partialReportPath": null
+  }
+}

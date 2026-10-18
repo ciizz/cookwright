@@ -1,0 +1,113 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [
+    {
+      "file": "README.md",
+      "location": "First run, steps 3-4 (line ~13)",
+      "problem": "The ordered flow says to open Codex, trust the hook, then expect the session-start doctor line. QA established that the hooks file is read at startup and the doctor line appeared only in a new session after trust.",
+      "severity": "P2",
+      "suggested_fix": "Explicitly instruct the user to start a new Codex session after trusting the hook, before expecting the doctor readout.",
+      "failure_scenario": "A first-time user trusts /hooks in the already-open session, sees no doctor line, and concludes the hook is broken or proceeds without the health check.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "plausible",
+      "evidence": "README.md:13-14 says to trust via /hooks first, then the doctor line appears; the closed E-027 line (docs/dev/backlog.md Closed) says the file is read at startup and the line came in a *new* session after trust. Step 3 does not say to start a new session after trusting. I could not refute it, but I also could not confirm that /hooks trust in an open session does not fire the hook."
+    },
+    {
+      "file": "README.md",
+      "location": "Codex section measurement paragraph (line 37)",
+      "problem": "'Measured on 2026-10-18 with Codex 0.163.0' grammatically covers the claim that no hook fired under codex exec, but backlog E-027 (docs/dev/backlog.md:45) records that measurement against Codex 0.145.0 in three earlier runs. Violates the claim-only-what-was-measured rule.",
+      "severity": "P3",
+      "suggested_fix": "Attribute the codex exec observation explicitly to 0.145.0, or repeat the measurement on 0.163.0 and record it.",
+      "failure_scenario": "Readers treat codex exec behavior as verified on 0.163.0 when only interactive behavior was tested on that version.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "README.md:37 puts 'under codex exec no project hook fired' inside 'Measured on 2026-10-18 with Codex 0.163.0'. The closed E-027 line in docs/dev/backlog.md says codex exec was measured on 0.145.0 (3 runs) and the 2026-10-18 round was interactive only."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "lines 140 and 145 (Adding a host; At the end, Codex host.hook trust); also README.md:37 and messages.mjs:234-235 (hostHook.trust / trustAgain)",
+      "problem": "Round 1 measured that Codex reads .codex/hooks.json only at startup: a Codex opened before the file existed showed SessionStart installed 0 under /hooks, and only a restarted Codex showed installed 1. Nothing in the range acts on that. The setup skill, init's trust note and the README all still say just 'trust it with /hooks' (and 'again after every rewrite'), with no restart. The round notes and the decision say 'no finding, no code change', and no backlog item was opened. AGENTS.md says a discovery is logged, and the state homes are updated at every status change.",
+      "severity": "P2",
+      "suggested_fix": "Open a backlog entry, or change the text in this bundle: Codex must be restarted (a new session started from the work tree's top) after init writes or rewrites .codex/hooks.json, and only then is /hooks able to trust it. Apply this to the setup skill's lines 140/145, the hostHook.trust/trustAgain strings and the README Codex paragraph.",
+      "failure_scenario": "A Codex user adds codex to hosts and runs $setup (or init) from inside an open Codex session. Setup says to trust the hook with /hooks. /hooks lists SessionStart installed 0 and there is nothing to trust. The user concludes the hook was not written, or reruns init, which rewrites the file. The same thing happens after any later init rewrite done from an open session.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "plausible",
+      "evidence": "Confirmed no restart guidance: grep 'restart' finds nothing in SKILL.md (lines 140, 145 say only trust with /hooks), README.md:37, or messages.mjs:234-235 (trust/trustAgain). The range (642f4c0..HEAD) touches only README.md, backlog.md, round-1.md and state.json. The backlog E-027 closure (docs/dev/backlog.md:45) records that the file is read at startup and a pre-existing Codex session showed no hook, but opens no item for the missing restart note, and the README text (line 37) reports the measurement without telling users to restart. The gap is real. The failure scenario (user in an open Codex session concludes nothing was written) is inferred from the measurement, not reproduced here, and the severity is a judgment call under the charter's rules, so I left it plausible."
+    },
+    {
+      "file": "README.md",
+      "location": "line 37, 'Measured on 2026-10-18 with Codex 0.163.0: ... under `codex exec` no project hook fired.'",
+      "problem": "The sentence puts the codex exec non-firing result under the 2026-10-18 / Codex 0.163.0 measurement. That result was measured on 2026-10-16 with Codex 0.145.0 (3 runs). The closed E-027 line in docs/dev/backlog.md says so, and round 1 did not run codex exec. The README claims more than was measured and contradicts the backlog.",
+      "severity": "P3",
+      "suggested_fix": "Split the clause: '...listed through the pointer. Under `codex exec` 0.145.0 (2026-10-16) no project hook fired.'",
+      "failure_scenario": "A user on Codex 0.163.0 who relies on `codex exec` reads that 0.163.0 was measured not to fire the hook there. They avoid it or build a workaround, though nobody ran codex exec on 0.163.0. Or 0.163.0 does fire under exec and the README states the opposite.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "Same as [1]. README.md:37 attributes the codex exec result to 0.163.0 and 2026-10-18. docs/dev/backlog.md E-027: 'Under `codex exec` 0.145.0 no project hook fired (3 runs)'. The README contradicts the backlog and claims more than was measured."
+    },
+    {
+      "file": "README.md",
+      "location": "line 14 (first-run step 4, new Codex sentence) and line 37 ('a new interactive session received the doctor line from the hook')",
+      "problem": "The relayed developer message is the only user voice here, and it reports only '/hooks shows installed 1, $setup is listed, committed'. Installed 1 shows Codex read the file. It does not show the hook fired. The doctor-line-from-the-hook claim, and 'active 1 after trusting', come from the round notes the orchestrator wrote, and the developer's words for them are not in this range. Round note 1 also records that in Claude Code the readout 'reached the agent, not the screen', yet step 4 says Codex 'the same line appears'. A user will wait for a visible line that does not show.",
+      "severity": "P3",
+      "suggested_fix": "Confirm the developer saw the hook's readout reach a new Codex session, and quote their words in the round notes if so; otherwise go back to the measured wording (installed 1, $setup listed). Change 'appears' to say the readout reaches the agent's context, so the user asks the agent for it, for both hosts.",
+      "failure_scenario": "The hook does not fire in an interactive Codex session (e.g. the matcher or the work-tree-top cd fails there), but the README now says the doctor line arrives. A Codex user sees no FAIL at session start, skips running doctor by hand (the old step 4 told them to), and works on a drifted repo.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "plausible",
+      "evidence": "The doctor-line-from-the-hook claim at README.md:14 and :37 matches E-027's record that a new session's agent reported 'level 0 complete' with no command run. That record was written by the orchestrator, not the developer. The relayed developer message only says 'hooks shows installed 1, $setup is listed', so hook firing was not shown directly by the user's words. The old step 4 told Codex users to run doctor by hand and the new text drops that. I could not check the transcript, so I could not confirm or refute the claim. The point that the line reaches the agent and may not show on screen is a fair wording concern for step 4."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 642f4c0..HEAD (README.md, docs/dev/backlog.md, qa/round-1.md, state.json)",
+    "Codex run, high effort, read-only, by file reference",
+    "git log and diff 642f4c0..HEAD (README.md, docs/dev/backlog.md, docs/dev/bundles/stage-3/qa/round-1.md, state.json)",
+    "commit 569378b message and doc-sync pairing (README + backlog in one commit)",
+    "README claims against round-1 notes and the closed E-027 backlog line",
+    "plan.md section 8 (QA leg, Codex hook not claimed in scratch-repo leg) and section 9 state homes",
+    "setup SKILL.md Codex trust guidance (lines 82-86, 140, 145)",
+    "init trust messages (messages.mjs:234-235, hostfile.mjs) and doctor codex.mjs host.hook comment/strings",
+    "repo-wide grep for remaining 'unmeasured' / E-027 / codex exec claims outside bundle state",
+    "state.json changes: qa run entry, gate record at 8820137 (passed), qaRounds, decision text (not edited by hand, only inspected)",
+    "secrets/private-path scan of the added text: no local paths or credentials in the range"
+  ],
+  "notes": "Codex session id 01a14f08-8aab-7f03-8c08-9bf5ca9038fd. Full output at <local path> Run completed without hitting the ceiling; findings transcribed from Codex's report.\n---\nThe range changes docs and bundle state only: no code and no secrets, and README and backlog changed in the same commit, as doc sync requires. Main gap: the round found that Codex reads .codex/hooks.json only at startup, and nothing acts on it. The setup skill and init still say to trust with /hooks with no restart, and no backlog entry was opened. The README also overstates its sources: it puts the 0.145.0 codex exec result under the 0.163.0 measurement, and the hook-fired claim goes beyond the developer's relayed words (installed 1, $setup listed). Minor: decision 2026-10-18T12:40:39 says the gate stands on 94242a82, but a newer passing gate was recorded at 8820137. Harmless.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a14f08-8aab-7f03-8c08-9bf5ca9038fd",
+    "partialReportPath": null
+  }
+}

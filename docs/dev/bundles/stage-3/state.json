@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 154,
+  "revision": 157,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -655,6 +655,19 @@
           "ms": 34016
         }
       ]
+    },
+    {
+      "commit": "ddc7dcd2d1da6717fbe696c58050f6d01c966f75",
+      "at": "2026-10-18T12:59:24.923Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 39148
+        }
+      ]
     }
   ],
   "findings": [
@@ -819,6 +832,24 @@
       "at": "2026-10-18T12:51:22.301Z",
       "stored": true,
       "head": "ed45eee0a288009f617d446324f895e9d23a8d09"
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-3/findings/qa-3.json",
+      "counts": {
+        "confirmed": 1,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 1
+      },
+      "at": "2026-10-18T12:58:45.598Z",
+      "stored": true,
+      "head": "ddc7dcd2d1da6717fbe696c58050f6d01c966f75"
     }
   ],
   "reports": [
@@ -898,6 +929,12 @@
       "phase": "qa",
       "path": "docs/dev/bundles/stage-3/sessions/qa-2.md",
       "at": "2026-10-18T12:51:22.227Z",
+      "stored": true
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-3/sessions/qa-3.md",
+      "at": "2026-10-18T12:58:45.528Z",
       "stored": true
     }
   ],

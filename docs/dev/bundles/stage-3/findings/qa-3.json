@@ -1,0 +1,56 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [
+    {
+      "file": "README.md",
+      "location": "line 37, Codex paragraph, the sentence added in 46f9b68: 'After the first write and after every rewrite alike, restart Codex at the work tree's top, trust the hook with `/hooks`, and the readout comes in the next new session.' (also packages/cookwright/skills/setup/SKILL.md:140, 'Adding a host': 'restart Codex at the work tree's top')",
+      "problem": "Finding 0 of QA run 2 noted that the first-write guidance always said 'restart', even when Codex had not been opened yet. The fix changed init's trust note to 'open or restart' (2403e6d). In the same round, 46f9b68 added a sentence to the README's Codex paragraph that covers the first write and says only 'restart'. The setup skill's add-host line also still says only 'restart'. So the three texts still disagree on the exact case the finding was about. The README's step 3 says 'open it after init, or restart it', but the Codex paragraph it points to does not.",
+      "severity": "P3",
+      "suggested_fix": "In the README's Codex paragraph, write 'open or restart Codex at the work tree's top' (or 'open Codex, or restart one already open, ...') to match init's trust note and README step 3. Make the same wording change in SKILL.md:140 and SKILL.md:145. The skills test pins only the doctor substring, so no test change is needed.",
+      "failure_scenario": "A terminal-first user runs `npx cookwright init --hosts codex` before ever starting Codex. They then read the README's Codex section, which step 3 sends them to, or the /setup add-host line run from Claude Code, and are told to 'restart Codex'. init's own row says 'open or restart'. The user is unsure whether a first launch counts, or whether they must launch, quit and relaunch. The cost is small: the worst case is an extra restart. But this is the inconsistency the round set out to remove, and a user-facing sentence written in this round brought it back.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "README.md:37 says 'After the first write and after every rewrite alike, restart Codex at the work tree's top'. packages/cookwright/skills/setup/SKILL.md:140 says 'restart Codex at the work tree's top'. init's note at packages/cookwright/src/lib/messages.mjs:235 and :237 says 'open or restart'. README.md:13 (step 3) says 'open it after init, or restart it'. So the Codex paragraph that step 3 points to covers the first write but drops the 'open' case, which is the case finding 0 of QA run 2 was about. The impact is small (worst case is one extra restart) but the inconsistency is real."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 642f4c0..HEAD across README, messages.mjs, setup SKILL.md, doctor/init/skills tests",
+    "cookwright doctor (17 PASS)",
+    "git log and git diff 642f4c0..HEAD; git show of 2403e6d, 46f9b68 and ddc7dcd",
+    "qa-2 findings (docs/dev/bundles/stage-3/findings/qa-2.json) and the orchestrator's qa fix run 2 disposition in state.json decisions: each of the four findings checked against what was committed",
+    "messages.mjs: hostHook.trust and trustAgain (init) and doctor codex hook.ok; their call sites in init/hostfile.mjs:79,88 and doctor/codex.mjs:71",
+    "init.test.mjs literal assertions for trust and trustAgain (not derived from the helper, as the disposition asked); the other trustAgain cases (matcher, stray, replaced) still built from the helper",
+    "doctor.test.mjs, skills.test.mjs QUOTED substring, the SKILL.md recipe row (86) and At-the-end line (145): consistent with the new doctor string",
+    "doctor --hook rendering (report.mjs renderReport): PASS lines are left out of the session-start readout, so the new 'restart Codex, then /hooks' PASS note shows only in a doctor run by hand and never in a Codex session's context",
+    "README first-run steps 3 and 4 and the Codex paragraph against round-1.md item 6 and the E-027 backlog line: 'installed 0' is now limited to the first write, which was measured",
+    "Every other '/hooks' or 'whether it is trusted' mention in the repo outside the bundle state: none left stale",
+    "cookwright.json docSync rules: ddc7dcd stages SKILL.md together with README.md (the 'setup' rule); 46f9b68 used COOKWRIGHT_SKIP=doc-sync with a reason (not needed, but harmless); 2403e6d changes no doc and needs none, since the README already carried the full sequence",
+    "plan.md §4 (the Codex host.hook PASS text, disposition 7: the line claims only what it reads) and §5 add-host line: the new doctor string adds a measured startup-read fact and advice, and claims nothing about trust",
+    "npx vitest run on init, doctor, skills and messages tests: 4 files, 229 tests passed",
+    "secrets and private-path scan of the added text: none found; user-facing strings stay in messages.mjs"
+  ],
+  "notes": "Codex (high effort, read-only) reported no findings. npm test could not run in its read-only sandbox (Vitest could not create .vite-temp); an environment limit, not a test failure. Output: <local path>\n---\nThe three commits deliver the qa-2 dispositions as written. init's trust and trustAgain notes now give the order open-or-restart, then /hooks, then a new session, and each is pinned by a literal assertion. The README's 'installed 0' screen is limited to the first write, the only case measured. doctor's Codex host.hook PASS note and its tests, the skills test's quoted substring and the setup skill's row and At-the-end line all match the decided string 'restart Codex, then /hooks'. The affected tests pass (229 of 229). No rule in AGENTS.md is broken: strings live in one place, nothing private was added, and the doc-sync escape carries its reason.\n\nOne P3 remains, a wording gap. The README Codex paragraph and the setup skill still say only 'restart', where init now says 'open or restart'.\n\nTwo deliberate choices, not filed as issues:\n- doctor's PASS note now says 'restart Codex, then /hooks' on every run by hand, even when the hook is long trusted and working. doctor cannot read trust, and the session-start readout leaves out PASS lines, so this is noise only in a run by hand.\n- The rewrite remedy (restart, re-trust, new session) is inferred from the measured startup-only read and has not been measured itself.\n\nProcess note for the orchestrator: this round changed code (messages.mjs). Under playbook QA step 3 the gate needs to run on the new HEAD. The last gate recorded is on 8820137.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": null,
+    "partialReportPath": null
+  }
+}

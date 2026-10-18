@@ -6,23 +6,31 @@
 # FIXTURE_STRICT=1 turns a missing tool from a skip into a failure.
 #
 # The scaffold is pinned, and bumped deliberately: a harness CI that goes red
-# on an upstream scaffold release is rot. create-expo-app fetches its template
-# from npm at the template's latest version, so the template is pinned too.
+# on an upstream scaffold release is rot. The pin is on create-expo, the
+# package that holds the logic: create-expo-app is a shim that depends on
+# `create-expo >=5.0.1`, so pinning it pins nothing (the first GitHub run,
+# 2026-10-18, resolved 5.1.5 through it, which writes no CLAUDE.md). It
+# fetches its template from npm at the template's latest version, so the
+# template is pinned too. create-expo writes CLAUDE.md and .claude/settings.json
+# only on a machine with Claude Code (~/.claude.json or ~/.claude; measured in
+# 5.0.1); the fixture is a user with Claude Code, so the overlay supplies those
+# two files, with the scaffold's own content, where the scaffold did not.
 # The pins fix the files the scaffold writes, not what gets installed: the
 # scaffold's dependencies (expo ~58, typescript ~6 and every transitive one)
-# and create-expo-app's own float within their ranges, with no lockfile
-# (E-036). A red install or scaffold step with no cookwright change is an
-# upstream release, not a regression. Lifecycle scripts are not run.
+# float within their ranges, with no lockfile (E-036). A red install or
+# scaffold step with no cookwright change is an upstream release, not a
+# regression. Lifecycle scripts are not run.
 set -euo pipefail
 
-CREATE_EXPO_APP_VERSION="5.0.0"
+CREATE_EXPO_VERSION="5.0.1"
 TEMPLATE="expo-template-blank-typescript@58.0.21"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OVERLAY="$ROOT/fixtures/expo-overlay"
 
 # Messages, in one place.
-MSG_HEAD="fixture: create-expo-app@$CREATE_EXPO_APP_VERSION, template $TEMPLATE"
+MSG_HEAD="fixture: create-expo@$CREATE_EXPO_VERSION, template $TEMPLATE"
+MSG_FROM="fixture: %s from the %s\n"
 MSG_SKIP="fixture: skipped, needs %s, run setup\n"
 MSG_STEP="\n== %s\n"
 MSG_FAIL="fixture: FAIL: %s\n"
@@ -62,11 +70,11 @@ pack() {
 }
 
 scaffold() {
-  step "create-expo-app"
-  (cd "$WORK" && npx --yes "create-expo-app@$CREATE_EXPO_APP_VERSION" app \
+  step "create-expo"
+  (cd "$WORK" && npx --yes "create-expo@$CREATE_EXPO_VERSION" app \
     --template "$TEMPLATE" --no-install --yes)
   APP="$WORK/app"
-  for f in AGENTS.md CLAUDE.md .claude/settings.json package.json; do
+  for f in AGENTS.md package.json; do
     [ -f "$APP/$f" ] || fail "the scaffold wrote no $f"
   done
   (cd "$APP" && find . -path ./.git -prune -o -type f -print | sort)
@@ -75,6 +83,18 @@ scaffold() {
 overlay() {
   step "overlay, git init, one commit"
   cat "$OVERLAY/AGENTS.md" >> "$APP/AGENTS.md"
+  # The Claude Code files: the scaffold's when it wrote them (a machine with
+  # Claude Code), the overlay's copies of the same content otherwise.
+  local f
+  for f in CLAUDE.md .claude/settings.json; do
+    if [ -f "$APP/$f" ]; then
+      printf "$MSG_FROM" "$f" scaffold
+    else
+      mkdir -p "$APP/$(dirname "$f")"
+      cp "$OVERLAY/claude/$f" "$APP/$f"
+      printf "$MSG_FROM" "$f" overlay
+    fi
+  done
   cd "$APP"
   # The scaffold's own repo and "Initial commit" go: the fixture starts from
   # one controlled commit, in a repo of the app's own even when the temp dir

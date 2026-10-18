@@ -39,6 +39,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 - **E-035** (2026-10-16) `doctor --from <dir>`, so a hook that must enter the work tree's top can still judge the session's own directory: Codex's session-start hook misses an `AGENTS.override.md` in the subdirectory a session started in.
 - **E-036** (2026-10-16) A committed lockfile for the fixture's scaffold in `fixtures/expo-overlay/`, installed with `npm ci` before the tarball, so the dependency tree `scripts/ci/fixture.sh` installs is pinned like the scaffold's files; regenerated with each scaffold bump. Needs a networked run to generate. Found by review:ci of stage-3.
 - **E-037** (2026-10-16) `host.pointers` reads only the project path (`.claude/skills/<name>`), so a personal skill of the same name (`~/.claude/skills/setup`), which Claude Code documents as taking precedence over a project one, hides cookwright's with doctor reading PASS. Measure the precedence first, then WARN when `<home>/.claude/skills/<name>` exists for a shipped skill (doctor carries `repo.home`), and the Codex equivalent if it has one. Found by review:whole of stage-3.
+- **E-038** (2026-10-18) The README's Codex paragraph and the setup skill's add-host and end lines say `restart Codex` where init's trust note says `open or restart`, the case of a Codex never opened before init ran; worst case one extra restart. Stage-3 QA residue (qa-3 finding 0).
 
 ## Closed
 

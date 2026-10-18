@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 146,
+  "revision": 147,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -1261,6 +1261,13 @@
       "actor": "orchestrator",
       "source": "qa round 1, 2026-10-18",
       "text": "Rule 3: the Codex hook firing is now a measured fact (round 1, Codex 0.163.0 interactive, after /hooks trust: the doctor line reached the agent, $setup listed), so the README's first-run step 4 and the Codex paragraph claim the readout and E-027 closes; the earlier hedge was correct while it was unmeasured. Rule 2: the agent's init-before-migrate order (a FAIL first, as the block says) is a chosen state the in-memory migration was built for, the README's migrate-first order stays as the clearer one for a human. No finding, no code change, no fix run; the gate stands on 94242a82 since the round changed docs only. The agent's 'skills' for the two workflows was its paraphrase, not a string of ours.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-18T12:45:03.241Z",
+      "actor": "orchestrator",
+      "source": "qa run 1 review findings, 2026-10-18",
+      "text": "A second qa run fixes all five. Finding 0 (rule 3, P2): the README's first-run steps say to open Codex, trust the hook with /hooks, then start a new Codex session for the readout, since the file is read at startup and the measured line came in a new session. Finding 2 (rule 3, P2): the same restart holds after init writes or rewrites .codex/hooks.json: the setup skill's 'adding a host' and end-of-walk lines, init's hostHook trust and trustAgain strings, and the README's Codex paragraph say 'start a new Codex session from the work tree's top, then trust it with /hooks'; two changed strings go to the developer's batch. Findings 1 and 3 (rule 3, P3, confirmed): the README attributes the codex exec result to its own measurement, Codex 0.145.0 on 2026-10-16, three runs, apart from the interactive one of 2026-10-18. Finding 4 (rule 3, P3): the hook firing is measured by what the orchestrator saw in the developer's screenshot of the new Codex session (the agent answered 'level 0 complete' to 'what did cookwright doctor report at session start?' with no command shown, before /hooks showed installed 1 and active 1), so the claim stands; the wording changes: in both hosts the readout reaches the agent's context, not the screen, so the README's step 4 says to ask the agent for it rather than 'appears'; the round record is the runner's and is not amended. Rule 7: the fix stays on the texts the findings name; no code.",
       "claim": true
     }
   ],

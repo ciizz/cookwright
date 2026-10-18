@@ -6,6 +6,7 @@
     "claude"
   ],
   "baseBranch": "main",
+  "ci": { "workflow": "ci.yml" },
   "paths": {
     "bundles": "docs/dev/bundles",
     "closeouts": "docs/dev/closeouts",

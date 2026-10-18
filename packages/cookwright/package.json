@@ -3,6 +3,15 @@
   "version": "0.0.0",
   "description": "A guided, incremental, non-rotting agentic harness for solo developers building mobile apps with React Native, TypeScript and Supabase.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ciizz/cookwright.git",
+    "directory": "packages/cookwright"
+  },
+  "homepage": "https://github.com/ciizz/cookwright#readme",
+  "bugs": {
+    "url": "https://github.com/ciizz/cookwright/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=20"

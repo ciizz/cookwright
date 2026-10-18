@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 140,
+  "revision": 142,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -825,7 +825,13 @@
       "stored": true
     }
   ],
-  "qaRounds": [],
+  "qaRounds": [
+    {
+      "path": "docs/dev/bundles/stage-3/qa/round-1.md",
+      "at": "2026-10-18T12:40:00.237Z",
+      "stored": true
+    }
+  ],
   "decisions": [
     {
       "at": "2026-10-16T07:07:10.915Z",
@@ -1210,6 +1216,13 @@
       "actor": "orchestrator",
       "source": "fix:whole report and open question, 2026-10-16",
       "text": "Rule 3: accepted as built over the review disposition for finding 0: an installed package missing a declared skill's SKILL.md reads host.pointers WARN 'not installed where it points (npm install)' rather than FAIL 'package damaged', since the line names the one remedy and a skill pointer counts as resolving only when its SKILL.md exists; the inventory comes from the SKILLS table. Accepted as built: the Codex stray-matcher WARN and init removing the copies; the atomic pointer replacement through a sibling link and rename with every failure reported on one line; the rules files from the host the bundle runs in; the Codex nested-root WARN naming B-002; the README's Updating and shadowing text; E-037 (a doctor WARN for a personal skill of the same name once the precedence is measured). The QA leg's deviation from plan §8 was recorded with the review:whole dispositions (finding 5): migrate and init first, then /setup in a new session. The four fix:whole strings go to the developer with the whole-branch batch.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-18T12:40:39.563Z",
+      "actor": "orchestrator",
+      "source": "qa round 1, 2026-10-18",
+      "text": "Rule 3: the Codex hook firing is now a measured fact (round 1, Codex 0.163.0 interactive, after /hooks trust: the doctor line reached the agent, $setup listed), so the README's first-run step 4 and the Codex paragraph claim the readout and E-027 closes; the earlier hedge was correct while it was unmeasured. Rule 2: the agent's init-before-migrate order (a FAIL first, as the block says) is a chosen state the in-memory migration was built for, the README's migrate-first order stays as the clearer one for a human. No finding, no code change, no fix run; the gate stands on 94242a82 since the round changed docs only. The agent's 'skills' for the two workflows was its paraphrase, not a string of ours.",
       "claim": true
     }
   ],

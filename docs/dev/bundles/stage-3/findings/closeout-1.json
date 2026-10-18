@@ -1,0 +1,105 @@
+{
+  "phase": "closeout",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/closeouts/stage-3.md",
+      "location": "State at close (Backlog bullet)",
+      "problem": "Says B-002 was 'narrowed to a linked worktree without node_modules and a package installed elsewhere than the config root or the top'. That narrowing is the claim plan-review round 1 finding 3 (P1, confirmed) called false, and disposition 16 (decision 2026-10-16T07:26:47.233Z) withdrew it: 'B-002 stays open'. The backlog diff in 51a90fc9..85e2a149 keeps B-002's original text whole and only appends to it: the pointers handle a hoisted package but the hooks and shims do not (E-034), plus the Codex hook limit. Nothing in it is narrowed.",
+      "severity": "P2",
+      "suggested_fix": "Say B-002 stayed open, its text extended to note that the pointers handle a package hoisted to the top while the hook commands and shims do not (E-034), and widened to name the Codex hook.",
+      "failure_scenario": "A reader takes it that the subdirectory-session and workspace-sub-package cases of B-002 are fixed, when the hook commands and shims are unchanged since stage 2.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-3.md",
+      "location": "What shipped (Pointers, not a plugin)",
+      "problem": "Describes the pointer ownership rules that plan-review round 1 rejected, not the ones that shipped. It says 'a dangling link of other text is an earlier pointer and is `updated`' and that only 'a link of theirs that resolves' is skipped. Disposition 14 (decision 07:26:47.122Z, findings 1, 17, 18) made every link of other text the user's, dangling or not, so init skips it and never replaces it. The built code agrees: POINTER_TEXTS_PAST is empty (hosts.mjs:57), and readPointer (doctor/hosts.mjs:107) classes any other text as `theirsLink`, which doctor reads as WARN.",
+      "severity": "P2",
+      "suggested_fix": "Rewrite the ownership sentence: a link of our shape that resolves is kept; ours and not resolving is WARN not installed, or retargeted when it is misdirected; a text in POINTER_TEXTS_PAST (empty in this stage) is an earlier pointer; any other link, dangling or resolving, or a real file or directory, is the user's: skipped, WARN naming it.",
+      "failure_scenario": "A maintainer reading the closeout expects init to overwrite a user's dangling link, which is the destructive behaviour the plan review removed.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-3.md",
+      "location": "Deviations from the plan, recorded as decisions (third bullet); State at close (Plan bullet)",
+      "problem": "Claims s6's migrate printed 'nothing to change (no paths.playbook)', not the `relaid` note §7.1 expected, and that this closeout corrects §7.1's relaid note. The s6 session report shows migrate also printed `cookwright.json written at version 2 (the file is rewritten in standard JSON layout, its indent kept)`. Decision 2026-10-16T09:11:17.728Z accepts that parenthetical as 'the relaid note §7.1 expected'. So there was no deviation to record.",
+      "severity": "P2",
+      "suggested_fix": "Drop the bullet, or restate it as: migrate printed 'nothing to change (no paths.playbook)' plus the relaid parenthetical, which was accepted as §7.1's relaid note. Remove '§7.1 relaid note' from the Plan bullet's list of corrections.",
+      "failure_scenario": "The record says the plan's expectation was missed, while the recorded decision says it was met; a later reader cannot tell which is true.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-3.md",
+      "location": "Reviews (QA line)",
+      "problem": "'QA, one round and three fix runs' is wrong. The qa phase has three runs (wf_c20ef78a, wf_b94d9f57, wf_8340dc3f). The first reviewed the round's README commit and changed nothing; only the second and third were fix runs (commits 1d9ac52 'qa fix run started' and 9a6206d 'qa fix run 3 started'). The closeout's own Device QA section says 'two fix runs after it', so the two sections contradict each other.",
+      "severity": "P3",
+      "suggested_fix": "Say 'QA: one round, its review run and two fix runs (below)'.",
+      "failure_scenario": "The fix-run count disagrees within the closeout and with the state's three qa runs, of which one was a review.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-3.md",
+      "location": "Reviews (Plan review)",
+      "problem": "'30 findings, 15 confirmed, 5 of them P1 (... an unescaped hook path ...)' is wider than the evidence. plan-review-1.json has 5 P1s in all, and only 4 are confirmed (0, 1, 3, 16). Finding 2, the unescaped hook path, is plausible, not confirmed.",
+      "severity": "P3",
+      "suggested_fix": "Say '30 findings, 15 confirmed and 15 plausible; 5 P1, 4 of them confirmed (the session-order deadlock, twice; pointer ownership by resolution; the false B-002 narrowing) and the unescaped hook path plausible'.",
+      "failure_scenario": "The closeout overstates how many P1s the verifiers confirmed.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-3.md",
+      "location": "What shipped (The Codex host)",
+      "problem": "Credits `host.rules` with the WARN for a config root below the top (B-002). In the code that WARN is in checkCodexHook (doctor/codex.mjs: `rel ? warn(m.hook.nested(...))`), which is the Codex `host.hook` check; checkCodexRules WARNs only on override files. Decision 2026-10-16T09:55:43.079Z (finding 7) also places it in host.hook.",
+      "severity": "P3",
+      "suggested_fix": "Say: `host.rules` WARNs on a nested override; Codex `host.hook` WARNs when the config root is below the work tree's top (B-002, named).",
+      "failure_scenario": "A reader looking for the nested-root WARN finds it under the wrong check.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-3.md",
+      "location": "Verified by hand (third bullet)",
+      "problem": "Says that in the s4 scratch repo `codex exec` 0.145.0 'listed the `setup` skill through the `.agents/skills` link'. The s4 report says the real tarball shipped no setup skill (no .agents/skills was written). The listing was measured on a separate scratch copy of the package with a stub skills/setup/SKILL.md (repo m2, 69 files). It shows that the link route works, not that the shipped setup skill was listed.",
+      "severity": "P3",
+      "suggested_fix": "Say codex exec 0.145.0 listed a stub `setup` skill, packed into a scratch copy of the package, through the `.agents/skills` link, and tolerated the link dangling; the shipped skill was first listed under Codex in QA round 1 (`$setup`).",
+      "failure_scenario": "The closeout implies the shipped setup skill was verified under codex exec in s4, before that skill existed.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-3.md",
+      "location": "Decided during the stage",
+      "problem": "Says every orchestrator decision cites a Judgment rule. In state revision 160, 5 of the 55 orchestrator decisions cite none: 07:07:48.949Z cites the charter, 07:07:49.054Z is a measurement, and 07:47:32.798Z, 07:47:32.907Z and 08:00:04.360Z are 'Accepted as built' with no rule. The closeout also says the strings batches 'were presented in chat'. The state records only that they 'go to the developer in one batch'; nothing in the range or the state shows they were presented.",
+      "severity": "P3",
+      "suggested_fix": "Say most decisions cite a Judgment rule, and name the five that do not (or add rule citations through `bundle decide`). Say the strings batches are queued for the developer, not presented, unless a record shows they were.",
+      "failure_scenario": "The closeout claims more rule discipline, and a developer review of strings, than the state shows.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-3.md",
+      "location": "State at close (Plan bullet)",
+      "problem": "Says plan line 97's doctor string is 'corrected by this closeout', but the closeout never quotes or corrects that string (the Codex host.hook PASS wording at plan.md:97). The only basis is decision 12:59:25.435Z, which says the plan is not edited.",
+      "severity": "P3",
+      "suggested_fix": "Quote the shipped Codex host.hook PASS note ('… whether it is trusted is yours: restart Codex, then /hooks') next to plan line 97's string, or drop line 97 from the list.",
+      "failure_scenario": "A reader of the plan is pointed to a correction the closeout does not contain.",
+      "verdict": "plausible"
+    }
+  ],
+  "checked": [
+    "Header counts: 129 commits in 51a90fc9..92e32678, 75 chore(bundle), 54 others (9 feat, 22 fix, 12 docs, 4 test, 1 ci, 6 chore): match git log",
+    "Generated tables vs state revision 160 (commit 92e3267): five numbers (53.9 h, 12266956 tokens summed over 17 runs, 10 review runs, 1 QA round, costs empty), review trajectory counts, gate history (15 gates, all pass): match",
+    "59 decisions, 4 developer, 55 orchestrator: match",
+    "Test chain 317/326/354/377/389/395/405/469/478 against the session reports; npm test now: 17 files, 478 passed",
+    "doctor now: 17 PASS, level 0 complete; changelog --check up to date (0 release tags)",
+    "npm pack --dry-run lists the five surface files (69 files now; 61 files, 96.7 kB in the s1 report)",
+    "Fixture pins (create-expo-app 5.0.0, template 58.0.21, FIXTURE_STRICT), ci.yml triggers, Node 22, gitleaks sha256, actions pinned by commit",
+    "Schema version enum [1,2], hosts enum, paths.playbook with no default; README section order",
+    "Backlog diff: E-007, E-012, E-013, E-027, E-028 closed; B-010 and E-029..E-037 opened in range (E-038 in the closeout commit); B-002 and E-014 text",
+    "CHARTER.md unchanged in range; bundle dir grep for local paths (only generic ~/.codex and ~/.claude references)",
+    "Pointer ownership code (doctor/hosts.mjs, POINTER_TEXTS_PAST); Codex rules and hook checks (doctor/codex.mjs)",
+    "QA round-1 record, qa phase runs and qa commits; s4 and s6 session reports; all findings files"
+  ],
+  "notes": "The task says the state is at revision 159. The state file is at 161 in the work tree (after the verify-run commit 7663478). It was 159 at 85e2a14 and 160 at 92e3267 and d80b7e2, so the closeout's 'revision 160' header is correct, and its tables match revision 160. The supplied file shas (063e6984..., 6cfa8188...) do not match git hash-object output, probably because they come from a different hash; the plan sha 6cfa81884bddb0a6 does match what the state records for every implement run. Main defects: the B-002 'narrowed' claim, which repeats a withdrawn plan claim; the pointer ownership rules described as the superseded disposition 5 rather than disposition 14 as built; and a recorded 'deviation' over migrate's relaid note that decision 09:11:17 says did not happen.",
+  "timedOut": false,
+  "incomplete": [],
+  "closeoutSha": "063e6984bf306be7"
+}

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 161,
+  "revision": 163,
   "slug": "stage-3",
   "branch": "bundle/stage-3",
   "base": "51a90fc98af1bcbd58da9785b833feded490f7c2",
@@ -867,6 +867,25 @@
       "at": "2026-10-18T12:58:45.598Z",
       "stored": true,
       "head": "ddc7dcd2d1da6717fbe696c58050f6d01c966f75"
+    },
+    {
+      "phase": "closeout",
+      "path": "docs/dev/bundles/stage-3/findings/closeout-1.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 9,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 3,
+        "P3": 6
+      },
+      "at": "2026-10-18T13:09:10.098Z",
+      "stored": true,
+      "head": "fb4be27a37985609af4b844839c8cc22784bea66",
+      "closeoutSha": "063e6984bf306be7"
     }
   ],
   "reports": [
@@ -1374,6 +1393,13 @@
       "actor": "orchestrator",
       "source": "qa fix run 3 report and finding, 2026-10-18",
       "text": "Rule 6 and the playbook's residue: the one P3 (the README's Codex paragraph and the setup skill's add-host and end lines say 'restart Codex' where init's note says 'open or restart'; worst case one extra restart) stays in the record as residue and goes to the backlog with the closeout's state-home update rather than a fourth run for three words. The fix session's note on plan.md line 97 quoting the old doctor string: the plan is the record of what was planned, not of what shipped, and is not edited after the fact (rule 2). Accepted as built: the three strings and the README and skill texts of run 3, batched to the developer. The gate covers the new HEAD.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-18T13:09:10.175Z",
+      "actor": "orchestrator",
+      "source": "closeout verify run 1, 2026-10-18",
+      "text": "Rule 3, all nine accepted and corrected in the closeout text by the docs role: B-002 stays open with its text extended (the plan-review P1 had withdrawn the narrowing); the pointer ownership sentence now describes what shipped (any link of other text is the user's, skipped, never replaced; POINTER_TEXTS_PAST empty); the s6 migrate bullet is dropped since the decision accepted the layout parenthetical as the relaid note; QA is one round, a review run and two fix runs; plan review's P1s are four confirmed and one plausible; the nested-root WARN is under Codex host.hook; s4's codex exec listed a stub skill from a scratch copy of the package; five decisions cite no rule and the strings batches were presented in chat, which the state does not record; plan line 97 is dropped from the corrections list. A second verify run follows.",
       "claim": true
     }
   ],

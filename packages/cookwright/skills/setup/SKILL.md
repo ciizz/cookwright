@@ -7,7 +7,7 @@ description: Walk cookwright doctor's readout to a complete level, one remedy at
 
 **Doctor is the state; this skill keeps none of its own.** Every decision below is made from a doctor readout taken after the last thing you changed. The logic lives in the CLI (`npx cookwright …`); this skill only says which command answers which line.
 
-It is reached once `npx cookwright init` has run (init writes the pointer that makes this skill visible), so a repo without `cookwright.json` starts from the README's first run, not here.
+It is reached once `npx cookwright init` has run (init writes the pointer that makes this skill visible), so a repo without `cookwright.json` starts from the README's quick start, not here.
 
 ## Rules
 
@@ -67,7 +67,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | `rules.block` | WARN | `block vN is newer than this cookwright` | ask first, then `npm install cookwright@latest` |
 | `rules.block` | FAIL | `the managed block is malformed (…)` | show the reason; with consent, repair the markers by hand (init refuses a malformed block too) |
 | `rules.size` | WARN | `… KB (cap 60 KB)` or `line … is … chars` | **stop at**: explain that a host may truncate a rules file past the cap; moving text out is theirs |
-| `host.rules`, Claude Code | FAIL | `AGENTS.md is shadowed by …` | with consent, `npx cookwright init`, which writes or prepends `@AGENTS.md` in the root `CLAUDE.md`; offer the README's "Already have a `CLAUDE.md`?" paragraph as the cleaner way |
+| `host.rules`, Claude Code | FAIL | `AGENTS.md is shadowed by …` | with consent, `npx cookwright init`, which writes or prepends `@AGENTS.md` in the root `CLAUDE.md`; offer the "Already have a `CLAUDE.md`?" section of cookwright's `docs/guides/monorepos-and-claude-md.md` as the cleaner way |
 | `host.rules`, Claude Code | FAIL | `claude X reads only CLAUDE.md …` | `npx cookwright init` writes the import; updating Claude Code is the other way, the developer's hands |
 | `host.rules`, Claude Code | SKIP | `skipped, needs claude, run setup …` | **stop at**: `claude` is not on PATH here, so its version is unverified |
 | `host.rules`, Codex | FAIL | `no AGENTS.md at the root …` | `npx cookwright init` |
@@ -105,7 +105,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | check | status | note | remedy |
 |---|---|---|---|
 | `hooks.path` | FAIL | `core.hooksPath is not set …` | `npx cookwright init` |
-| `hooks.path` | WARN | `… hooks are managed elsewhere …`, `… cookwright's hooks are not installed` | **stop at**: explain; offer the one-line call of the README's "Hooks managed elsewhere" for their own hook |
+| `hooks.path` | WARN | `… hooks are managed elsewhere …`, `… cookwright's hooks are not installed` | **stop at**: explain; offer the one-line call of the "Hooks managed elsewhere" section of cookwright's `docs/guides/hooks-and-escapes.md` for their own hook |
 | `hooks.pre-commit`, `hooks.pre-push` | FAIL | `… missing`, `… is not executable` | `npx cookwright init` |
 | `hooks.pre-commit`, `hooks.pre-push` | FAIL | `… is not a file; move it aside …` | with consent, move it aside, then `npx cookwright init` |
 | `hooks.pre-commit`, `hooks.pre-push` | WARN | `… node_modules/cookwright is not installed here …` | `npm install` |

@@ -42,7 +42,7 @@
           "packages/cookwright/src/lib/rules/agents-block.md"
         ],
         "docs": [
-          "README.md"
+          "docs/guides/*.md"
         ]
       }
     ]

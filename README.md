@@ -5,7 +5,7 @@ cookwright is an open-source harness that keeps AI-assisted development discipli
 ## What you get
 
 - **A doctor at every session start.** A session-start hook runs 17 checks and puts the readout in your agent's context; each line that is not PASS names its next step.
-- **Hooks that refuse, never block.** pre-commit refuses a secret in the staged diff and, by your doc-sync rules, code staged without its doc; pre-push runs your gate. A tool you lack is a SKIP line, never a failed commit.
+- **Git hooks that catch mistakes.** Before each commit, they stop a secret from going in, and stop a code change that leaves out the doc you tied it to. Before each push, they run your tests. If a tool they need isn't installed, they say so and let you through.
 - **A changelog you never write.** It is generated from release tags and conventional commit subjects, and checked on every push.
 - **A setup skill.** `/setup` walks doctor's readout one remedy at a time and stops at the decisions that are yours.
 

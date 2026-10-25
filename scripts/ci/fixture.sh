@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The harness fixture (E-014): a real create-expo-app scaffold, the committed
 # overlay appended, then the package's published shape (an npm pack tarball)
-# installed and init, doctor, the hooks, changelog and migrate run against it.
+# installed and init, doctor, the hooks (a violating component refused by the
+# standards check, then landed corrected), changelog and migrate run against it.
 # Runs locally and in CI: bash scripts/ci/fixture.sh. KEEP=1 keeps the temp dir;
 # FIXTURE_STRICT=1 turns a missing tool from a skip into a failure.
 #
@@ -205,7 +206,50 @@ commit_through_hooks() {
   else
     expect "$WORK/commit.out" "^pre-commit +(PASS|SKIP) +secrets " "the pre-commit hook did not run"
   fi
+  expect "$WORK/commit.out" "^pre-commit +PASS +standards " "the hook's standards check is not PASS on init's files"
   [ -z "$(git status --porcelain)" ] || fail "the tree is dirty after the commit"
+}
+
+# A component that adds a colour literal and a literal JSX string, with its
+# design-system row (so doc-sync passes and only standards judges it), is
+# refused by the real ESLint naming both; the same file through t() and a
+# theme token lands.
+GREETING_BAD="import { Text } from 'react-native';
+
+export function Greeting() {
+  return <Text style={{ color: '#ff0000' }}>Hello there</Text>;
+}"
+GREETING_GOOD="import { Text } from 'react-native';
+
+import { styles, t } from '../theme';
+
+export function Greeting() {
+  return <Text style={styles.greeting}>{t('greeting.hello')}</Text>;
+}"
+
+standards_commit() {
+  step "a violating component refused by standards, the corrected one landed"
+  mkdir -p src/components
+  printf '%s\n' "$GREETING_BAD" > src/components/Greeting.tsx
+  printf '| Greeting | src/components/Greeting.tsx | none | |\n' >> docs/design-system.md
+  git add src/components/Greeting.tsx docs/design-system.md
+  local head; head="$(git rev-parse HEAD)"
+  if git commit -m "feat: greeting" > "$WORK/refused.out" 2>&1; then
+    cat "$WORK/refused.out"; fail "the violating commit landed"
+  fi
+  cat "$WORK/refused.out"
+  [ "$(git rev-parse HEAD)" = "$head" ] || fail "the violating commit moved HEAD"
+  expect "$WORK/refused.out" "^pre-commit +PASS +doc-sync " "doc-sync did not pass the component with its doc"
+  expect "$WORK/refused.out" "^src/components/Greeting\.tsx:4:[0-9]+ +expo tokens " "standards did not name the colour literal"
+  expect "$WORK/refused.out" "^src/components/Greeting\.tsx:4:[0-9]+ +expo strings " "standards did not name the JSX string"
+  expect "$WORK/refused.out" "^pre-commit +FAIL +standards .*Greeting\.tsx expo strings 0 → 1, expo tokens 0 → 1" \
+    "the standards FAIL does not name the file and both rules"
+  grep -q "Hello there" "$WORK/refused.out" && fail "a standards line echoed the literal"
+  printf '%s\n' "$GREETING_GOOD" > src/components/Greeting.tsx
+  git add src/components/Greeting.tsx
+  git commit -m "feat: greeting" 2>&1 | tee "$WORK/landed.out" || fail "the corrected commit was refused"
+  expect "$WORK/landed.out" "^pre-commit +PASS +standards +1 staged file\(s\), no rise" "standards did not pass the corrected component"
+  [ -z "$(git status --porcelain)" ] || fail "the tree is dirty after the corrected commit"
 }
 
 rerun() {
@@ -235,7 +279,7 @@ main() {
   [ -n "${KEEP:-}" ] || trap 'rm -rf "$WORK"' EXIT
   printf "$MSG_DIR" "$WORK"
   pack; scaffold; overlay; install_package
-  init; doctor; commit_through_hooks; rerun; links
+  init; doctor; commit_through_hooks; standards_commit; rerun; links
   echo; echo "$MSG_OK"
 }
 

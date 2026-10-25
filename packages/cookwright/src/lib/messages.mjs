@@ -13,9 +13,15 @@ import { CONFIG_FILE } from './config.mjs';
 export const CLI = 'npx cookwright';
 
 const list = (names) => names.join(', ');
+/** The first five of `files`, then `…`: a line names the first few, never a whole tree. */
+const shown = (files) => (files.length > 5 ? [...files.slice(0, 5), '…'] : files).join(', ');
 const RUN_INIT = `run ${CLI} init`;
 /** Appended when a JSON file is rewritten in a layout other than the one it had. */
 const RELAID = ' (the file is rewritten in standard JSON layout, its indent kept)';
+
+// What a pack's contract doc lists, by the manifest doc's `entries` kind.
+const ENTRY_NOUNS = { components: ['primitive', 'primitives'], migrations: ['migration', 'migrations'] };
+const counted = (n, kind) => `${n} ${ENTRY_NOUNS[kind][n === 1 ? 0 : 1]}`;
 
 // doctor: one note per verdict of each check (plan §4.8), then the readout's lines.
 const doctor = {
@@ -151,6 +157,37 @@ const doctor = {
     untracked: (files) => `${list(files)} at the root: a plaintext env file (Level 2 replaces it)`,
     notIgnored: (files) => `${list(files)} not ignored by git (${RUN_INIT})`,
     notWorkTree: 'not a git work tree',
+  },
+
+  // packs: the declared packs, or the stacks the tree shows (stage-4 plan disposition 22).
+  packs: {
+    declared: (names) => `declared: ${list(names)}`,
+    none: 'no packs declared, none detected',
+    detected: (found) =>
+      `${list(found.map((f) => `${f.name} detected (${f.evidence})`))}, no pack declared; the setup skill offers ${found.length === 1 ? 'it' : 'them'}`,
+  },
+  // pack.<name>.declared, .rules, .docs: one declared pack's rows (stage-4 plan §4.7).
+  pack: {
+    declared: (name, version, rules, advisory) =>
+      `${name} pack v${version}: ${list(rules)}${advisory ? `; advisory: ${advisory}` : ''}`,
+    rules: {
+      current: (file, name) => `${file}: the ${name} pack's section is current`,
+      newer: (file, name, v) => `${file}: the ${name} pack's section v${v} is newer than this cookwright (update cookwright)`,
+      noFile: (file, name) => `no ${file}, so no ${name} pack section (${RUN_INIT})`,
+      absent: (file, name) => `${file} has no ${name} pack section (${RUN_INIT})`,
+      stale: (file, name) => `${file}: the ${name} pack's section is stale (${RUN_INIT})`,
+      malformed: (file, name, reason) =>
+        `${file}: the ${name} pack's section is malformed (${reason === 'noEnd' ? 'a begin marker with no end marker' : 'two begin markers'}); fix the markers by hand`,
+      off: (ids) => `switched off: ${list(ids)}`,
+    },
+    docs: {
+      missing: (doc) => `${doc} missing (${RUN_INIT})`,
+      noRule: (rule, doc) => `no doc-sync rule ${rule} in hooks.docSync, so a change to the code never asks for ${doc} (the setup skill offers it)`,
+      ruleOther: (rule, doc) => `the doc-sync rule ${rule} does not name ${doc} in its docs (the setup skill offers the pack's rule)`,
+      ok: (n, kind, doc) => `${counted(n, kind)}, ${n} documented in ${doc}`,
+      omitted: (names, n, kind, doc) =>
+        `${names.length} of ${counted(n, kind)} ${names.length === 1 ? 'has' : 'have'} no entry in ${doc}: ${shown(names)}`,
+    },
   },
 
   summary: (n, c) => `${n} checks — ${c.passed} PASS, ${c.failed} FAIL, ${c.warned} WARN, ${c.skipped} SKIP`,
@@ -376,7 +413,6 @@ const changelog = {
 
 // hook: the git hooks' command (plan §4.1). One line per check,
 // `<hook>  <STATUS>  <check>  <note>`; a FAIL's detail above its line.
-const shown = (files) => (files.length > 5 ? [...files.slice(0, 5), '…'] : files).join(', ');
 const notTested = (refs) => `not tested: ${shown(refs)} ${refs.length === 1 ? 'is' : 'are'} not the checked-out branch`;
 const hook = {
   usage: `usage: ${CLI} hook <pre-commit|pre-push> [git's hook arguments…]`,

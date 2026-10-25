@@ -128,6 +128,12 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | WARN | `… at the root: a plaintext env file …` | **stop at**: never open the file; say Level 2 replaces it |
 | WARN | `… not ignored by git` | `npx cookwright init` |
 
+### Stack packs (`packs`)
+
+| status | note | remedy |
+|---|---|---|
+| WARN | `… detected (…), no pack declared; the setup skill offers it` (or `them`) | with consent, add the detected packs' names to `packs` in `cookwright.json` by hand (init never edits an existing config), then `npx cookwright init`, which writes each pack's section of `AGENTS.md` and its contract doc |
+
 ### Doctor itself
 
 | status | note | remedy |

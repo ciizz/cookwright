@@ -18,17 +18,22 @@ import { checkClaudeHook } from './lib/doctor/claude.mjs';
 import { checkCodexHook } from './lib/doctor/codex.mjs';
 import { checkPointers, hostPointers, shippedPieces } from './lib/doctor/hosts.mjs';
 import { openDoctorRepo } from './lib/doctor/repo.mjs';
-import { runChecks } from './lib/doctor/registry.mjs';
+import { CHECKS, runChecks } from './lib/doctor/registry.mjs';
 import { levelLine } from './lib/doctor/report.mjs';
 import { shimText } from './lib/hooks/shims.mjs';
 import { CODEX_HOOK_COMMAND, HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
+import { PACKS, packDefaults, packName } from './lib/packs/registry.mjs';
+import { renderSection } from './lib/packs/section.mjs';
 import { PROBES } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
 import { commit, gitInit, gitWithoutScopes, run, scratchRepo, scratchRoot, stageOnly, v1Block, v2Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-doctor-');
 const m = messages.doctor;
+/** The static rows: every repo's readout has them, a declared pack's rows come after. */
+const N = Object.keys(CHECKS).length;
+const WIDTH = Math.max(...Object.keys(CHECKS).map((k) => k.length));
 
 const BACKLOG = '# Backlog\n\n## Open bugs\n\n## Open enhancements\n\n## Closed\n';
 const SETTINGS = (command = HOOK_COMMAND) =>
@@ -131,9 +136,9 @@ const write = (root, rel, body) => {
 };
 
 describe('a Level 0 repo', () => {
-  it('passes every check, seventeen of them', () => {
+  it('passes every static check, and has no pack row', () => {
     const rows = doctor(level0());
-    expect(Object.keys(rows)).toHaveLength(17);
+    expect(Object.keys(rows)).toEqual(Object.keys(CHECKS));
     for (const [name, r] of Object.entries(rows)) expect([name, r.status]).toEqual([name, 'PASS']);
     expect(rows.config.note).toBe(m.config.ok(0));
     expect(rows.git.note).toBe(m.git.ok('main'));
@@ -854,6 +859,124 @@ describe('tools.gitleaks', () => {
   });
 });
 
+describe('packs and the pack rows', () => {
+  const DESIGN = 'docs/design-system.md';
+  const DATA = 'docs/data-model.md';
+  const agents = (...sections) => `# Rules\n\n${[renderBlock(DEFAULTS), ...sections].join('\n\n')}\n`;
+  const expoSection = (off) => renderSection(PACKS.expo, off);
+  const supabaseSection = () => renderSection(PACKS.supabase);
+  const DOCS = { [DESIGN]: '| Primitive | File | Props | Notes |\n| --- | --- | --- | --- |\n', [DATA]: '| Migration | Tables | Summary |\n|---|---|---|\n' };
+  /** A Level 0 repo declaring `packs`, with their sections, contract docs and doc-sync rules, `files` overriding. */
+  const packed = (packs, files = {}, docSync = packDefaults(packs.map(packName)).docSync) =>
+    level0({ 'AGENTS.md': agents(...packs.map(packName).map((n) => renderSection(PACKS[n]))), ...DOCS, ...files }, { packs, hooks: { docSync } });
+
+  it('reads packs PASS with none declared and none detected, WARN when the tree shows a stack, PASS naming the declared', () => {
+    expect(doctor(level0()).packs).toEqual({ status: 'PASS', note: m.packs.none });
+    const app = { 'package.json': JSON.stringify({ dependencies: { expo: '~58.0.0' } }), 'supabase/config.toml': '' };
+    expect(doctor(level0(app)).packs).toEqual({
+      status: 'WARN',
+      note: m.packs.detected([
+        { name: 'expo', evidence: messages.detect.dependsOn('expo') },
+        { name: 'supabase', evidence: messages.detect.file('supabase/config.toml') },
+      ]),
+    });
+    expect(m.packs.detected([{ name: 'expo', evidence: 'package.json depends on expo' }])).toBe(
+      'expo detected (package.json depends on expo), no pack declared; the setup skill offers it',
+    );
+    expect(doctor(packed(['expo', 'supabase'], app)).packs).toEqual({ status: 'PASS', note: 'declared: expo, supabase' });
+    expect(doctor(level0({}, { hosts: ['gemini'] })).packs).toEqual({ status: 'SKIP', note: m.configInvalid });
+  });
+
+  it('appends each declared pack’s three rows after the static ones, in packs order, every one PASS on a fresh repo', () => {
+    const rows = doctor(packed(['supabase', 'expo']));
+    const kinds = ['declared', 'rules', 'docs'];
+    expect(Object.keys(rows)).toEqual([
+      ...Object.keys(CHECKS),
+      ...kinds.map((k) => `pack.supabase.${k}`),
+      ...kinds.map((k) => `pack.expo.${k}`),
+    ]);
+    for (const [name, r] of Object.entries(rows)) expect([name, r.status]).toEqual([name, 'PASS']);
+    expect(rows['pack.expo.declared'].note).toBe('expo pack v1: strings, tokens, size, design-doc; advisory: 3');
+    expect(rows['pack.supabase.declared'].note).toBe('supabase pack v1: client, data-doc, types');
+    expect(rows['pack.expo.rules'].note).toBe("AGENTS.md: the expo pack's section is current");
+    expect(rows['pack.expo.docs'].note).toBe('0 primitives, 0 documented in docs/design-system.md');
+    expect(rows['pack.supabase.docs'].note).toBe('0 migrations, 0 documented in docs/data-model.md');
+  });
+
+  it('has no pack row without a config, and a pack FAIL never moves the level line', () => {
+    expect(Object.keys(doctor(level0({}, { hosts: ['gemini'] }))).some((k) => k.startsWith('pack.'))).toBe(false);
+    const rows = runChecks(openDoctorRepo(packed(['expo'], { 'AGENTS.md': agents() }), probes(), { home: TMP }), probes());
+    expect(Object.fromEntries(rows)['pack.expo.rules'].status).toBe('FAIL');
+    expect(levelLine(DEFAULTS, rows)).toBe('level 0 declared: complete');
+  });
+
+  it('reads the section: FAIL absent, stale, malformed or with no AGENTS.md; WARN newer', () => {
+    const r = m.pack.rules;
+    const rules = (files) => doctor(packed(['expo'], files))['pack.expo.rules'];
+    expect(rules({ 'AGENTS.md': agents() })).toEqual({ status: 'FAIL', note: r.absent('AGENTS.md', 'expo') });
+    expect(r.absent('AGENTS.md', 'expo')).toBe('AGENTS.md has no expo pack section (run npx cookwright init)');
+    const stale = expoSection().replace('theme tokens only', 'tokens');
+    expect(rules({ 'AGENTS.md': agents(stale) })).toEqual({ status: 'FAIL', note: r.stale('AGENTS.md', 'expo') });
+    const newer = expoSection().replace(beginMarker(1, 'pack expo'), beginMarker(9, 'pack expo'));
+    expect(rules({ 'AGENTS.md': agents(newer) })).toEqual({ status: 'WARN', note: r.newer('AGENTS.md', 'expo', 9) });
+    const noEnd = `# Rules\n\n${renderBlock(DEFAULTS)}\n\n${expoSection().split('\n').slice(0, -1).join('\n')}\n`;
+    expect(rules({ 'AGENTS.md': noEnd })).toEqual({ status: 'FAIL', note: r.malformed('AGENTS.md', 'expo', 'noEnd') });
+    expect(rules({ 'AGENTS.md': null })).toEqual({ status: 'FAIL', note: r.noFile('AGENTS.md', 'expo') });
+  });
+
+  it('WARNs a rule switched off on a current section, and keeps a FAIL a FAIL, both notes on the line', () => {
+    const off = [{ name: 'expo', rules: { size: false, tokens: false } }];
+    const current = expoSection(new Set(['size', 'tokens']));
+    const rules = (text) => doctor(packed(off, { 'AGENTS.md': agents(text) }))['pack.expo.rules'];
+    expect(rules(current)).toEqual({ status: 'WARN', note: "AGENTS.md: the expo pack's section is current; switched off: tokens, size" });
+    expect(rules(expoSection())).toEqual({
+      status: 'FAIL',
+      note: `${m.pack.rules.stale('AGENTS.md', 'expo')}; ${m.pack.rules.off(['tokens', 'size'])}`,
+    });
+  });
+
+  it('WARNs a contract doc missing, its doc-sync rule absent or naming another doc', () => {
+    const d = m.pack.docs;
+    const docs = (files, docSync) => doctor(packed(['expo'], files, docSync))['pack.expo.docs'];
+    expect(docs({ [DESIGN]: null }, [])).toEqual({
+      status: 'WARN',
+      note: `${d.missing(DESIGN)}; ${d.noRule('expo:design-doc', DESIGN)}`,
+    });
+    expect(d.missing(DESIGN)).toBe('docs/design-system.md missing (run npx cookwright init)');
+    expect(docs({}, [])).toEqual({ status: 'WARN', note: d.noRule('expo:design-doc', DESIGN) });
+    const elsewhere = [{ name: 'expo:design-doc', code: ['src/components/**'], docs: ['docs/ui.md'] }];
+    expect(docs({}, elsewhere)).toEqual({ status: 'WARN', note: d.ruleOther('expo:design-doc', DESIGN) });
+  });
+
+  it('asks for no doc-sync rule when the pack’s doc rule is switched off', () => {
+    const off = [{ name: 'expo', rules: { 'design-doc': false } }];
+    const root = level0({ 'AGENTS.md': agents(expoSection(new Set(['design-doc']))), ...DOCS }, { packs: off });
+    expect(doctor(root)['pack.expo.docs']).toEqual({ status: 'PASS', note: m.pack.docs.ok(0, 'components', DESIGN) });
+  });
+
+  it('counts the primitives and migrations with no entry, naming the first ones, never a FAIL', () => {
+    const components = Object.fromEntries(
+      ['Avatar', 'Button', 'Chip', 'Fab', 'Card', 'Tag', 'Toast'].map((c) => [`src/components/${c}.tsx`, '']),
+    );
+    const design = `${DOCS[DESIGN]}| \`Button\` | src/components/Button.tsx | label | |\n`;
+    const rows = doctor(packed(['expo', 'supabase'], {
+      ...components,
+      [DESIGN]: design,
+      'supabase/migrations/20261025120000_init.sql': '',
+      'supabase/migrations/20261025130000_todos.sql': '',
+      [DATA]: `${DOCS[DATA]}| 20261025120000_init.sql | todos | first |\n`,
+    }));
+    expect(rows['pack.expo.docs']).toEqual({
+      status: 'WARN',
+      note: '6 of 7 primitives have no entry in docs/design-system.md: Avatar, Card, Chip, Fab, Tag, …',
+    });
+    expect(rows['pack.supabase.docs']).toEqual({
+      status: 'WARN',
+      note: '1 of 2 migrations has no entry in docs/data-model.md: 20261025130000_todos.sql',
+    });
+  });
+});
+
 describe('gate.scripts', () => {
   const scripts = (files, checks) => doctor(level0(files, { gate: { checks } }))['gate.scripts'];
   const test = { name: 'test', run: 'npm test' };
@@ -895,10 +1018,10 @@ describe('the readout', () => {
 
   it('prints every check, the counts, the level line and the next level', () => {
     expect(doc(level0())).toBe(0);
-    expect(out).toHaveLength(21);
-    expect(out[0]).toBe(`PASS  ${'config'.padEnd('hooks.pre-commit'.length)}  ${m.config.ok(0)}`);
+    expect(out).toHaveLength(N + 4);
+    expect(out[0]).toBe(`PASS  ${'config'.padEnd(WIDTH)}  ${m.config.ok(0)}`);
     expect(out.slice(-3)).toEqual([
-      '17 checks — 17 PASS, 0 FAIL, 0 WARN, 0 SKIP',
+      `${N} checks — ${N} PASS, 0 FAIL, 0 WARN, 0 SKIP`,
       'level 0 declared: complete',
       'next: Level 1 is not available in this version of cookwright',
     ]);
@@ -912,7 +1035,7 @@ describe('the readout', () => {
   it('names what is weak or unverified, and still reads complete', () => {
     expect(doc(level0({}, { baseBranch: 'trunk' }), [], { claudeVersion: () => null })).toBe(0);
     expect(out).toContain('level 0 declared: complete; weak: git; unverified: host.rules');
-    expect(out).toContain('17 checks — 15 PASS, 0 FAIL, 1 WARN, 1 SKIP');
+    expect(out).toContain(`${N} checks — ${N - 2} PASS, 0 FAIL, 1 WARN, 1 SKIP`);
   });
 
   it('reads a version-1 config as weak, not drift', () => {
@@ -978,7 +1101,7 @@ describe('--hook', () => {
     expect(hook(level0({ '.claude/settings.json': null }))).toBe(0);
     expect(out).toEqual([
       `FAIL  host.hook  ${m.hostHook.none('.claude/settings.json')}`,
-      'cookwright doctor: 17 checks — 16 PASS, 1 FAIL, 0 WARN, 0 SKIP',
+      `cookwright doctor: ${N} checks — ${N - 1} PASS, 1 FAIL, 0 WARN, 0 SKIP`,
       'level 0 declared: drift, 1 piece(s) missing: host.hook',
     ]);
   });

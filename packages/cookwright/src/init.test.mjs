@@ -24,10 +24,14 @@ import { RULES_VERSION, beginMarker, packKind, renderBlock } from './lib/rules/b
 import { PACKS, RATCHET_CHECK } from './lib/packs/registry.mjs';
 import { renderSection } from './lib/packs/section.mjs';
 import { shippedPieces } from './lib/doctor/hosts.mjs';
+import { CHECKS } from './lib/doctor/registry.mjs';
 import { commit, gitInit, gitWithoutScopes, linkPackage, run, scratchRoot, stageOnly, v1Block, v2Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-init-');
 const m = messages.init;
+/** doctor's static rows, which init's own readout prints. */
+const N = Object.keys(CHECKS).length;
+const WIDTH = Math.max(...Object.keys(CHECKS).map((k) => k.length));
 const TEMPLATES = path.join(path.dirname(new URL(import.meta.url).pathname), 'lib/templates');
 const template = (name) => fs.readFileSync(path.join(TEMPLATES, name), 'utf8');
 const BLOCK = renderBlock(DEFAULTS);
@@ -161,8 +165,8 @@ describe('a fresh repo', () => {
     expect(config.hooks).toEqual({ docSync: [] });
     const hook = JSON.parse(read(root, '.claude/settings.json')).hooks.SessionStart;
     expect(hook).toEqual([{ hooks: [{ type: 'command', command: HOOK_COMMAND, timeout: 10 }] }]);
-    expect(out).toContain(`PASS  ${'git'.padEnd('hooks.pre-commit'.length)}  ${messages.doctor.git.unborn('main')}`);
-    expect(out).toContain('17 checks — 17 PASS, 0 FAIL, 0 WARN, 0 SKIP');
+    expect(out).toContain(`PASS  ${'git'.padEnd(WIDTH)}  ${messages.doctor.git.unborn('main')}`);
+    expect(out).toContain(`${N} checks — ${N} PASS, 0 FAIL, 0 WARN, 0 SKIP`);
     expect(out.filter((l) => /^(FAIL|WARN|SKIP) /.test(l))).toEqual([]);
   });
 
@@ -1400,7 +1404,7 @@ describe('codex: --hosts, its rules row, .codex/hooks.json and its pointers', ()
     expect(CODEX_POINTERS).not.toContain('.agents/skills/bundle');
     for (const rel of CODEX_POINTERS) expect(rows[rel].action).toBe('wrote');
     expect(Object.keys(rows).filter((t) => t.startsWith('.agents/'))).toEqual(CODEX_POINTERS);
-    expect(out).toContain('17 checks — 17 PASS, 0 FAIL, 0 WARN, 0 SKIP');
+    expect(out).toContain(`${N} checks — ${N} PASS, 0 FAIL, 0 WARN, 0 SKIP`);
     commit({ root }, {}, 'first run');
     const before = tree(root);
     const second = init(root);

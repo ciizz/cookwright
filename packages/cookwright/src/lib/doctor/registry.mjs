@@ -17,6 +17,7 @@ import { checkCodexHook, checkCodexRules } from './codex.mjs';
 import { checkBacklog, checkChangelog, checkCloseouts, checkIds } from './homes.mjs';
 import { checkGateScripts, checkGitleaks, checkHookFile, checkHooksPath } from './hooks.mjs';
 import { checkPointers } from './hosts.mjs';
+import { checkPacks, packChecks } from './packs.mjs';
 import { checkBlock, checkSize } from './rules.mjs';
 import { checkSecrets } from './secrets.mjs';
 
@@ -62,6 +63,7 @@ export const CHECKS = Object.freeze({
   'tools.gitleaks': { run: checkGitleaks, git: true },
   'gate.scripts': { run: checkGateScripts, config: true },
   'secrets.env': { run: checkSecrets, git: true },
+  packs: { run: checkPacks, config: true },
 });
 
 const firstLine = (text) => String(text).split('\n')[0];
@@ -77,6 +79,12 @@ function runOne(check, repo, probes) {
   }
 }
 
-/** `[name, { status, note }]` for every registered check, in order. */
-export const runChecks = (repo, probes) =>
-  Object.entries(CHECKS).map(([name, check]) => [name, runOne(check, repo, probes)]);
+/**
+ * `[name, { status, note }]` for every registered check, in order, then each declared
+ * pack's rows (doctor/packs.mjs), which the config decides and no level requires.
+ */
+export function runChecks(repo, probes) {
+  const rows = Object.entries(CHECKS).map(([name, check]) => [name, runOne(check, repo, probes)]);
+  const packs = packChecks(repo).map(([name, run]) => [name, runOne({ run, config: true }, repo, probes)]);
+  return [...rows, ...packs];
+}

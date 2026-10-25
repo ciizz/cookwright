@@ -111,7 +111,7 @@ SKIP  tools.gitleaks    skipped, needs gitleaks, run setup (brew install gitleak
 level 0 declared: complete; unverified: host.rules, tools.gitleaks
 ```
 
-`npx cookwright doctor` checks that Level 0 is still in place and names anything missing: 17 checks, the git hooks, gitleaks, the gate's npm scripts and the skill and workflow pointers among them. A hooks setup managed elsewhere (husky, lefthook) reads as weak, not missing, and gitleaks not installed as unverified. The hook runs it as `doctor --hook` at every session start, and that form never fails a session. Its git calls share a two-second budget, so a stalled git yields a one-line diagnosis, not a killed hook.
+`npx cookwright doctor` checks that Level 0 is still in place and names anything missing: 18 checks, the git hooks, gitleaks, the gate's npm scripts and the skill and workflow pointers among them. Its `packs` row names the stack packs `cookwright.json` declares, or WARNs the ones the tree shows when none is declared, which the setup skill then offers; each declared pack adds three rows of its own, `pack.<name>.declared`, `pack.<name>.rules` (its section of `AGENTS.md` is current; a rule switched off reads WARN) and `pack.<name>.docs` (its contract doc is there, its doc-sync rule is configured, and every primitive or migration has an entry), which no level requires. A hooks setup managed elsewhere (husky, lefthook) reads as weak, not missing, and gitleaks not installed as unverified. The hook runs it as `doctor --hook` at every session start, and that form never fails a session. Its git calls share a two-second budget, so a stalled git yields a one-line diagnosis, not a killed hook.
 
 ## 5. Anything not PASS: the setup skill
 

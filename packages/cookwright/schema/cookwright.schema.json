@@ -118,7 +118,55 @@
             }
           }
         ]
-      }
+      },
+      "allOf": [
+        {
+          "description": "The expo pack at most once, as a name or as an object.",
+          "contains": {
+            "anyOf": [
+              {
+                "const": "expo"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "const": "expo"
+                  }
+                }
+              }
+            ]
+          },
+          "minContains": 0,
+          "maxContains": 1
+        },
+        {
+          "description": "The supabase pack at most once, as a name or as an object.",
+          "contains": {
+            "anyOf": [
+              {
+                "const": "supabase"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "const": "supabase"
+                  }
+                }
+              }
+            ]
+          },
+          "minContains": 0,
+          "maxContains": 1
+        }
+      ]
     },
     "baseBranch": {
       "description": "The branch bundles branch from and merge back into.",

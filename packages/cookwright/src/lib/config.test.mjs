@@ -444,6 +444,11 @@ describe('the schema and the validator agree', () => {
       expect(Object.keys(rules.properties)).toEqual(switchableRules(PACKS[object.properties.name.const]));
       for (const rule of Object.values(rules.properties)) expect(rule).toEqual({ const: false });
     }
+    // uniqueItems alone accepts ["expo", { "name": "expo" }], which the loader refuses: each pack once, in either form.
+    expect(packs.allOf.map((c) => [c.contains.anyOf[0].const, c.contains.anyOf[1].properties.name.const])).toEqual(
+      KNOWN_PACKS.map((n) => [n, n]),
+    );
+    for (const c of packs.allOf) expect([c.minContains, c.maxContains]).toEqual([0, 1]);
   });
 
   it('agree on skipExit’s range', () => {

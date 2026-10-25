@@ -125,3 +125,37 @@ export function linkPackage(dir) {
   fs.appendFileSync(path.resolve(dir, exclude), 'node_modules\n');
   return dir;
 }
+
+/** The test-only stand-in for ESLint's Node API (src/test-fixtures/fake-eslint). */
+export const FAKE_ESLINT = path.join(PACKAGE, 'src/test-fixtures/fake-eslint');
+
+/** An eslint.config.js spreading the packs' exports, the expo one with the plugin resolved from the repo. */
+export const PACK_ESLINT_CONFIG = [
+  "const expo = require('cookwright/packs/expo/eslint.cjs');",
+  "const withPlugin = expo.withResolver((id) => require.resolve(id));",
+  "module.exports = [...withPlugin, ...require('cookwright/packs/supabase/eslint.cjs')];",
+  '',
+].join('\n');
+
+/**
+ * Make `dir` a repo the standards engine measures with the fake ESLint: the fake at
+ * node_modules/eslint, this package at node_modules/cookwright (both links, hidden
+ * from git), `eslint.config.js` written with `config` (PACK_ESLINT_CONFIG by
+ * default; null writes none) and, with `plugin`, a stub eslint-plugin-i18next.
+ */
+export function fakeEslintRepo(dir, { config = PACK_ESLINT_CONFIG, plugin = true, eslint = FAKE_ESLINT } = {}) {
+  const modules = path.join(dir, 'node_modules');
+  fs.mkdirSync(modules, { recursive: true });
+  if (eslint) fs.symlinkSync(eslint, path.join(modules, 'eslint'));
+  if (!fs.existsSync(path.join(modules, 'cookwright'))) fs.symlinkSync(PACKAGE, path.join(modules, 'cookwright'));
+  if (plugin) {
+    fs.mkdirSync(path.join(modules, 'eslint-plugin-i18next'));
+    fs.writeFileSync(path.join(modules, 'eslint-plugin-i18next/package.json'), '{ "name": "eslint-plugin-i18next", "version": "6.1.5" }\n');
+    fs.writeFileSync(path.join(modules, 'eslint-plugin-i18next/index.js'), 'module.exports = { rules: {} };\n');
+  }
+  if (config !== null) fs.writeFileSync(path.join(dir, 'eslint.config.js'), config);
+  const exclude = run(dir, 'git', ['rev-parse', '--git-path', 'info/exclude']);
+  fs.mkdirSync(path.dirname(path.resolve(dir, exclude)), { recursive: true });
+  fs.appendFileSync(path.resolve(dir, exclude), 'node_modules\n');
+  return dir;
+}

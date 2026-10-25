@@ -1,0 +1,7 @@
+{
+  "name": "eslint",
+  "version": "9.39.0-fake",
+  "private": true,
+  "description": "Test-only stand-in for ESLint's Node API, placed in a scratch repo's node_modules. Never shipped.",
+  "main": "index.cjs"
+}

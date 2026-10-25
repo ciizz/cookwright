@@ -106,7 +106,7 @@ export function eslintConfigStep(repo) {
 }
 
 /** Whether `pkg` is installed where Node resolves it from `root`, whatever its exports map. */
-function installed(root, pkg) {
+export function installed(root, pkg) {
   const dirs = createRequire(path.join(root, 'package.json')).resolve.paths(pkg) ?? [];
   return dirs.some((dir) => fs.existsSync(path.join(dir, pkg, 'package.json')));
 }

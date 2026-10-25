@@ -1,0 +1,279 @@
+// src/lib/packs/standards.mjs — the standards engine: the declared packs' ESLint
+// rules, counted per file over git's blobs (stage-4 plan §4.5, dispositions 26, 28,
+// 29, 31, 41, 47).
+//
+// Async end to end (ESLint's Node API is Promise-based), so the hook never runs it
+// in process: the pre-commit check spawns `cookwright standards --staged`, which
+// calls this. ESLint is the repo's own, resolved from the config root (`io.loadESLint`
+// is the tests' seam); nothing here depends on it.
+//
+// One path base (disposition 28): every entry is a path relative to the work tree's
+// top; git runs at the top with the config root as pathspec, so a sibling
+// workspace is never listed; ESLint gets the absolute path and runs with its cwd at
+// the config root; a line shows the path from the config root. Both sides of a
+// count are blobs (the index's, a commit's), never the working tree, and nothing is
+// written. A symbolic link or a submodule is never linted (disposition 19).
+//
+// A rule counts only when `wired` finds it in the effective config as the pack set
+// it (disposition 29): severity error, the pack's tag in a shared id's options, the
+// manifest's options. A rule switched off, overridden, not wired or missing its
+// plugin counts nothing and is named on the line (disposition 37).
+
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
+
+import { TimedOut, runBounded } from '../budget.mjs';
+import { installed } from '../init/packs.mjs';
+import { messages } from '../messages.mjs';
+import { activeRules, declaredPacks } from './registry.mjs';
+
+const m = messages.standards;
+
+/** Exit codes: a count rose (the hook's FINDINGS_EXIT), and cannot measure (the gate's skipExit). */
+export const ROSE_EXIT = 10;
+export const SKIP_EXIT = 11;
+/** Each git call's ceiling: the hook bounds the whole child at the same 60 s. */
+export const GIT_CAP_MS = 60_000;
+
+const LINTED = /\.(tsx|ts|jsx|js)$/;
+const REGULAR = new Set(['100644', '100755']);
+const BATCH = 500;
+const MEASURED = 'measured';
+const ABSENT = 'absent';
+
+const posix = (p) => p.split(path.sep).join('/');
+const firstLine = (err) => String(err?.message ?? err).split('\n')[0];
+
+/** A state in which the engine cannot measure at all: its message is the line, exit 11. */
+export class Unmeasurable extends Error {}
+
+/**
+ * The declared packs' ESLint rules that are on, as `{ key, pack, rule }`: `key` is
+ * `<pack> <rule>`, the name a line gives it.
+ */
+export const eslintRules = (config) =>
+  declaredPacks(config).flatMap((pack) =>
+    activeRules(pack)
+      .filter((rule) => rule.measure === 'eslint')
+      .map((rule) => ({ key: `${pack.name} ${rule.id}`, pack, rule })),
+  );
+
+/** ESLint 9 or later from the config root, as `{ eslint, version }`; Unmeasurable otherwise. */
+export async function loadESLint(root, setup) {
+  let entry;
+  try {
+    entry = createRequire(path.join(root, 'package.json')).resolve('eslint');
+  } catch {
+    throw new Unmeasurable(m.noEslint(setup));
+  }
+  const mod = await import(pathToFileURL(entry).href);
+  const ESLint = mod.ESLint ?? mod.default?.ESLint;
+  const version = String(ESLint?.version ?? '');
+  if (!ESLint || !(Number(version.split('.')[0]) >= 9)) throw new Unmeasurable(m.oldEslint(version));
+  return { eslint: new ESLint({ cwd: root }), version };
+}
+
+// ── wired: the effective config against what the pack set (disposition 29) ──
+
+/** Whether any string under `value` starts with `tag`. */
+const tagged = (value, tag) =>
+  typeof value === 'string'
+    ? value.startsWith(tag)
+    : Boolean(value) && typeof value === 'object' && Object.values(value).some((v) => tagged(v, tag));
+
+const subset = (want, have) =>
+  Object.entries(want).every(([k, v]) => Boolean(have) && typeof have === 'object' && isDeepStrictEqual(have[k], v));
+
+/** One ESLint id's effective entry against `rule` at a sample: MEASURED, ABSENT or overridden. */
+function judge(entry, rule, want) {
+  if (entry === undefined) return ABSENT;
+  const [severity, ...options] = [].concat(entry);
+  if (severity !== 2 && severity !== 'error') return 'overridden';
+  if (rule.eslint.tag && !tagged(options, rule.eslint.tag)) return 'overridden';
+  return subset(want, options[0]) ? MEASURED : 'overridden';
+}
+
+/** Why a rule absent from the effective config is not measured: its missing plugin, or the export not spread. */
+function absent(root, { pack, rule }) {
+  const dep = rule.needs && pack.manifest.deps.find((d) => d.package === rule.needs);
+  if (dep && !installed(root, dep.package)) return { state: 'needs', why: m.needs(dep.install) };
+  return { state: 'unwired', why: m.notWired(`cookwright/${pack.manifest.eslintExport}`) };
+}
+
+/** How one rule is measured: `{ state, why? }`, `state` MEASURED, `needs`, `unwired` or `overridden`. */
+async function wiring(eslint, root, item) {
+  for (const { sample, expect: want } of item.rule.eslint.options) {
+    const config = await eslint.calculateConfigForFile(path.join(root, sample));
+    for (const id of item.rule.eslint.ruleIds) {
+      const state = judge(config?.rules?.[id], item.rule, want);
+      if (state === ABSENT) return absent(root, item);
+      if (state !== MEASURED) return { state, why: m.overridden };
+    }
+  }
+  return { state: MEASURED };
+}
+
+/**
+ * Every rule of `rules` with its wiring: `{ measured, skipped }`, `skipped` the
+ * line parts naming each unmeasured rule. A config ESLint cannot load is Unmeasurable.
+ */
+export async function wired(eslint, root, rules) {
+  let states;
+  try {
+    states = await Promise.all(rules.map((item) => wiring(eslint, root, item)));
+  } catch (err) {
+    throw new Unmeasurable(m.configFailed(firstLine(err)));
+  }
+  const measured = rules.filter((_, i) => states[i].state === MEASURED);
+  const skipped = rules.flatMap((item, i) => (states[i].state === MEASURED ? [] : [m.ruleSkipped(item.key, states[i].why)]));
+  return { measured, skipped };
+}
+
+// ── entries: what git lists, every path relative to the top ──
+
+/** git at the top; a failure throws naming the command, a timeout is TimedOut. */
+function git(top, args, { env, input, encoding = 'utf8' } = {}) {
+  const opts = { cwd: top, encoding, ...(env ? { env } : {}), ...(input === undefined ? {} : { input }) };
+  const r = runBounded('git', args, opts, GIT_CAP_MS);
+  if (r.timedOut) throw new TimedOut(`git ${args[0]}`);
+  if (r.status !== 0) {
+    const detail = String(r.stderr || r.error?.message || '').trim().split('\n')[0];
+    throw new Error(messages.probeFailed(`git ${args[0]}`, detail || `exit ${r.status}`));
+  }
+  return r.stdout;
+}
+
+/** The config root as a pathspec from the top: `.` when they are one directory. */
+export const rootSpec = (top, root) => {
+  const rel = posix(path.relative(top, root));
+  return rel ? `:(literal)${rel}` : '.';
+};
+
+/**
+ * `git diff --raw -z` output as entries `{ status, path, basePath, mode, baseMode,
+ * sha, baseSha }`; a rename's (or copy's) `basePath` is its source path.
+ */
+export function parseRaw(out) {
+  const parts = out.split('\0');
+  const entries = [];
+  for (let i = 0; i < parts.length; ) {
+    const head = parts[i++];
+    if (!head.startsWith(':')) continue;
+    const [baseMode, mode, baseSha, sha, code] = head.slice(1).split(' ');
+    const status = code[0];
+    const basePath = parts[i++];
+    const to = 'RC'.includes(status) ? parts[i++] : basePath;
+    entries.push({ status, path: to, basePath, mode, baseMode, sha, baseSha });
+  }
+  return entries;
+}
+
+/** The staged entries under the config root, against HEAD (an unborn HEAD lists every file as added). */
+export function stagedEntries(top, root, env) {
+  const args = ['diff', '--cached', '--raw', '-z', '--no-abbrev', '-M', '--diff-filter=ACMRD', '--', rootSpec(top, root)];
+  return parseRaw(git(top, args, { env }));
+}
+
+/** HEAD's files under the config root as entries, or null on an unborn HEAD. */
+export function headEntries(top, root, env) {
+  const rel = posix(path.relative(top, root));
+  const verify = runBounded('git', ['rev-parse', '--verify', '-q', 'HEAD^{commit}'], { cwd: top, ...(env ? { env } : {}) }, GIT_CAP_MS);
+  if (verify.status !== 0) return null;
+  const out = git(top, ['ls-tree', '-r', '-z', 'HEAD', '--', ...(rel ? [rel] : [])], { env });
+  return out
+    .split('\0')
+    .filter(Boolean)
+    .map((line) => {
+      const [meta, file] = line.split('\t');
+      const [mode, , sha] = meta.split(' ');
+      return { status: 'M', path: file, basePath: file, mode, baseMode: mode, sha, baseSha: sha };
+    });
+}
+
+/** Whether the engine lints `entry`'s new side: a regular file of a linted extension. */
+export const lintable = (entry) => entry.status !== 'D' && REGULAR.has(entry.mode) && LINTED.test(entry.path);
+
+/** Whether `entry` has a HEAD side to lint: not added, and a regular file there. */
+export const hasBase = (entry) => entry.status !== 'A' && REGULAR.has(entry.baseMode);
+
+/** Whether a deletion would have been linted: what the line's "not counted" counts. */
+export const deletedLintable = (entry) => entry.status === 'D' && REGULAR.has(entry.baseMode) && LINTED.test(entry.basePath);
+
+// ── blobs and counts ──
+
+/** `git cat-file --batch` output into `blobs` (sha → text, null when missing). */
+function parseBatch(buf, blobs) {
+  let at = 0;
+  while (at < buf.length) {
+    const nl = buf.indexOf(10, at);
+    const [sha, type, size] = buf.toString('utf8', at, nl).split(' ');
+    at = nl + 1;
+    if (type !== 'blob') {
+      blobs.set(sha, null);
+      continue;
+    }
+    blobs.set(sha, buf.toString('utf8', at, at + Number(size)));
+    at += Number(size) + 1;
+  }
+}
+
+/** The text of each blob in `shas`, read in batches: one git call per BATCH blobs. */
+export function readBlobs(top, shas, env) {
+  const wanted = [...new Set(shas)];
+  const blobs = new Map();
+  for (let i = 0; i < wanted.length; i += BATCH) {
+    const input = `${wanted.slice(i, i + BATCH).join('\n')}\n`;
+    parseBatch(git(top, ['cat-file', '--batch'], { env, input: Buffer.from(input), encoding: 'buffer' }), blobs);
+  }
+  return blobs;
+}
+
+/**
+ * ESLint's messages of one file counted by pack rule: severity 2, an id of a
+ * measured rule and, on a shared id, the rule's tag first in the message. Returns
+ * `{ counts: Map(key → n), findings: [{ key, line, column, text }] }`, `text` the
+ * manifest's own line, never ESLint's.
+ */
+export function countBy(results, measured) {
+  const counts = new Map();
+  const findings = [];
+  for (const msg of results) {
+    if (msg.severity !== 2) continue;
+    const owner = measured.find(
+      ({ rule }) => rule.eslint.ruleIds.includes(msg.ruleId) && (!rule.eslint.tag || String(msg.message).startsWith(rule.eslint.tag)),
+    );
+    if (!owner) continue;
+    counts.set(owner.key, (counts.get(owner.key) ?? 0) + 1);
+    findings.push({ key: owner.key, line: msg.line, column: msg.column, text: owner.pack.manifest.messages[owner.rule.id] });
+  }
+  return { counts, findings };
+}
+
+/** The counts of nothing: the absent side of an added file. */
+export const NOTHING = Object.freeze({ counts: new Map(), findings: [] });
+
+/**
+ * One side of one file: `code` linted as the file at `topRel`. A blob git could not
+ * read, a parsing error or a rejected lint is `{ unmeasured: why }`.
+ */
+export async function lintAt(eslint, top, topRel, code, measured) {
+  if (code === null || code === undefined) return { unmeasured: m.noBlob };
+  let results;
+  try {
+    [results] = await eslint.lintText(code, { filePath: path.join(top, topRel) });
+  } catch (err) {
+    return { unmeasured: firstLine(err) };
+  }
+  const messagesOf = results?.messages ?? [];
+  const fatal = messagesOf.find((x) => x.fatal);
+  if (fatal) return { unmeasured: m.parseError(fatal.line, fatal.column) };
+  return countBy(messagesOf, measured);
+}
+
+/** How a line shows the top-relative `topRel`: from the config root. */
+export const shownPath = (top, root, topRel) => posix(path.relative(root, path.join(top, topRel)));
+
+/** A finding as its line (disposition 41). */
+export const render = (file, f) => m.finding(file, f.line, f.column, f.key, f.text);

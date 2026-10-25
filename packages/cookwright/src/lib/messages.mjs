@@ -215,6 +215,7 @@ const doctor = {
       needsCli: NEEDS_SUPABASE,
       noScript: (script) => `no ${script} script in package.json; add ${TYPES_ACCEPTED}, the shape the gate's types check reads`,
       shape: (script) => `the ${script} script is not the shape the gate's types check reads; use ${TYPES_ACCEPTED}`,
+      noGate: (entry) => `the gate runs no types check; add ${entry} to gate.checks (${CLI} packs rules prints it)`,
       ok: (script, file) => `measured by the gate against the local stack (${script} writes ${file})`,
     },
   },

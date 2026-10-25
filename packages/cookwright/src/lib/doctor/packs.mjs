@@ -129,9 +129,14 @@ function checkDocs(repo, pack) {
   return { status, note: shown.map((v) => v.note).join('; ') };
 }
 
+/** A gate check's command that runs the types measure, `npx cookwright standards --types` or a path to the bin. */
+const TYPES_RUN = /(^|[\s/])cookwright standards --types(\s|$)/;
+
 /**
  * `pack.supabase.types`: what the gate's types check needs, read without running it
- * (the measure needs the local stack): the CLI on PATH, then the one script shape.
+ * (the measure needs the local stack): the CLI on PATH, the one script shape, then a
+ * `gate.checks` entry that runs it. Init writes that entry only into a fresh config,
+ * so a PASS claims a measurement only when the gate has the entry.
  */
 function checkTypes(repo, pack, probes) {
   const t = m.pack.types;
@@ -139,6 +144,9 @@ function checkTypes(repo, pack, probes) {
   const script = typesScript(repo.root);
   const shape = typesShape(script);
   if (!shape) return warn(script === null ? t.noScript(TYPES_SCRIPT) : t.shape(TYPES_SCRIPT));
+  if (!(repo.config.gate?.checks ?? []).some((c) => TYPES_RUN.test(String(c.run ?? '')))) {
+    return warn(t.noGate(JSON.stringify(pack.manifest.rules.find((r) => r.id === 'types').gate)));
+  }
   return pass(t.ok(TYPES_SCRIPT, shape.target));
 }
 

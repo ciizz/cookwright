@@ -897,8 +897,15 @@ describe('packs and the pack rows', () => {
   const withTypes = { 'package.json': JSON.stringify({ scripts: { test: 'vitest run', 'db:types': TYPES_SCRIPT } }) };
   const withSupabase = probes({ hasTool: (bin) => bin === 'supabase' || PROBES.hasTool(bin) });
 
+  /** `packed` with the gate entries a fresh config gets for `packs`, the types check among them. */
+  const packedWithGate = (packs, files) =>
+    level0(
+      { 'AGENTS.md': agents(...packs.map((n) => renderSection(PACKS[n]))), ...DOCS, ...files },
+      { packs, hooks: { docSync: packDefaults(packs).docSync }, gate: { checks: [...GATE.checks, ...packDefaults(packs).gate] } },
+    );
+
   it('appends each declared pack’s rows after the static ones, in packs order, every one PASS on a fresh repo', () => {
-    const rows = doctor(fakeEslintRepo(packed(['supabase', 'expo'], withTypes)), { probes: withSupabase });
+    const rows = doctor(fakeEslintRepo(packedWithGate(['supabase', 'expo'], withTypes)), { probes: withSupabase });
     const kinds = ['declared', 'rules', 'docs', 'lint'];
     expect(Object.keys(rows)).toEqual([
       ...Object.keys(CHECKS),
@@ -955,7 +962,7 @@ describe('packs and the pack rows', () => {
     expect(Object.keys(doctor(level0({}, { packs: allOff })))).not.toContain('pack.supabase.lint');
   });
 
-  it('reads pack.supabase.types: SKIP without the CLI, WARN with no script or another shape, absent with the rule off', () => {
+  it('reads pack.supabase.types: SKIP without the CLI, WARN with no script, another shape or no gate entry, absent with the rule off', () => {
     const t = m.pack.types;
     const types = (files, p = withSupabase, packs = ['supabase']) => doctor(packed(packs, files), { probes: p })['pack.supabase.types'];
     const noSupabase = probes({ hasTool: (bin) => bin !== 'supabase' && PROBES.hasTool(bin) });
@@ -967,6 +974,10 @@ describe('packs and the pack rows', () => {
     );
     const linked = { 'package.json': JSON.stringify({ scripts: { test: 'vitest run', 'db:types': 'supabase gen types --linked > db.ts' } }) };
     expect(types(linked)).toEqual({ status: 'WARN', note: t.shape('db:types') });
+    const entry = '{"name":"standards:types","run":"npx cookwright standards --types","skipExit":11}';
+    expect(types(withTypes)).toEqual({ status: 'WARN', note: t.noGate(entry) });
+    expect(t.noGate(entry)).toBe(`the gate runs no types check; add ${entry} to gate.checks (npx cookwright packs rules prints it)`);
+    expect(doctor(packedWithGate(['supabase'], withTypes), { probes: withSupabase })['pack.supabase.types'].status).toBe('PASS');
     expect(types(withTypes, withSupabase, [{ name: 'supabase', rules: { types: false } }])).toBeUndefined();
   });
 

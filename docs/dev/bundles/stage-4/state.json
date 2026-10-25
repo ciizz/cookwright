@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 209,
+  "revision": 210,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -445,9 +445,21 @@
     },
     {
       "name": "qa",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T23:48:16.973Z",
+          "stateRevision": 209,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true
+        }
+      ],
+      "startCommit": "5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b",
+      "range": {
+        "from": "5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b",
+        "to": "HEAD"
+      }
     },
     {
       "name": "closeout",

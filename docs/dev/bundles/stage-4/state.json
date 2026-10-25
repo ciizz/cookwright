@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 30,
+  "revision": 31,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -206,7 +206,21 @@
       "runs": []
     }
   ],
-  "gates": [],
+  "gates": [
+    {
+      "commit": "c50c14d4e027f6bbc511fb3ee1ba70aae8fe86a7",
+      "at": "2026-10-25T18:14:12.965Z",
+      "slice": null,
+      "passed": false,
+      "checks": [
+        {
+          "name": "test",
+          "result": "fail",
+          "ms": 71870
+        }
+      ]
+    }
+  ],
   "findings": [],
   "reports": [],
   "qaRounds": [],

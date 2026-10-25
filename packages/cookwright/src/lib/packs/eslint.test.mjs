@@ -5,6 +5,7 @@
 // strings block left out when eslint-plugin-i18next does not resolve, and the
 // engine's own reading of which files each block covers (glob.mjs, `coverage`).
 
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -90,6 +91,18 @@ describe('the expo export', () => {
     expect(absent.map((b) => b.name)).toEqual(EXPORTS.expo.filter((b) => b.name !== 'cookwright/expo/strings').map((b) => b.name));
     const strings = EXPORTS.expo.find((b) => b.name === 'cookwright/expo/strings');
     expect(strings.plugins.i18next).toBe(require(STUB));
+  });
+
+  it('finds eslint-plugin-i18next in the app’s node_modules when this package’s own location cannot see it', () => {
+    const app = fs.mkdtempSync(path.join(TMP, 'app-'));
+    const plugin = path.join(app, 'node_modules/eslint-plugin-i18next');
+    fs.mkdirSync(plugin, { recursive: true });
+    fs.writeFileSync(path.join(plugin, 'package.json'), '{ "name": "eslint-plugin-i18next", "main": "index.js" }');
+    fs.writeFileSync(path.join(plugin, 'index.js'), 'module.exports = { rules: {} };\n');
+    const names = (cwd) =>
+      spawnSync(process.execPath, ['-e', `console.log(require(${JSON.stringify(require.resolve('../../../packs/expo/eslint.cjs'))}).map((b) => b.name).join(','))`], { cwd, encoding: 'utf8' }).stdout.trim();
+    expect(names(app).split(',')).toContain('cookwright/expo/strings');
+    expect(names(fs.mkdtempSync(path.join(TMP, 'bare-'))).split(',')).not.toContain('cookwright/expo/strings');
   });
 
   it('spreads as plain blocks: the seam is not an element', () => {

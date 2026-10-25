@@ -13,9 +13,16 @@
 // the engine tells it from a user's own selector.
 //
 // The strings block is left out when eslint-plugin-i18next does not resolve: the
-// rule then reads "skipped, needs …" on the hook's line, never a broken config.
+// rule then reads "skipped, needs …" on the hook's line, never a broken config. It
+// is looked up from the app first (the directory ESLint runs in, as doctor and the
+// engine look it up from the config root), then from this file: under pnpm, or a
+// monorepo with cookwright hoisted, this file's own location cannot see the app's
+// node_modules.
 
 'use strict';
+
+const { createRequire } = require('node:module');
+const path = require('node:path');
 
 /** Paths no pack rule reads: the harness's own links, dependencies and tests (disposition 19). */
 const IGNORES = ['.claude/**', '.agents/**', '.codex/**', 'node_modules/**', '**/*.test.*', '**/__tests__/**'];
@@ -54,8 +61,17 @@ const NOT_TEXT = [
   'ellipsizeMode', 'dataDetectorType', 'overScrollMode',
 ];
 
-/** eslint-plugin-i18next, or null when it does not resolve from here. */
-function i18nextPlugin(resolve = require.resolve) {
+/** `id` resolved from the app (the working directory), else from this file. */
+function fromApp(id) {
+  try {
+    return createRequire(path.join(process.cwd(), 'package.json')).resolve(id);
+  } catch {
+    return require.resolve(id);
+  }
+}
+
+/** eslint-plugin-i18next, or null when it resolves neither from the app nor from here. */
+function i18nextPlugin(resolve = fromApp) {
   try {
     return require(resolve('eslint-plugin-i18next'));
   } catch {

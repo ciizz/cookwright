@@ -2,7 +2,12 @@
 // result recorded against the commit it ran on.
 //
 // THE CHECKS come from cookwright.json (`gate.checks`): a name, a shell command and
-// optionally the tools it needs. Every piece is optional (the charter): a check whose
+// optionally the tools it needs and its `skipExit`, the exit with which a check that
+// started says it could not measure (the standards checks' 11, stage-4 dispositions
+// 4, 36 and 45): that exit records the check skipped, and such a check's first
+// stdout line is recorded as its note on every outcome, so a pass says what it
+// measured and what it did not. Without `skipExit`, every non-zero exit is a fail,
+// 11 included. Every piece is optional (the charter): a check whose
 // tool is missing, or whose command is not on PATH, is SKIPPED with a note and the
 // gate goes on. A check that names an npm script the repo lacks is not absence but a
 // misconfiguration, and the gate refuses it before anything runs. Two things are never optional: SOMETHING ran (a gate in which every
@@ -74,6 +79,12 @@ export function planChecks({ checks, hasTool = onPath }) {
   });
 }
 
+/** A check's result from its exit: 0 pass, its own `skipExit` skipped, anything else fail. */
+const resultOf = (check, status) => (status === 0 ? 'pass' : check.skipExit !== undefined && status === check.skipExit ? 'skipped' : 'fail');
+
+/** The first non-empty line of `text`, or undefined. */
+const firstLine = (text) => (text ?? '').split('\n').map((l) => l.trim()).find(Boolean);
+
 function runCheck(check, { cwd, env }) {
   if (check.skip) return { name: check.name, result: 'skipped', note: check.skip, ms: 0 };
   const t0 = Date.now();
@@ -90,7 +101,10 @@ function runCheck(check, { cwd, env }) {
   // failed-assertion list (stdout) out of view.
   const last = (text, n) => (text ?? '').trim().split('\n').slice(-n).join('\n');
   const tail = `${last(r.stdout, 30)}\n── stderr ──\n${last(r.stderr, 10)}`;
-  return { name: check.name, result: r.status === 0 ? 'pass' : 'fail', ms, tail };
+  // A check that opts into the convention says what it measured on its first line,
+  // on every outcome (disposition 45); recorded as its note.
+  const note = check.skipExit !== undefined ? firstLine(r.stdout) : undefined;
+  return { name: check.name, result: resultOf(check, r.status), ms, tail, ...(note ? { note } : {}) };
 }
 
 /**
@@ -113,7 +127,7 @@ export function runGate({ repo, log = console.log, hasTool = onPath, env }) {
     log(`  ${r.result.toUpperCase().padEnd(7)} ${check.name}${r.note ? ` (${r.note})` : ''}`);
     results.push(r);
   }
-  if (results.every((r) => r.result === 'skipped')) return { refused: messages.noCheckRan };
+  if (results.every((r) => r.result === 'skipped')) return { refused: messages.noCheckRan(results.map((r) => messages.skippedItem(r.name, r.note))) };
   return { results };
 }
 
@@ -122,8 +136,21 @@ export const gatePassed = (results) => results.every((r) => r.result !== 'fail')
 /** The names of the checks a gate skipped, from its recorded checks. */
 export const skippedNames = (checks) => checks.filter((c) => c.result === 'skipped').map((c) => c.name);
 
-/** "pass" or "pass (skipped: a, b)" — a pass with holes always reads as one. */
+/** The parts of a note that name a measurement it skipped: `expo strings: skipped, needs …`. */
+const PARTIAL = /^[^;]+: skipped, /;
+export const skippedParts = (note) => String(note ?? '').split('; ').filter((part) => PARTIAL.test(part));
+
+/**
+ * The checks of a gate that passed while their note names a part they skipped
+ * (a standards rule not measured, disposition 45), as `name (parts)`.
+ */
+export const partialChecks = (checks) =>
+  checks.filter((c) => c.result === 'pass' && skippedParts(c.note).length).map((c) => messages.skippedItem(c.name, skippedParts(c.note).join('; ')));
+
+/** "pass" or "pass (skipped: a, b; partly: c (…))" — a pass with holes always reads as one. */
 export function passLabel(gate) {
   const skipped = skippedNames(gate.checks ?? []);
-  return skipped.length ? `pass (skipped: ${skipped.join(', ')})` : 'pass';
+  const partly = partialChecks(gate.checks ?? []);
+  const holes = [...(skipped.length ? [`skipped: ${skipped.join(', ')}`] : []), ...(partly.length ? [messages.partly(partly)] : [])];
+  return holes.length ? `pass (${holes.join('; ')})` : 'pass';
 }

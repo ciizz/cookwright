@@ -421,6 +421,18 @@ describe('check', () => {
     expect(rows['bundle.gate-latest'].note).toMatch(/passed on c3; skipped: test/);
   });
 
+  it('warns on a latest gate whose passing check names a part it did not measure', () => {
+    const note = 'expo tokens 0 → 0; expo strings: skipped, needs npm install --save-dev eslint-plugin-i18next (2 file(s) since c1)';
+    const partial = gate('c3', { checks: [{ name: 'standards', result: 'pass', note }, { name: 'test', result: 'pass' }] });
+    const rows = verdicts({ ...base, gates: [partial] }, { lastCode: 'c3' });
+    expect(rows['bundle.gate-latest']).toEqual({
+      status: 'WARN',
+      note: 'passed on c3; partly measured: standards (expo strings: skipped, needs npm install --save-dev eslint-plugin-i18next (2 file(s) since c1))',
+    });
+    const whole = gate('c3', { checks: [{ name: 'standards', result: 'pass', note: 'expo tokens 0 → 0 (2 file(s) since c1)' }] });
+    expect(verdicts({ ...base, gates: [whole] }, { lastCode: 'c3' })['bundle.gate-latest'].status).toBe('PASS');
+  });
+
   it('fails a stale latest gate and a red latest gate', () => {
     const stale = verdicts({ ...base, gates: [gate('a1')] }, { lastCode: 'c3' });
     expect(stale['bundle.gate-latest'].status).toBe('FAIL');
@@ -450,9 +462,11 @@ describe('check', () => {
       base: 'x',
       plan: { path: 'p', sha: 'h' },
     };
+    state.gates[1].checks = [{ name: 'standards', result: 'pass', note: 'expo strings 1 → 0 | x (1 file(s) since c1)' }];
     const md = renderCloseoutDraft(state);
     expect(md).toMatch(/\| 0 \| `z9` .*FAIL/);
-    expect(md).toMatch(/\| 1 \| `z9` .*pass \| 0 \|/);
+    expect(md).toMatch(/\| 1 \| `z9` .*pass \| 0 \| standards: expo strings 1 → 0 \\\| x \(1 file\(s\) since c1\) \|/);
+    expect(md).toMatch(/\| 0 \| `z9` .* \| — \| — \|$/m);
     expect(md).not.toMatch(/SQL/);
   });
 
@@ -611,8 +625,53 @@ describe('gate', () => {
       repo: withChecks([{ name: 'x', run: 'true', needs: ['no-such-tool-xyz'] }]),
       ...quiet,
     });
-    expect(allSkipped.refused).toBe(messages.noCheckRan);
+    expect(allSkipped.refused).toBe(messages.noCheckRan(['x (skipped, needs no-such-tool-xyz, run setup)']));
     expect(runGate({ repo: withChecks([]), ...quiet }).refused).toBe(messages.noChecksConfigured);
+  });
+
+  describe('skipExit: a check that started says it could not measure (stage-4 dispositions 4, 36, 45)', () => {
+    const says = (line, code) => ({ run: `node -e "console.log('${line}'); console.log('more'); process.exit(${code})"` });
+
+    it('records its own skipExit as skipped and 11 without it as a fail', () => {
+      const out = runGate({
+        repo: withChecks([
+          { name: 'opted', ...says('skipped, no base', 11), skipExit: 11 },
+          { name: 'plain', ...says('skipped, no base', 11) },
+          { name: 'other', ...says('boom', 12), skipExit: 11 },
+          { name: 'ok', run: 'true' },
+        ]),
+        ...quiet,
+      });
+      const by = Object.fromEntries(out.results.map((r) => [r.name, r]));
+      expect(by.opted).toMatchObject({ result: 'skipped', note: 'skipped, no base' });
+      expect(by.plain.result).toBe('fail');
+      expect(by.plain.note).toBeUndefined();
+      expect(by.other).toMatchObject({ result: 'fail', note: 'boom' });
+      expect(by.ok.note).toBeUndefined();
+    });
+
+    it('records an opted-in check’s first stdout line as its note on a pass and on a fail', () => {
+      const line = 'expo strings 2 → 1; expo tokens: skipped, needs x (3 file(s) since abc)';
+      const out = runGate({ repo: withChecks([{ name: 'standards', ...says(line, 0), skipExit: 11 }]), ...quiet });
+      expect(out.results[0]).toMatchObject({ result: 'pass', note: line });
+      expect(passLabel({ checks: out.results })).toBe('pass (partly measured: standards (expo tokens: skipped, needs x (3 file(s) since abc)))');
+      const red = runGate({ repo: withChecks([{ name: 'standards', ...says('rose', 10), skipExit: 11 }]), ...quiet });
+      expect(red.results[0]).toMatchObject({ result: 'fail', note: 'rose' });
+    });
+
+    it('refuses a gate whose every check skipped at run time, carrying each line', () => {
+      const out = runGate({
+        repo: withChecks([
+          { name: 'standards', ...says('skipped, no base', 11), skipExit: 11 },
+          { name: 'standards:types', ...says('skipped, no script', 11), skipExit: 11 },
+        ]),
+        ...quiet,
+      });
+      expect(out.refused).toBe(messages.noCheckRan(['standards (skipped, no base)', 'standards:types (skipped, no script)']));
+      expect(out.refused).toBe(
+        'no check ran (every check was skipped: standards (skipped, no base); standards:types (skipped, no script)) — run setup, or fix gate.checks in cookwright.json',
+      );
+    });
   });
 });
 

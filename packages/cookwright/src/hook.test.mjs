@@ -483,6 +483,24 @@ describe('pre-push', () => {
     });
   });
 
+  it('reads a check’s own skipExit as a skip: beside a pass the gate PASSes naming it; alone, a SKIP carrying its line', () => {
+    const cannot = { name: 'standards', run: node("console.log('skipped, no base to ratchet against'); process.exit(11)"), skipExit: 11 };
+    expect(push(pushRepo([OK, cannot]))).toBe(0);
+    expect(line('gate').note).toMatch(/^ok \(\d+\.\d s\); skipped: standards$/);
+    expect(out).toContain('  SKIPPED standards (skipped, no base to ratchet against)');
+    out.length = 0;
+    expect(push(pushRepo([cannot]))).toBe(0);
+    expect(line('gate')).toEqual({
+      status: 'SKIP',
+      note: 'no check ran (every check was skipped: standards (skipped, no base to ratchet against)) — run setup, or fix gate.checks in cookwright.json',
+    });
+    out.length = 0;
+    const { skipExit, ...plain } = cannot;
+    expect(skipExit).toBe(11);
+    expect(push(pushRepo([plain]))).toBe(10);
+    expect(line('gate').status).toBe('FAIL');
+  });
+
   it('FAILs a failing check with its tail above the line and the elapsed time, exit 10', () => {
     const bad = { name: 'unit', run: node("console.log('assertion failed here'); process.exit(1)") };
     const needs = { name: 'lint', run: 'true', needs: ['no-such-tool-x'] };

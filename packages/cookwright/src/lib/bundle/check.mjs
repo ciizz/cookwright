@@ -17,7 +17,7 @@ import path from 'node:path';
 
 import { FAIL, PASS, SKIP, WARN, fail, pass, skip, summarize, warn } from '../verdict.mjs';
 import { dirtyPaths, head, isAncestor, lastCodeCommit, mergeBase } from './git.mjs';
-import { onPath, skippedNames } from './gate.mjs';
+import { onPath, partialChecks, skippedNames } from './gate.mjs';
 import { messages } from './messages.mjs';
 import { blockingOpen, closeoutPath } from './phases.mjs';
 import { sha256File } from './state.mjs';
@@ -91,9 +91,12 @@ function latestGateCheck(state, ctx) {
     latest.commit === ctx.lastCode
       ? `passed on ${short(latest.commit)}`
       : `passed on ${short(latest.commit)}, which contains the last code ${short(ctx.lastCode)}`;
-  // A pass with skipped checks is a pass with holes: say which, as a WARN.
+  // A pass with skipped checks, or with a check whose note names a part it did not
+  // measure (disposition 45), is a pass with holes: say which, as a WARN.
   const skipped = skippedNames(latest.checks ?? []);
-  return skipped.length ? warn(`${where}; skipped: ${skipped.join(', ')}`) : ok(where);
+  const partly = partialChecks(latest.checks ?? []);
+  const holes = [...(skipped.length ? [`skipped: ${skipped.join(', ')}`] : []), ...(partly.length ? [messages.partly(partly)] : [])];
+  return holes.length ? warn(`${where}; ${holes.join('; ')}`) : ok(where);
 }
 
 export function phaseChecks(state) {

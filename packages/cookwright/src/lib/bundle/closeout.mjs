@@ -67,16 +67,20 @@ function trajectoryTable(state) {
   ];
 }
 
+/** A gate's recorded notes, `name: note`, a table cell's text (pipes escaped). */
+const notesCell = (g) =>
+  g.checks.filter((c) => c.note).map((c) => `${c.name}: ${c.note}`.replace(/\|/g, '\\|')).join('; ') || '—';
+
 function gateTable(state) {
   const failed = (g) => g.checks.filter((c) => c.result === 'fail').map((c) => c.name);
   return [
-    '| # | Commit | Slice | Result | Retry of |',
-    '|---|---|---|---|---|',
+    '| # | Commit | Slice | Result | Retry of | Notes |',
+    '|---|---|---|---|---|---|',
     ...state.gates.map(
       (g, i) =>
         `| ${i} | \`${short(g.commit)}\` | ${g.slice ?? '—'} | ${
           g.passed ? passLabel(g) : `FAIL (${failed(g).join(', ')})`
-        } | ${g.retryOf ?? '—'} |`,
+        } | ${g.retryOf ?? '—'} | ${notesCell(g)} |`,
     ),
   ];
 }

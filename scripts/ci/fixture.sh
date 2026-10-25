@@ -272,7 +272,8 @@ standards_commit() {
 # The gate's two checks on the fixture: on main with no upstream the ratchet has
 # no base, and the types measure has no db:types script, both exit 11 naming
 # why. On a branch, a violating component landed with the escape is a rise the
-# ratchet names, measured by the real ESLint; the branch is then dropped.
+# ratchet names, measured by the real ESLint; the branch is then dropped. Then
+# pre-push on main: the gate records both skips and refuses to stand.
 branch_measures() {
   step "npx cookwright standards --ratchet and --types"
   local code
@@ -302,6 +303,13 @@ branch_measures() {
   git checkout -q main
   git branch -qD feat
   [ -z "$(git status --porcelain)" ] || fail "the tree is dirty after the branch measures"
+  # pre-push as git calls it for a first push of main: both checks skip with
+  # their skipExit, so the gate refuses to stand as evidence and says why.
+  printf 'refs/heads/main %s refs/heads/main %s\n' "$(git rev-parse HEAD)" 0000000000000000000000000000000000000000 \
+    | npx cookwright hook pre-push > "$WORK/push.out" 2>&1 || fail "pre-push exited non-zero with no FAIL"
+  cat "$WORK/push.out"
+  expect "$WORK/push.out" "^pre-push +SKIP +gate +no check ran \(every check was skipped: standards \(skipped, no base to ratchet against \(tried: main@\{upstream\}\)\); standards:types \(skipped, no db:types script" \
+    "the pre-push gate line does not carry both checks' skip lines"
 }
 
 rerun() {

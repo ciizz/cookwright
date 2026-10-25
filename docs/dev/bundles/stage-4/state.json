@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 200,
+  "revision": 209,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -425,9 +425,23 @@
     },
     {
       "name": "fix:whole",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T23:34:34.986Z",
+          "stateRevision": 200,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_46e8048f-ca3",
+          "endedAt": "2026-10-25T23:48:14.852Z",
+          "turnOutputTokens": 178656
+        }
+      ],
+      "startCommit": "b012c982fff6d9ab0923cb2743501407135baf4d",
+      "range": null,
+      "endCommit": "6cf3d4919f743f72cf52ab1c6497a71f711f24d3",
+      "endCode": "71b1ef6a1ddaaa13edf45918b7500a64b0e4ab24"
     },
     {
       "name": "qa",
@@ -609,6 +623,19 @@
           "name": "test",
           "result": "pass",
           "ms": 52511
+        }
+      ]
+    },
+    {
+      "commit": "6cf3d4919f743f72cf52ab1c6497a71f711f24d3",
+      "at": "2026-10-25T23:47:15.339Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 48153
         }
       ]
     }
@@ -800,6 +827,12 @@
       "phase": "fix:surface",
       "path": "docs/dev/bundles/stage-4/sessions/fix-surface-1.md",
       "at": "2026-10-25T23:23:39.693Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:whole",
+      "path": "docs/dev/bundles/stage-4/sessions/fix-whole-1.md",
+      "at": "2026-10-25T23:46:25.012Z",
       "stored": true
     }
   ],
@@ -1643,6 +1676,34 @@
       "actor": "orchestrator",
       "source": "review:whole finding 2",
       "text": "Fixed in fix:whole as a cheap P3: this repo's setup doc-sync rule also covers src/standards.mjs, src/lib/hooks/standards.mjs, src/lib/doctor/packs.mjs and src/lib/init/packs.mjs, tests excluded, tied to docs/guides/standards.md.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:46:25.641Z",
+      "actor": "orchestrator",
+      "source": "fix:whole open question 1",
+      "text": "A standards:types gate entry left after the types rule is switched off keeps exiting 11 and is recorded as skipped, a WARN at landing: kept (rule 2: a state the developer chose is WARN with the reason), the guide saying so and the setup skill offering the entry's removal.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:46:25.919Z",
+      "actor": "orchestrator",
+      "source": "fix:whole open question 2",
+      "text": "A pack removed from packs keeps its doc-sync and gate entries enforced as written: left with E-040, whose text now names the three leftovers (section, doc-sync rule, gate entries) as one fix (rule 6: one backlog thread for the removal case).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:46:26.206Z",
+      "actor": "orchestrator",
+      "source": "fix:whole departures",
+      "text": "The pack manifest versions stay at 1 after the sentence change, since no release has shipped a section and stale detection compares the rendered text; the ratchet gate-entry check lives in pack.<name>.lint rather than a new row, keeping readout counts and the recipe inventory; one commit used COOKWRIGHT_SKIP=doc-sync with its reason where no rule matched, harmless and recorded.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:46:26.543Z",
+      "actor": "orchestrator",
+      "source": "fix:whole strings batch",
+      "text": "fix:whole's 6 user-facing strings (the doc-sync switched-off tails, the missing-gate and missing-skipExit WARN parts, the ignored-files tail, the ratchet's-base sentence) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at QA.",
       "claim": true
     }
   ],

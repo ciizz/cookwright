@@ -43,6 +43,20 @@ describe('listComponents', () => {
     expect(listComponents(root, ['src/components', 'components'])).toEqual(['Avatar', 'Button', 'Card', 'Chip', 'Fab', 'Tag']);
   });
 
+  it('names a platform file by its primitive, once, and takes a platform index as a directory’s', () => {
+    const root = tree({
+      'components/Map.web.tsx': '',
+      'components/Map.native.tsx': '',
+      'components/Sheet.ios.jsx': '',
+      'components/Card/index.ios.tsx': '',
+      'components/Card/index.android.tsx': '',
+      'components/Card/Card.styles.ts': '',
+      'components/index.web.tsx': '',
+      'components/Map.web.test.tsx': '',
+    });
+    expect(listComponents(root, ['components'])).toEqual(['Card', 'Map', 'Sheet']);
+  });
+
   it('leaves out the top-level index, companion files, .ts and .js helpers, dotfiles and directories with no index', () => {
     const root = tree({
       'src/components/index.tsx': '',

@@ -13,7 +13,9 @@ import path from 'node:path';
 
 const MIGRATION = /^\d{14}_.+\.sql$/;
 const COMPONENT = /\.(tsx|jsx)$/;
-const INDEX = /^index\.(tsx|jsx)$/;
+// React Native's platform files: `Map.web.tsx` and `Map.native.tsx` are one primitive, `Map`.
+const PLATFORM = /\.(ios|android|native|web)$/;
+const INDEX = /^index(\.(ios|android|native|web))?\.(tsx|jsx)$/;
 // A component's companion files, never a primitive of their own.
 const COMPANION = /\.(test|stories|styles|types)\./;
 
@@ -31,10 +33,10 @@ const hidden = (name) => name.startsWith('.');
 /** A primitive's name from a file directly under a code directory, or null. */
 function fileComponent(name) {
   if (hidden(name) || !COMPONENT.test(name) || COMPANION.test(name) || /^index\./.test(name)) return null;
-  return name.replace(COMPONENT, '');
+  return name.replace(COMPONENT, '').replace(PLATFORM, '');
 }
 
-/** A primitive's name from a directory holding an `index.tsx` or `index.jsx`, or null. */
+/** A primitive's name from a directory holding an `index.tsx` or `index.jsx` (a platform one too), or null. */
 function dirComponent(dir, name) {
   if (hidden(name)) return null;
   return dirents(path.join(dir, name)).some((e) => e.isFile() && INDEX.test(e.name)) ? name : null;

@@ -18,12 +18,16 @@
 //   advisory  — no measurement: listed under the section's Advisory heading.
 // `needs` names the entry of `deps` the measurement cannot run without. A sentence
 // has no final period: the section appends its measurement.
+//
+// `detect` is what a fresh config's detection reads (src/lib/packs/detect.mjs): a
+// file at one of `files`, else a dependency of package.json among `dependencies`.
 
 const SAMPLE_COMPONENT = 'src/components/Sample.tsx';
 
 export const manifest = {
   name: 'expo',
   version: 1,
+  detect: { files: [], dependencies: ['expo'] },
   rules: [
     {
       id: 'strings',

@@ -1,4 +1,4 @@
-// src/init.mjs — `cookwright init [--base <branch>] [--hosts <host,…>] [--dry-run]`: take a repo to
+// src/init.mjs — `cookwright init [--base <branch>] [--hosts <host,…>] [--packs <pack,…>] [--dry-run]`: take a repo to
 // Level 0. Non-interactive and idempotent: every step reports wrote, updated, kept
 // or skipped, and a second run changes no byte.
 //
@@ -16,8 +16,15 @@ import { PROBES } from './lib/probes.mjs';
 import { main as doctor } from './doctor.mjs';
 
 const m = messages.init;
-const FLAGS = ['base', 'hosts', 'dry-run'];
+const FLAGS = ['base', 'hosts', 'packs', 'dry-run'];
 const BUNDLE_FLAGS = ['plan', 'split'];
+
+/** A comma-separated flag as a list, blanks dropped; undefined when the flag is absent. */
+const listFlag = (flags, name) =>
+  stringFlag(flags, name)
+    ?.split(',')
+    .map((h) => h.trim())
+    .filter(Boolean);
 
 function readArgs(argv) {
   const { pos, flags } = parseArgv(argv);
@@ -27,11 +34,8 @@ function readArgs(argv) {
   onlyFlags(flags, FLAGS);
   const dry = flags['dry-run'];
   if (dry !== undefined && dry !== true) throw new Refusal(m.usage);
-  const hosts = stringFlag(flags, 'hosts')
-    ?.split(',')
-    .map((h) => h.trim())
-    .filter(Boolean);
-  return { base: stringFlag(flags, 'base'), hosts, dry: dry === true };
+  const lists = { hosts: listFlag(flags, 'hosts'), packs: listFlag(flags, 'packs') };
+  return { base: stringFlag(flags, 'base'), ...lists, dry: dry === true };
 }
 
 const rowLines = (rows) => {
@@ -39,9 +43,9 @@ const rowLines = (rows) => {
   return rows.map((r) => `${r.action.padEnd(7)}  ${r.target.padEnd(width)}  ${r.note}`);
 };
 
-function init({ base, hosts, dry }, { cwd = process.cwd(), probes: over = {}, home, symlink, rename } = {}) {
+function init({ base, hosts, packs, dry }, { cwd = process.cwd(), probes: over = {}, home, symlink, rename } = {}) {
   const repo = openInitRepo(cwd, home ? { home } : {});
-  const rows = preflight(repo, { probes: { ...PROBES, ...over }, base, hosts });
+  const rows = preflight(repo, { probes: { ...PROBES, ...over }, base, hosts, packs });
   console.log(dry ? m.dryHeader(repo.root) : m.header(repo.root));
   for (const line of rowLines(rows)) console.log(line);
   console.log('');

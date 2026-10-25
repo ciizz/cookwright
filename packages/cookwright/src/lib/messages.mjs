@@ -166,9 +166,9 @@ const doctor = {
 
 // init: the usage, the refusals, and one note per row of each step (plan §4.4).
 const init = {
-  usage: `usage: ${CLI} init [--base <branch>] [--hosts <host,…>] [--dry-run]`,
+  usage: `usage: ${CLI} init [--base <branch>] [--hosts <host,…>] [--packs <pack,…>] [--dry-run]`,
   refused: (detail) => `init: ${detail}`,
-  bundleFlag: (flag) => `--${flag} belongs to ${CLI} bundle init; ${CLI} init takes --base, --hosts and --dry-run`,
+  bundleFlag: (flag) => `--${flag} belongs to ${CLI} bundle init; ${CLI} init takes --base, --hosts, --packs and --dry-run`,
   notWorkTree: (cwd) => `${cwd} is not inside a git work tree (init needs git and a repo: run git init first)`,
   notAFile: (rel) => `${rel} exists and is not a file; move it aside, then rerun`,
   notADir: (rel) => `${rel} exists and is not a directory; move it aside, then rerun`,
@@ -189,13 +189,15 @@ const init = {
     wrote: (base, packs, gate) => `baseBranch ${base}; ${packs}; ${gate}`,
     kept: (level) => `present, level ${level}; init never edits an existing config`,
     migrated: (from, to) => `version ${from}, migrated in memory; run ${CLI} migrate to write version ${to}`,
-    // --base and --hosts shape a fresh config; init never edits an existing one.
+    // --base, --hosts and --packs shape a fresh config; init never edits an existing one.
     existing: (flag, key) =>
       `--${flag} applies to a fresh ${CONFIG_FILE} and this repo has one; change ${key} there by hand, then rerun init`,
     gateRuns: (runs) => `gate: ${list(runs)}`,
     gateWithout: (runs, reason) => `gate: ${list(runs)}; no npm test (${reason})`,
     gateNone: (reason) => `gate: no checks (${reason})`,
-    packsNone: 'packs: none',
+    packsNone: 'packs: none detected',
+    packsDetected: (found) => `packs: ${list(found.map((f) => `${f.name} (${f.evidence})`))}`,
+    packsFlag: (names) => `packs: ${names.length ? list(names) : 'none'} (--packs)`,
     noPackage: 'no package.json',
     badPackage: 'package.json is not valid JSON',
     noTestScript: 'package.json has no test script',
@@ -438,6 +440,12 @@ export const messages = {
     },
   },
   noNextLevel: (level) => `Level ${level + 1} is not available in this version of cookwright`,
+
+  // packs/detect.mjs: the evidence a detected pack is named with (init's config row)
+  detect: {
+    dependsOn: (pkg) => `package.json depends on ${pkg}`,
+    file: (rel) => `${rel} exists`,
+  },
 
   // probes.mjs, rules/block.mjs
   probeFailed: (what, detail) => `${what} failed: ${detail}`,

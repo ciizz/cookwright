@@ -20,7 +20,7 @@ npx cookwright init
 
 ```
 npx cookwright init in ~/my-app
-wrote    cookwright.json                    baseBranch main; packs: none; gate: npm test
+wrote    cookwright.json                    baseBranch main; packs: none detected; gate: npm test
 wrote    docs/backlog.md                    from the template
 wrote    docs/closeouts/                    created, with a .gitkeep so a clone keeps it
 wrote    CHANGELOG.md                       from the template
@@ -39,7 +39,7 @@ wrote    .githooks/pre-push                 the managed shim, executable; it cal
 
 init then runs doctor once and prints its readout (step 4).
 
-`npx cookwright init [--base <branch>] [--hosts <host,…>] [--dry-run]` takes the repo to Level 0. It writes `cookwright.json`, the state homes (a backlog, a closeouts directory, a changelog), a managed rules block in `AGENTS.md`, for each host a SessionStart hook that runs doctor (Claude Code's in `.claude/settings.json`; Codex's in `.codex/hooks.json`, see [Codex](codex.md)) and pointers to the skills and workflows in the installed package (see [Skills and workflows](#skills-and-workflows)), `.gitignore` lines for plaintext env files, and two git hooks, `.githooks/pre-commit` and `.githooks/pre-push`, activated by `core.hooksPath` in the local git config (see [Hooks and escapes](hooks-and-escapes.md)). Each step reports `wrote`, `updated`, `kept` or `skipped`. init never overwrites your text, and a second run changes nothing. `--base` and `--hosts` (`claude`, `codex`, or both, comma-separated; `claude` by default) shape a fresh `cookwright.json`, and init refuses them when one exists: change `baseBranch` or `hosts` there instead. `--dry-run` prints the report and writes nothing.
+`npx cookwright init [--base <branch>] [--hosts <host,…>] [--packs <pack,…>] [--dry-run]` takes the repo to Level 0. It writes `cookwright.json`, the state homes (a backlog, a closeouts directory, a changelog), a managed rules block in `AGENTS.md`, for each host a SessionStart hook that runs doctor (Claude Code's in `.claude/settings.json`; Codex's in `.codex/hooks.json`, see [Codex](codex.md)) and pointers to the skills and workflows in the installed package (see [Skills and workflows](#skills-and-workflows)), `.gitignore` lines for plaintext env files, and two git hooks, `.githooks/pre-commit` and `.githooks/pre-push`, activated by `core.hooksPath` in the local git config (see [Hooks and escapes](hooks-and-escapes.md)). Each step reports `wrote`, `updated`, `kept` or `skipped`. init never overwrites your text, and a second run changes nothing. `--base`, `--hosts` (`claude`, `codex`, or both, comma-separated; `claude` by default) and `--packs` (`expo`, `supabase`, or both; by default the ones the tree shows: `expo` when `package.json` depends on `expo`, `supabase` when `supabase/config.toml` exists or `package.json` depends on `@supabase/supabase-js`) shape a fresh `cookwright.json`, and init refuses them when one exists: change `baseBranch`, `hosts` or `packs` there instead. `--dry-run` prints the report and writes nothing.
 
 init sets the repo up for Claude Code by default; for Codex run `npx cookwright init --hosts codex` instead, or `--hosts claude,codex` for both. A repo that already has a `CLAUDE.md` gets `@AGENTS.md` prepended to it; see [Monorepos and CLAUDE.md](monorepos-and-claude-md.md).
 

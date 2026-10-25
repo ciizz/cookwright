@@ -224,7 +224,7 @@ describe('refusals', () => {
   it('refuses an unknown flag or a positional with the usage, and names bundle init for --plan', () => {
     const root = fresh();
     expect(init(root, ['--bogus']).code).toBe(2);
-    expect(err).toEqual([m.refused(messages.unknownFlag('bogus', ['base', 'hosts', 'dry-run'])), m.usage]);
+    expect(err).toEqual([m.refused(messages.unknownFlag('bogus', ['base', 'hosts', 'packs', 'dry-run'])), m.usage]);
     expect(init(root, ['now']).code).toBe(2);
     expect(err).toEqual([m.refused(m.usage)]);
     expect(init(root, ['--plan', 'plan.md']).code).toBe(2);
@@ -397,6 +397,68 @@ describe('cookwright.json: a fresh config’s packs, doc-sync rules and gate che
     expect(none.raw.gate.checks).toEqual([]);
     expect(none.raw.hooks.docSync).toEqual([]);
     expect(none.note).toBe(`baseBranch main; ${m.config.packsNone}; ${m.config.gateNone(m.config.noPackage)}`);
+  });
+});
+
+describe('cookwright.json: pack detection and --packs', () => {
+  const EXPO_APP = { dependencies: { expo: '~58.0.0' } };
+  const configOf = (root) => JSON.parse(read(root, 'cookwright.json'));
+
+  it('declares the packs the tree shows on a fresh config, writing their sections and docs, then changes no byte', () => {
+    const root = fresh();
+    write(root, 'package.json', JSON.stringify(EXPO_APP));
+    write(root, 'supabase/config.toml', 'project_id = "app"\n');
+    const { code, rows } = init(root);
+    expect(code).toBe(0);
+    expect(rows['cookwright.json'].note).toContain(
+      'packs: expo (package.json depends on expo), supabase (supabase/config.toml exists)',
+    );
+    expect(configOf(root).packs).toEqual(['expo', 'supabase']);
+    for (const target of ['AGENTS.md#expo', 'AGENTS.md#supabase', 'docs/design-system.md', 'docs/data-model.md']) {
+      expect([target, rows[target]?.action]).toEqual([target, 'wrote']);
+    }
+    commit({ root }, {}, 'init');
+    const before = tree(root);
+    expect(init(root).actions.filter((a) => a === 'wrote' || a === 'updated')).toEqual([]);
+    expect(tree(root)).toEqual(before);
+  });
+
+  it('takes --packs over detection on a fresh config, an empty list included', () => {
+    const a = fresh();
+    write(a, 'package.json', JSON.stringify(EXPO_APP));
+    expect(init(a, ['--packs', 'supabase']).rows['cookwright.json'].note).toContain(m.config.packsFlag(['supabase']));
+    expect(configOf(a).packs).toEqual(['supabase']);
+    expect(exists(a, 'docs/design-system.md')).toBe(false);
+    const b = fresh();
+    write(b, 'package.json', JSON.stringify(EXPO_APP));
+    init(b, ['--packs', ',']);
+    expect(configOf(b).packs).toEqual([]);
+    expect(m.config.packsFlag([])).toBe('packs: none (--packs)');
+    const c = fresh();
+    expect(init(c).rows['cookwright.json'].note).toContain(m.config.packsNone);
+  });
+
+  it('refuses --packs on an existing config, and never detects into one', () => {
+    const root = fresh();
+    write(root, 'package.json', JSON.stringify(EXPO_APP));
+    write(root, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION }));
+    const before = tree(root);
+    expect(init(root, ['--packs', 'expo']).code).toBe(2);
+    expect(err).toEqual([m.refused(m.config.existing('packs', 'packs'))]);
+    expect(tree(root)).toEqual(before);
+    const { rows } = init(root);
+    expect(rows['cookwright.json'].action).toBe('kept');
+    expect(Object.keys(rows).filter((t) => t.startsWith('AGENTS.md#') || t === 'docs/design-system.md')).toEqual([]);
+    expect(read(root, 'cookwright.json')).toBe(before['cookwright.json']);
+  });
+
+  it('refuses an unknown or repeated pack on a fresh config, before any write', () => {
+    const root = fresh();
+    expect(init(root, ['--packs', 'expo,flutter']).code).toBe(2);
+    expect(err[0]).toMatch(/flutter/);
+    expect(init(root, ['--packs', 'expo,expo']).code).toBe(2);
+    expect(err[0]).toMatch(/each pack once/);
+    expect(tree(root)).toEqual({});
   });
 });
 

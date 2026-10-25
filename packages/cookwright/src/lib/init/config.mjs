@@ -8,6 +8,7 @@ import path from 'node:path';
 import { Refusal } from '../cli.mjs';
 import { CONFIG_FILE, CONFIG_VERSION, DEFAULTS, loadConfig, validateConfig, withDefaults } from '../config.mjs';
 import { messages } from '../messages.mjs';
+import { detectPacks } from '../packs/detect.mjs';
 import { packDefaults } from '../packs/registry.mjs';
 import { KEPT, WROTE, readTarget, row } from './files.mjs';
 import { detectBase } from './repo.mjs';
@@ -59,6 +60,13 @@ function gateNote(checks, reason) {
 /** No pack: what a fresh config declares when nothing chose one. */
 export const NO_PACKS = Object.freeze({ names: Object.freeze([]), note: m.packsNone });
 
+/** A fresh config's packs, `{ names, note }`: --packs when given, else the ones the tree shows. */
+export function choosePacks(root, flag) {
+  if (flag !== undefined) return { names: flag, note: m.packsFlag(flag) };
+  const found = detectPacks(root);
+  return found.length ? { names: found.map((f) => f.name), note: m.packsDetected(found) } : NO_PACKS;
+}
+
 /**
  * The config init writes on a fresh repo, every path explicit; `hosts` from --hosts,
  * `packs` (`{ names, note }`) from --packs or detection, with each pack's doc-sync
@@ -83,11 +91,12 @@ export function freshConfig(root, base, hosts = DEFAULTS.hosts, packs = NO_PACKS
 }
 
 /** The flags that shape a fresh config, by the key each sets. */
-const FRESH_FLAGS = Object.freeze({ base: 'baseBranch', hosts: 'hosts' });
+const FRESH_FLAGS = Object.freeze({ base: 'baseBranch', hosts: 'hosts', packs: 'packs' });
 
 /**
- * Step 1. Sets `repo.config`, which every later step reads. --base and --hosts on an
- * existing config are refused, never ignored: init never edits one.
+ * Step 1. Sets `repo.config`, which every later step reads. --base, --hosts and
+ * --packs on an existing config are refused, never ignored: init never edits one, and
+ * detection runs on a fresh config only (disposition 22).
  */
 export function configStep(repo, io) {
   if (readTarget(repo.root, CONFIG_FILE) !== null) {
@@ -103,7 +112,7 @@ export function configStep(repo, io) {
     const from = repo.config.migratedFrom;
     return row(KEPT, CONFIG_FILE, from === undefined ? m.kept(repo.config.level) : m.migrated(from, CONFIG_VERSION));
   }
-  const { raw, note } = freshConfig(repo.root, io.base, io.hosts);
+  const { raw, note } = freshConfig(repo.root, io.base, io.hosts, choosePacks(repo.root, io.packs));
   repo.config = withDefaults(raw);
   // The same validation as a loaded config, in preflight: init never writes a
   // config that doctor and every later run would refuse.

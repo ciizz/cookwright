@@ -27,7 +27,7 @@ npx cookwright init
 ```
 
 ```
-wrote    cookwright.json                    baseBranch main; packs: none; gate: npm test
+wrote    cookwright.json                    baseBranch main; packs: none detected; gate: npm test
 wrote    AGENTS.md                          written with the managed rules block
 wrote    .claude/settings.json              SessionStart hook runs doctor
 wrote    .githooks/pre-commit               the managed shim, executable; it calls the hook in the package

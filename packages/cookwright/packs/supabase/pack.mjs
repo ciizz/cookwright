@@ -9,6 +9,7 @@
 export const manifest = {
   name: 'supabase',
   version: 1,
+  detect: { files: ['supabase/config.toml'], dependencies: ['@supabase/supabase-js'] },
   rules: [
     {
       id: 'client',

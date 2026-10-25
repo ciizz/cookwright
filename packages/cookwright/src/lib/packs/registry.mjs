@@ -40,7 +40,8 @@ export const RATCHET_CHECK = deepFreeze({ name: 'standards', run: 'npx cookwrigh
  * copies, so a caller may serialise or extend them.
  */
 export function packDefaults(names) {
-  const manifests = names.map((n) => PACKS[n]);
+  // An unknown or repeated name contributes nothing: the validator refuses it.
+  const manifests = [...new Set(names)].filter((n) => Object.hasOwn(PACKS, n)).map((n) => PACKS[n]);
   const of = (measure) => manifests.flatMap((mf) => mf.rules.filter((r) => r.measure === measure));
   const ratchet = of('eslint').length ? [RATCHET_CHECK] : [];
   return structuredClone({ docSync: of('doc-sync').map((r) => r.docSync), gate: [...ratchet, ...of('gate').map((r) => r.gate)] });

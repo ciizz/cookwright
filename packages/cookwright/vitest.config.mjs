@@ -1,3 +1,4 @@
+import os from 'node:os';
 import { defineConfig } from 'vitest/config';
 
 // Pure-logic tests beside the source they exercise. Git-dependent tests build
@@ -13,5 +14,10 @@ export default defineConfig({
     // then fails the push gate on commits that changed nothing it tests (B-014).
     // Idle, the slowest test runs under 5 s; 30 s is headroom, not a budget.
     testTimeout: 30_000,
+    // Each git test spawns many short git processes. With one worker per core on a
+    // machine other sessions share, the worker→main RPC starves and vitest exits 1
+    // on a green suite ("Timeout calling onTaskUpdate", B-015). Half the cores, at
+    // least two, keeps the main process scheduled; measured in the B-015 entry.
+    maxWorkers: Math.max(2, Math.floor(os.cpus().length / 2)),
   },
 });

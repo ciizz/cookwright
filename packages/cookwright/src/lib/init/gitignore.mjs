@@ -5,7 +5,10 @@
 // global one included, counts. What is not ignored has its lines appended, after
 // any rule that overrides them.
 
+import path from 'node:path';
+
 import { Refusal } from '../cli.mjs';
+import { isLink } from '../doctor/repo.mjs';
 import { PROTECTED } from '../doctor/secrets.mjs';
 import { messages } from '../messages.mjs';
 import { KEPT, SKIPPED, UPDATED, WROTE, endLine, eolOf, readTarget, row } from './files.mjs';
@@ -19,12 +22,21 @@ export const ENV_LINES = Object.freeze(['.env', '.env.*', '!.env.example']);
  * with the slash, git answers for a directory whether or not it exists yet.
  */
 export const NODE_MODULES_LINE = 'node_modules/';
+/**
+ * The same when node_modules is a symbolic link (some Docker, Nix or monorepo
+ * setups): a directory pattern never matches a link, and git refuses a slashed
+ * pathspec beyond one (exit 128), so both the question and the line drop the slash.
+ */
+export const NODE_MODULES_LINK = 'node_modules';
+
+const modulesLine = (root) => (isLink(path.join(root, 'node_modules')) ? NODE_MODULES_LINK : NODE_MODULES_LINE);
 
 /** `{ paths, lines }`: the paths git does not ignore, and the lines that cover them, node_modules first. */
 function notIgnored(repo, probes) {
   try {
     const env = PROTECTED.filter((p) => !probes.ignored(repo.root, p));
-    const modules = probes.ignored(repo.root, NODE_MODULES_LINE) ? [] : [NODE_MODULES_LINE];
+    const line = modulesLine(repo.root);
+    const modules = probes.ignored(repo.root, line) ? [] : [line];
     return { paths: [...modules, ...env], lines: [...modules, ...(env.length ? ENV_LINES : [])] };
   } catch (err) {
     throw new Refusal(err.message);

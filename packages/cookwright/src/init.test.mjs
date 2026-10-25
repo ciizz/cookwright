@@ -16,7 +16,7 @@ import { NO_PACKS, freshConfig } from './lib/init/config.mjs';
 import { callLine, shimText } from './lib/hooks/shims.mjs';
 import { claudeHookStep } from './lib/init/claude.mjs';
 import { codexHookStep } from './lib/init/codex.mjs';
-import { ENV_LINES, NODE_MODULES_LINE } from './lib/init/gitignore.mjs';
+import { ENV_LINES, NODE_MODULES_LINE, NODE_MODULES_LINK } from './lib/init/gitignore.mjs';
 import { CODEX_HOOK_COMMAND, HOOK_COMMAND, HOOK_LINES, HOSTS, SKILLS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { PROBES, hasTool } from './lib/probes.mjs';
@@ -966,6 +966,21 @@ describe('.gitignore', () => {
     expect(init(neither).rows['.gitignore'].note).toBe('appended node_modules/, .env, .env.*, !.env.example');
     expect(read(neither, '.gitignore')).toBe('.DS_Store\r\nnode_modules/\r\n.env\r\n.env.*\r\n!.env.example\r\n');
     expect(init(neither).rows['.gitignore'].action).toBe('kept');
+  });
+
+  it('asks about and appends node_modules without the slash when it is a symbolic link (B-011)', () => {
+    const root = fresh();
+    fs.mkdirSync(path.join(root, '..', `realnm-${n}`), { recursive: true });
+    fs.symlinkSync(`../realnm-${n}`, path.join(root, 'node_modules'));
+    expect(init(root).rows['.gitignore']).toEqual({ action: 'wrote', note: m.gitignore.wrote([NODE_MODULES_LINK, ...ENV_LINES]) });
+    expect(read(root, '.gitignore')).toBe('node_modules\n.env\n.env.*\n!.env.example\n');
+    expect(init(root).rows['.gitignore']).toEqual({ action: 'kept', note: m.gitignore.ignored });
+    // A directory pattern does not cover the link, so a .gitignore holding only it gains the bare line.
+    const slashed = fresh();
+    fs.symlinkSync('../nowhere', path.join(slashed, 'node_modules'));
+    write(slashed, '.gitignore', 'node_modules/\n.env*\n');
+    expect(init(slashed).rows['.gitignore']).toEqual({ action: 'updated', note: m.gitignore.appended([NODE_MODULES_LINK]) });
+    expect(read(slashed, '.gitignore')).toBe('node_modules/\n.env*\nnode_modules\n');
   });
 
   it('counts a node_modules rule that is not last, or a bare node_modules pattern, as covered', () => {

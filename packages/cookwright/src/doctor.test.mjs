@@ -948,10 +948,14 @@ describe('packs and the pack rows', () => {
       note: l.unnamed('eslint.config.js', 'cookwright/packs/expo/eslint.cjs', [spread]),
     });
     expect(l.unnamed('eslint.config.js', 'cookwright/packs/expo/eslint.cjs', [spread])).toBe(
-      `eslint.config.js does not name cookwright/packs/expo/eslint.cjs; add ${spread} (the setup skill does it with consent)`,
+      `eslint.config.js does not name cookwright/packs/expo/eslint.cjs; add ${spread} at the end of its config array by hand: ` +
+        "spread last, the pack's options replace yours for any ESLint rule a block of yours also sets on the pack's files; " +
+        'spread before such a block, that rule reads overridden and is not measured (the setup skill does it with consent)',
     );
     const esm = lint({ config: null }, ['expo'], { 'eslint.config.mjs': 'export default [];\n' })['pack.expo.lint'];
-    expect(esm.note).toBe(l.unnamed('eslint.config.mjs', 'cookwright/packs/expo/eslint.cjs', ["import cookwrightExpo from 'cookwright/packs/expo/eslint.cjs';", '...cookwrightExpo,']));
+    const esmImport = "import cookwrightExpo from 'cookwright/packs/expo/eslint.cjs';";
+    expect(esm.note).toBe(l.unnamed('eslint.config.mjs', 'cookwright/packs/expo/eslint.cjs', ['...cookwrightExpo,'], [esmImport]));
+    expect(esm.note).toContain(`add ${esmImport} at its top and ...cookwrightExpo, at the end of its config array by hand: `);
     const i18next = 'npm install --save-dev eslint-plugin-i18next';
     expect(lint({ plugin: false })['pack.expo.lint']).toEqual({
       status: 'WARN',

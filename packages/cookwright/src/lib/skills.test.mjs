@@ -151,6 +151,7 @@ const QUOTED = [
   ['is older than 9, and the standards need its flat config', p.lint.oldEslint('8.57.0')],
   ['does not name ', p.lint.unnamed('eslint.config.js', 'cookwright/packs/expo/eslint.cjs', ['x'])],
   ['(the setup skill does it with consent)', p.lint.unnamed('eslint.config.js', 'cookwright/packs/expo/eslint.cjs', ['x'])],
+  ['at the end of its config array by hand: ', p.lint.unnamed('eslint.config.js', 'cookwright/packs/expo/eslint.cjs', ['x'])],
   ['needs npm install --save-dev eslint-plugin-i18next (the strings rule)', p.lint.needs(i18next.install, i18next.reason)],
   ['skipped, needs supabase (brew install supabase/tap/supabase)', p.types.needsCli],
   ['no db:types script in package.json; add ', p.types.noScript('db:types')],

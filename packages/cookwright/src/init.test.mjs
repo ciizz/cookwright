@@ -745,6 +745,12 @@ module.exports = defineConfig([
       action: 'skipped',
       note: m.pack.eslint.other([EXPO_LINE.trim(), SUPABASE_LINE.trim()]),
     });
+    // where the lines go, and what spreading them last replaces (QA round 1)
+    expect(m.pack.eslint.other(['x'])).toBe(
+      "not Expo's template, left alone; add x at the end of its config array by hand: spread last, the pack's options replace yours " +
+        "for any ESLint rule a block of yours also sets on the pack's files; spread before such a block, that rule reads overridden and is " +
+        'not measured (the setup skill does it with consent)',
+    );
     expect(read(a, 'eslint.config.js')).toBe(mine);
     const handWired = `${mine}// mine\nmodule.exports.push(...require('cookwright/packs/expo/eslint.cjs'));\n`;
     const b = withPacks(['expo'], { 'eslint.config.mjs': handWired });

@@ -28,6 +28,15 @@ const ENTRY_NOUNS = { components: ['primitive', 'primitives'], migrations: ['mig
 const notVerified = (names) => `not verified: ${list(names)} (see their lines)`;
 const counted = (n, kind) => `${n} ${ENTRY_NOUNS[kind][n === 1 ? 0 : 1]}`;
 
+/**
+ * Where a pack's lines go in an ESLint config init did not write, and what the place
+ * decides (stage-4 QA round 1): spread last, the pack's options win for the rules it sets.
+ */
+const handAdd = (spreads, imports = []) =>
+  `add ${imports.length ? `${list(imports)} at its top and ` : ''}${list(spreads)} at the end of its config array by hand: ` +
+  "spread last, the pack's options replace yours for any ESLint rule a block of yours also sets on the pack's files; " +
+  'spread before such a block, that rule reads overridden and is not measured';
+
 // doctor: one note per verdict of each check (plan §4.8), then the readout's lines.
 const doctor = {
   usage: `usage: ${CLI} doctor [--hook]`,
@@ -207,7 +216,7 @@ const doctor = {
       oldEslint: (version) => `not measured; the installed eslint ${version || 'of unknown version'} is older than 9, and the standards need its flat config`,
       noConfig: (setup) => `not measured; no ESLint config (eslint.config.js); ${setup} sets ESLint up, then ${RUN_INIT}`,
       writeConfig: (spec) => `not measured; no ESLint config (eslint.config.js); write one that spreads ${spec} (the setup skill does it with consent)`,
-      unnamed: (file, spec, lines) => `${file} does not name ${spec}; add ${list(lines)} (the setup skill does it with consent)`,
+      unnamed: (file, spec, spreads, imports) => `${file} does not name ${spec}; ${handAdd(spreads, imports)} (the setup skill does it with consent)`,
       ok: (version, file, spec) => `eslint ${version}; ${file} names ${spec}`,
       needs: (install, reason) => `needs ${install} (${reason})`,
       noGate: (entry) => `the gate runs no standards ratchet; add ${entry} to gate.checks (${CLI} packs rules prints it)`,
@@ -305,12 +314,11 @@ const init = {
     eslint: {
       added: (exports) => `${list(exports)} spread after expoConfig; the rest of Expo's template untouched`,
       names: (exports) => `names ${list(exports)}`,
-      other: (lines) =>
-        `not Expo's template, left alone; add ${list(lines)} to its config array by hand (the setup skill does it with consent)`,
+      other: (lines) => `not Expo's template, left alone; ${handAdd(lines)} (the setup skill does it with consent)`,
       // The line an ES module config imports a pack's export with (it has no require).
       importLine: (binding, spec) => `import ${binding} from '${spec}';`,
       otherModule: (imports, spreads) =>
-        `not Expo's template, left alone; add ${list(imports)} at its top and ${list(spreads)} to its config array by hand (the setup skill does it with consent)`,
+        `not Expo's template, left alone; ${handAdd(spreads, imports)} (the setup skill does it with consent)`,
       none: (setup) => `no ESLint config; ${setup} sets ESLint up, then rerun init`,
       // no config, and no pack's setup line writes one: the file is the developer's to write
       write: (exports) => `no ESLint config; write an eslint.config.js that spreads ${list(exports)} (the setup skill does it with consent)`,

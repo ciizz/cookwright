@@ -191,7 +191,7 @@ function checkLint(repo, pack) {
   const spec = exportOf(manifest);
   if (!namesModule(fs.readFileSync(path.join(repo.root, rel), 'utf8'), spec)) {
     const { imports = [], spreads } = handLines(repo.root, rel, [manifest]);
-    return warn(l.unnamed(rel, spec, [...imports, ...spreads]));
+    return warn(l.unnamed(rel, spec, spreads, imports));
   }
   const problems = [...missingDeps(repo, pack).map((d) => l.needs(d.install, d.reason)), gateProblem(repo, RATCHET_CHECK, l.noGate)].filter(Boolean);
   const named = l.ok(version, rel, spec);

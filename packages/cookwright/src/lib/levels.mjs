@@ -26,6 +26,7 @@ export const LEVELS = Object.freeze({
       'hooks.pre-push',
       'tools.gitleaks',
       'gate.scripts',
+      'repo.node_modules',
     ]),
   }),
 });

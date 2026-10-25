@@ -121,6 +121,7 @@ const QUOTED = [
   ['pre-push runs nothing', d.gateScripts.none],
   ['not verified: ', d.levelNotVerified(0, ['tools.gitleaks'])],
   ['no pack declared; the setup skill offers it', d.packs.detected([{ name: 'expo', evidence: 'x' }])],
+  ['node_modules is tracked (git rm -r --cached node_modules, then commit)', d.nodeModules.tracked],
   ['tracked env file(s): ', d.secrets.tracked(['.env'])],
   ['at the root: a plaintext env file', d.secrets.untracked(['.env'])],
   ['not ignored by git', d.secrets.notIgnored(['.env'])],

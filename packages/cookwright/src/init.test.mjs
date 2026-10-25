@@ -16,7 +16,7 @@ import { NO_PACKS, freshConfig } from './lib/init/config.mjs';
 import { callLine, shimText } from './lib/hooks/shims.mjs';
 import { claudeHookStep } from './lib/init/claude.mjs';
 import { codexHookStep } from './lib/init/codex.mjs';
-import { ENV_LINES } from './lib/init/gitignore.mjs';
+import { ENV_LINES, NODE_MODULES_LINE } from './lib/init/gitignore.mjs';
 import { CODEX_HOOK_COMMAND, HOOK_COMMAND, HOOK_LINES, HOSTS, SKILLS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { PROBES, hasTool } from './lib/probes.mjs';
@@ -158,6 +158,7 @@ describe('a fresh repo', () => {
     expect(read(root, 'CHANGELOG.md')).toBe(template('CHANGELOG.md'));
     expect(read(root, 'docs/closeouts/.gitkeep')).toBe('');
     expect(read(root, 'AGENTS.md')).toBe(`${BLOCK}\n`);
+    // node_modules is in info/exclude here (linkPackage), so only the env patterns are written.
     expect(read(root, '.gitignore')).toBe('.env\n.env.*\n!.env.example\n');
     expect(exists(root, 'CLAUDE.md')).toBe(false);
     const config = JSON.parse(read(root, 'cookwright.json'));
@@ -940,11 +941,47 @@ describe('.gitignore', () => {
 
   it('appends the patterns after a later rule that overrides them, once', () => {
     const root = fresh();
-    const text = '.env\n.env.*\n!.env.example\n!.env.local\n';
+    const text = 'node_modules/\n.env\n.env.*\n!.env.example\n!.env.local\n';
     write(root, '.gitignore', text);
     expect(init(root).rows['.gitignore']).toEqual({ action: 'updated', note: m.gitignore.appended(ENV_LINES) });
     expect(read(root, '.gitignore')).toBe(`${text}.env\n.env.*\n!.env.example\n`);
     expect(init(root).rows['.gitignore'].action).toBe('kept');
+  });
+
+  it('writes node_modules/ first into a bare repo’s new .gitignore (B-011)', () => {
+    const root = fresh();
+    expect(init(root).rows['.gitignore']).toEqual({ action: 'wrote', note: m.gitignore.wrote([NODE_MODULES_LINE, ...ENV_LINES]) });
+    expect(read(root, '.gitignore')).toBe('node_modules/\n.env\n.env.*\n!.env.example\n');
+    expect(init(root).rows['.gitignore']).toEqual({ action: 'kept', note: m.gitignore.ignored });
+  });
+
+  it('appends node_modules/ when git does not ignore it, alone or before the env patterns, once (B-011)', () => {
+    const envOnly = fresh();
+    write(envOnly, '.gitignore', '.env\n.env.*\n!.env.example\n');
+    expect(init(envOnly).rows['.gitignore']).toEqual({ action: 'updated', note: m.gitignore.appended([NODE_MODULES_LINE]) });
+    expect(read(envOnly, '.gitignore')).toBe('.env\n.env.*\n!.env.example\nnode_modules/\n');
+    expect(init(envOnly).rows['.gitignore']).toEqual({ action: 'kept', note: m.gitignore.ignored });
+    const neither = fresh();
+    write(neither, '.gitignore', '.DS_Store\r\n');
+    expect(init(neither).rows['.gitignore'].note).toBe('appended node_modules/, .env, .env.*, !.env.example');
+    expect(read(neither, '.gitignore')).toBe('.DS_Store\r\nnode_modules/\r\n.env\r\n.env.*\r\n!.env.example\r\n');
+    expect(init(neither).rows['.gitignore'].action).toBe('kept');
+  });
+
+  it('counts a node_modules rule that is not last, or a bare node_modules pattern, as covered', () => {
+    const root = fresh();
+    write(root, '.gitignore', 'node_modules\n.env*\n');
+    expect(init(root).rows['.gitignore']).toEqual({ action: 'kept', note: m.gitignore.ignored });
+    expect(m.gitignore.ignored).toBe('node_modules, .env and .env.local are ignored');
+  });
+
+  it('leaves the file alone when it ends with node_modules/ and git still does not ignore it', () => {
+    const root = fresh();
+    const text = '.env*\nnode_modules/\n';
+    write(root, '.gitignore', text);
+    const probes = { ignored: (_, p) => p !== NODE_MODULES_LINE };
+    expect(init(root, [], { probes }).rows['.gitignore']).toEqual({ action: 'kept', note: m.gitignore.overridden([NODE_MODULES_LINE]) });
+    expect(read(root, '.gitignore')).toBe(text);
   });
 
   it('leaves the file alone when it ends with the patterns and git still does not ignore', () => {
@@ -959,7 +996,7 @@ describe('.gitignore', () => {
   it('counts a tracked .env as covered by the rules', () => {
     const root = fresh();
     stageOnly(root, '.env');
-    commit({ root }, { '.gitignore': '.env\n.env.*\n' }, 'oops');
+    commit({ root }, { '.gitignore': 'node_modules/\n.env\n.env.*\n' }, 'oops');
     expect(init(root).rows['.gitignore'].action).toBe('kept');
   });
 });

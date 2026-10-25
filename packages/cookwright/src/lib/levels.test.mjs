@@ -52,6 +52,7 @@ describe('levels', () => {
       'hooks.pre-push',
       'tools.gitleaks',
       'gate.scripts',
+      'repo.node_modules',
     ]);
   });
 });

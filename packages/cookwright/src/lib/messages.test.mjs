@@ -51,6 +51,7 @@ const ALLOWED = {
   'src/lib/doctor/secrets.mjs': ["'git ls-files'"], // the command a probe failure names
   'src/lib/doctor/hooks.mjs': ["'git config core.hooksPath'", "'git rev-parse --git-path hooks'"], // the commands a probe failure names
   'src/lib/doctor/hosts.mjs': ["'git ls-files'"], // the command a probe failure names
+  'src/lib/doctor/repo.mjs': ["'git ls-files'"], // the command a probe failure names
   'src/lib/probes.mjs': ['`git check-ignore ${rel}`', "'git check-ignore'"], // the command a probe failure names
   'src/lib/hooks/push.mjs': ["'git status'"], // the command a failure names
   'src/lib/packs/registry.mjs': ["'npx cookwright standards --ratchet'"], // the gate command written into the config

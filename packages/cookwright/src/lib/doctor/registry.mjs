@@ -17,6 +17,7 @@ import { checkCodexHook, checkCodexRules } from './codex.mjs';
 import { checkBacklog, checkChangelog, checkCloseouts, checkIds } from './homes.mjs';
 import { checkGateScripts, checkGitleaks, checkHookFile, checkHooksPath } from './hooks.mjs';
 import { checkPointers } from './hosts.mjs';
+import { checkNodeModules } from './repo.mjs';
 import { checkPacks, packChecks } from './packs.mjs';
 import { checkBlock, checkSize } from './rules.mjs';
 import { checkSecrets } from './secrets.mjs';
@@ -63,6 +64,7 @@ export const CHECKS = Object.freeze({
   'tools.gitleaks': { run: checkGitleaks, git: true },
   'gate.scripts': { run: checkGateScripts, config: true },
   'secrets.env': { run: checkSecrets, git: true },
+  'repo.node_modules': { run: checkNodeModules, git: true },
   packs: { run: checkPacks, config: true },
 });
 

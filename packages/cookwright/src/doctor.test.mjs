@@ -983,6 +983,28 @@ describe('packs and the pack rows', () => {
   });
 });
 
+describe('repo.node_modules', () => {
+  it('PASSes an installed, untracked node_modules, and FAILs a tracked one with the untrack command (B-011)', () => {
+    const root = level0();
+    expect(doctor(root)['repo.node_modules']).toEqual({ status: 'PASS', note: m.nodeModules.ok });
+    stageOnly(root, 'node_modules/left-pad/index.js');
+    expect(doctor(root)['repo.node_modules']).toEqual({ status: 'FAIL', note: m.nodeModules.tracked });
+    expect(m.nodeModules.tracked).toBe('node_modules is tracked (git rm -r --cached node_modules, then commit)');
+  });
+
+  it('reads a tracked node_modules as drift at Level 0', () => {
+    const root = level0();
+    stageOnly(root, 'node_modules/left-pad/index.js');
+    const rows = runChecks(openDoctorRepo(root, probes(), { home: TMP }), probes());
+    expect(levelLine(DEFAULTS, rows)).toBe('level 0 declared: drift, 1 piece(s) missing: repo.node_modules');
+  });
+
+  it('judges the config root’s node_modules, not a sibling’s', () => {
+    const top = level0({ 'apps/web/node_modules/x/index.js': '' });
+    expect(doctor(top)['repo.node_modules'].status).toBe('PASS');
+  });
+});
+
 describe('gate.scripts', () => {
   const scripts = (files, checks) => doctor(level0(files, { gate: { checks } }))['gate.scripts'];
   const test = { name: 'test', run: 'npm test' };

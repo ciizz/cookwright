@@ -153,6 +153,12 @@ const doctor = {
     none: 'no gate checks configured; pre-push runs nothing (add a check to gate.checks)',
     ok: (n) => `${n} gate check(s); every npm script they run is in package.json`,
   },
+  // repo.node_modules: the installed packages are never tracked (B-011).
+  nodeModules: {
+    ok: 'node_modules is not tracked',
+    tracked: 'node_modules is tracked (git rm -r --cached node_modules, then commit)',
+    notWorkTree: 'not a git work tree',
+  },
   secrets: {
     ok: 'no .env file tracked or at the root; .env and .env.local ignored',
     tracked: (files) => `tracked env file(s): ${list(files)}; untrack them and rotate what they hold`,
@@ -336,8 +342,8 @@ const init = {
     modeFixed: 'made executable; its content untouched',
   },
   gitignore: {
-    ignored: '.env and .env.local are ignored',
-    ignoredElsewhere: ".env and .env.local are ignored by git's own excludes",
+    ignored: 'node_modules, .env and .env.local are ignored',
+    ignoredElsewhere: "node_modules, .env and .env.local are ignored by git's own excludes",
     wrote: (lines) => `ignores ${list(lines)}`,
     appended: (lines) => `appended ${list(lines)}`,
     overridden: (paths) =>

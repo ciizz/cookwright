@@ -10,6 +10,8 @@ import path from 'node:path';
 
 import { CALL_CAP_MS, TimedOut, runBounded } from '../budget.mjs';
 import { findRoot, loadConfig, workTreeRoot } from '../config.mjs';
+import { messages } from '../messages.mjs';
+import { fail, pass, skip } from '../verdict.mjs';
 
 /**
  * git's exit status and output: a check decides what a failure means. The one throw
@@ -94,4 +96,22 @@ export function openDoctorRepo(cwd, probes, { home = os.homedir() } = {}) {
   // Real paths throughout, so the scan's home test and its relative names hold
   // through a symlinked temp or home directory.
   return { root: real(root), top: top && real(top), cwd: real(cwd), home: real(home), hasGit, workTree, config, configError };
+}
+
+/**
+ * `repo.node_modules` (B-011): no file under the config root's node_modules is in
+ * the index. One bounded `git ls-files --error-unmatch` whose stdout is discarded,
+ * so a tracked tree of any size costs nothing to read: exit 0 is tracked, a FAIL
+ * naming the untrack command (drift); exit 1 is nothing tracked.
+ */
+export function checkNodeModules(repo) {
+  const m = messages.doctor.nodeModules;
+  if (!repo.workTree) return skip(m.notWorkTree);
+  const args = ['ls-files', '--error-unmatch', '--', 'node_modules'];
+  const r = runBounded('git', args, { cwd: repo.root, stdio: ['ignore', 'ignore', 'pipe'] });
+  if (r.timedOut) throw new TimedOut('git ls-files');
+  if (r.status === 0) return fail(m.tracked);
+  if (r.status === 1) return pass(m.ok);
+  const detail = (r.stderr || r.error?.message || '').trim().split('\n')[0];
+  throw new Error(messages.probeFailed('git ls-files', detail));
 }

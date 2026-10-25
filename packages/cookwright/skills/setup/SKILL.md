@@ -128,6 +128,12 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | WARN | `… at the root: a plaintext env file …` | **stop at**: never open the file; say Level 2 replaces it |
 | WARN | `… not ignored by git` | `npx cookwright init` |
 
+### Installed packages (`repo.node_modules`)
+
+| status | note | remedy |
+|---|---|---|
+| FAIL | `node_modules is tracked (git rm -r --cached node_modules, then commit)` | with consent, `git rm -r --cached node_modules` (the files stay on disk; only the index forgets them), then `npx cookwright init`, which adds `node_modules/` to `.gitignore` when git does not ignore it; the commit of the removal is the developer's |
+
 ### Stack packs (`packs`)
 
 | status | note | remedy |

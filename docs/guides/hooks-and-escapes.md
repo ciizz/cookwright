@@ -23,13 +23,25 @@ pre-commit  PASS  secrets  staged diff clean (gitleaks 8.30.1)
 pre-commit  FAIL  doc-sync  api: 1 file(s) changed (src/api/a.ts), but none of docs/api.md is staged; update the doc in this commit, or COOKWRIGHT_SKIP=doc-sync with the reason in the message
 ```
 
+### standards
+
+With a stack pack declared (see [Standards](standards.md)), pre-commit's third check, `standards`, lints each staged file a pack rule covers with your own ESLint and the pack's config, at the index and at `HEAD`, and FAILs only when a rule's count rose in a file, so touching a legacy file without adding a violation passes. Above its line it prints each finding of a risen rule, the file, the line and the pack's own message (never ESLint's text, which would echo a string literal). From the harness fixture, a component with a hex colour and a literal JSX string (2026-10-25):
+
+```
+src/components/Greeting.tsx:4:32  expo tokens  colour or spacing literal in a component; use a theme token
+src/components/Greeting.tsx:4:45  expo strings  literal string in JSX; route it through t()
+pre-commit  FAIL  standards  a pack rule's count rose in 1 staged file(s): src/components/Greeting.tsx expo strings 0 → 1, expo tokens 0 → 1; fix them, or COOKWRIGHT_SKIP=standards with the reason in the message
+```
+
+It runs ESLint as a child process capped at 60 s: past the cap the child is killed and the line reads `skipped, standards took longer than 60 s`, never a hung commit. With no pack declared it reads SKIP `no packs declared`; with ESLint missing, the pack's export not spread into `eslint.config.js`, or a rule's options overridden by a later block, it reads SKIP or names the unmeasured rule at the end of its line, with what fixes it.
+
 ## pre-push
 
-pre-push runs the `gate.checks` suite, the same one the bundle gate runs, with its elapsed time on the line, and checks that `CHANGELOG.md` matches the release tags (see [Releases and the changelog](releases-and-changelog.md)). It judges the working tree, so it runs only when that is a pushed commit: both checks are skipped, naming why, when the tree has uncommitted files or when no pushed ref is the checked-out commit. An annotated tag on that commit counts as it, so the release push checks the changelog. When the checked-out commit is pushed with other refs, the checks run and each line names the refs it tested and the ones it did not.
+pre-push runs the `gate.checks` suite, the same one the bundle gate runs, with its elapsed time on the line (a check with `"skipExit": 11`, as the packs' `standards` checks are written, has that exit recorded as skipped with its first line, never as a failure; see [Standards](standards.md)), and checks that `CHANGELOG.md` matches the release tags (see [Releases and the changelog](releases-and-changelog.md)). It judges the working tree, so it runs only when that is a pushed commit: both checks are skipped, naming why, when the tree has uncommitted files or when no pushed ref is the checked-out commit. An annotated tag on that commit counts as it, so the release push checks the changelog. When the checked-out commit is pushed with other refs, the checks run and each line names the refs it tested and the ones it did not. The packs' ratchet, `npx cookwright standards --ratchet`, compares against the remote's commit of the ref being pushed, so a push of `main` is judged against what the remote has.
 
 ## Escapes
 
-`COOKWRIGHT_SKIP=doc-sync git commit …` skips the named checks (comma-separated: `secrets`, `doc-sync`, `gate`, `changelog`) and says so; since the escape leaves no trace, put the reason in the commit message:
+`COOKWRIGHT_SKIP=doc-sync git commit …` skips the named checks (comma-separated: `secrets`, `doc-sync`, `standards`, `gate`, `changelog`) and says so; since the escape leaves no trace, put the reason in the commit message:
 
 ```
 pre-commit  PASS  secrets  staged diff clean (gitleaks 8.30.1)

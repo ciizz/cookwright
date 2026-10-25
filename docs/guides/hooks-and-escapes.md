@@ -44,7 +44,7 @@ A clean `git merge` runs no pre-commit. A `--no-commit` merge or a conflict reso
 
 ## Hooks managed elsewhere
 
-With husky, lefthook, a hook in `.git/hooks`, a global `core.hooksPath`, or a `.githooks` file of your own that does not call cookwright, init installs nothing and says why, and doctor reads `hooks.path` as weak, not missing. Appending the cookwright call into those hooks is backlog item E-018. Your own hook may call `node node_modules/cookwright/bin/cookwright.mjs hook pre-commit "$@"` itself, as its last line, with `exec`, or followed by `|| exit 1`, and init and doctor count it.
+With husky, lefthook, a hook in `.git/hooks`, a global `core.hooksPath`, or a `.githooks` file of your own that does not call cookwright, init installs nothing and says why, and doctor reads `hooks.path`, `hooks.pre-commit` and `hooks.pre-push` as weak (WARN), not missing: a setup you chose, so the level can still read complete. Appending the cookwright call into those hooks is backlog item E-018. Your own hook may call `node node_modules/cookwright/bin/cookwright.mjs hook pre-commit "$@"` itself, as its last line, with `exec`, or followed by `|| exit 1`, and init and doctor count it.
 
 ## Older git
 

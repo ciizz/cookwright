@@ -118,6 +118,8 @@ const QUOTED = [
   ['which package.json does not define', bundleMessages.missingScript('test', 'test')],
   ['but there is no package.json at the root', bundleMessages.noPackageJson('test', 'test')],
   ['no gate checks configured', d.gateScripts.none],
+  ['pre-push runs nothing', d.gateScripts.none],
+  ['not verified: ', d.levelNotVerified(0, ['tools.gitleaks'])],
   ['no pack declared; the setup skill offers it', d.packs.detected([{ name: 'expo', evidence: 'x' }])],
   ['tracked env file(s): ', d.secrets.tracked(['.env'])],
   ['at the root: a plaintext env file', d.secrets.untracked(['.env'])],

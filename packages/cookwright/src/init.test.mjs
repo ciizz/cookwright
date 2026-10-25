@@ -32,6 +32,8 @@ const m = messages.init;
 /** doctor's static rows, which init's own readout prints. */
 const N = Object.keys(CHECKS).length;
 const WIDTH = Math.max(...Object.keys(CHECKS).map((k) => k.length));
+/** The readout's line for a fresh repo with no test script: no gate check. */
+const GATE_WARN = `WARN  ${'gate.scripts'.padEnd(WIDTH)}  ${messages.doctor.gateScripts.none}`;
 const TEMPLATES = path.join(path.dirname(new URL(import.meta.url).pathname), 'lib/templates');
 const template = (name) => fs.readFileSync(path.join(TEMPLATES, name), 'utf8');
 const BLOCK = renderBlock(DEFAULTS);
@@ -166,8 +168,10 @@ describe('a fresh repo', () => {
     const hook = JSON.parse(read(root, '.claude/settings.json')).hooks.SessionStart;
     expect(hook).toEqual([{ hooks: [{ type: 'command', command: HOOK_COMMAND, timeout: 10 }] }]);
     expect(out).toContain(`PASS  ${'git'.padEnd(WIDTH)}  ${messages.doctor.git.unborn('main')}`);
-    expect(out).toContain(`${N} checks — ${N} PASS, 0 FAIL, 0 WARN, 0 SKIP`);
-    expect(out.filter((l) => /^(FAIL|WARN|SKIP) /.test(l))).toEqual([]);
+    // No test script, so no gate check: the one WARN, pre-push running nothing (B-012).
+    expect(out).toContain(`${N} checks — ${N - 1} PASS, 0 FAIL, 1 WARN, 0 SKIP`);
+    expect(out.filter((l) => /^(FAIL|WARN|SKIP) /.test(l))).toEqual([GATE_WARN]);
+    expect(out).toContain('level 0 declared: complete; weak: gate.scripts');
   });
 
   it('changes no byte on a second run, and reports no wrote or updated row', () => {
@@ -1404,7 +1408,8 @@ describe('codex: --hosts, its rules row, .codex/hooks.json and its pointers', ()
     expect(CODEX_POINTERS).not.toContain('.agents/skills/bundle');
     for (const rel of CODEX_POINTERS) expect(rows[rel].action).toBe('wrote');
     expect(Object.keys(rows).filter((t) => t.startsWith('.agents/'))).toEqual(CODEX_POINTERS);
-    expect(out).toContain(`${N} checks — ${N} PASS, 0 FAIL, 0 WARN, 0 SKIP`);
+    expect(out).toContain(`${N} checks — ${N - 1} PASS, 0 FAIL, 1 WARN, 0 SKIP`);
+    expect(out.filter((l) => /^(FAIL|WARN|SKIP) /.test(l))).toEqual([GATE_WARN]);
     commit({ root }, {}, 'first run');
     const before = tree(root);
     const second = init(root);
@@ -1423,7 +1428,7 @@ describe('codex: --hosts, its rules row, .codex/hooks.json and its pointers', ()
     expect(rows['AGENTS.md'].action).toBe('wrote');
     expect(rows['AGENTS.override.md']).toEqual({ action: 'skipped', note: m.codex.native });
     expect(JSON.parse(read(root, 'cookwright.json')).hosts).toEqual(['codex']);
-    expect(out).toContain('level 0 declared: complete');
+    expect(out).toContain('level 0 declared: complete; weak: gate.scripts');
   });
 
   it('names an AGENTS.override.md on the path as the rules row, and never touches it', () => {

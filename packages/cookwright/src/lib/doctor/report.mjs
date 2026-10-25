@@ -1,9 +1,10 @@
 // src/lib/doctor/report.mjs — doctor's readout: one line per check, the counts, and
 // the level line that measures the declared level against what it requires.
 //
-// A required check that FAILs is drift. A WARN is weak and a SKIP unverified; neither
-// is drift, so a working but imperfect setup reads as complete, and the level line
-// always names what is weak or unverified.
+// The level line is a truth table over the level's required checks (B-013): any
+// FAIL is drift; else any SKIP is "not verified", since a check that could not
+// measure claims nothing; else complete. A WARN was measured, so it never keeps
+// the level from complete: it is named as weak on any of the three lines.
 
 import { LEVELS, nextLevel } from '../levels.mjs';
 import { messages } from '../messages.mjs';
@@ -14,7 +15,16 @@ const m = messages.doctor;
 const named = (rows, names, status) =>
   rows.filter(([name, r]) => names.includes(name) && r.status === status).map(([name]) => name);
 
-/** `level N declared: complete|drift…[; weak: …][; unverified: …]`, or level unknown. */
+/** The level line's head: drift, not verified, or complete. */
+function levelHead(level, missing, unverified) {
+  if (missing.length) return m.levelDrift(level, missing);
+  return unverified.length ? m.levelNotVerified(level, unverified) : m.levelComplete(level);
+}
+
+/**
+ * `level N declared: drift…|not verified: …|complete`, then `; weak: …`, and after a
+ * drift `; not verified: …`; or level unknown.
+ */
 export function levelLine(config, rows) {
   if (!config) return m.levelUnknown;
   const { requires } = LEVELS[config.level];
@@ -22,9 +32,9 @@ export function levelLine(config, rows) {
   const weak = named(rows, requires, WARN);
   const unverified = named(rows, requires, SKIP);
   return [
-    missing.length ? m.levelDrift(config.level, missing) : m.levelComplete(config.level),
+    levelHead(config.level, missing, unverified),
     weak.length && m.weak(weak),
-    unverified.length && m.unverified(unverified),
+    missing.length && unverified.length && m.notVerified(unverified),
   ]
     .filter(Boolean)
     .join('; ');

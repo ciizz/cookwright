@@ -178,12 +178,14 @@ export function checkHooksPath(repo) {
 /**
  * `hooks.pre-commit`, `hooks.pre-push`: the file calls cookwright and is executable,
  * and the package's bin is where the call looks for it (the config root): without
- * it the hook prints the not-installed line and checks nothing, a WARN.
+ * it the hook prints the not-installed line and checks nothing, a WARN. Under a
+ * foreign setup, a chosen state, both are WARN with hooks.path's reason (stage-4
+ * disposition 17), never SKIP: nothing is left to measure there.
  */
 export const checkHookFile = (name) => (repo) => {
   if (!repo.workTree) return skip(m.hooks.notWorkTree);
   const s = setupOf(repo);
-  if (s.foreign) return skip(m.hooks.elsewhere);
+  if (s.foreign) return warn(m.hooks.elsewhere);
   const f = s.files[name];
   if (f.kind === 'none') return fail(m.hooks.missing(f.rel));
   if (f.kind !== 'file') return fail(m.hooks.notAFile(f.rel));
@@ -209,10 +211,14 @@ export function checkGitleaks(repo, probes) {
   return fail(m.gitleaks.broken(r.status, stderrLine(r.stderr)));
 }
 
-/** `gate.scripts`: every npm script gate.checks runs is in package.json; no subprocess. */
+/**
+ * `gate.scripts`: every npm script gate.checks runs is in package.json; no
+ * subprocess. No check at all is a WARN (B-012): pre-push then runs nothing, a
+ * state init left, not one the developer chose.
+ */
 export function checkGateScripts(repo) {
   const { checks } = repo.config.gate;
-  if (!checks.length) return pass(m.gateScripts.none);
+  if (!checks.length) return warn(m.gateScripts.none);
   const problems = scriptProblems(checks, repo.root);
   return problems.length ? fail(problems.join('; ')) : pass(m.gateScripts.ok(checks.length));
 }

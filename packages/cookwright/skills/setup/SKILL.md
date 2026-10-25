@@ -109,7 +109,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | `hooks.pre-commit`, `hooks.pre-push` | FAIL | `… missing`, `… is not executable` | `npx cookwright init` |
 | `hooks.pre-commit`, `hooks.pre-push` | FAIL | `… is not a file; move it aside …` | with consent, move it aside, then `npx cookwright init` |
 | `hooks.pre-commit`, `hooks.pre-push` | WARN | `… node_modules/cookwright is not installed here …` | `npm install` |
-| `hooks.pre-commit`, `hooks.pre-push` | SKIP | `hooks managed elsewhere` | follows `hooks.path` |
+| `hooks.pre-commit`, `hooks.pre-push` | WARN | `hooks managed elsewhere` | follows `hooks.path` |
 | `tools.gitleaks` | SKIP | `skipped, needs gitleaks, run setup …` | give the install command, the developer's hands (`brew install gitleaks`; on Linux their distribution's package or the release binary; on Windows `winget install gitleaks`), then doctor again |
 | `tools.gitleaks` | FAIL | `gitleaks does not run (exit …)` | **stop at**: show the line (a malformed `.gitleaks.toml` is the usual cause) |
 
@@ -118,7 +118,7 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 | status | note | remedy |
 |---|---|---|
 | FAIL | `gate check "…" runs npm script "…", which package.json does not define …`, or `…, but there is no package.json at the root …` | name the script; with consent, add it to `package.json` or fix the check in `gate.checks` |
-| PASS | `no gate checks configured` | at the end (see "At the end") |
+| WARN | `no gate checks configured; pre-push runs nothing …` | say pre-push runs nothing, and offer a gate check (`npx tsc --noEmit`, `npx expo lint`, their call), written into `gate.checks` with consent |
 
 ### Secrets (`secrets.env`)
 
@@ -147,8 +147,6 @@ With consent, add the host (`claude`, `codex`) to `hosts` in `cookwright.json` b
 
 ## At the end
 
-- Read the last readout's PASS lines once for the two that carry advice, and act on each that is there:
-  - a Codex `host.hook` line reading `whether it is trusted is yours: restart Codex, then /hooks`, when init wrote or rewrote `.codex/hooks.json` in this walkthrough: say that Codex reads that file only at startup: restart Codex at the work tree's top, trust the hook there with `/hooks`, and the readout comes in the next new session; the same restart and trust again after every rewrite of that file;
-  - a `gate.scripts` line reading `no gate checks configured`: say pre-push runs nothing, and offer a gate check (`npx tsc --noEmit`, `npx expo lint`, their call), written into `gate.checks` with consent.
-- Print the level line and the `next:` line of the last readout.
+- Read the last readout's PASS lines once for the one that carries advice, and act on it when it is there: a Codex `host.hook` line reading `whether it is trusted is yours: restart Codex, then /hooks`, when init wrote or rewrote `.codex/hooks.json` in this walkthrough: say that Codex reads that file only at startup: restart Codex at the work tree's top, trust the hook there with `/hooks`, and the readout comes in the next new session; the same restart and trust again after every rewrite of that file.
+- Print the level line and the `next:` line of the last readout. A level line reading `not verified: …` names the required checks that could not measure (a tool not on PATH, as their lines say): the level is not complete until they measure.
 - Name every file init, migrate or you wrote in this walkthrough, so the developer commits them by path (`git add <paths>`, never `-A`).

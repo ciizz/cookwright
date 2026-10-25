@@ -168,10 +168,27 @@ init() {
     || fail "init lost the scaffold's settings"
 }
 
+# The level line is tool-aware (stage-4 disposition 18): complete only when
+# every required row measured; otherwise "not verified:" names exactly the
+# rows of the absent tools. Of the two tools, only gitleaks has such a row
+# here: the scaffold's CLAUDE.md imports @AGENTS.md, so host.rules reads the
+# import and measures without claude on PATH (measured 2026-10-25 with both
+# hidden), and that PASS is asserted too.
+expect_level() {
+  expect "$WORK/doctor.out" "^PASS +host\.rules +CLAUDE\.md imports @AGENTS\.md$" \
+    "host.rules does not read the scaffold's CLAUDE.md import"
+  if command -v gitleaks >/dev/null 2>&1; then
+    expect "$WORK/doctor.out" "^level 0 declared: complete$" "level 0 is not complete"
+  else
+    expect "$WORK/doctor.out" "^level 0 declared: not verified: tools\.gitleaks \(see their lines\)$" \
+      "gitleaks is absent but the level line does not name exactly tools.gitleaks as not verified"
+  fi
+}
+
 doctor() {
   step "npx cookwright doctor"
   npx cookwright doctor | tee "$WORK/doctor.out" || fail "doctor exited non-zero"
-  expect "$WORK/doctor.out" "^level 0 declared: complete" "level 0 is not complete"
+  expect_level
   expect "$WORK/doctor.out" " 0 FAIL, 0 WARN, " "doctor reported a FAIL or a WARN"
   if command -v gitleaks >/dev/null 2>&1; then
     expect "$WORK/doctor.out" "^PASS +tools\.gitleaks " "gitleaks is on PATH but tools.gitleaks is not PASS"

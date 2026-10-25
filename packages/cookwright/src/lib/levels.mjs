@@ -1,8 +1,9 @@
 // src/lib/levels.mjs — the level ladder, in one place.
 //
 // A repo declares its level in cookwright.json (`level`); doctor measures it. Each
-// level `requires` doctor checks, by name: a required check that FAILs is drift; a
-// WARN is reported as weak and a SKIP as unverified, and neither counts as drift.
+// level `requires` doctor checks, by name: a required check that FAILs is drift; one
+// that SKIPs leaves the level not verified, never complete; a WARN is reported as
+// weak and the level can still read complete (doctor/report.mjs).
 //
 // This module imports nothing: config.mjs validates `level` against KNOWN_LEVELS, and
 // an import of messages.mjs here would close a cycle through config.mjs. The level

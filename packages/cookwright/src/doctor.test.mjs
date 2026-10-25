@@ -20,6 +20,7 @@ import { checkPointers, hostPointers, shippedPieces } from './lib/doctor/hosts.m
 import { openDoctorRepo } from './lib/doctor/repo.mjs';
 import { CHECKS, runChecks } from './lib/doctor/registry.mjs';
 import { levelLine } from './lib/doctor/report.mjs';
+import { LEVELS } from './lib/levels.mjs';
 import { shimText } from './lib/hooks/shims.mjs';
 import { CODEX_HOOK_COMMAND, HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
@@ -39,8 +40,12 @@ const BACKLOG = '# Backlog\n\n## Open bugs\n\n## Open enhancements\n\n## Closed\
 const SETTINGS = (command = HOOK_COMMAND) =>
   `${JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command }] }] } }, null, 2)}\n`;
 
+/** The gate a Level 0 repo runs: one npm script, which its package.json defines. */
+const GATE = { checks: [{ name: 'test', run: 'npm test' }] };
+
 /** Every file of a Level 0 repo on the default paths, committed on `main`. */
 const LEVEL0_FILES = {
+  'package.json': JSON.stringify({ scripts: { test: 'vitest run' } }),
   'docs/backlog.md': BACKLOG,
   'docs/closeouts/.gitkeep': '',
   'CHANGELOG.md': CHANGELOG,
@@ -111,12 +116,12 @@ let n = 0;
 /**
  * A healthy Level 0 repo, `files` overriding (null deletes; a pointer's path too)
  * before the commit, with the pointers committed, core.hooksPath set locally to
- * `hooksPath` (null: unset) and the package installed.
+ * `hooksPath` (null: unset) and the package installed. Its config runs GATE, which
+ * `config` (or a `cookwright.json` in `files`) replaces.
  */
 function level0(files = {}, config = null, { hooksPath = '.githooks' } = {}) {
   const repo = scratchRepo(TMP, `r${(n += 1)}`);
-  const all = { ...LEVEL0_FILES, ...files };
-  if (config) all['cookwright.json'] = JSON.stringify({ version: CONFIG_VERSION, ...config });
+  const all = { 'cookwright.json': JSON.stringify({ version: CONFIG_VERSION, gate: GATE, ...config }), ...LEVEL0_FILES, ...files };
   writeAll(repo.root, all);
   writePointers(repo.root, files, config?.hosts);
   commit(repo, {}, 'level 0');
@@ -168,7 +173,7 @@ describe('config', () => {
   });
 
   it('WARNs a version-1 config migrated in memory, and runs every other check as on a current one', () => {
-    const v1 = JSON.stringify({ version: 1, paths: { playbook: 'docs/playbook.md' } });
+    const v1 = JSON.stringify({ version: 1, paths: { playbook: 'docs/playbook.md' }, gate: GATE });
     const rows = doctor(level0({ 'cookwright.json': v1 }));
     expect(rows.config).toEqual({ status: 'WARN', note: m.config.migrated(1, CONFIG_VERSION) });
     expect(m.config.migrated(1, 2)).toBe(
@@ -680,7 +685,8 @@ describe('git hooks', () => {
     { status: 'PASS', note: m.hooks.shim('.githooks/pre-commit') },
     { status: 'PASS', note: m.hooks.shim('.githooks/pre-push') },
   ];
-  const elsewhere = (note) => [{ status: 'WARN', note }, ...[1, 2].map(() => ({ status: 'SKIP', note: m.hooks.elsewhere }))];
+  // A foreign setup is a chosen state: all three rows WARN, the files naming hooks.path (disposition 17).
+  const elsewhere = (note) => [{ status: 'WARN', note }, ...[1, 2].map(() => ({ status: 'WARN', note: m.hooks.elsewhere }))];
 
   it('PASSes the shims with core.hooksPath .githooks from the local scope', () => {
     expect(hooks(level0())).toEqual(ok);
@@ -722,7 +728,7 @@ describe('git hooks', () => {
     });
   });
 
-  it('WARNs a foreign setup and SKIPs the two files: local elsewhere, global, user hooks, a .githooks file of theirs', () => {
+  it('WARNs a foreign setup and its two files: local elsewhere, global, user hooks, a .githooks file of theirs', () => {
     expect(hooks(level0({}, null, { hooksPath: '.husky/_' }))).toEqual(elsewhere(f.path('.husky/_', 'local')));
     const global = path.join(TMP, 'global-hooks-config');
     fs.writeFileSync(global, '[core]\n\thooksPath = .githooks\n');
@@ -981,8 +987,12 @@ describe('gate.scripts', () => {
   const scripts = (files, checks) => doctor(level0(files, { gate: { checks } }))['gate.scripts'];
   const test = { name: 'test', run: 'npm test' };
 
-  it('PASSes no checks, or every npm script defined', () => {
-    expect(scripts({}, [])).toEqual({ status: 'PASS', note: m.gateScripts.none });
+  it('WARNs no checks, since pre-push then runs nothing (B-012)', () => {
+    expect(scripts({}, [])).toEqual({ status: 'WARN', note: m.gateScripts.none });
+    expect(m.gateScripts.none).toBe('no gate checks configured; pre-push runs nothing (add a check to gate.checks)');
+  });
+
+  it('PASSes every npm script defined', () => {
     const pkg = JSON.stringify({ scripts: { test: 'vitest run' } });
     expect(scripts({ 'package.json': pkg }, [test, { name: 'lint', run: 'eslint .' }])).toEqual({
       status: 'PASS',
@@ -995,7 +1005,31 @@ describe('gate.scripts', () => {
       status: 'FAIL',
       note: bundleMessages.missingScript('test', 'test'),
     });
-    expect(scripts({}, [test])).toEqual({ status: 'FAIL', note: bundleMessages.noPackageJson('test', 'test') });
+    expect(scripts({ 'package.json': null }, [test])).toEqual({ status: 'FAIL', note: bundleMessages.noPackageJson('test', 'test') });
+  });
+});
+
+describe('the level line', () => {
+  /** Every required row PASS, then `over` (name → status), plus a non-required FAIL row. */
+  const rows = (over = {}) => [
+    ...LEVELS[0].requires.map((name) => [name, { status: over[name] ?? 'PASS', note: '' }]),
+    ['rules.size', { status: 'FAIL', note: '' }],
+  ];
+  const line = (over) => levelLine(DEFAULTS, rows(over));
+
+  it('is a truth table over the required rows: FAIL drift, else SKIP not verified, else complete, a WARN weak on each', () => {
+    expect(line({})).toBe('level 0 declared: complete');
+    expect(line({ git: 'WARN' })).toBe('level 0 declared: complete; weak: git');
+    expect(line({ 'host.rules': 'SKIP', 'tools.gitleaks': 'SKIP' })).toBe(
+      'level 0 declared: not verified: host.rules, tools.gitleaks (see their lines)',
+    );
+    expect(line({ 'tools.gitleaks': 'SKIP', git: 'WARN' })).toBe(
+      'level 0 declared: not verified: tools.gitleaks (see their lines); weak: git',
+    );
+    expect(line({ 'rules.block': 'FAIL', 'tools.gitleaks': 'SKIP', git: 'WARN' })).toBe(
+      'level 0 declared: drift, 1 piece(s) missing: rules.block; weak: git; not verified: tools.gitleaks (see their lines)',
+    );
+    expect(levelLine(null, rows())).toBe(m.levelUnknown);
   });
 });
 
@@ -1032,26 +1066,27 @@ describe('the readout', () => {
     expect(out).toContain('level 0 declared: drift, 2 piece(s) missing: homes.changelog, rules.block');
   });
 
-  it('names what is weak or unverified, and still reads complete', () => {
+  it('reads a required check that could not measure as not verified, naming what is weak too', () => {
     expect(doc(level0({}, { baseBranch: 'trunk' }), [], { claudeVersion: () => null })).toBe(0);
-    expect(out).toContain('level 0 declared: complete; weak: git; unverified: host.rules');
+    expect(out).toContain('level 0 declared: not verified: host.rules (see their lines); weak: git');
     expect(out).toContain(`${N} checks — ${N - 2} PASS, 0 FAIL, 1 WARN, 1 SKIP`);
   });
 
   it('reads a version-1 config as weak, not drift', () => {
-    const v1 = JSON.stringify({ version: 1, paths: { playbook: 'docs/playbook.md' } });
+    const v1 = JSON.stringify({ version: 1, paths: { playbook: 'docs/playbook.md' }, gate: GATE });
     expect(doc(level0({ 'cookwright.json': v1 }))).toBe(0);
     expect(out).toContain('level 0 declared: complete; weak: config');
   });
 
-  it('reads gitleaks absent as unverified, and the level complete', () => {
+  it('reads gitleaks absent as not verified, never complete (B-013)', () => {
     expect(doc(level0(), [], { hasTool: (bin) => bin !== 'gitleaks' })).toBe(0);
-    expect(out).toContain('level 0 declared: complete; unverified: tools.gitleaks');
+    expect(out).toContain('level 0 declared: not verified: tools.gitleaks (see their lines)');
+    expect(out.join('\n')).not.toMatch(/complete/);
   });
 
-  it('reads a foreign hooks setup as weak, its files unverified, and the level complete', () => {
+  it('reads a foreign hooks setup, a chosen state, as weak and the level complete (disposition 17)', () => {
     expect(doc(level0({}, null, { hooksPath: '.husky/_' }))).toBe(0);
-    expect(out).toContain('level 0 declared: complete; weak: hooks.path; unverified: hooks.pre-commit, hooks.pre-push');
+    expect(out).toContain('level 0 declared: complete; weak: hooks.path, hooks.pre-commit, hooks.pre-push');
   });
 
   it('a WARN outside the requirements is neither drift nor weak', () => {

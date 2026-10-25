@@ -21,6 +21,8 @@ const RELAID = ' (the file is rewritten in standard JSON layout, its indent kept
 
 // What a pack's contract doc lists, by the manifest doc's `entries` kind.
 const ENTRY_NOUNS = { components: ['primitive', 'primitives'], migrations: ['migration', 'migrations'] };
+/** The required checks that could not measure, each line naming what makes it measurable. */
+const notVerified = (names) => `not verified: ${list(names)} (see their lines)`;
 const counted = (n, kind) => `${n} ${ENTRY_NOUNS[kind][n === 1 ? 0 : 1]}`;
 
 // doctor: one note per verdict of each check (plan §4.8), then the readout's lines.
@@ -148,7 +150,7 @@ const doctor = {
       `gitleaks does not run (exit ${status ?? 'none'})${line ? `: ${line}` : ''}; the pre-commit secret scan is skipped`,
   },
   gateScripts: {
-    none: 'no gate checks configured',
+    none: 'no gate checks configured; pre-push runs nothing (add a check to gate.checks)',
     ok: (n) => `${n} gate check(s); every npm script they run is in package.json`,
   },
   secrets: {
@@ -195,8 +197,10 @@ const doctor = {
   levelComplete: (level) => `level ${level} declared: complete`,
   levelDrift: (level, missing) =>
     `level ${level} declared: drift, ${missing.length} piece(s) missing: ${list(missing)}`,
+  // A required check that could not measure keeps the level from reading complete (B-013).
+  levelNotVerified: (level, names) => `level ${level} declared: ${notVerified(names)}`,
   weak: (names) => `weak: ${list(names)}`,
-  unverified: (names) => `unverified: ${list(names)}`,
+  notVerified,
   hookComplete: (level) => `cookwright doctor: level ${level} complete`,
   next: (text) => `next: ${text}`,
 };

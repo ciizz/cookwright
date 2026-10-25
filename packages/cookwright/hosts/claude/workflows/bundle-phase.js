@@ -190,7 +190,8 @@ function redTeam(target) {
   return `${header('reviewer')}
 
 You are the fresh-context RED-TEAM reviewer, read-only: no file edits, no git writes, no database or container commands. Target: ${target}.
-Try to refute the work: correctness, security (authentication, data access rules, secrets in output or on disk), what the plan promised and the code does not deliver, claims wider than the code, rules in the rules file the change breaks. Every issue names a concrete failure scenario. Set timedOut=false.`;
+Try to refute the work: correctness, security (authentication, data access rules, secrets in output or on disk), what the plan promised and the code does not deliver, claims wider than the code, rules in the rules file the change breaks. Every issue names a concrete failure scenario.
+If the rules file has an \`### Advisory\` heading under a pack section, check each advisory rule against the diff (a new visual where a primitive existed, a primitive reinterpreted where one is documented, a concept rendered twice); a finding names the file and the existing primitive or doc entry as evidence. Set timedOut=false.`;
 }
 
 function reviewTarget(fixed) {

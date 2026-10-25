@@ -18,7 +18,7 @@ A stack pack ships each engineering rule as a pair: the sentence in a managed se
 | supabase | `data-doc` | the doc-sync rule `supabase:data-doc`: a migration stages `docs/data-model.md` |
 | supabase | `types` | the gate check `standards:types` |
 
-The expo pack's advisory rules (components first, the design-system doc as the visual contract, reuse before build) have no check; a review reads the diff against them.
+The expo pack's advisory rules (components first, the design-system doc as the visual contract, reuse before build) have no check; the bundle runner's red-team reviewer reads each diff against them, naming the existing primitive or doc entry a change passed over.
 
 The ESLint rules reach ESLint through the pack's export, spread into the app's own `eslint.config.js`: init adds `...require('cookwright/packs/expo/eslint.cjs'),` (and the supabase line) after `expoConfig,` when the file is Expo's template, and names the lines to add by hand otherwise; doctor's `pack.<name>.lint` WARNs until the config names them.
 

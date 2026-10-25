@@ -120,6 +120,7 @@ It holds the plan, the developer's decisions and the review rounds, and it check
 
 - Read-only: no edits, no git writes, no database or container commands. Pinned to the frozen range.
 - Every finding names a concrete failure scenario.
+- The red-team reviewer also checks the diff against each advisory rule under a pack section's `### Advisory` heading in the rules file (a new visual where a primitive existed, a primitive reinterpreted where one is documented, a concept rendered twice), naming the file and the existing primitive or doc entry as evidence. The rules file is already in the header, so the prompt points at it and pastes nothing.
 - The verifier defaults to **plausible**, never confirmed, when unsure.
 - Inside one review run the reviewers run concurrently, since they only read; review runs never overlap an implement or fix run, because phases run in order.
 

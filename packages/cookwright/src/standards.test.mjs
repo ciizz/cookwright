@@ -107,6 +107,16 @@ describe('--staged: the per-file ratchet', () => {
     expect(out.join('\n')).not.toContain('Hello there');
   });
 
+  it('counts a Supabase client import in a screen, in ESLint 9’s wording of no-restricted-imports', async () => {
+    const repo = repoWith({ 'src/screens/Home.tsx': 'export const a = 1;\n' }, { packs: ['supabase'] });
+    stage(repo, { 'src/screens/Home.tsx': "import { createClient } from '@supabase/supabase-js';\nexport const a = 1;\n" });
+    expect(await standards(repo)).toBe(10);
+    expect(out).toEqual([
+      'src/screens/Home.tsx:1:25  supabase client  Supabase client imported outside the shared service; import it from there',
+      m.rose([m.roseItem('src/screens/Home.tsx', ['supabase client 0 → 1'])]),
+    ]);
+  });
+
   it('counts an added file’s HEAD side as 0, and a rename’s HEAD side at its new path', async () => {
     const repo = repoWith({ 'src/components/Old.tsx': LEGACY });
     run(repo.root, 'git', ['mv', 'src/components/Old.tsx', 'src/components/New.tsx']);

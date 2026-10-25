@@ -171,13 +171,15 @@ describe('countBy', () => {
   const measured = rules();
   const msg = (ruleId, message, severity = 2) => ({ ruleId, message, severity, line: 3, column: 7 });
 
-  it('counts severity-2 messages of a measured rule, a shared id only with the rule’s tag first', () => {
+  it('counts severity-2 messages of a measured rule, a shared id only with the rule’s tag in it', () => {
     const { counts, findings } = engine.countBy(
       [
         msg('i18next/no-literal-string', 'disallow literal string: Hello'),
         msg('no-restricted-syntax', '[cookwright expo tokens] use a theme colour token'),
         msg('no-restricted-syntax', 'my own selector'),
-        msg('no-restricted-imports', '[cookwright supabase client] import it from the service'),
+        // ESLint 9's no-restricted-imports wording, the configured message after its own (measured on 9.39.5)
+        msg('no-restricted-imports', "'@supabase/supabase-js' import is restricted from being used. [cookwright supabase client] import it from the service"),
+        msg('no-restricted-imports', "'lodash' import is restricted from being used. my own"),
         msg('max-lines-per-function', 'too long', 1),
         msg('no-unused-vars', 'x is unused'),
       ],

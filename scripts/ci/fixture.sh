@@ -250,6 +250,13 @@ export function Greeting() {
   return <Text style={styles.greeting}>{t('greeting.hello')}</Text>;
 }"
 
+# A screen importing the Supabase client directly, outside the shared service:
+# ESLint 9 words no-restricted-imports as its own sentence then the pack's tagged
+# message, which the ratchet must still count as the supabase client rule.
+HOME_SCREEN="import { createClient } from '@supabase/supabase-js';
+
+export const makeClient = createClient;"
+
 standards_commit() {
   step "a violating component refused by standards, the corrected one landed"
   mkdir -p src/components
@@ -277,8 +284,9 @@ standards_commit() {
 
 # The gate's two checks on the fixture: on main with no upstream the ratchet has
 # no base, and the types measure has no db:types script, both exit 11 naming
-# why. On a branch, a violating component landed with the escape is a rise the
-# ratchet names, measured by the real ESLint; the branch is then dropped. Then
+# why. On a branch, a violating component and a screen importing the Supabase
+# client directly, landed with the escape, are rises the ratchet names, measured
+# by the real ESLint; the branch is then dropped. Then
 # pre-push on main: the gate records both skips and refuses to stand.
 branch_measures() {
   step "npx cookwright standards --ratchet and --types"
@@ -296,15 +304,18 @@ branch_measures() {
   mkdir -p src/components
   printf '%s\n' "$GREETING_BAD" > src/components/Farewell.tsx
   printf '| Farewell | src/components/Farewell.tsx | none | |\n' >> docs/design-system.md
-  git add src/components/Farewell.tsx docs/design-system.md
+  mkdir -p src/screens
+  printf '%s\n' "$HOME_SCREEN" > src/screens/Home.tsx
+  git add src/components/Farewell.tsx docs/design-system.md src/screens/Home.tsx
   COOKWRIGHT_SKIP=standards git commit -qm "feat: farewell (standards skipped to test the ratchet)" > /dev/null 2>&1 \
     || fail "the escaped commit was refused"
   code=0; npx cookwright standards --ratchet > "$WORK/rose.out" || code=$?
   cat "$WORK/rose.out"
   [ "$code" = 10 ] || fail "standards --ratchet on a branch with a new violation exited $code, not 10"
-  expect "$WORK/rose.out" "^a pack rule's count rose since [0-9a-f]{8} \(merge-base main HEAD\): expo strings 0 → 1 in src/components/Farewell\.tsx, expo tokens 0 → 1 in src/components/Farewell\.tsx" \
-    "the ratchet's first line does not name both risen rules and the file"
+  expect "$WORK/rose.out" "^a pack rule's count rose since [0-9a-f]{8} \(merge-base main HEAD\): expo strings 0 → 1 in src/components/Farewell\.tsx, expo tokens 0 → 1 in src/components/Farewell\.tsx, supabase client 0 → 1 in src/screens/Home\.tsx" \
+    "the ratchet's first line does not name the three risen rules and their files"
   expect "$WORK/rose.out" "^src/components/Farewell\.tsx:4:[0-9]+ +expo tokens " "the ratchet did not name the colour literal"
+  expect "$WORK/rose.out" "^src/screens/Home\.tsx:1:[0-9]+ +supabase client " "the ratchet did not name the direct Supabase client import"
   grep -q "Hello there" "$WORK/rose.out" && fail "a ratchet line echoed the literal"
   git checkout -q main
   git branch -qD feat

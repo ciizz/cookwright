@@ -9,8 +9,8 @@
 // which is why the export is spread into the repo's config and never run alone.
 // Each block is named `cookwright/expo/<pack rule>[/<part>]`, so a reader of the
 // effective config sees whose block it is. A finding of a shared ESLint id
-// (no-restricted-syntax) carries the pack rule's tag at the start of its message,
-// which is how the engine tells it from a user's own selector.
+// (no-restricted-syntax) carries the pack rule's tag in its message, which is how
+// the engine tells it from a user's own selector.
 //
 // The strings block is left out when eslint-plugin-i18next does not resolve: the
 // rule then reads "skipped, needs …" on the hook's line, never a broken config.

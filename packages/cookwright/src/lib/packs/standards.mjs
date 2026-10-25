@@ -238,7 +238,9 @@ export function readBlobs(top, shas, env) {
 
 /**
  * ESLint's messages of one file counted by pack rule: severity 2, an id of a
- * measured rule and, on a shared id, the rule's tag first in the message. Returns
+ * measured rule and, on a shared id, the rule's tag in the message: anywhere, since
+ * ESLint renders some rules' configured message after its own text
+ * (no-restricted-imports: `'<name>' import is restricted from being used. <message>`). Returns
  * `{ counts: Map(key → n), findings: [{ key, line, column, text }] }`, `text` the
  * manifest's own line, never ESLint's.
  */
@@ -248,7 +250,7 @@ export function countBy(results, measured) {
   for (const msg of results) {
     if (msg.severity !== 2) continue;
     const owner = measured.find(
-      ({ rule }) => rule.eslint.ruleIds.includes(msg.ruleId) && (!rule.eslint.tag || String(msg.message).startsWith(rule.eslint.tag)),
+      ({ rule }) => rule.eslint.ruleIds.includes(msg.ruleId) && (!rule.eslint.tag || String(msg.message).includes(rule.eslint.tag)),
     );
     if (!owner) continue;
     counts.set(owner.key, (counts.get(owner.key) ?? 0) + 1);

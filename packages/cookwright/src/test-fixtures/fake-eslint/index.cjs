@@ -11,7 +11,8 @@
 //   no-restricted-syntax       per option: a `Literal[value=` selector a quoted
 //                              hex colour, a `Property[` selector a numeric
 //                              margin/padding/gap, an `[name='x']` selector the word x
-//   no-restricted-imports      `from '<path>'` for each restricted path
+//   no-restricted-imports      `from '<path>'` for each restricted path, the message
+//                              in ESLint 9's words, the configured one after its own
 //   max-lines-per-function     a `function` line to the next `}` at column 0
 // `FAKE_FATAL` in the code is a parsing error, `FAKE_THROW` a rejected lintText.
 
@@ -65,7 +66,10 @@ const DETECTORS = {
   'no-restricted-syntax': (opts, text) =>
     opts.flatMap((o) => selectorHits(o, text).map((column) => ({ column, message: o.message ?? `Using '${o.selector ?? o}' is not allowed.` }))),
   'no-restricted-imports': (opts, text) =>
-    (opts[0]?.paths ?? []).flatMap((p) => hits(new RegExp(`from '${p.name}'`, 'g'), text).map((column) => ({ column, message: p.message }))),
+    // ESLint 9's wording: its own sentence, then the configured message.
+    (opts[0]?.paths ?? []).flatMap((p) =>
+      hits(new RegExp(`from '${p.name}'`, 'g'), text).map((column) => ({ column, message: `'${p.name}' import is restricted from being used. ${p.message}` })),
+    ),
 };
 
 /** max-lines-per-function, by the fake's rule of a function's extent. */

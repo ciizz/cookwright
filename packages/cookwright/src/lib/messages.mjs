@@ -222,6 +222,8 @@ const init = {
   symlink: (rel) =>
     `${rel} is a symbolic link and init does not write through one; replace it with the real file or directory, then rerun`,
   gitFailed: (what, detail) => `git ${what} failed: ${detail}`,
+  collision: (rel, a, b) =>
+    `${rel} would be written twice, for ${a} and for ${b}; give one of them another path in ${CONFIG_FILE}, then rerun`,
   badBase: (base) => `--base ${JSON.stringify(base)} is not a valid branch name`,
   freshInvalid: (problems) => `the ${CONFIG_FILE} init would write is invalid: ${problems.join('; ')}`,
   settingsInvalid: (file, detail) => `${file} is not valid JSON (${detail}); fix it by hand, then rerun`,

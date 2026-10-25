@@ -203,6 +203,7 @@ export function validateConfig(config) {
     ...validateTop(config),
     ...validatePacks(config.packs),
     ...validatePaths(config.paths),
+    ...validatePackDocs(config),
     ...validateGate(config.gate),
     ...validateHooks(config.hooks),
     ...validateCi(config.ci),
@@ -294,6 +295,26 @@ function validatePaths(paths) {
     for (const b of homes) {
       if (a < b && (within(paths[a], paths[b]) || within(paths[b], paths[a]))) {
         out.push(`paths.${a} and paths.${b} overlap (${paths[a]}, ${paths[b]})`);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * No path may nest or coincide with a declared pack's contract doc either: init
+ * writes both from one unchanged tree, so the later write would clobber the
+ * earlier (a backlog overwritten by the design-system template) or fail midway.
+ */
+function validatePackDocs({ packs, paths }) {
+  if (!Array.isArray(packs) || !isObj(paths)) return [];
+  const out = [];
+  for (const name of new Set(packs.map(packName).filter((n) => KNOWN_PACKS.includes(n)))) {
+    for (const doc of PACKS[name].docs) {
+      for (const key of KNOWN_KEYS.paths.filter((k) => isRelPath(paths[k]))) {
+        if (within(paths[key], doc.path) || within(doc.path, paths[key])) {
+          out.push(`paths.${key} and the ${name} pack's contract doc overlap (${paths[key]}, ${doc.path})`);
+        }
       }
     }
   }

@@ -287,6 +287,20 @@ describe('refusals', () => {
     }
   });
 
+  it('refuses two steps writing one path, or one under another’s file, before any write', () => {
+    const root = fresh();
+    write(root, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION, paths: { ...DEFAULTS.paths, backlog: 'AGENTS.md' } }));
+    const before = tree(root);
+    expect(init(root).code).toBe(2);
+    expect(err[0]).toBe(m.refused(m.collision('AGENTS.md', 'AGENTS.md', 'AGENTS.md')));
+    expect(tree(root)).toEqual(before);
+    const under = fresh();
+    write(under, 'cookwright.json', JSON.stringify({ version: CONFIG_VERSION, paths: { ...DEFAULTS.paths, closeouts: 'AGENTS.md' } }));
+    expect(init(under).code).toBe(2);
+    expect(err[0]).toBe(m.refused(m.collision('AGENTS.md', 'AGENTS.md', 'AGENTS.md/')));
+    expect(fs.readdirSync(under)).toEqual(['.git', 'cookwright.json']);
+  });
+
   it('refuses when the ignore probe errors, before any write', () => {
     const root = fresh();
     const ignored = () => {

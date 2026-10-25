@@ -295,6 +295,19 @@ describe('validateConfig', () => {
     expect(problems({ paths: { ...DEFAULTS.paths, backlog: 'docs/bundles.md' } })).toBe('');
   });
 
+  it('refuses a path that nests or coincides with a declared pack’s contract doc', () => {
+    const withExpo = (paths) => problems({ packs: ['expo'], paths: { ...DEFAULTS.paths, ...paths } });
+    expect(withExpo({ backlog: 'docs/design-system.md' })).toMatch(
+      /paths\.backlog and the expo pack's contract doc overlap \(docs\/design-system\.md, docs\/design-system\.md\)/,
+    );
+    expect(withExpo({ closeouts: 'docs/design-system.md' })).toMatch(/paths\.closeouts and the expo pack's contract doc overlap/);
+    expect(withExpo({})).toBe('');
+    expect(problems({ paths: { ...DEFAULTS.paths, backlog: 'docs/design-system.md' } })).toBe(''); // no pack declared
+    expect(problems({ packs: [{ name: 'supabase' }], paths: { ...DEFAULTS.paths, changelog: 'docs/data-model.md' } })).toMatch(
+      /paths\.changelog and the supabase pack's contract doc overlap/,
+    );
+  });
+
   it('refuses a malformed gate: checks shape, duplicate names, needs, flakes', () => {
     const gate = (g) => problems({ gate: { ...DEFAULTS.gate, ...g } });
     expect(gate({ checks: 'npm test' })).toMatch(/gate\.checks must be a list/);

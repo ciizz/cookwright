@@ -10,7 +10,7 @@
 import { claudeHookStep, claudeRulesStep } from './claude.mjs';
 import { codexHookStep, codexRulesStep } from './codex.mjs';
 import { configStep } from './config.mjs';
-import { refuseLinks } from './files.mjs';
+import { refuseCollisions, refuseLinks } from './files.mjs';
 import { gitignoreStep } from './gitignore.mjs';
 import { hooksStep } from './hooks.mjs';
 import { backlogStep, changelogStep, closeoutsStep } from './homes.mjs';
@@ -45,6 +45,7 @@ export const STEPS = Object.freeze([
 /** Every row, in order; any refusal throws before a single write. */
 export function preflight(repo, io) {
   const rows = STEPS.flatMap((step) => step(repo, io));
+  refuseCollisions(rows);
   refuseLinks(repo.root, rows);
   return rows;
 }

@@ -65,6 +65,32 @@ export function refuseLinks(root, rows) {
   }
 }
 
+/** The file and link writes of `rows`, as rel → the target of the first row writing it. */
+function writers(rows) {
+  const seen = new Map();
+  for (const { target, writes } of rows) {
+    for (const w of writes.filter((x) => x.rel !== undefined && (x.content !== undefined || x.link !== undefined))) {
+      if (seen.has(w.rel)) throw new Refusal(m.collision(w.rel, seen.get(w.rel), target));
+      seen.set(w.rel, target);
+    }
+  }
+  return seen;
+}
+
+/**
+ * Refuse, in preflight, two writes to one path, or a write under a path another
+ * write makes a file: every step reads the same unchanged tree, so the later would
+ * clobber the earlier, or fail midway once the earlier writes have landed.
+ */
+export function refuseCollisions(rows) {
+  const seen = writers(rows);
+  for (const [rel, target] of seen) {
+    for (let dir = path.posix.dirname(rel); dir !== '.'; dir = path.posix.dirname(dir)) {
+      if (seen.has(dir)) throw new Refusal(m.collision(dir, seen.get(dir), target));
+    }
+  }
+}
+
 /** The text of the file `rel` under `root`, null when absent; anything else refuses. */
 export function readTarget(root, rel) {
   const kind = kindOf(path.join(root, rel));

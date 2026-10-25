@@ -62,6 +62,18 @@
         "docs": [
           "docs/guides/standards.md"
         ]
+      },
+      {
+        "name": "standards",
+        "code": [
+          "packages/cookwright/src/standards.mjs",
+          "packages/cookwright/src/lib/hooks/standards.mjs",
+          "packages/cookwright/src/lib/doctor/packs.mjs",
+          "packages/cookwright/src/lib/init/packs.mjs"
+        ],
+        "docs": [
+          "docs/guides/standards.md"
+        ]
       }
     ]
   }

@@ -68,13 +68,22 @@ function checkRules(repo, pack) {
 const docSyncFor = (pack, doc) =>
   pack.manifest.rules.find((r) => r.measure === 'doc-sync' && !pack.off.has(r.id) && r.docSync.docs.includes(doc.path));
 
-/** The problem with the doc-sync rule tying `doc`'s code to it, or null. */
+/** `a` and `b` hold the same strings, in any order. */
+const sameSet = (a, b) => new Set(a).size === new Set(b).size && a.every((x) => b.includes(x));
+
+/**
+ * The problem with the doc-sync rule tying `doc`'s code to it, or null. The
+ * pack-owned name carries the pack's rule exactly: another doc beside it, or a
+ * narrower code list, would let a component change pass without the doc while this
+ * row read PASS. A rule of the user's own goes under another name.
+ */
 function ruleProblem(repo, pack, doc) {
   const rule = docSyncFor(pack, doc);
   if (!rule) return null;
-  const configured = repo.config.hooks.docSync.find((x) => x.name === rule.docSync.name);
-  if (!configured) return m.pack.docs.noRule(rule.docSync.name, doc.path);
-  return configured.docs.includes(doc.path) ? null : m.pack.docs.ruleOther(rule.docSync.name, doc.path);
+  const { name, code, docs } = rule.docSync;
+  const configured = repo.config.hooks.docSync.find((x) => x.name === name);
+  if (!configured) return m.pack.docs.noRule(name, doc.path);
+  return sameSet(configured.code, code) && sameSet(configured.docs, docs) ? null : m.pack.docs.ruleDiffers(name, doc.path);
 }
 
 /** `{ status, note }` of one contract doc: present, tied by its rule, every entry listed. */

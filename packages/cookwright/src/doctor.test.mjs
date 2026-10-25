@@ -941,7 +941,7 @@ describe('packs and the pack rows', () => {
     });
   });
 
-  it('WARNs a contract doc missing, its doc-sync rule absent or naming another doc', () => {
+  it('WARNs a contract doc missing, its doc-sync rule absent or not the pack’s', () => {
     const d = m.pack.docs;
     const docs = (files, docSync) => doctor(packed(['expo'], files, docSync))['pack.expo.docs'];
     expect(docs({ [DESIGN]: null }, [])).toEqual({
@@ -951,7 +951,15 @@ describe('packs and the pack rows', () => {
     expect(d.missing(DESIGN)).toBe('docs/design-system.md missing (run npx cookwright init)');
     expect(docs({}, [])).toEqual({ status: 'WARN', note: d.noRule('expo:design-doc', DESIGN) });
     const elsewhere = [{ name: 'expo:design-doc', code: ['src/components/**'], docs: ['docs/ui.md'] }];
-    expect(docs({}, elsewhere)).toEqual({ status: 'WARN', note: d.ruleOther('expo:design-doc', DESIGN) });
+    expect(docs({}, elsewhere)).toEqual({ status: 'WARN', note: d.ruleDiffers('expo:design-doc', DESIGN) });
+    const [pack] = packDefaults(['expo']).docSync;
+    // Another doc beside the pack's would be satisfied alone; a narrower code list leaves components unasked.
+    const widened = [{ ...pack, docs: [...pack.docs, 'README.md'] }];
+    expect(docs({}, widened)).toEqual({ status: 'WARN', note: d.ruleDiffers('expo:design-doc', DESIGN) });
+    const narrowed = [{ ...pack, code: ['src/screens/**'] }];
+    expect(docs({}, narrowed)).toEqual({ status: 'WARN', note: d.ruleDiffers('expo:design-doc', DESIGN) });
+    const reordered = [{ ...pack, code: [...pack.code].reverse() }, { name: 'mine', code: ['app/**'], docs: ['README.md'] }];
+    expect(docs({}, reordered).status).toBe('PASS');
   });
 
   it('asks for no doc-sync rule when the pack’s doc rule is switched off', () => {

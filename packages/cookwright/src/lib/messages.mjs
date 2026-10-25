@@ -191,7 +191,8 @@ const doctor = {
     docs: {
       missing: (doc) => `${doc} missing (${RUN_INIT})`,
       noRule: (rule, doc) => `no doc-sync rule ${rule} in hooks.docSync, so a change to the code never asks for ${doc} (the setup skill offers it)`,
-      ruleOther: (rule, doc) => `the doc-sync rule ${rule} does not name ${doc} in its docs (the setup skill offers the pack's rule)`,
+      ruleDiffers: (rule, doc) =>
+        `the doc-sync rule ${rule} is not the pack's, so a change to the code may go without ${doc} (the setup skill offers the pack's rule; a rule of your own goes under another name)`,
       ok: (n, kind, doc) => `${counted(n, kind)}, ${n} documented in ${doc}`,
       omitted: (names, n, kind, doc) =>
         `${names.length} of ${counted(n, kind)} ${names.length === 1 ? 'has' : 'have'} no entry in ${doc}: ${shown(names)}`,

@@ -213,6 +213,21 @@ const init = {
     current: 'the managed rules block is current',
     newer: (v) => `block v${v} is newer than this cookwright; left alone (update cookwright)`,
   },
+  pack: {
+    section: {
+      wrote: (name) => `written with the ${name} pack's section`,
+      appended: (name) => `the ${name} pack's section added after the managed blocks; your text is untouched`,
+      refreshed: (name, v) => `the ${name} pack's section refreshed to v${v}; the text outside the markers is untouched`,
+      current: (name) => `the ${name} pack's section is current`,
+      newer: (name, v) => `the ${name} pack's section v${v} is newer than this cookwright; left alone (update cookwright)`,
+      malformed: (file, name, reason) =>
+        `${file}: the ${name} pack's section is malformed (${reason === 'noEnd' ? 'a begin marker with no end marker' : 'two begin markers'}); fix the markers by hand`,
+    },
+    doc: {
+      template: (name) => `the ${name} pack's contract doc, from its template`,
+      present: (name) => `present; the ${name} pack's contract doc`,
+    },
+  },
   hostRules: {
     imports: (token) => `imports ${token}`,
     prepended: (token) => `${token} prepended as the first line`,

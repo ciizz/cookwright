@@ -4,7 +4,8 @@
 // A step is `(repo, io) → row`, or a list of rows (the hooks step has three); it
 // reads, never writes. Step 1 sets `repo.config`, which the later steps read. A
 // host adds its steps to HOST_STEPS; the rules, hook and pointers steps run for every
-// configured host, in the config's order.
+// configured host, in the config's order; the pack steps iterate the declared packs
+// themselves, each writing files no other step writes.
 
 import { claudeHookStep, claudeRulesStep } from './claude.mjs';
 import { codexHookStep, codexRulesStep } from './codex.mjs';
@@ -13,8 +14,9 @@ import { refuseLinks } from './files.mjs';
 import { gitignoreStep } from './gitignore.mjs';
 import { hooksStep } from './hooks.mjs';
 import { backlogStep, changelogStep, closeoutsStep } from './homes.mjs';
+import { packDocsStep } from './packs.mjs';
 import { pointersStep } from './pointers.mjs';
-import { blockStep } from './rules.mjs';
+import { rulesFileStep } from './rules.mjs';
 
 const HOST_STEPS = Object.freeze({
   claude: { rules: claudeRulesStep, hook: claudeHookStep, pointers: pointersStep('claude') },
@@ -29,7 +31,8 @@ export const STEPS = Object.freeze([
   backlogStep,
   closeoutsStep,
   changelogStep,
-  blockStep,
+  rulesFileStep,
+  packDocsStep,
   everyHost('rules'),
   everyHost('hook'),
   everyHost('pointers'),

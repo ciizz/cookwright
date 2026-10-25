@@ -19,7 +19,9 @@ import { ENV_LINES } from './lib/init/gitignore.mjs';
 import { CODEX_HOOK_COMMAND, HOOK_COMMAND, HOOK_LINES, HOSTS, SKILLS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
 import { PROBES, hasTool } from './lib/probes.mjs';
-import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
+import { RULES_VERSION, beginMarker, packKind, renderBlock } from './lib/rules/block.mjs';
+import { PACKS } from './lib/packs/registry.mjs';
+import { renderSection } from './lib/packs/section.mjs';
 import { shippedPieces } from './lib/doctor/hosts.mjs';
 import { commit, gitInit, gitWithoutScopes, linkPackage, run, scratchRoot, stageOnly, v1Block, v2Block } from './test-helpers.mjs';
 
@@ -440,6 +442,108 @@ describe('the rules block', () => {
     write(root, 'AGENTS.md', `${newer}\n`);
     expect(init(root).rows['AGENTS.md']).toEqual({ action: 'kept', note: m.block.newer(RULES_VERSION + 7) });
     expect(read(root, 'AGENTS.md')).toBe(`${newer}\n`);
+  });
+});
+
+describe('stack packs: the sections of AGENTS.md and the contract docs', () => {
+  const EXPO = renderSection(PACKS.expo);
+  const SUPABASE = renderSection(PACKS.supabase);
+  const PKG = path.dirname(new URL(import.meta.url).pathname).replace(/\/src$/, '');
+  const packTemplate = (name, rel) => fs.readFileSync(path.join(PKG, 'packs', name, rel), 'utf8');
+  /** A repo with a version-3 config declaring `packs`. */
+  const withPacks = (packs, files = {}) => {
+    const root = fresh();
+    write(root, 'cookwright.json', JSON.stringify({ version: 3, packs }));
+    for (const [rel, body] of Object.entries(files)) write(root, rel, body);
+    return root;
+  };
+
+  it('writes the core block and both sections in one file, then keeps every byte on a rerun', () => {
+    const root = withPacks(['expo', 'supabase']);
+    const { code, rows } = init(root);
+    expect(code).toBe(0);
+    expect(rows['AGENTS.md']).toEqual({ action: 'wrote', note: m.block.wrote });
+    expect(rows['AGENTS.md#expo']).toEqual({ action: 'wrote', note: m.pack.section.wrote('expo') });
+    expect(rows['AGENTS.md#supabase']).toEqual({ action: 'wrote', note: m.pack.section.wrote('supabase') });
+    expect(read(root, 'AGENTS.md')).toBe(`${BLOCK}\n\n${EXPO}\n\n${SUPABASE}\n`);
+    const before = tree(root);
+    const second = init(root);
+    expect([second.rows['AGENTS.md'], second.rows['AGENTS.md#expo'], second.rows['AGENTS.md#supabase']]).toEqual([
+      { action: 'kept', note: m.block.current },
+      { action: 'kept', note: m.pack.section.current('expo') },
+      { action: 'kept', note: m.pack.section.current('supabase') },
+    ]);
+    expect(tree(root)).toEqual(before);
+  });
+
+  it('adds a section right after the managed blocks, the user text around them intact', () => {
+    const root = withPacks(['expo'], { 'AGENTS.md': `# Mine\n\n${BLOCK}\n## Below\n- mine\n` });
+    const { rows } = init(root);
+    expect(rows['AGENTS.md'].action).toBe('kept');
+    expect(rows['AGENTS.md#expo']).toEqual({ action: 'updated', note: m.pack.section.appended('expo') });
+    expect(read(root, 'AGENTS.md')).toBe(`# Mine\n\n${BLOCK}\n\n${EXPO}\n\n## Below\n- mine\n`);
+    // a second pack declared later goes after the first one's section
+    write(root, 'cookwright.json', JSON.stringify({ version: 3, packs: ['expo', 'supabase'] }));
+    expect(init(root).rows['AGENTS.md#supabase'].action).toBe('updated');
+    expect(read(root, 'AGENTS.md')).toBe(`# Mine\n\n${BLOCK}\n\n${EXPO}\n\n${SUPABASE}\n\n## Below\n- mine\n`);
+    expect(init(root).actions.filter((a) => a !== 'kept' && a !== 'skipped')).toEqual([]);
+  });
+
+  it('refreshes a stale core block and a stale section in one pass, both kept on a rerun', () => {
+    const staleCore = BLOCK.replace('Ask before adding a dependency.', 'An older rule.');
+    const staleExpo = EXPO.replace(beginMarker(1, packKind('expo')), beginMarker(0, packKind('expo')));
+    const root = withPacks([{ name: 'expo', rules: { size: false } }], {
+      'AGENTS.md': `above\n\n${staleCore}\nmiddle\n\n${staleExpo}\nbelow\n`,
+    });
+    const { rows } = init(root);
+    const off = renderSection(PACKS.expo, new Set(['size']));
+    expect(rows['AGENTS.md']).toEqual({ action: 'updated', note: m.block.refreshed(RULES_VERSION) });
+    expect(rows['AGENTS.md#expo']).toEqual({ action: 'updated', note: m.pack.section.refreshed('expo', 1) });
+    expect(read(root, 'AGENTS.md')).toBe(`above\n\n${BLOCK}\nmiddle\n\n${off}\nbelow\n`);
+    expect(off).toContain('(switched off).');
+    expect(init(root).rows['AGENTS.md#expo'].action).toBe('kept');
+  });
+
+  it('keeps a CRLF file CRLF when it adds a section', () => {
+    const crlf = (t) => t.replace(/\n/g, '\r\n');
+    const root = withPacks(['supabase'], { 'AGENTS.md': crlf(`above\n\n${BLOCK}\n`) });
+    init(root);
+    expect(read(root, 'AGENTS.md')).toBe(crlf(`above\n\n${BLOCK}\n\n${SUPABASE}\n`));
+    expect(init(root).rows['AGENTS.md#supabase'].action).toBe('kept');
+  });
+
+  it('leaves a newer section alone and refuses a malformed one before any write', () => {
+    const newer = EXPO.replace(beginMarker(1, packKind('expo')), beginMarker(9, packKind('expo')));
+    const a = withPacks(['expo'], { 'AGENTS.md': `${BLOCK}\n\n${newer}\n` });
+    expect(init(a).rows['AGENTS.md#expo']).toEqual({ action: 'kept', note: m.pack.section.newer('expo', 9) });
+    expect(read(a, 'AGENTS.md')).toBe(`${BLOCK}\n\n${newer}\n`);
+    const b = withPacks(['expo'], { 'AGENTS.md': `${BLOCK}\n\n${beginMarker(1, packKind('expo'))}\n- half a section\n` });
+    const before = tree(b);
+    expect(init(b).code).toBe(2);
+    expect(err.join('\n')).toContain(m.pack.section.malformed('AGENTS.md', 'expo', 'noEnd'));
+    expect(tree(b)).toEqual(before);
+  });
+
+  it('writes no section and no doc when no pack is declared', () => {
+    const root = withPacks([]);
+    const { rows } = init(root);
+    expect(Object.keys(rows).filter((t) => t.startsWith('AGENTS.md#') || t.startsWith('docs/d'))).toEqual([]);
+    expect(read(root, 'AGENTS.md')).toBe(`${BLOCK}\n`);
+  });
+
+  it('writes each declared pack’s contract doc from its template, and keeps one that exists', () => {
+    const root = withPacks(['expo', 'supabase'], { 'docs/data-model.md': '# mine\n' });
+    const { rows } = init(root);
+    expect(rows['docs/design-system.md']).toEqual({ action: 'wrote', note: m.pack.doc.template('expo') });
+    expect(rows['docs/data-model.md']).toEqual({ action: 'kept', note: m.pack.doc.present('supabase') });
+    expect(read(root, 'docs/design-system.md')).toBe(packTemplate('expo', 'templates/design-system.md'));
+    expect(read(root, 'docs/data-model.md')).toBe('# mine\n');
+    expect(read(root, 'docs/design-system.md')).toMatch(/^\| Primitive \| File \| Props \| Notes \|$/m);
+    const supabase = packTemplate('supabase', 'templates/data-model.md');
+    for (const header of ['| Migration | Tables and RPCs touched | Summary |', '| Table | Purpose | RLS |', '| RPC | Signature | Purpose |']) {
+      expect(supabase.split('\n')).toContain(header);
+    }
+    expect(init(root).rows['docs/design-system.md'].action).toBe('kept');
   });
 });
 

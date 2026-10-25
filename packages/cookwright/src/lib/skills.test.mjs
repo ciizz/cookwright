@@ -202,10 +202,21 @@ describe('the docs-audit skill', () => {
   const text = read('docs-audit');
 
   it('builds the args with the CLI, runs the named Workflow on a branch of its own, and commits by path', () => {
-    for (const step of ['npx cookwright audit args', '--doc <path>[:<scope>]', "Workflow({ name: 'docs-audit'", 'git checkout -b docs-audit/', 'git diff', 'git add <each doc>']) {
+    for (const step of ['npx cookwright audit args', '--doc <path>[:<scope>]', "Workflow({ name: 'docs-audit'", 'git checkout -b docs-audit/<YYYY-MM-DD> <that branch>', 'refs/heads/docs-audit/<YYYY-MM-DD>', 'git diff', 'git add <each doc>']) {
       expect(text).toContain(step);
     }
     expect(text).toContain(messages.audit.defaultScope);
+  });
+
+  it("takes the setup skill's fill as it hands it over: committed on its branch, then audited there", () => {
+    const setup = read('setup');
+    const fill = setup.slice(setup.indexOf('**Filling a contract doc.**'));
+    const branch = 'docs/fill-<doc name>';
+    expect(fill).toContain(`git checkout -b ${branch}`);
+    expect(fill).toContain('commit the fill by path on that branch');
+    expect(fill.indexOf('commit the fill')).toBeLessThan(fill.indexOf('`docs-audit` skill'));
+    expect(text).toContain('`git status --porcelain` prints nothing');
+    expect(text).toContain(`the setup skill's \`${branch}\` handoff`);
   });
 
   it("names the Workflow the package ships under that name", () => {

@@ -206,6 +206,7 @@ const doctor = {
       noEslint: (setup) => `not measured; ${setup} installs ESLint`,
       oldEslint: (version) => `not measured; the installed eslint ${version || 'of unknown version'} is older than 9, and the standards need its flat config`,
       noConfig: (setup) => `not measured; no ESLint config (eslint.config.js); ${setup} sets ESLint up, then ${RUN_INIT}`,
+      writeConfig: (spec) => `not measured; no ESLint config (eslint.config.js); write one that spreads ${spec} (the setup skill does it with consent)`,
       unnamed: (file, spec, lines) => `${file} does not name ${spec}; add ${list(lines)} (the setup skill does it with consent)`,
       ok: (version, file, spec) => `eslint ${version}; ${file} names ${spec}`,
       needs: (install, reason) => `needs ${install} (${reason})`,
@@ -308,6 +309,8 @@ const init = {
       otherModule: (imports, spreads) =>
         `not Expo's template, left alone; add ${list(imports)} at its top and ${list(spreads)} to its config array by hand (the setup skill does it with consent)`,
       none: (setup) => `no ESLint config; ${setup} sets ESLint up, then rerun init`,
+      // no config, and no pack's setup line writes one: the file is the developer's to write
+      write: (exports) => `no ESLint config; write an eslint.config.js that spreads ${list(exports)} (the setup skill does it with consent)`,
     },
     dep: {
       installed: (reason) => `installed (${reason})`,

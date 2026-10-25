@@ -12,6 +12,7 @@ import { messages as bundleMessages } from './bundle/messages.mjs';
 import { newerVersion } from './config.mjs';
 import { packRowNames } from './doctor/packs.mjs';
 import { CHECKS } from './doctor/registry.mjs';
+import { exportOf, spreadLine } from './init/packs.mjs';
 import { PACKAGE_ROOT, SKILLS, SKILLS_DIR } from './hosts.mjs';
 import { messages } from './messages.mjs';
 import { PACKS } from './packs/registry.mjs';
@@ -143,7 +144,9 @@ const QUOTED = [
   ['not measured; ', p.lint.noEslint(PACKS.expo.setup.eslint)],
   ['installs ESLint', p.lint.noEslint(PACKS.supabase.setup.eslint)],
   [PACKS.expo.setup.eslint, p.lint.noEslint(PACKS.expo.setup.eslint)],
-  [PACKS.supabase.setup.eslint, p.lint.noConfig(PACKS.supabase.setup.eslint)],
+  ['sets ESLint up, then run npx cookwright init', p.lint.noConfig(PACKS.expo.setup.eslint)],
+  [`...require('${exportOf(PACKS.supabase)}')`, spreadLine(PACKS.supabase)],
+  ['write one that spreads ', p.lint.writeConfig(exportOf(PACKS.supabase))],
   ['not measured; no ESLint config (eslint.config.js); ', p.lint.noConfig(PACKS.expo.setup.eslint)],
   ['is older than 9, and the standards need its flat config', p.lint.oldEslint('8.57.0')],
   ['does not name ', p.lint.unnamed('eslint.config.js', 'cookwright/packs/expo/eslint.cjs', ['x'])],

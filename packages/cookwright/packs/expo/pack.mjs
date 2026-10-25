@@ -19,6 +19,10 @@
 // `needs` names the entry of `deps` the measurement cannot run without. A sentence
 // has no final period: the section appends its measurement.
 //
+// `setup.eslint` is the line that installs ESLint; `setup.writesConfig` says it also
+// writes a flat config (Expo's template), which init then wires. Without it, a repo
+// with no config is told to write one that spreads the export.
+//
 // `detect` is what a fresh config's detection reads (src/lib/packs/detect.mjs): a
 // file at one of `files`, else a dependency of package.json among `dependencies`.
 
@@ -106,7 +110,7 @@ export const manifest = {
     },
   ],
   eslintExport: 'packs/expo/eslint.cjs',
-  setup: { eslint: 'npx expo lint' },
+  setup: { eslint: 'npx expo lint', writesConfig: true },
   messages: {
     strings: 'literal string in JSX; route it through t()',
     tokens: 'colour or spacing literal in a component; use a theme token',

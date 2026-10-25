@@ -20,7 +20,7 @@ A stack pack ships each engineering rule as a pair: the sentence in a managed se
 
 The expo pack's advisory rules (components first, the design-system doc as the visual contract, reuse before build) have no check; the bundle runner's red-team reviewer reads each diff against them, naming the existing primitive or doc entry a change passed over.
 
-The ESLint rules reach ESLint through the pack's export, spread into the app's own `eslint.config.js`: init adds `...require('cookwright/packs/expo/eslint.cjs'),` (and the supabase line) after `expoConfig,` when the file is Expo's template, and names the lines to add by hand otherwise; doctor's `pack.<name>.lint` WARNs until the config names them.
+The ESLint rules reach ESLint through the pack's export, spread into the app's own `eslint.config.js`: init adds `...require('cookwright/packs/expo/eslint.cjs'),` (and the supabase line) after `expoConfig,` when the file is Expo's template, and names the lines to add by hand otherwise. With no config at all, `npx expo lint` writes Expo's template; an app with the supabase pack and no Expo writes its own `eslint.config.js` spreading the export (with `typescript-eslint`'s parser on a TypeScript app), which the setup skill does with consent. Doctor's `pack.<name>.lint` WARNs until the config names them.
 
 ## Three tiers, and the tripwire's blind spot
 

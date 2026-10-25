@@ -773,12 +773,14 @@ module.exports = defineConfig([
     );
   });
 
-  it('names the setup line of the first pack when there is no ESLint config, and writes none', () => {
+  it('names the setup line that writes an ESLint config when there is none, else the exports to spread, and writes none', () => {
     const a = withPacks(['expo', 'supabase']);
     expect(init(a).rows['eslint.config.js']).toEqual({ action: 'skipped', note: m.pack.eslint.none('npx expo lint') });
     expect(exists(a, 'eslint.config.js')).toBe(false);
     const b = withPacks(['supabase']);
-    expect(init(b).rows['eslint.config.js'].note).toBe('no ESLint config; npm install --save-dev eslint sets ESLint up, then rerun init');
+    expect(init(b).rows['eslint.config.js']).toEqual({ action: 'skipped', note: m.pack.eslint.write(['cookwright/packs/supabase/eslint.cjs']) });
+    expect(m.pack.eslint.write(['x'])).toBe('no ESLint config; write an eslint.config.js that spreads x (the setup skill does it with consent)');
+    expect(exists(b, 'eslint.config.js')).toBe(false);
     expect(init(withPacks([])).rows['eslint.config.js']).toBe(undefined);
   });
 

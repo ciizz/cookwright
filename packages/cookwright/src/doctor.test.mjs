@@ -937,6 +937,11 @@ describe('packs and the pack rows', () => {
     fs.writeFileSync(path.join(old, 'package.json'), '{ "name": "eslint", "version": "8.57.0" }');
     expect(lint({ eslint: old })['pack.expo.lint']).toEqual({ status: 'WARN', note: l.oldEslint('8.57.0') });
     expect(lint({ config: null })['pack.expo.lint']).toEqual({ status: 'WARN', note: l.noConfig('npx expo lint') });
+    const supabaseExport = 'cookwright/packs/supabase/eslint.cjs';
+    expect(lint({ config: null }, ['supabase'])['pack.supabase.lint']).toEqual({ status: 'WARN', note: l.writeConfig(supabaseExport) });
+    expect(l.writeConfig(supabaseExport)).toBe(
+      `not measured; no ESLint config (eslint.config.js); write one that spreads ${supabaseExport} (the setup skill does it with consent)`,
+    );
     const spread = "...require('cookwright/packs/expo/eslint.cjs'),";
     expect(lint({ config: 'module.exports = [];\n' })['pack.expo.lint']).toEqual({
       status: 'WARN',

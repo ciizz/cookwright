@@ -168,7 +168,7 @@ function checkLint(repo, pack) {
   if (version === null) return warn(l.noEslint(manifest.setup.eslint));
   if (!(Number(version.split('.')[0]) >= 9)) return warn(l.oldEslint(version));
   const rel = ESLINT_CONFIGS.find((name) => isFile(path.join(repo.root, name)));
-  if (!rel) return warn(l.noConfig(manifest.setup.eslint));
+  if (!rel) return warn(manifest.setup.writesConfig ? l.noConfig(manifest.setup.eslint) : l.writeConfig(exportOf(manifest)));
   const spec = exportOf(manifest);
   if (!namesModule(fs.readFileSync(path.join(repo.root, rel), 'utf8'), spec)) {
     const { imports = [], spreads } = handLines(repo.root, rel, [manifest]);

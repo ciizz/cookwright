@@ -102,7 +102,8 @@ function eslintRow(root, rel, text, manifests) {
  * The repo's ESLint config spreads every declared pack's export: Expo's template is
  * transformed once for all of them; any other file is left alone, naming the lines
  * in its module system (an import for an ES module, where require is undefined);
- * no file names the setup line of the first pack. No pack, no row.
+ * no file names the setup line of the first pack whose line writes one (Expo's
+ * template), else the exports a config written by hand spreads. No pack, no row.
  */
 export function eslintConfigStep(repo) {
   const manifests = declaredPacks(repo.config).map((p) => p.manifest).filter((mf) => mf.eslintExport);
@@ -111,7 +112,8 @@ export function eslintConfigStep(repo) {
     const text = readTarget(repo.root, rel);
     if (text !== null) return eslintRow(repo.root, rel, text, manifests);
   }
-  return row(SKIPPED, ESLINT_CONFIGS[0], m.eslint.none(manifests[0].setup.eslint));
+  const scaffold = manifests.find((mf) => mf.setup.writesConfig);
+  return row(SKIPPED, ESLINT_CONFIGS[0], scaffold ? m.eslint.none(scaffold.setup.eslint) : m.eslint.write(manifests.map(exportOf)));
 }
 
 /**

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 77,
+  "revision": 89,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -153,9 +153,23 @@
     },
     {
       "name": "implement:s2",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T19:17:56.218Z",
+          "stateRevision": 77,
+          "planSha": "852cd835f53d5f48",
+          "codex": true,
+          "runId": "wf_7304bce1-ded",
+          "endedAt": "2026-10-25T19:45:38.136Z",
+          "turnOutputTokens": 206458
+        }
+      ],
+      "startCommit": "0773c73522806a5cded2b9c703290160e9b4ba43",
+      "range": null,
+      "endCommit": "3b6e4985ec8607b15803b0b460cf0dd01958b38f",
+      "endCode": "c5b11fd6fd38ca0bccbac8f1f6fb10ef2f898e3f"
     },
     {
       "name": "implement:s3",
@@ -300,6 +314,19 @@
           "ms": 54303
         }
       ]
+    },
+    {
+      "commit": "3b6e4985ec8607b15803b0b460cf0dd01958b38f",
+      "at": "2026-10-25T19:45:27.102Z",
+      "slice": "model",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 79629
+        }
+      ]
     }
   ],
   "findings": [
@@ -363,6 +390,12 @@
       "phase": "implement:s1",
       "path": "docs/dev/bundles/stage-4/sessions/implement-s1-1.md",
       "at": "2026-10-25T19:14:18.088Z",
+      "stored": true
+    },
+    {
+      "phase": "implement:s2",
+      "path": "docs/dev/bundles/stage-4/sessions/implement-s2-1.md",
+      "at": "2026-10-25T19:43:40.102Z",
       "stored": true
     }
   ],
@@ -772,6 +805,55 @@
       "actor": "orchestrator",
       "source": "implement:s1 strings batch",
       "text": "39 user-facing strings (migrate outcomes, config validator lines, schema descriptions, section texts, the two manifests' sentences and messages) presented to the developer in chat by the orchestrator after s1; accepted as written pending the developer's ruling at review:model.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:43:40.970Z",
+      "actor": "orchestrator",
+      "source": "implement:s2 open question 1",
+      "text": "eslintConfigStep and packDepsStep landed in s2 as the revised plan schedules (§10 s2, disposition 38); the split's s5 checkpoint 'init's template edit, byte-tested' predates the revision and is met by db036c4, so s5 skips it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:43:41.435Z",
+      "actor": "orchestrator",
+      "source": "implement:s2 open question 2",
+      "text": "The docs-audit SKILLS entry and the fixture's docs-audit pointer row move to s6 with the skill directory they need (skills.test.mjs requires one per key); disposition 32 holds, its session changes.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:43:41.833Z",
+      "actor": "orchestrator",
+      "source": "implement:s2 open question 3",
+      "text": "Disposition 18's tool-aware level-line assertion lands in s3 with B-013's level line, which it depends on; until then the fixture asserts 'complete' unconditionally, true on this machine and in CI with gitleaks present and claude absent only after s3.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:43:42.225Z",
+      "actor": "orchestrator",
+      "source": "implement:s2 open question 4",
+      "text": "A pack section left in AGENTS.md after its pack is removed from packs is out of this stage's scope: logged as E-040 (rule 6: wanted once), with doctor reading a section of an undeclared pack as WARN proposed as the fix.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:43:42.639Z",
+      "actor": "orchestrator",
+      "source": "implement:s2 open question 5",
+      "text": "init --packs with an empty list is kept as the explicit opt-out of detection on a fresh config and documented in the standards guide (s6/s7); rule 2: a chosen state, named in the config row's note.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:43:43.134Z",
+      "actor": "orchestrator",
+      "source": "implement:s2 open question 6",
+      "text": "Between s2 and s5 a transformed eslint.config.js and the fresh gate checks name pieces that do not ship yet; nothing outside the branch sees them and QA follows review:whole, so no action (rule 3: the fixture asserts only what exists at each session).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:43:43.573Z",
+      "actor": "orchestrator",
+      "source": "implement:s2 strings batch",
+      "text": "s2's user-facing strings (init usage and refusal with --packs, the config row note, the pack section and doc rows, the eslint.config.js rows, the plugin row, the two doc templates' headers) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:model.",
       "claim": true
     }
   ],

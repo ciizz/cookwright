@@ -1,6 +1,6 @@
 # Stage 4 kickoff — the first stack pack: standards with their measurements
 
-Draft 2026-10-23, for the developer's review before it opens a session. When approved: read `CHARTER.md` (the 2026-10-23 amendment), `AGENTS.md`, `CLAUDE.local.md`, `docs/playbook.md` and `docs/dev/closeouts/stage-3.md`, then enter plan mode. It runs as a bundle through the runner.
+Written 2026-10-23, decisions taken 2026-10-25. The first prompt for a fresh session opened in this directory: read `CHARTER.md` (the 2026-10-23 amendment), `AGENTS.md`, `CLAUDE.local.md`, `docs/playbook.md` and `docs/dev/closeouts/stage-3.md`, then enter plan mode. It runs as a bundle through the runner.
 
 ## Goal
 
@@ -15,7 +15,7 @@ The product sentence this delivers: "detects when your development process drift
 - `packs` in `cookwright.json`, an array of names. Init, doctor and the hooks iterate over it as they iterate over `hosts`.
 - One directory per pack in the package, `packages/cookwright/packs/<name>/`, holding what the pack contributes: a rules section for `AGENTS.md`, a lint config, default doc-sync rules, doctor checks, gate checks, doc templates. Nothing outside the package; no plugin API; the one version number.
 - Packs are orthogonal to levels. Doctor reports a pack under its own row group, `pack.<name>.*`.
-- **Open decision 1:** one pack `expo-supabase`, or two, `expo` and `supabase`. The rules below are partitioned either way; two directories cost nothing now and a rename migration later.
+- **Decided 2026-10-25: two packs, `expo` and `supabase`.** An Expo app on another backend takes one, a Supabase app on the web takes the other. The one cross rule (the client import) lives in `supabase`.
 
 ### The rule about rules
 
@@ -46,11 +46,26 @@ The lint config is **imported, never copied** (rule 4): the package exports it (
 
 A new gate check, `standards`, measures whether the repo got worse. It stores nothing (rule 5). For the files changed between the base branch and HEAD, it lints both versions (the base version materialised from `git show`, never a checkout) and compares violation counts per rule. A rise is drift, FAIL, with the rules and files that rose. A standing count or a fall is PASS with the number on the line. An existing app with four hundred violations therefore passes its first push and fails the first push that adds a four-hundred-and-first.
 
-**Open decision 2:** the ratchet is scoped to changed files (cheap, storage-free, judges the change) rather than the whole repo on both sides (true repo count, needs a worktree per sha, E-024). The plan should cost both; the spec prefers the first.
+**Decided 2026-10-25: the ratchet is scoped to the files the branch changed**, cheap, storage-free, judging the change. The whole-repo count on both sides (a worktree per sha, E-024) is not built; the repo-wide number is doctor's `count` row, measured on the checked-out tree.
 
 ### Doc contracts
 
 Two templates the pack ships, written by init when absent: `docs/design-system.md` and `docs/data-model.md`, each a header stating what it is the contract for and an empty table in the shape the doc-sync rule expects. On an existing app the setup skill offers to have the agent fill them from the code (the docs-audit workflow's generate mode, if it has one; otherwise a one-off session), and the doc-sync rules are written at the same time (E-039).
+
+### Three tiers of checking, and where each rule drifts
+
+Every enforced rule is measured on every commit (tier 1, the lint; tier 2, the doc-sync tripwire). The tripwire measures that the doc moved with the code, not that it is true: a doc edited wrongly, or edited with a space to get past the hook, passes. That blind spot is stated in the standards guide and covered by the third tier.
+
+**Tier 3, the semantic audit, on a schedule.** The docs-audit workflow the package ships (`hosts/claude/workflows/docs-audit.js`, pointed at by init) reads each doc, sorts every claim against the code, fixes what is wrong and has a second set of agents verify each fix adversarially. Stage 4 gives it its arguments: each pack declares the docs it owns and the audit scope of each (`docs/design-system.md`: every primitive entry against `src/components`; `docs/data-model.md`: every table and RPC entry against the migrations), so the audit runs from the config, never from a prompt someone types. The runner, or the setup skill, offers it when the developer asks or before a release; it runs on a branch the developer reviews, with its cost on the closeout line, never on `main` and never silently.
+
+**The audit is objective by construction, or it is not run:**
+
+- A finding is a contradiction, never an opinion. The doc names a prop the code does not have: drift. The doc could be clearer, is incomplete, uses an old word: not a finding. The workflow's three buckets (wrong, unverifiable, kept) already hold this; a "wrong" needs a file-and-line in the code as evidence.
+- Evidence or it did not happen. Each fix carries where, was, now and evidence, and a separate verifier rejects any fix it cannot reproduce. A deployed state, a store status, a device check are kept and listed as unverifiable, never touched.
+- Omissions are measured mechanically, not by an agent. "Every component has a doc entry" is a list comparison, files under `src/components` against headings in the doc; "every migration has a changelog row" likewise. Those are doctor rows (`pack.<name>.docs`), deterministic. The agent judges only the truth of an entry that exists.
+- Calibrated on a clean repo. In CI the audit runs on the fixture right after init, where the docs are the templates and the code is the scaffold, and the expected finding count is zero. An audit that reports drift there is the bug, and the test fails.
+
+**The advisory rules are checked at review time, not periodically.** Components first, the design-system doc as contract, reuse before build need a human-sized diff and a judgment. The pack puts them into the bundle runner's review prompt, so each `review:*` phase looks for a new visual where a primitive existed, or a primitive reinterpreted where one was documented, and a finding carries the file and the existing primitive as evidence. Outside the runner they are what they say: advisory.
 
 ### Doctor
 
@@ -82,22 +97,23 @@ Existing app: init writes the same, except that it never overwrites a doc that e
 3. The pre-commit `standards` check over staged files.
 4. The gate `standards` ratchet.
 5. The doc templates, the default doc-sync rules, and E-039 (the setup skill proposes and writes doc-sync rules with consent), since the pack's defaults travel that path.
-6. The doctor rows.
-7. B-012 (gate with no checks reads WARN) and B-013 (the summary says "complete" only when every check measured), both small and both in doctor's path.
-8. Measured on three repos: the fixture (a fresh Expo scaffold, in CI), a fresh Expo app with `supabase init` as the new-app proof, and Leeka read-only as the existing-app proof: the count rows on Leeka's checkout, the ratchet against a synthetic branch, no write to Leeka.
-9. Guides: a `standards` guide (the rules, the escape, the ratchet, switching a rule off), getting-started updated for a pack, the README's "What you get" gaining its line.
-10. Closeout `docs/dev/closeouts/stage-4.md`, with the five numbers.
+6. The doctor rows, the mechanical omission rows among them.
+7. The semantic audit wired to the packs: each pack declares its docs and their audit scope, the docs-audit workflow takes them from the config, the clean-repo calibration run in CI with an expected zero, and the advisory rules in the runner's review prompt.
+8. B-012 (gate with no checks reads WARN) and B-013 (the summary says "complete" only when every check measured), both small and both in doctor's path.
+9. Measured on three repos: the fixture (a fresh Expo scaffold, in CI), a fresh Expo app with `supabase init` as the new-app proof, and Leeka read-only as the existing-app proof: the count rows on Leeka's checkout, the ratchet against a synthetic branch, no write to Leeka.
+10. Guides: a `standards` guide (the rules, the three tiers and the tripwire's blind spot, the escape, the ratchet, switching a rule off, running the audit), getting-started updated for a pack, the README's "What you get" gaining its line.
+11. Closeout `docs/dev/closeouts/stage-4.md`, with the five numbers.
 
 ## Out of scope
 
-Secrets backends (stage 5). The atlas and the SQL suites (Level 1). The pattern-promotion loop (observations → patterns → a rule proposed to the developer), which belongs in the core block, not a pack: backlog. B-011 (init's `.gitignore` and a doctor check on a tracked `node_modules`): small enough to ride along if the plan finds it free, otherwise it stays open. Any third-party pack mechanism.
+Secrets backends (stage 5). The atlas and the SQL suites (Level 1). The pattern-promotion loop (observations → patterns → a rule proposed to the developer), which belongs in the core block, not a pack: backlog. B-011 (init's `.gitignore` and a doctor check on a tracked `node_modules`): small enough to ride along if the plan finds it free, otherwise it stays open. Any third-party pack mechanism. A scheduler for the audit: the developer or the runner starts it; a cron is a later wish.
 
-## Open decisions for the developer, before plan mode
+## Decisions taken 2026-10-25
 
-1. One pack or two (above).
-2. The ratchet's scope (above).
-3. Whether `eslint-plugin-i18next` is accepted as the pack's one dependency, or the string rule ships advisory until a dependency-free measurement exists. Rule 9 says ask; this is the asking.
+1. Two packs, `expo` and `supabase`.
+2. The ratchet compares the files the branch changed.
+3. `eslint-plugin-i18next` is accepted as the `expo` pack's dependency. Rule 9 keeps the core package free of runtime dependencies, so the plugin is not a dependency of `cookwright` itself: init installs it into the user's repo as a devDependency when the `expo` pack is declared, with consent, the way it names `gitleaks`; absent, the string rule reads SKIP with the install line, never FAIL. A pack may carry dependencies this way; the core may not.
 
 ## Standard
 
-Plan mode first, a written plan, adversarial review of the plan (P1 and P2 findings only; P3 goes to the plan's residue list), implementation, review of the diff per slice, QA on the three repos, closeout. Every disposition cites a judgment rule by number. The developer answers the three open decisions before the plan is written; nothing else needs him until the plan review.
+Plan mode first, a written plan, adversarial review of the plan (P1 and P2 findings only; P3 goes to the plan's residue list), implementation, review of the diff per slice, QA on the three repos, closeout. Every disposition cites a judgment rule by number. The three decisions above are taken; nothing needs the developer until the plan review.

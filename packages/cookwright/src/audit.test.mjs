@@ -10,7 +10,8 @@ import { main } from './audit.mjs';
 import { dispatch } from './cli-main.mjs';
 import { messages } from './lib/messages.mjs';
 import { PACKS } from './lib/packs/registry.mjs';
-import { scratchRepo, scratchRoot } from './test-helpers.mjs';
+import { CONFIG_FILE, CONFIG_VERSION } from './lib/config.mjs';
+import { gitInit, scratchRepo, scratchRoot } from './test-helpers.mjs';
 
 const m = messages.audit;
 const TMP = scratchRoot('cookwright-audit-');
@@ -76,6 +77,17 @@ describe('audit args', () => {
     expect(printed()).toEqual({ docs: [{ path: 'docs/api.md', scope: m.defaultScope }] });
   });
 
+  it("names each path from the work tree's top when the config root is below it", () => {
+    const top = gitInit(path.join(TMP, `nested${(n += 1)}`));
+    const app = path.join(top, 'apps/mobile');
+    fs.mkdirSync(path.join(app, 'docs'), { recursive: true });
+    fs.writeFileSync(path.join(app, CONFIG_FILE), JSON.stringify({ version: CONFIG_VERSION, packs: ['expo'] }));
+    fs.writeFileSync(path.join(app, DESIGN), '# d\n');
+    fs.writeFileSync(path.join(app, 'README.md'), '# r\n');
+    expect(main(['args', '--doc', 'README.md'], { cwd: path.join(app, 'docs') })).toBe(0);
+    expect(printed().docs.map((d) => d.path)).toEqual([`apps/mobile/${DESIGN}`, 'apps/mobile/README.md']);
+  });
+
   it('is reached through the dispatcher', async () => {
     const root = repoWith(['supabase'], { [DATA]: '# m\n' });
     expect(await dispatch(['audit', 'args'], { cwd: root })).toBe(0);
@@ -125,7 +137,17 @@ describe('audit args refuses', () => {
 
   it('a path listed twice', () => {
     const root = repoWith(['expo'], { [DESIGN]: '# d\n' });
-    refused(args(root, ['--doc', DESIGN]), m.twice(DESIGN));
+    refused(args(root, ['--doc', DESIGN]), m.twice(DESIGN, DESIGN));
+  });
+
+  it('one file under two names: a hard link, and a case alias where the filesystem folds case', () => {
+    const root = repoWith(['expo'], { [DESIGN]: '# d\n' });
+    fs.linkSync(path.join(root, DESIGN), path.join(root, 'docs/alias.md'));
+    refused(args(root, ['--doc', 'docs/alias.md']), m.twice('docs/alias.md', DESIGN));
+    const upper = DESIGN.toUpperCase();
+    if (!fs.existsSync(path.join(root, upper))) return;
+    err.length = 0;
+    refused(args(root, ['--doc', upper]), m.twice(upper, DESIGN));
   });
 
   it('a bad argument, with the usage', () => {

@@ -30,6 +30,9 @@ export const meta = {
 //     invariants: ['every deploy-order sentence', 'the secrets policy'],  // optional
 //   }
 //
+// Every path is relative to the git work tree's top, whatever the launch directory
+// (`npx cookwright audit args` prints them so).
+//
 // Self-discovering: agents derive counts, versions and lists from the repo
 // themselves — nothing here is pinned to a point-in-time state. The ORCHESTRATOR
 // owns branching and committing; agents never run git write commands.
@@ -112,7 +115,7 @@ const DOCS = args.docs;
 const INVARIANTS = Array.isArray(args.invariants) ? args.invariants : [];
 
 const REPO_CONTEXT = `
-CONTEXT: the repo is the working directory you are launched in — use relative paths; never assume a checkout location. Discover the current state yourself and do NOT trust any doc's claim about counts, versions or what is merged: count the files, read the code, read git log. If the repo has a rules file (CLAUDE.md or AGENTS.md), its rules apply to you.
+CONTEXT: the repo is the git work tree you are launched in. Every doc path you are given is relative to its top (git rev-parse --show-toplevel), whatever directory you start in: resolve paths from there; never assume a checkout location. Discover the current state yourself and do NOT trust any doc's claim about counts, versions or what is merged: count the files, read the code, read git log. If the repo has a rules file (CLAUDE.md or AGENTS.md), its rules apply to you.
 `;
 
 const FIX_COMMON =

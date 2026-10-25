@@ -54,7 +54,7 @@ init writes `docs/design-system.md` (expo) and `docs/data-model.md` (supabase) w
 
 `npx cookwright packs rules` prints the declared packs' doc-sync rules and gate checks as JSON, `{ "docSync": […], "gate": […] }`, for copying into an existing `cookwright.json`, which init never edits.
 
-`npx cookwright audit args [--doc <path>[:<scope>] …]` prints the arguments of the `docs-audit` Workflow as JSON: each declared pack's contract doc with what to audit it against, then each extra doc named, a path relative to the directory holding `cookwright.json`. It refuses a pack's doc that is missing (init writes it), an extra that is not a file in the repo or is reached through a symbolic link, and a path listed twice. The `docs-audit` skill (Level 2, experimental) runs the Workflow with them on a branch of its own.
+`npx cookwright audit args [--doc <path>[:<scope>] …]` prints the arguments of the `docs-audit` Workflow as JSON: each declared pack's contract doc with what to audit it against, then each extra doc named, given relative to the directory holding `cookwright.json`. Every printed path is relative to the work tree's top, where the Workflow resolves it, so a `cookwright.json` below the top works from any directory. It refuses a pack's doc that is missing (init writes it), an extra that is not a file in the repo or is reached through a symbolic link, and one file named twice, whether by the same path, a case alias or a hard link. The `docs-audit` skill (Level 2, experimental) runs the Workflow with them on a branch of its own.
 
 ## Escapes and switches
 

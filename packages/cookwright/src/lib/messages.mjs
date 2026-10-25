@@ -602,7 +602,7 @@ const audit = {
   outside: (rel) => `--doc ${rel}: not a path inside the repo (give it relative to the directory holding ${CONFIG_FILE})`,
   link: (rel, link) => `${rel}: ${link} is a symbolic link, and the audit edits no doc through one`,
   notAFile: (rel) => `--doc ${rel}: no file there`,
-  twice: (rel) => `${rel} is listed twice`,
+  twice: (rel, first) => (rel === first ? `${rel} is listed twice` : `${rel} is ${first} under another name, listed twice`),
   nothing: `nothing to audit: no pack is declared in ${CONFIG_FILE} and no --doc was given`,
 };
 

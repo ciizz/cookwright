@@ -4,14 +4,17 @@
 // to the Workflow as printed, so no doc list is hand-written.
 //
 // The list is each declared pack's contract docs (their manifests' `docs`), then
-// each `--doc` extra, every path relative to the config root. Each doc must be a
-// regular file inside the repo with no symbolic link on its path, since the
-// Workflow edits it: a pack's doc that is missing names init, an extra that is not
-// such a file is refused naming it. A path listed twice is refused, since two
-// auditor-fixers would own one file.
+// each `--doc` extra, given relative to the config root. Each doc must be a regular
+// file inside the repo with no symbolic link on its path, since the Workflow edits
+// it: a pack's doc that is missing names init, an extra that is not such a file is
+// refused naming it. One file named twice is refused, by device and inode, so a
+// case alias or a hard link counts too: two auditor-fixers would own one file. The
+// printed paths are relative to the work tree's top, where the Workflow resolves
+// them, so a config root below the top is named from there (E-043).
 //
 // Exit 0 with the JSON on stdout; exit 2 refused, the reason on stderr.
 
+import fs from 'node:fs';
 import path from 'node:path';
 
 import { TimedOut } from './lib/budget.mjs';
@@ -82,17 +85,31 @@ function extraDocs(root, extras) {
   });
 }
 
-/** The Workflow's args for the repo at `cwd`; refuses a duplicate path or an empty list. */
+/** Refuse one file named twice: the same path, a case alias or a hard link (one device and inode). */
+function refuseTwice(root, docs) {
+  const seen = new Map();
+  for (const doc of docs) {
+    const { dev, ino } = fs.statSync(path.join(root, doc.path));
+    const first = seen.get(`${dev}:${ino}`);
+    if (first !== undefined) throw new Refusal(m.twice(doc.path, first));
+    seen.set(`${dev}:${ino}`, doc.path);
+  }
+}
+
+/** `rel`, relative to the config root, as the work tree's top names it (unchanged when the two are one). */
+function fromTop(top, root, rel) {
+  if (!top) return rel;
+  const prefix = path.relative(fs.realpathSync(top), fs.realpathSync(root)).split(path.sep).join('/');
+  return prefix ? `${prefix}/${rel}` : rel;
+}
+
+/** The Workflow's args for the repo at `cwd`; refuses one file named twice or an empty list. */
 export function auditArgs(cwd, extras) {
-  const { root, config } = openConfig(cwd, m);
+  const { root, top, config } = openConfig(cwd, m);
   const docs = [...packDocs(root, config), ...extraDocs(root, extras)];
   if (!docs.length) throw new Refusal(m.nothing);
-  const seen = new Set();
-  for (const doc of docs) {
-    if (seen.has(doc.path)) throw new Refusal(m.twice(doc.path));
-    seen.add(doc.path);
-  }
-  return { docs };
+  refuseTwice(root, docs);
+  return { docs: docs.map((doc) => ({ ...doc, path: fromTop(top, root, doc.path) })) };
 }
 
 /** A refusal on stderr, exit 2; with `usage`, the usage follows the reason. */

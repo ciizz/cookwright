@@ -68,7 +68,8 @@ export const manifest = {
       measure: 'doc-sync',
       docSync: {
         name: 'expo:design-doc',
-        code: ['src/components/**', 'components/**', ':!**/*.test.*'],
+        // A component's tests and snapshots are not the component (the ESLint blocks ignore them too).
+        code: ['src/components/**', 'components/**', ':!**/*.test.*', ':!**/__tests__/**', ':!**/__snapshots__/**'],
         docs: ['docs/design-system.md'],
       },
     },

@@ -153,7 +153,7 @@ describe('the rules of the kickoff', () => {
   it('carry the doc-sync defaults and the gate entries of plan §4.3 and disposition 30', () => {
     const docSync = (n) => PACKS[n].rules.filter((r) => r.docSync).map((r) => r.docSync);
     expect(docSync('expo')).toEqual([
-      { name: 'expo:design-doc', code: ['src/components/**', 'components/**', ':!**/*.test.*'], docs: ['docs/design-system.md'] },
+      { name: 'expo:design-doc', code: ['src/components/**', 'components/**', ':!**/*.test.*', ':!**/__tests__/**', ':!**/__snapshots__/**'], docs: ['docs/design-system.md'] },
     ]);
     expect(docSync('supabase')).toEqual([
       { name: 'supabase:data-doc', code: ['supabase/migrations/**'], docs: ['docs/data-model.md'] },

@@ -384,7 +384,7 @@ describe('cookwright.json', () => {
 describe('cookwright.json: a fresh config’s packs, doc-sync rules and gate checks', () => {
   const RATCHET = { name: 'standards', run: 'npx cookwright standards --ratchet', skipExit: 11 };
   const TYPES = { name: 'standards:types', run: 'npx cookwright standards --types', skipExit: 11 };
-  const DESIGN_DOC = { name: 'expo:design-doc', code: ['src/components/**', 'components/**', ':!**/*.test.*'], docs: ['docs/design-system.md'] };
+  const DESIGN_DOC = { name: 'expo:design-doc', code: ['src/components/**', 'components/**', ':!**/*.test.*', ':!**/__tests__/**', ':!**/__snapshots__/**'], docs: ['docs/design-system.md'] };
   const DATA_DOC = { name: 'supabase:data-doc', code: ['supabase/migrations/**'], docs: ['docs/data-model.md'] };
   const fresh3 = (names, pkg) => {
     const root = fresh();

@@ -7,6 +7,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { commit, run, scratchRepo, scratchRoot } from '../../test-helpers.mjs';
+import { PACKS } from '../packs/registry.mjs';
 import { stagedMatching, unmetRules } from './docsync.mjs';
 
 const TMP = scratchRoot('cookwright-docsync-');
@@ -72,6 +73,23 @@ describe('unmetRules', () => {
     ]);
     stage(repo, { 'skills/bundle/SKILL.md': 's' });
     expect(unmet(repo)).toEqual([]);
+  });
+
+  it('leaves a component’s tests and snapshots out of the expo pack’s design-doc rule', () => {
+    const rule = PACKS.expo.rules.find((r) => r.id === 'design-doc').docSync;
+    const repo = repoAt();
+    commit(repo, { 'README.md': 'x' }, 'init');
+    stage(repo, {
+      'components/__tests__/ThemedText-test.tsx': 't',
+      'components/__tests__/__snapshots__/ThemedText-test.tsx.snap': 's',
+      'src/components/__snapshots__/Card.tsx.snap': 's',
+      'components/Button.test.tsx': 't',
+    });
+    expect(unmetRules(repo.root, [rule], ENV)).toEqual([]);
+    stage(repo, { 'components/Button.tsx': 'b' });
+    expect(unmetRules(repo.root, [rule], ENV)).toEqual([
+      'expo:design-doc: 1 file(s) changed (components/Button.tsx), but none of docs/design-system.md is staged',
+    ]);
   });
 
   it('passes code staged only under an excluded pathspec', () => {

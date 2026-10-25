@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 191,
+  "revision": 200,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -402,9 +402,26 @@
     },
     {
       "name": "review:whole",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T23:25:14.148Z",
+          "stateRevision": 191,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_2711314e-37a",
+          "endedAt": "2026-10-25T23:34:34.483Z",
+          "turnOutputTokens": 509969
+        }
+      ],
+      "startCommit": "065b34a5e1e121ceda34b5a055271b1dbbb2f9a0",
+      "range": {
+        "from": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
+        "to": "065b34a5e1e121ceda34b5a055271b1dbbb2f9a0"
+      },
+      "endCommit": "065b34a5e1e121ceda34b5a055271b1dbbb2f9a0",
+      "endCode": "2465fe3e09ed686c11c37e8c54af48c9c0c7153a"
     },
     {
       "name": "fix:whole",
@@ -704,6 +721,24 @@
       "at": "2026-10-25T23:12:02.763Z",
       "stored": true,
       "head": "6f29a68151675c6006795e64210ddcd2f53f8301"
+    },
+    {
+      "phase": "review:whole",
+      "path": "docs/dev/bundles/stage-4/findings/review-whole-1.json",
+      "counts": {
+        "confirmed": 6,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 3,
+        "P3": 3
+      },
+      "at": "2026-10-25T23:34:04.680Z",
+      "stored": true,
+      "head": "065b34a5e1e121ceda34b5a055271b1dbbb2f9a0"
     }
   ],
   "reports": [
@@ -1573,6 +1608,41 @@
       "actor": "orchestrator",
       "source": "fix:surface measurement",
       "text": "typescript-eslint 8.59.0's configs.base is one config object (name, languageOptions, plugins), measured on the origin repo's install, so the setup skill's minimal-config remedy for a TypeScript app holds as written.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:34:32.889Z",
+      "actor": "orchestrator",
+      "source": "review:whole finding 0",
+      "text": "Fix in fix:whole (rule 3): pack.supabase.types reads PASS only for a gate check that is a genuine cookwright invocation of standards --types (the command's first words, no trailing arguments beyond --base) with skipExit 11; a missing skipExit or another shape is WARN naming the entry; tests cover a missing skipExit, an echo false positive and extra arguments.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:34:33.223Z",
+      "actor": "orchestrator",
+      "source": "review:whole findings 1 and 5",
+      "text": "Fix in fix:whole (rule 3): pack.<name>.lint also requires a gate check running cookwright standards --ratchet with skipExit 11, WARN naming npx cookwright packs rules when absent or different, so the branch ratchet the section promises is configured; each ESLint rule's measurement sentence reads 'against the ratchet's base at the gate', the pack versions bump to 2.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:34:33.506Z",
+      "actor": "orchestrator",
+      "source": "review:whole finding 3",
+      "text": "Fix in fix:whole (rule 2: a chosen state is honoured): the doc-sync hook skips a pack-owned rule (<pack>:<rule>) whose pack is not declared or whose rule is switched off, printing it as switched off on its line; doctor's pack.<name>.rules WARNs that hooks.docSync or gate.checks still carries a switched-off rule's entry, naming it, and the setup skill offers its removal; the standards:types gate entry of a switched-off types rule is covered the same way.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:34:33.786Z",
+      "actor": "orchestrator",
+      "source": "review:whole finding 4",
+      "text": "Fix in fix:whole (rule 2): a covered file the repo's own ESLint config ignores counts nothing and is named in an informational tail part the skip reader does not count, never exit 11; exit 11 stays for a lint that threw, a parse error or a config that could not be computed.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:34:34.067Z",
+      "actor": "orchestrator",
+      "source": "review:whole finding 2",
+      "text": "Fixed in fix:whole as a cheap P3: this repo's setup doc-sync rule also covers src/standards.mjs, src/lib/hooks/standards.mjs, src/lib/doctor/packs.mjs and src/lib/init/packs.mjs, tests excluded, tied to docs/guides/standards.md.",
       "claim": true
     }
   ],

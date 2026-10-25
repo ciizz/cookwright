@@ -1,0 +1,138 @@
+{
+  "phase": "review:whole",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/doctor/packs.mjs",
+      "location": "line 132",
+      "problem": "pack.supabase.types accepts any command containing `cookwright standards --types`; it does not verify skipExit: 11, and the regex also accepts e.g. `echo cookwright standards --types`.",
+      "severity": "P2",
+      "suggested_fix": "Validate the full gate convention: a genuine cookwright invocation of `standards --types`, no incompatible trailing args, and skipExit === 11. Add tests for missing skipExit, an echo false positive, and extra arguments.",
+      "failure_scenario": "Doctor reports PASS for { run: 'npx cookwright standards --types' } without skipExit; when the local stack is unavailable, exit 11 becomes a gate failure and blocks the push. An `echo ...` check passes without measuring anything.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "packs.mjs:133 TYPES_RUN = /(^|[\\s/])cookwright standards --types(\\s|$)/ matches 'echo cookwright standards --types'; checkTypes (packs.mjs:~145) tests only c.run, never c.skipExit. Plan disposition 36 says exit 11 without skipExit is a fail, so a PASS row can coexist with a push-blocking gate. doctor.test.mjs:982-984 only covers the full entry, not a missing skipExit. Low severity: the echo case is contrived, the missing-skipExit case is real."
+    },
+    {
+      "file": "packages/cookwright/src/lib/doctor/packs.mjs",
+      "location": "line 164",
+      "problem": "No doctor row verifies that the shared `standards --ratchet` gate check remains configured; pack.<name>.lint checks only ESLint and the export, and gate.scripts validates only checks that exist.",
+      "severity": "P2",
+      "suggested_fix": "Add a pack doctor row comparing the configured `standards` check with the active pack defaults (including skipExit: 11), WARN when absent or different.",
+      "failure_scenario": "In an Expo project with another valid gate check, deleting the `standards` entry leaves every relevant doctor row PASS while pre-push no longer performs the branch ratchet promised by the charter and standards guide.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "The only references to the ratchet gate entry are registry.mjs:34 (RATCHET_CHECK, written by init) and tests. No doctor row in lib/doctor reads gate.checks for 'standards --ratchet'. PACK_ROWS (packs.mjs:~190) has only declared, rules, docs, lint and types. checkLint (packs.mjs:~160) checks ESLint only, so removing the entry leaves every pack row PASS."
+    },
+    {
+      "file": "cookwright.json",
+      "location": "line 46",
+      "problem": "Doc-sync coverage for the standards guide includes pack manifests and src/lib/packs/* but omits other user-facing implementations: src/standards.mjs, src/lib/hooks/standards.mjs, src/lib/doctor/packs.mjs, src/lib/init/packs.mjs.",
+      "severity": "P3",
+      "suggested_fix": "Extend the standards-related doc-sync rule to cover these entry points, excluding their tests where appropriate.",
+      "failure_scenario": "A later change to CLI exits, hook behavior, doctor claims, or pack init can commit without staging docs/guides/standards.md, despite AGENTS.md requiring doc sync.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "cookwright.json:42-65. The `setup` rule's code globs are skills/setup/SKILL.md, agents-block.md, packs/**, src/lib/packs/* and :!*.test.mjs. The `audit` rule covers only audit.mjs, packs.mjs, command.mjs and the docs-audit skill. None of src/standards.mjs, src/lib/hooks/standards.mjs, src/lib/doctor/packs.mjs or src/lib/init/packs.mjs is matched by any rule that maps to docs/guides/standards.md. A commit changing only one of them therefore passes doc-sync without staging a guide. This was a deliberate scope choice (plan.md disposition 43, line 51, names only packs/** and src/lib/packs/*), and AGENTS.md says to update the doc when unsure, so the omission is a coverage gap in the tripwire, not a violated invariant."
+    },
+    {
+      "file": "packages/cookwright/src/lib/hooks/docsync.mjs",
+      "location": "checkDocSync reads repo.config.hooks.docSync as written (L41); packs/registry.mjs declaredPacks/activeRules; docs/guides/standards.md:61; skills/setup/SKILL.md:154",
+      "problem": "Switching off a pack's doc-sync rule in `packs` does not turn it off. A fresh init writes `expo:design-doc` and `supabase:data-doc` into `hooks.docSync`. The doc-sync hook enforces every entry there and never checks whether the pack rule is switched off, or whether the pack is still declared. Doctor's `docSyncFor` skips a switched-off rule, so nothing reports that the entry is still live. Meanwhile the section renders `(switched off)`, the standards guide says a switched-off rule \"is counted by no check\", and the setup skill tells the developer to say \"no check counts it\". The `types` rule has a similar gap: the `standards:types` gate entry stays, exits 11 on every gate, and every gate records it as a skipped hole (a WARN in the landing check) instead of a choice the developer made.",
+      "severity": "P2",
+      "suggested_fix": "Make the doc-sync hook drop a pack-owned rule (`<pack>:<rule>` name) whose pack is undeclared or whose rule is in `off`, and print that it was skipped as switched off. Or have doctor's `pack.<name>.rules` WARN that `hooks.docSync` still carries a switched-off rule, give the setup skill a removal remedy, and correct the guide's sentence. Do the same for the `standards:types` gate entry when `types` is off.",
+      "failure_scenario": "An Expo app is initialised fresh, so `hooks.docSync` holds `expo:design-doc`. The developer sets `\"packs\": [{ \"name\": \"expo\", \"rules\": { \"design-doc\": false } }]` and runs init. AGENTS.md now reads `(switched off)` and doctor WARNs `switched off: design-doc`. The developer then commits a change to `components/Button.tsx` without `docs/design-system.md`. pre-commit FAILs with `expo:design-doc: 1 file(s) changed (components/Button.tsx), but none of docs/design-system.md is staged`, which contradicts the guide, the section and the setup skill.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/hooks/docsync.mjs:41 (unchanged in the range) enforces repo.config.hooks.docSync as written, with no reference to packs/off. init never edits an existing cookwright.json (docs/guides/standards.md:55), so the seeded expo:design-doc entry stays after `rules: {design-doc:false}`. Doctor's docSyncFor (src/lib/doctor/packs.mjs:71) skips switched-off rules, so nothing flags the live entry. section.mjs:27 renders '(switched off)'. docs/guides/standards.md:61 says a switched-off rule is 'counted by no check'. skills/setup/SKILL.md:154 tells the developer to say 'no check counts it'. The pre-commit FAIL in the scenario follows. I did not separately reproduce the types/standards:types gate-entry sub-claim."
+    },
+    {
+      "file": "packages/cookwright/src/standards.mjs",
+      "location": "stagedReport L113, ratchetReport L163; src/lib/packs/standards.mjs scopeAt L206 (fileIgnored)",
+      "problem": "One covered file that the repo's own ESLint config ignores (a chosen exclusion) turns the whole verdict into exit 11, unless some rule's count rose. The counts already measured for every other file are dropped from the line. `--staged` reads SKIP instead of PASS, and `--ratchet` is recorded as `skipped`. When `standards` is the only gate check, as on a fresh Expo app with no test script and no supabase pack, `bundle gate` refuses with \"no check ran\", so a slice cannot get the passing gate that `phase done` requires. The developer cannot clear this without removing their own ignore (judgment rule 2).",
+      "severity": "P3",
+      "suggested_fix": "Treat a file the repo's ESLint config ignores as outside the pack's rules: count nothing and add at most an informational tail part. Keep exit 11 for real failures (lint threw, parse error, config not computable). Or exit 0 with the measured counts and name the ignored files in a part that `skippedParts` does not read as a skipped rule.",
+      "failure_scenario": "An Expo+Supabase app's `eslint.config.js` has `ignores: ['dist/*', 'src/types/database.types.ts']`, a common choice for generated types. A migration branch regenerates and commits the types file together with clean component edits. Every commit touching it reads `pre-commit SKIP standards skipped, 1 file(s) not measured: src/types/database.types.ts (the ESLint config ignores it, though a pack's rule covers it)`, because the size rule's `**/*.{ts,js}` covers it. The branch's `standards --ratchet` exits 11 every time, so no migration branch is ever ratcheted.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "src/lib/packs/standards.mjs:206 returns {unmeasured: fileIgnored} when calculateConfigForFile gives no config; src/standards.mjs:113-115 (staged) and :163-165 (ratchet) return SKIP_EXIT (=11, packs/standards.mjs:40) whenever any item is unmeasured and no rule rose, dropping the measured files' counts; src/lib/bundle/gate.mjs:159 refuses with noCheckRan when every check is skipped. The skip-on-ignore behaviour is deliberate (standards.test.mjs:227) but the effect on a lone standards check holds."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/section.mjs",
+      "location": "measurement() L23; src/lib/doctor/packs.mjs checkLint L164-180 vs checkTypes L147",
+      "problem": "Each ESLint rule's sentence in AGENTS.md says it is `measured by ESLint … on the staged files at commit and against the base branch at the gate`. That claims more than the code does in two ways. First, at pre-push the base is the remote's previous commit of the pushed ref (COOKWRIGHT_PUSH_BASE), not the base branch. Second, nothing checks that `gate.checks` contains the `standards --ratchet` entry at all. `pack.supabase.types` WARNs `the gate runs no types check` when its entry is missing, but `pack.<name>.lint` reads PASS whether or not the ratchet entry exists. An existing config only gets that entry when the developer accepts the setup skill's offer.",
+      "severity": "P3",
+      "suggested_fix": "Word the measurement as `against the gate's base` (or `the ratchet's base`), bumping the pack version. Add the same gate-entry test to `pack.<name>.lint` that checkTypes has (a `gate.checks` run matching `cookwright standards --ratchet`), with a WARN naming the `npx cookwright packs rules` entry.",
+      "failure_scenario": "An existing Expo app takes the expo pack through the setup skill and declines the gate entries. Doctor reads every pack row PASS, and AGENTS.md tells the agent each ESLint rule is measured \"against the base branch at the gate\". A branch that adds ten colour literals across commits made with `COOKWRIGHT_SKIP=standards` then pushes and lands: no gate check ever ratchets it, and no doctor line says so.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "Both halves hold. (1) packs/section.mjs:23 says ESLint rules are measured 'against the base branch at the gate'. src/standards.mjs resolves the ratchet base as --base first, then COOKWRIGHT_PUSH_BASE, then the base branch (standards.test.mjs:394-400). hooks/push.mjs sets COOKWRIGHT_PUSH_BASE to the remote's previous commit of the pushed ref (hook.test.mjs:525-535). So at pre-push the base is that commit, not the base branch. (2) doctor/packs.mjs checkLint L164-180 never reads gate.checks; it returns PASS from the ESLint version, config file, export and deps alone. checkTypes L147-148 does check for a gate entry and WARNs noGate. A grep of src/lib/doctor/ finds no check for a `standards --ratchet` entry. So a config that declined the gate entries reads PASS while AGENTS.md claims gate measurement. I did not trace how the setup skill offers the entry, but the missing doctor check is enough."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff e966c45..065b34a via Codex (high effort, read-only, foreground run)",
+    "git diff --check passed",
+    "AGENTS.md rules and plan.md read by Codex",
+    "Plan docs/dev/bundles/stage-4/plan.md dispositions 1-48 against the implementation",
+    "src/lib/packs/standards.mjs engine: wired/judge, coverage/scopeAt/changedAt, parseRaw, staged/range/head entries, readBlobs, countBy, lintAt",
+    "src/standards.mjs modes, exits, quiet() stdout redirection, thrown() line vs detail",
+    "src/lib/packs/base.mjs base resolution order and on-base-branch handling",
+    "src/lib/packs/types.mjs script shape, change condition, local-stack precheck both directions, compare",
+    "src/lib/hooks/standards.mjs child spawn, timeout, exit mapping; hooks/registry.mjs pushBase threading",
+    "src/lib/hooks/push.mjs pushBase/gateEnv",
+    "src/lib/bundle/gate.mjs skipExit, noteOf scrubbing, partialChecks/passLabel; check.mjs; closeout.mjs notes; tail not stored",
+    "packs/expo/eslint.cjs and packs/supabase/eslint.cjs blocks, tags, ignores, plugin resolution; glob.mjs",
+    "packs manifests; registry defaults; config.mjs validatePacks/skipExit/validatePackDocs; migrations 2->3",
+    "init: rulesFileStep one-pass composition, eslintConfigStep transform, packDocsStep, packDepsStep, refuseCollisions, gitignore node_modules",
+    "doctor: packs rows (declared/rules/docs/lint/types), repo.node_modules, B-012 WARN, B-013 level line, foreign hooks WARN",
+    "audit args, packs rules, command.mjs, docs-audit skill, docs-audit.js path note",
+    "bundle-phase.js red-team sentence and playbook Reviewer line",
+    "README, standards/hooks/updating guides claims vs code; backlog closures/openings",
+    "Secrets/local-path exposure in recorded notes and printed findings (literal never echoed)",
+    "Functions-under-40-lines rule over new src modules (none over)",
+    "Advisory rules: this repo declares packs: [] so its AGENTS.md has no pack ### Advisory section; no visual primitives in the diff"
+  ],
+  "notes": "Codex completed without hitting the ceiling. npm test could not run in Codex's read-only sandbox (Vitest EPERM creating node_modules/.vite-temp). Findings transcribed faithfully; none added.\n---\nI reviewed the range e966c45c..065b34a5 read-only and found 3 issues: 1 P2 and 2 P3. I left out issues that review:model-1, review:measure-1 and review:surface-1 already recorded, and the pack section that lingers after a pack is removed (backlog E-040). The P2 is a claim the code does not keep: a doc-sync rule switched off in `packs` is still enforced by the pre-commit doc-sync hook, while the guide, the AGENTS.md section and the setup skill all say no check counts it. The engine itself (path base, rename and type-change handling, tag matching anywhere in the message, the per-file ratchet, stdout quieting, note scrubbing) matched the plan's dispositions. Advisory-rule check: this repo declares no pack, so its rules file has no pack `### Advisory` section, and the diff contains no UI primitives to judge against one. I ran no tests.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a17562-43b4-7a42-99b4-f5a69f446b0a",
+    "partialReportPath": "<local path>"
+  }
+}

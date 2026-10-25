@@ -210,6 +210,34 @@ describe('--staged: the per-file ratchet', () => {
     );
   });
 
+  it('reads a file the repo’s config ignores, or where a later block changed a covering rule, as not measured', async () => {
+    const own = [
+      "const expo = require('cookwright/packs/expo/eslint.cjs').withResolver((id) => require.resolve(id));",
+      'module.exports = [',
+      "  ...expo, ...require('cookwright/packs/supabase/eslint.cjs'),",
+      "  { ignores: ['src/components/legacy/**'] },",
+      "  { files: ['src/components/old/**'], rules: { 'max-lines-per-function': 'off' } },",
+      '];',
+      '',
+    ].join('\n');
+    const repo = repoWith({}, { fake: { config: own } });
+    stage(repo, { 'src/components/legacy/Card.tsx': LEGACY, 'src/components/old/Card.tsx': LEGACY, 'src/components/Fine.tsx': CLEAN });
+    expect(await standards(repo)).toBe(11);
+    const items = [m.notMeasuredItem('src/components/legacy/Card.tsx', m.fileIgnored), m.notMeasuredItem('src/components/old/Card.tsx', m.changedHere(['expo size']))];
+    expect(out).toEqual([m.skippedBecause(m.notMeasured(items))]);
+  });
+
+  it('never counts a file no pack rule covers: a test file is not under the packs’ rules', async () => {
+    const repo = repoWith({}, { packs: ['expo'] });
+    stage(repo, { 'src/components/Card.test.tsx': LEGACY });
+    expect(await standards(repo)).toBe(0);
+    expect(out).toEqual([m.noStaged]);
+    out.length = 0;
+    run(repo.root, 'git', ['commit', '-qm', 'test', '--no-verify']);
+    expect(await standards(repo, [])).toBe(0);
+    expect(out).toEqual(['expo  strings  0', 'expo  tokens  0', 'expo  size  0', m.counted(1)]);
+  });
+
   it('lists only the config root’s files when it sits below the top, paths shown from the root', async () => {
     const top = gitInit(path.join(TMP, `nested-${(n += 1)}`));
     const root = path.join(top, 'apps/mobile');

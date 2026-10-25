@@ -58,7 +58,7 @@ async function prepare(repo, io) {
   const { eslint } = await load(repo.root, rules[0].pack.manifest.setup.eslint);
   const { measured, skipped } = await engine.wired(eslint, repo.root, rules);
   if (!measured.length) throw new Unmeasurable(m.noneMeasured(skipped));
-  return { ...repo, eslint, measured, skipped };
+  return { ...repo, eslint, measured, skipped, cover: engine.coverage(measured) };
 }
 
 /** Each rule whose count in one file rose, in the rules' order: `{ key, from, to }`. */
@@ -68,13 +68,29 @@ function rises(ctx, { now, before }) {
     .filter((c) => c.to > c.from);
 }
 
-/** One staged entry, both sides: the index's blob, and HEAD's (none for an added file). */
+/**
+ * One changed entry, both sides: the new blob, and the base's (none for an added
+ * file), counted by the rules that cover the file and hold there. Null when no pack
+ * rule covers it; both sides unmeasured when the repo's config ignores it there or
+ * changed a covering rule for it.
+ */
 async function judgeFile(ctx, entry, blobs) {
-  const { eslint, top, measured } = ctx;
-  const now = await engine.lintAt(eslint, top, entry.path, blobs.get(entry.sha), measured);
+  const { eslint, top } = ctx;
+  const file = engine.shownPath(top, ctx.root, entry.path);
+  const scope = await engine.scopeAt(eslint, top, ctx.root, entry.path, ctx.cover);
+  if (scope.unmeasured) return { entry, file, now: scope, before: scope };
+  if (!scope.rules.length) return null;
+  const now = await engine.lintAt(eslint, top, entry.path, blobs.get(entry.sha), scope.rules);
   // A rename's HEAD side is linted at its new path, which is on disk and in the project (disposition 47).
-  const before = engine.hasBase(entry) ? await engine.lintAt(eslint, top, entry.path, blobs.get(entry.baseSha), measured) : engine.NOTHING;
-  return { entry, now, before, file: engine.shownPath(top, ctx.root, entry.path) };
+  const before = engine.hasBase(entry) ? await engine.lintAt(eslint, top, entry.path, blobs.get(entry.baseSha), scope.rules) : engine.NOTHING;
+  return { entry, now, before, file };
+}
+
+/** Every entry of `files` judged, in order, without those no pack rule covers. */
+async function judgeAll(ctx, files, blobs) {
+  const judged = [];
+  for (const entry of files) judged.push(await judgeFile(ctx, entry, blobs));
+  return judged.filter(Boolean);
 }
 
 /** The `--staged` report over the judged files: exit and lines. */
@@ -102,9 +118,8 @@ async function stagedMode(repo, io) {
   if (!files.length) return { exit: 0, lines: [m.tail(m.noStaged, deleted ? [m.deleted(deleted)] : [])] };
   const ctx = await prepare(repo, io);
   const shas = files.flatMap((e) => (engine.hasBase(e) ? [e.sha, e.baseSha] : [e.sha]));
-  const blobs = engine.readBlobs(ctx.top, shas, ctx.env);
-  const judged = [];
-  for (const entry of files) judged.push(await judgeFile(ctx, entry, blobs));
+  const judged = await judgeAll(ctx, files, engine.readBlobs(ctx.top, shas, ctx.env));
+  if (!judged.length) return { exit: 0, lines: [m.tail(m.noStaged, [...ctx.skipped, ...(deleted ? [m.deleted(deleted)] : [])])] };
   return stagedReport(ctx, judged, deleted);
 }
 
@@ -154,12 +169,19 @@ async function ratchetMode(repo, flags, io) {
   if (!files.length) return { exit: 0, lines: [m.tail(m.noChange(since), deleted ? [m.deleted(deleted)] : [])] };
   const ctx = await prepare(repo, io);
   const blobs = engine.readBlobs(ctx.top, files.flatMap((e) => (engine.hasBase(e) ? [e.sha, e.baseSha] : [e.sha])), ctx.env);
-  const judged = [];
-  for (const entry of files) judged.push(await judgeFile(ctx, entry, blobs));
+  const judged = await judgeAll(ctx, files, blobs);
+  if (!judged.length) return { exit: 0, lines: [m.tail(m.noChange(since), [...ctx.skipped, ...(deleted ? [m.deleted(deleted)] : [])])] };
   return ratchetReport(ctx, judged, deleted, since);
 }
 
-/** No flag: the count per measured rule over HEAD's files. */
+/** HEAD's side of one file, counted by the rules that cover it; null when none does. */
+async function headSide(ctx, entry, blobs) {
+  const scope = await engine.scopeAt(ctx.eslint, ctx.top, ctx.root, entry.path, ctx.cover);
+  if (scope.unmeasured) return scope;
+  return scope.rules.length ? engine.lintAt(ctx.eslint, ctx.top, entry.path, blobs.get(entry.sha), scope.rules) : null;
+}
+
+/** No flag: the count per measured rule over HEAD's files under a pack's rules. */
 async function countMode(repo, io) {
   const entries = engine.headEntries(repo.top, repo.root, repo.env);
   if (!entries) throw new Unmeasurable(m.noHead);
@@ -168,14 +190,18 @@ async function countMode(repo, io) {
   const blobs = engine.readBlobs(ctx.top, files.map((e) => e.sha), ctx.env);
   const totals = new Map(ctx.measured.map(({ key }) => [key, 0]));
   const items = [];
+  let counted = 0;
   for (const entry of files) {
-    const side = await engine.lintAt(ctx.eslint, ctx.top, entry.path, blobs.get(entry.sha), ctx.measured);
-    if (side.unmeasured) items.push(m.notMeasuredItem(engine.shownPath(ctx.top, ctx.root, entry.path), side.unmeasured));
-    else for (const [key, n] of side.counts) totals.set(key, totals.get(key) + n);
+    const side = await headSide(ctx, entry, blobs);
+    if (side?.unmeasured) items.push(m.notMeasuredItem(engine.shownPath(ctx.top, ctx.root, entry.path), side.unmeasured));
+    else if (side) {
+      counted += 1;
+      for (const [key, n] of side.counts) totals.set(key, totals.get(key) + n);
+    }
   }
   const lines = ctx.measured.map(({ key, pack, rule }) => m.count(pack.name, rule.id, totals.get(key)));
   const extras = [...ctx.skipped, ...(items.length ? [m.notMeasured(items)] : [])];
-  return { exit: 0, lines: [...lines, m.tail(m.counted(files.length - items.length), extras)] };
+  return { exit: 0, lines: [...lines, m.tail(m.counted(counted), extras)] };
 }
 
 const MODES = ['staged', 'ratchet', 'types'];

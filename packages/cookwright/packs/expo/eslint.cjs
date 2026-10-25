@@ -99,6 +99,9 @@ function blocks(plugin) {
 }
 
 module.exports = blocks(i18nextPlugin());
-// The tests' seam: the same blocks with another plugin resolver. Not a block, so
-// a spread never sees it.
+// Not blocks, so a spread never sees them. The tests' seam: the same blocks with
+// another plugin resolver. The engine's reading of which files each rule covers:
+// every block, the strings block whatever resolves here (its plugin a placeholder,
+// never linted with).
 Object.defineProperty(module.exports, 'withResolver', { value: (resolve) => blocks(i18nextPlugin(resolve)) });
+Object.defineProperty(module.exports, 'coverage', { value: blocks({}) });

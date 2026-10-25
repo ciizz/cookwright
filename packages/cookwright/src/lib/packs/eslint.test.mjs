@@ -2,7 +2,8 @@
 // repo's eslint.config.js requires them (stage-4 plan §4.4, §6): the blocks, their
 // names and ignores, every ESLint id a manifest rule names in exactly that rule's
 // blocks with the manifest's options, the Supabase service exemption, and the
-// strings block left out when eslint-plugin-i18next does not resolve.
+// strings block left out when eslint-plugin-i18next does not resolve, and the
+// engine's own reading of which files each block covers (glob.mjs, `coverage`).
 
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
@@ -11,6 +12,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scratchRoot } from '../../test-helpers.mjs';
+import { SUPPORTED, blockCovers } from './glob.mjs';
 import { PACKS } from './registry.mjs';
 
 const require = createRequire(import.meta.url);
@@ -133,5 +135,27 @@ describe('the supabase export', () => {
     const [, { paths, ...rest }] = client.rules['no-restricted-imports'];
     expect(rest).toEqual({});
     expect(paths.map((p) => p.name)).toEqual(['@supabase/supabase-js']);
+  });
+});
+
+describe('the engine’s reading of the exports', () => {
+  const PATHS = [
+    'src/components/Card.tsx', 'components/ui/Button.jsx', 'src/components/theme/colors.ts', 'src/components/Card.test.tsx',
+    'src/components/__tests__/Card.tsx', 'src/screens/Home.tsx', 'src/lib/a.ts', 'index.js', 'app.config.ts', 'src/locales/en.tsx',
+    'src/services/supabase.ts', 'supabase/functions/hello/index.ts', '.claude/workflows/x.js', 'node_modules/x/a.ts', 'src/.hidden/a.ts',
+  ];
+
+  it.each(Object.keys(PACKS))('%s: every glob is in the subset the engine matches', (name) => {
+    for (const block of EXPORTS[name]) for (const glob of [...block.files, ...(block.ignores ?? [])]) expect([glob, SUPPORTED.test(glob)]).toEqual([glob, true]);
+  });
+
+  it.each(Object.keys(PACKS))('%s: covers the same files as the fake ESLint’s matcher', (name) => {
+    for (const block of EXPORTS[name]) for (const rel of PATHS) expect([block.name, rel, blockCovers(block, rel)]).toEqual([block.name, rel, applies(block, rel)]);
+  });
+
+  it('reads the expo export’s every block, the strings block whatever resolves, never as a spread element', () => {
+    const strip = (blocks) => blocks.map(({ plugins, ...rest }) => rest);
+    expect(strip(expoExport.coverage)).toEqual(strip(EXPORTS.expo));
+    expect(Object.keys(expoExport)).not.toContain('coverage');
   });
 });

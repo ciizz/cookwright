@@ -535,6 +535,9 @@ const standards = {
   finding: (file, line, column, key, text) => `${file}:${line}:${column}  ${key}  ${text}`,
   // a file the engine could not measure
   parseError: (line, column) => `ESLint could not parse it at ${line}:${column}`,
+  fileIgnored: "the ESLint config ignores it, though a pack's rule covers it",
+  changedHere: (keys) => `${list(keys)} changed for it by a later block in the ESLint config`,
+  configAtFile: "ESLint could not compute the config for it (npx eslint --print-config <file> shows why)",
   noBlob: 'git could not read its content',
   notMeasured: (items) => `${items.length} file(s) not measured: ${shown(items)}`,
   notMeasuredItem: (file, why) => `${file} (${why})`,

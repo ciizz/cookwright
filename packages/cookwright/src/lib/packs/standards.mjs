@@ -17,7 +17,10 @@
 // A rule counts only when `wired` finds it in the effective config as the pack set
 // it (disposition 29): severity error, the pack's tag in a shared id's options, the
 // manifest's options. A rule switched off, overridden, not wired or missing its
-// plugin counts nothing and is named on the line (disposition 37).
+// plugin counts nothing and is named on the line (disposition 37). Then per file
+// (`scopeAt`): a file counts only by the rules whose pack blocks cover it, and a
+// covered file the repo's config ignores, or where a later block changed a covering
+// rule, is not measured rather than counted 0.
 
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -27,6 +30,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { TimedOut, runBounded } from '../budget.mjs';
 import { installed } from '../init/packs.mjs';
 import { messages } from '../messages.mjs';
+import { blockCovers } from './glob.mjs';
 import { activeRules, declaredPacks } from './registry.mjs';
 
 const m = messages.standards;
@@ -129,6 +133,69 @@ export async function wired(eslint, root, rules) {
   const measured = rules.filter((_, i) => states[i].state === MEASURED);
   const skipped = rules.flatMap((item, i) => (states[i].state === MEASURED ? [] : [m.ruleSkipped(item.key, states[i].why)]));
   return { measured, skipped };
+}
+
+// ── scope: which measured rules cover a file, and whether they hold there ──
+
+const own = createRequire(import.meta.url);
+
+/** The blocks of `pack`'s export as this package ships it; `coverage` when it has one (every block, whatever resolves). */
+function exportBlocks(pack) {
+  const exported = own(`../../../${pack.manifest.eslintExport}`);
+  return [...(exported.coverage ?? exported)];
+}
+
+/**
+ * Where each rule of `measured` reaches, by its pack's own blocks: `[{ item, blocks }]`,
+ * `blocks` those that set one of its ESLint ids (each id is set by its rule's blocks
+ * only, which eslint.test.mjs keeps true).
+ */
+export function coverage(measured) {
+  const byPack = new Map();
+  const blocksOf = (pack) => byPack.get(pack.name) ?? byPack.set(pack.name, exportBlocks(pack)).get(pack.name);
+  return measured.map((item) => ({
+    item,
+    blocks: blocksOf(item.pack).filter((b) => item.rule.eslint.ruleIds.some((id) => b.rules && id in b.rules)),
+  }));
+}
+
+/** Whether the effective `entry` is what the pack's `block` set for `id`: severity error and the same options. */
+function asSet(entry, block, id) {
+  const [severity, ...options] = [].concat(entry ?? []);
+  const [, ...want] = [].concat(block.rules[id]);
+  return (severity === 2 || severity === 'error') && isDeepStrictEqual(options, want);
+}
+
+/** The keys of the covering rules whose effective entry at the file is not the pack's last covering block's. */
+const changedAt = (config, covering) =>
+  covering
+    .filter(({ item, blocks }) => item.rule.eslint.ruleIds.some((id) => {
+      const last = blocks.findLast((b) => id in b.rules);
+      return last && !asSet(config.rules?.[id], last, id);
+    }))
+    .map(({ item }) => item.key);
+
+/**
+ * The measured rules that cover the file at `topRel` and hold there, as `{ rules }`
+ * (none when no pack block reaches the file: it is not under a pack's rules), or
+ * `{ unmeasured }` when one reaches it but the repo's config ignores the
+ * file or a later block changed the rule for it. The samples `wired` reads cannot
+ * see a path-specific ignore or override; this reads the file's own config.
+ */
+export async function scopeAt(eslint, top, root, topRel, cover) {
+  const abs = path.join(top, topRel);
+  const rel = posix(path.relative(root, abs));
+  const covering = cover.map((c) => ({ ...c, blocks: c.blocks.filter((b) => blockCovers(b, rel)) })).filter((c) => c.blocks.length);
+  if (!covering.length) return { rules: [] };
+  let config;
+  try {
+    config = await eslint.calculateConfigForFile(abs);
+  } catch {
+    return { unmeasured: m.configAtFile };
+  }
+  if (!config) return { unmeasured: m.fileIgnored };
+  const changed = changedAt(config, covering);
+  return changed.length ? { unmeasured: m.changedHere(changed) } : { rules: covering.map((c) => c.item) };
 }
 
 // ── entries: what git lists, every path relative to the top ──

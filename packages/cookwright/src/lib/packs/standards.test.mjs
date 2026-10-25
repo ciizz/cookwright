@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import { messages } from '../messages.mjs';
 import { commit, fakeEslintRepo, gitInit, run, scratchRepo, scratchRoot } from '../../test-helpers.mjs';
+import { blockCovers as globCovers } from './glob.mjs';
 import * as engine from './standards.mjs';
 
 const m = messages.standards;
@@ -113,6 +114,35 @@ describe('wired', () => {
   it('a config ESLint cannot load is unmeasurable, with its first line', async () => {
     const broken = { calculateConfigForFile: async () => Promise.reject(new Error("Cannot find module 'x'\nRequire stack: …")) };
     await expect(engine.wired(broken, root, rules())).rejects.toThrow(m.configFailed("Cannot find module 'x'"));
+  });
+});
+
+describe('scopeAt', () => {
+  const measured = rules();
+  const cover = engine.coverage(measured);
+  /** The effective config the packs' exports give `rel`, as ESLint 9.39.5 reports it: severity 2, the block's options. */
+  const asExported = (rel) =>
+    Object.fromEntries(
+      cover.flatMap(({ blocks }) => blocks.filter((b) => globCovers(b, rel)).flatMap((b) => Object.entries(b.rules).map(([id, v]) => [id, [2, ...v.slice(1)]]))),
+    );
+  const at = (rulesFor) => ({ calculateConfigForFile: async (p) => (rulesFor === undefined ? undefined : { rules: rulesFor(p.slice('/top/'.length)) }) });
+
+  it('covers a file by its packs’ own blocks: a component by every rule, a .ts file by size and client, a test by none', async () => {
+    const eslint = at(asExported);
+    const keys = async (rel) => (await engine.scopeAt(eslint, '/top', '/top', rel, cover)).rules.map((r) => r.key);
+    expect(await keys('src/components/Card.tsx')).toEqual(['expo strings', 'expo tokens', 'expo size', 'supabase client']);
+    expect(await keys('src/lib/a.ts')).toEqual(['expo size', 'supabase client']);
+    expect(await keys('src/components/Card.test.tsx')).toEqual([]);
+    expect(await keys('src/services/supabase.ts')).toEqual(['expo size']);
+  });
+
+  it('reads a covered file the config ignores, a rule changed for it, or a config it cannot compute as unmeasured', async () => {
+    expect(await engine.scopeAt(at(undefined), '/top', '/top', 'src/lib/a.ts', cover)).toEqual({ unmeasured: m.fileIgnored });
+    const relaxed = at((rel) => ({ ...asExported(rel), 'max-lines-per-function': [2, { max: 400 }] }));
+    expect(await engine.scopeAt(relaxed, '/top', '/top', 'src/lib/a.ts', cover)).toEqual({ unmeasured: m.changedHere(['expo size']) });
+    const throws = { calculateConfigForFile: async () => Promise.reject(new Error('boom /Users/someone/app')) };
+    expect(await engine.scopeAt(throws, '/top', '/top', 'src/lib/a.ts', cover)).toEqual({ unmeasured: m.configAtFile });
+    expect(await engine.scopeAt(at(undefined), '/top', '/top', 'README.ts.md', cover)).toEqual({ rules: [] });
   });
 });
 

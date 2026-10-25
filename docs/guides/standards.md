@@ -25,7 +25,7 @@ The ESLint rules reach ESLint through the pack's export, spread into the app's o
 ## Three tiers, and the tripwire's blind spot
 
 1. **The lint**, on every commit and every push: the ESLint rules, counted by the `standards` check and the gate's ratchet.
-2. **The doc-sync tripwire**, on every commit: a change to the code a contract doc covers stages that doc too. The tripwire measures that the doc moved with the code, not that it is true: a doc edited wrongly, or touched with a space to get past the hook, passes. Doctor's `pack.<name>.docs` adds the mechanical half, a list comparison of the files against the doc's first column, so a primitive or migration with no entry at all is counted.
+2. **The doc-sync tripwire**, on every commit: a change to the code a contract doc covers stages that doc too. The tripwire measures that the doc moved with the code, not that it is true: a doc edited wrongly, or touched with a space to get past the hook, passes. Doctor's `pack.<name>.docs` adds the mechanical half, a list comparison of the files against the doc's entries, so a primitive or migration with no entry at all is counted.
 3. **The semantic audit**, when you start it (before a release, after a burst of merges made outside agent sessions): the `docs-audit` Workflow reads each contract doc against the code, fixes what the code contradicts, and has a second agent verify each fix. It covers what the tripwire cannot see, an entry that exists but is wrong. Nothing schedules it.
 
 ## Where they are measured
@@ -50,7 +50,7 @@ The ratchet's first line is what the gate records with the result, `expo strings
 
 ## The contract docs
 
-init writes `docs/design-system.md` (expo) and `docs/data-model.md` (supabase) when absent, each a header and an empty table whose first column is the key: a primitive's name, a migration's file name. Doctor counts the primitives (each `.tsx` or `.jsx` file directly under `src/components/` or `components/`, and each directory there with an `index.tsx` or `index.jsx`; tests, stories, styles, types and `index` at the top excluded) and the migrations (`supabase/migrations/<14 digits>_<name>.sql`) and names those with no row. On an existing app the setup skill offers to fill the doc from the code, on a branch of its own, then to verify the fill with the `docs-audit` skill.
+init writes `docs/design-system.md` (expo) and `docs/data-model.md` (supabase) when absent, each a header and an empty table whose first column is the key: a primitive's name, a migration's file name. An entry is a table row's first cell or a `## <key>` or `### <key>` heading (outside a fenced code block), so a doc written one section per primitive counts as well as a table. Doctor counts the primitives (each `.tsx` or `.jsx` file directly under `src/components/` or `components/`, and each directory there with an `index.tsx` or `index.jsx`; tests, stories, styles, types and `index` at the top excluded) and the migrations (`supabase/migrations/<14 digits>_<name>.sql`) and names those with no entry. On an existing app the setup skill offers to fill the doc from the code, on a branch of its own, then to verify the fill with the `docs-audit` skill.
 
 `npx cookwright packs rules` prints the declared packs' doc-sync rules and gate checks as JSON, `{ "docSync": […], "gate": […] }`, for copying into an existing `cookwright.json`, which init never edits.
 

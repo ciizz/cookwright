@@ -7,7 +7,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scratchRoot } from '../../test-helpers.mjs';
-import { LISTERS, listComponents, listMigrations, tableKeys } from './entries.mjs';
+import { LISTERS, MIGRATION, docKeys, headingKeys, listComponents, listMigrations, tableKeys } from './entries.mjs';
 import { PACKS } from './registry.mjs';
 
 const TMP = scratchRoot('cookwright-entries-');
@@ -149,3 +149,42 @@ describe('tableKeys', () => {
     expect(tableKeys(design).size).toBe(0);
   });
 });
+
+describe('headingKeys', () => {
+  it('reads every ## and ### heading, closing hashes, code spans and links dropped, never one in a fence', () => {
+    const text = [
+      '# Design system',
+      '',
+      '## Primitives',
+      '### Button',
+      '###   `Card`   ###',
+      '### [Chip](#chip)',
+      '#### Avatar notes',
+      '###NoSpace',
+      '```md',
+      '### Fenced',
+      '~~~',
+      '### StillFenced',
+      '```',
+      '  ### Indented',
+      '###',
+    ].join('\r\n');
+    expect([...headingKeys(text)]).toEqual(['Primitives', 'Button', 'Card', 'Chip', 'Indented']);
+  });
+});
+
+describe('docKeys', () => {
+  it('counts a headings-shaped doc and a table-shaped one alike', () => {
+    const headings = '# Design system\n\n### Avatar\n\nA round image.\n\n### Button\n\n| Prop | Type |\n| --- | --- |\n| label | string |\n';
+    expect([...docKeys(headings)].sort()).toEqual(['Avatar', 'Button', 'label']);
+    const table = '| Primitive | File |\n| --- | --- |\n| Avatar | Avatar.tsx |\n';
+    expect([...docKeys(table)]).toEqual(['Avatar']);
+  });
+
+  it('reads no entry a lister could name from either template', () => {
+    const read = (rel) => fs.readFileSync(new URL(`../../../packs/${rel}`, import.meta.url), 'utf8');
+    expect([...docKeys(read('expo/templates/design-system.md'))]).toEqual([]);
+    expect([...docKeys(read('supabase/templates/data-model.md'))].filter((k) => MIGRATION.test(k))).toEqual([]);
+  });
+});
+

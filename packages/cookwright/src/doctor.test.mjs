@@ -1102,6 +1102,12 @@ describe('packs and the pack rows', () => {
     });
   });
 
+  it('counts a primitive documented under a ## or ### heading as an entry', () => {
+    const design = '# Design system\n\n## Button\n\nThe one button.\n\n### `Card`\n\nA surface.\n';
+    const rows = doctor(packed(['expo'], { 'src/components/Button.tsx': '', 'src/components/Card/index.tsx': '', [DESIGN]: design }));
+    expect(rows['pack.expo.docs']).toEqual({ status: 'PASS', note: m.pack.docs.ok(2, 'components', DESIGN) });
+  });
+
   it.skipIf(process.getuid?.() === 0)('SKIPs the count of a code directory it cannot read, never a measured 0', () => {
     const root = packed(['expo'], { 'src/components/Button.tsx': '' });
     const dir = path.join(root, 'src/components');

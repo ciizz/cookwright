@@ -11,7 +11,7 @@ import path from 'node:path';
 import { ESLINT_CONFIGS, exportOf, handLines, installed, installedVersion, namesModule } from '../init/packs.mjs';
 import { messages } from '../messages.mjs';
 import { detectPacks } from '../packs/detect.mjs';
-import { LISTERS, tableKeys } from '../packs/entries.mjs';
+import { LISTERS, docKeys } from '../packs/entries.mjs';
 import { ADVISORY, RATCHET_CHECK, activeRules, declaredPacks } from '../packs/registry.mjs';
 import { renderSection } from '../packs/section.mjs';
 import { TYPES_SCRIPT, typesScript, typesShape } from '../packs/types.mjs';
@@ -111,7 +111,7 @@ function docVerdict(repo, pack, doc) {
   } catch (err) {
     return uncounted(repo, doc, err, problems);
   }
-  const keys = tableKeys(fs.readFileSync(abs, 'utf8'));
+  const keys = docKeys(fs.readFileSync(abs, 'utf8'));
   const omitted = entries.filter((e) => !keys.has(e));
   if (omitted.length) problems.push(m.pack.docs.omitted(omitted, entries.length, doc.entries, doc.path));
   return problems.length ? warn(problems.join('; ')) : pass(m.pack.docs.ok(entries.length, doc.entries, doc.path));

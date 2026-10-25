@@ -6,8 +6,9 @@
 // each `code` directory; `migrations`, the migration files under it. Each reads its
 // directory and, for components, one level below: no walk, no subprocess. A
 // directory that does not exist lists nothing (the blank scaffold); one that cannot
-// be read throws, and the row says it could not count. The table-cell
-// reader takes the first cell of every body row of every table in the doc.
+// be read throws, and the row says it could not count. The doc's entries are the
+// first cell of every body row of every table, and the text of every `##` or `###`
+// heading outside a fenced code block (a doc written one section per primitive).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -74,11 +75,11 @@ export const LISTERS = Object.freeze({ components: listComponents, migrations: l
 
 const SEPARATOR = /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
 
+/** `text` with its code span or link markup dropped. */
+const unwrap = (text) => text.replace(/^\[([^\]]*)\]\([^)]*\)$/, '$1').replace(/^`+|`+$/g, '').trim();
+
 /** A table row's first cell, its code span or link markup dropped. */
-function firstCell(line) {
-  const cell = line.trim().replace(/^\|/, '').split('|')[0].trim();
-  return cell.replace(/^\[([^\]]*)\]\([^)]*\)$/, '$1').replace(/^`+|`+$/g, '').trim();
-}
+const firstCell = (line) => unwrap(line.trim().replace(/^\|/, '').split('|')[0].trim());
 
 /**
  * The first cell of every body row of every pipe table in `text`: a header row is
@@ -95,3 +96,26 @@ export function tableKeys(text) {
   });
   return keys;
 }
+
+const HEADING = /^ {0,3}#{2,3}[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
+const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+
+/**
+ * The text of every `##` or `###` heading in `text`, its closing hashes, code span
+ * or link markup dropped; a line inside a fenced code block is not a heading.
+ */
+export function headingKeys(text) {
+  const keys = new Set();
+  let fence = null;
+  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
+    const open = FENCE.exec(line);
+    if (open) fence = fence === null ? open[1][0] : fence === open[1][0] ? null : fence;
+    if (open || fence !== null) continue;
+    const key = unwrap(HEADING.exec(line)?.[1] ?? '');
+    if (key) keys.add(key);
+  }
+  return keys;
+}
+
+/** A contract doc's entries: its tables' first cells and its `##`/`###` headings. */
+export const docKeys = (text) => new Set([...tableKeys(text), ...headingKeys(text)]);

@@ -6,7 +6,7 @@ init writes two shims, `.githooks/pre-commit` and `.githooks/pre-push`, and sets
 
 ## pre-commit
 
-pre-commit scans the staged diff for secrets with gitleaks (`brew install gitleaks`; skipped with a line when it is not installed; values are redacted in the output) and checks the doc-sync rules in `cookwright.json` (`hooks.docSync`): each rule names code pathspecs and the docs that must be staged with them, and git's own pathspec matching applies (`:!*.test.mjs` excludes). One staged doc of a rule's list satisfies it.
+pre-commit scans the staged diff for secrets with gitleaks (`brew install gitleaks`; skipped with a line when it is not installed; values are redacted in the output) and checks the doc-sync rules in `cookwright.json` (`hooks.docSync`): each rule names code pathspecs and the docs that must be staged with them, and git's own pathspec matching applies (`:!*.test.mjs` excludes). One staged doc of a rule's list satisfies it. A stack pack's own rule (`expo:design-doc`) whose pack rule is switched off in `packs` is not checked, and the line names it.
 
 ```json
 "hooks": {

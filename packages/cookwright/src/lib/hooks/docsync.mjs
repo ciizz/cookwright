@@ -6,10 +6,14 @@
 // `--no-renames` so a rename out of a watched path counts as its deletion;
 // `--diff-filter=ACMRD` so a deleted code file counts. git's environment is kept, so
 // a partial commit's GIT_INDEX_FILE is the index judged. Every rule is evaluated
-// before the verdict, so one commit shows every miss.
+// before the verdict, so one commit shows every miss. A pack-owned rule whose pack
+// rule is switched off in `packs` (`expo:design-doc` under `design-doc: false`) is
+// not enforced, and the line says so: a switched-off rule is counted by no check
+// (stage-4 disposition 8), though init never edits the config that still lists it.
 
 import { gitRun } from '../doctor/repo.mjs';
 import { messages } from '../messages.mjs';
+import { declaredPacks } from '../packs/registry.mjs';
 import { fail, pass, skip } from '../verdict.mjs';
 
 const m = messages.hook.docSync;
@@ -37,9 +41,22 @@ export function unmetRules(root, rules, env) {
   return parts;
 }
 
+/** The pack-owned doc-sync rule names of `config`'s declared packs whose rule is switched off. */
+export const switchedOffRules = (config) =>
+  declaredPacks(config).flatMap((pack) =>
+    pack.manifest.rules.filter((r) => r.measure === 'doc-sync' && pack.off.has(r.id)).map((r) => r.docSync.name),
+  );
+
 export function checkDocSync(repo, { env }) {
-  const rules = repo.config.hooks.docSync;
-  if (!rules.length) return skip(m.none);
+  const all = repo.config.hooks.docSync;
+  if (!all.length) return skip(m.none);
+  const offNames = new Set(switchedOffRules(repo.config));
+  const off = all.filter((r) => offNames.has(r.name)).map((r) => r.name);
+  const rules = all.filter((r) => !offNames.has(r.name));
+  if (!rules.length) return skip(m.allOff(off));
   const parts = unmetRules(repo.root, rules, env);
-  return parts.length ? fail(m.failed(parts)) : pass(m.ok(rules.length));
+  const tail = off.length ? [m.off(off)] : [];
+  const head = parts.length ? m.failed(parts) : m.ok(rules.length);
+  const note = [head, ...tail].join('; ');
+  return parts.length ? fail(note) : pass(note);
 }

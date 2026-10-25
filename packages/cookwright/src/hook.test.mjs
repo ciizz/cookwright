@@ -223,6 +223,31 @@ describe('doc-sync', () => {
     expect(line('doc-sync').note).toMatch(/^docs: 1 file\(s\) changed .*; api: 1 file\(s\) changed .*; update the doc/);
   });
 
+  it("leaves a pack-owned rule switched off in packs unchecked, and says so (disposition 8)", () => {
+    const design = { name: 'expo:design-doc', code: ['components/**'], docs: ['docs/design-system.md'] };
+    const noStandards = { ...ENV, COOKWRIGHT_SKIP: 'standards' };
+    const on = repoAt({ packs: ['expo'], hooks: { docSync: [design, RULE] } });
+    stage(on, { 'components/Button.tsx': 'b' });
+    expect(hook(on, 'pre-commit', { env: noStandards })).toBe(10);
+    expect(line('doc-sync').note).toMatch(/^expo:design-doc: 1 file\(s\) changed/);
+    out.length = 0;
+    const off = repoAt({ packs: [{ name: 'expo', rules: { 'design-doc': false } }], hooks: { docSync: [design, RULE] } });
+    stage(off, { 'components/Button.tsx': 'b' });
+    expect(hook(off, 'pre-commit', { env: noStandards })).toBe(0);
+    expect(line('doc-sync')).toEqual({
+      status: 'PASS',
+      note: '1 rule(s) checked, no doc missing; expo:design-doc not checked, switched off in packs',
+    });
+    out.length = 0;
+    const only = repoAt({ packs: [{ name: 'expo', rules: { 'design-doc': false } }], hooks: { docSync: [design] } });
+    stage(only, { 'components/Button.tsx': 'b' });
+    expect(hook(only, 'pre-commit', { env: noStandards })).toBe(0);
+    expect(line('doc-sync')).toEqual({
+      status: 'SKIP',
+      note: `no doc-sync rule checked: expo:design-doc switched off in packs (${CONFIG_FILE})`,
+    });
+  });
+
   it('a pathspec git refuses (exit 128) is its own SKIP line and leaves a secrets FAIL in force', () => {
     const bad = { name: 'bad', code: [':(glob,literal)src'], docs: ['d'] };
     const repo = repoAt({ hooks: { docSync: [bad] } });

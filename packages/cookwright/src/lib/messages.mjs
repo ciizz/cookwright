@@ -478,6 +478,9 @@ const hook = {
   docSync: {
     none: `no doc-sync rules configured (hooks.docSync in ${CONFIG_FILE})`,
     ok: (n) => `${n} rule(s) checked, no doc missing`,
+    // a pack-owned rule whose pack rule is switched off in packs (stage-4 disposition 8)
+    off: (names) => `${list(names)} not checked, switched off in packs`,
+    allOff: (names) => `no doc-sync rule checked: ${list(names)} switched off in packs (${CONFIG_FILE})`,
     unmet: (name, files, docs) =>
       `${name}: ${files.length} file(s) changed (${shown(files)}), but none of ${list(docs)} is staged`,
     failed: (parts) =>

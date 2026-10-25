@@ -754,6 +754,25 @@ module.exports = defineConfig([
     });
   });
 
+  it('counts an import or a double-quoted require as naming the export, and names import lines for an ES module config', () => {
+    const imported = 'import expoConfig from "eslint-config-expo/flat.js";\nimport expoPack from "cookwright/packs/expo/eslint.cjs";\nexport default [...expoConfig, ...expoPack];\n';
+    const a = withPacks(['expo'], { 'eslint.config.mjs': imported });
+    expect(init(a).rows['eslint.config.mjs']).toEqual({ action: 'kept', note: m.pack.eslint.names(['cookwright/packs/expo/eslint.cjs']) });
+    const quoted = EXPO_TEMPLATE.replace("'dist/*'", "'build/*'").replace('  expoConfig,\n', '  expoConfig,\n  ...require("cookwright/packs/expo/eslint.cjs"),\n');
+    expect(init(withPacks(['expo'], { 'eslint.config.js': quoted })).rows['eslint.config.js'].action).toBe('kept');
+    const bare = 'import expoConfig from "eslint-config-expo/flat.js";\nexport default [...expoConfig];\n';
+    const b = withPacks(['expo', 'supabase'], { 'eslint.config.mjs': bare });
+    const note = m.pack.eslint.otherModule(
+      ["import cookwrightExpo from 'cookwright/packs/expo/eslint.cjs';", "import cookwrightSupabase from 'cookwright/packs/supabase/eslint.cjs';"],
+      ['...cookwrightExpo,', '...cookwrightSupabase,'],
+    );
+    expect(init(b).rows['eslint.config.mjs']).toEqual({ action: 'skipped', note });
+    const typed = withPacks(['expo'], { 'eslint.config.js': bare, 'package.json': '{ "type": "module" }' });
+    expect(init(typed).rows['eslint.config.js'].note).toBe(
+      m.pack.eslint.otherModule(["import cookwrightExpo from 'cookwright/packs/expo/eslint.cjs';"], ['...cookwrightExpo,']),
+    );
+  });
+
   it('names the setup line of the first pack when there is no ESLint config, and writes none', () => {
     const a = withPacks(['expo', 'supabase']);
     expect(init(a).rows['eslint.config.js']).toEqual({ action: 'skipped', note: m.pack.eslint.none('npx expo lint') });

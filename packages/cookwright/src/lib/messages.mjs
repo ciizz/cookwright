@@ -283,6 +283,8 @@ const init = {
       names: (exports) => `names ${list(exports)}`,
       other: (lines) =>
         `not Expo's template, left alone; add ${list(lines)} to its config array by hand (the setup skill does it with consent)`,
+      otherModule: (imports, spreads) =>
+        `not Expo's template, left alone; add ${list(imports)} at its top and ${list(spreads)} to its config array by hand (the setup skill does it with consent)`,
       none: (setup) => `no ESLint config; ${setup} sets ESLint up, then rerun init`,
     },
     dep: {

@@ -43,28 +43,56 @@ const OWN_LINE = /^ {2}\.\.\.require\('cookwright\/packs\/[a-z-]+\/eslint\.cjs'\
 const exportOf = (manifest) => `cookwright/${manifest.eslintExport}`;
 export const spreadLine = (manifest) => `  ...require('${exportOf(manifest)}'),`;
 
+/** Whether `text` names the module `spec` in any quote style, so by require or by import. */
+const namesModule = (text, spec) => ["'", '"', '`'].some((q) => text.includes(`${q}${spec}${q}`));
+
+/** The binding an ES module config imports a pack's export under: `cookwrightExpo`. */
+const bindingOf = (manifest) =>
+  `cookwright${manifest.name.replace(/(^|-)([a-z])/g, (_, __, c) => c.toUpperCase())}`;
+
+/**
+ * Whether the config file `rel` is an ES module, where `require` is undefined: `.mjs`
+ * and `.mts`, `.ts` as ESLint loads it, and `.js` under a package.json of type module.
+ */
+function isModule(root, rel) {
+  if (/\.(mjs|mts|ts)$/.test(rel)) return true;
+  if (!rel.endsWith('.js')) return false;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).type === 'module';
+  } catch {
+    return false;
+  }
+}
+
+/** The row naming, by hand, the lines that wire `missing` into the config `rel`, in its module system. */
+function byHand(root, rel, missing) {
+  if (!isModule(root, rel)) return row(SKIPPED, rel, m.eslint.other(missing.map((mf) => spreadLine(mf).trim())));
+  const imports = missing.map((mf) => `import ${bindingOf(mf)} from '${exportOf(mf)}';`);
+  return row(SKIPPED, rel, m.eslint.otherModule(imports, missing.map((mf) => `...${bindingOf(mf)},`)));
+}
+
 /** `text` (LF) as Expo's template with exactly `lines` after expoConfig, or null when it is not the template. */
 function transformed(text, lines) {
   if (text.replace(OWN_LINE, '') !== EXPO_TEMPLATE) return null;
   return EXPO_TEMPLATE.replace(ANCHOR, `${ANCHOR}${lines.map((l) => `${l}\n`).join('')}`);
 }
 
-/** The eslint.config row for an existing config file `rel` holding `text`. */
-function eslintRow(rel, text, manifests) {
+/** The eslint.config row for an existing config file `rel` at `root` holding `text`. */
+function eslintRow(root, rel, text, manifests) {
   const exports = manifests.map(exportOf);
   const lines = manifests.map(spreadLine);
   const lf = text.replace(/\r\n/g, '\n');
   const next = transformed(lf, lines);
   if (next === lf) return row(KEPT, rel, m.eslint.names(exports));
   if (next !== null) return row(UPDATED, rel, m.eslint.added(exports), [{ rel, content: withEol(next, eolOf(text)) }]);
-  const missing = manifests.filter((mf) => !text.includes(`require('${exportOf(mf)}')`)).map(spreadLine);
-  if (!missing.length) return row(KEPT, rel, m.eslint.names(exports));
-  return row(SKIPPED, rel, m.eslint.other(missing.map((l) => l.trim())));
+  const missing = manifests.filter((mf) => !namesModule(text, exportOf(mf)));
+  return missing.length ? byHand(root, rel, missing) : row(KEPT, rel, m.eslint.names(exports));
 }
 
 /**
  * The repo's ESLint config spreads every declared pack's export: Expo's template is
- * transformed once for all of them; any other file is left alone, naming the lines;
+ * transformed once for all of them; any other file is left alone, naming the lines
+ * in its module system (an import for an ES module, where require is undefined);
  * no file names the setup line of the first pack. No pack, no row.
  */
 export function eslintConfigStep(repo) {
@@ -72,7 +100,7 @@ export function eslintConfigStep(repo) {
   if (!manifests.length) return [];
   for (const rel of ESLINT_CONFIGS) {
     const text = readTarget(repo.root, rel);
-    if (text !== null) return eslintRow(rel, text, manifests);
+    if (text !== null) return eslintRow(repo.root, rel, text, manifests);
   }
   return row(SKIPPED, ESLINT_CONFIGS[0], m.eslint.none(manifests[0].setup.eslint));
 }

@@ -1,0 +1,466 @@
+{
+  "phase": "plan-review",
+  "stored": true,
+  "issues": [
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 lines 99-108",
+      "problem": "The standards engine depends on async APIs (dynamic import(), ESLint.calculateConfigForFile(), ESLint.lintText()) but the existing hook chain (hook.mjs, lib/hooks/registry.mjs) is synchronous. The plan does not convert the chain or isolate linting in a child process. The promised 60-second whole-call cap cannot be enforced around in-process ESLint with the existing runBounded.",
+      "failure_scenario": "The real ESLint fixture returns Promises while the hook treats them as verdicts/results. The hook either throws and exits cleanly as a harness skip, silently returns success, or hangs beyond 60s. A synchronous fake ESLint lets unit tests pass while production enforcement does nothing.",
+      "suggested_fix": "Choose one architecture: run standards in a killable child process with a 60s timeout, or convert check.run -> verdict -> runHook -> hook.main and their tests to async and add a worker/subprocess for the hard timeout. Test with a Promise-returning fake and real ESLint. Add src/hook.mjs and the test conversions to the declared surface.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "src/lib/hooks/registry.mjs verdict() reads r.status from a sync check.run; src/hook.mjs:54-55 computes rows.some synchronously; runBounded (src/lib/budget.mjs:53) is spawnSync. Plan §4.5 loadESLint import()s in-process, with no async conversion or child process."
+    },
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.2 lines 77-80 and §4.4 lines 88-95",
+      "problem": "everyPack('section') and everyPack('lint') independently schedule full-file writes to shared files. Init preflights every step before applying any write, so each pack reads the same original AGENTS.md or eslint.config.js and the later write overwrites the earlier pack's changes.",
+      "failure_scenario": "Fixture declares both expo and supabase. Expo schedules AGENTS.md with the Expo section, Supabase schedules a version with only the Supabase section, and the last write wins. Same for the two ESLint spreads. Doctor then reports one pack absent/not wired.",
+      "suggested_fix": "Replace per-pack shared-file writers with one aggregate section step and one aggregate ESLint-config step that transform each file once using all declared packs. Add a two-pack fresh-init test asserting both sections and both exports survive, then an idempotent rerun.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "src/lib/init/steps.mjs:41-45 preflight computes every step against disk text before any write; src/lib/init/rules.mjs reads the file per step and returns whole-file content. Plan §4.2 adds per-pack steps that append to AGENTS.md with no accumulation of earlier steps' writes, so two sections (and blockStep on a fresh file) clobber each other."
+    },
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 lines 102-108",
+      "problem": "The Git path domain is wrong for a config root below the work-tree top. From packages/cookwright, git ls-files returns src/cli-main.mjs but git show HEAD:src/cli-main.mjs fails (object path is packages/cookwright/src/cli-main.mjs). Unscoped git diff --raw can include changes outside the config root. The plan reuses one path for matching, display, ESLint and git show.",
+      "failure_scenario": "With cookwright.json in apps/mobile, staged src/Button.tsx is treated as an absent blob and counts zero, or unrelated .tsx files from another workspace are linted with the mobile app's config. Hooks and ratchets report PASS without measuring the intended files.",
+      "suggested_fix": "Scope Git enumeration to the config root and carry both a config-root-relative path (ESLint/display) and a work-tree-relative object path (git show). Add staged and ratchet integration tests with a nested config root including an unrelated changed sibling workspace.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.5 uses git ls-files -s (cwd-relative), git diff --raw (top-relative) and git show <ref>:<path> (top-relative) with one path; nothing normalises the bases, and §4.5 itself names the config-root-below-top case."
+    },
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.4 lines 90-95 and §4.5 lines 101-103",
+      "problem": "wired() checks only that an ESLint rule ID is present and not off, not that the pack's options/selectors are effective. Flat-config rule options replace rather than merge. The Supabase exception block proposes turning no-restricted-imports off, which can erase unrelated user restrictions on those files.",
+      "failure_scenario": "A later user block configures an unrelated no-restricted-syntax selector; wired() sees the ID and passes, but no message carries the cookwright tag so countBy() reports zero token violations. A user's max-lines-per-function limit of 500 is accepted as the pack's 40/150 rule. Doctor and standards claim enforcement that is absent.",
+      "suggested_fix": "Validate effective severity and normalized options/tagged selectors for every pack rule; treat replacement as not wired. Use ignores on the Supabase pack block instead of a later off block. Test a later same-ID override and preservation of an unrelated user import restriction.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.5 wired(): only checks each active rule's ESLint id is present and not off; §4.4 admits flat config replaces options and leaves it as a guide caveat. countBy keys on the tag, so a replaced selector reads 0."
+    },
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 line 110 and §4.6 lines 114-115",
+      "problem": "A skipped Supabase types measurement is folded into an exit-0 standards command when ESLint succeeds. The gate records only the process exit, so it stores standards: pass; the internal 'types: skipped' stdout is not represented in gate state or the landing check.",
+      "failure_scenario": "Generated types are stale, the local Supabase stack is unavailable, and ESLint has no findings. Pre-push and bundle gates record PASS, and closeout/landing no longer disclose that the types rule was never measured.",
+      "suggested_fix": "Give independently optional measurements independently recorded gate results, or extend the gate protocol/state to preserve partial skips. Do not encode 'some enabled rules skipped' as ordinary exit 0. Add a test that the landing check still reports the skipped types rule.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.6 line 110: a types skip with ESLint measured is not exit 11, only a line; src/lib/bundle/gate.mjs:77-92 runCheck records only r.status===0 ? pass : fail and tails stdout, which is not stored."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.8 line 128, §5 lines 138-140, §7 line 156",
+      "problem": "The plan adds skills/docs-audit/SKILL.md and expects its pointer but omits the required src/lib/hosts.mjs change. Skills are discovered from the explicit SKILLS manifest, not by directory listing.",
+      "failure_scenario": "The skill ships in the tarball but init never writes .claude/skills/docs-audit, doctor never expects it, and the existing 'directory equals SKILLS manifest' test fails. The dogfood claim cannot be met.",
+      "suggested_fix": "Add docs-audit: { level: 2, needs: 'workflows' } to SKILLS, include hosts.mjs in the changed-file list, and assert pointer creation for Claude plus omission for a Codex-only host.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "src/lib/hosts.mjs:45-48 SKILLS is an explicit manifest; skills.test.mjs:37 expects shipped dirs to equal Object.keys(SKILLS); plan §5 Changed omits src/lib/hosts.mjs."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.3 lines 84-86, §5 line 138, §6 line 146",
+      "problem": "The proposed omission listers do not match the artifacts they enumerate. The migration lister excludes tests and index, but the fixture adds .gitkeep, which would be counted as an undocumented migration. A layout like components/Button/index.tsx is excluded and yields no Button primitive. Helpers such as types.ts or styles.ts can be counted as primitives.",
+      "failure_scenario": "The fixture's blank migration directory produces a WARN instead of the expected zero omissions, while a real undocumented directory-based component produces a false PASS.",
+      "suggested_fix": "Define precise shapes: migrations are SQL files matching the Supabase convention; direct component files count by basename; <Component>/index.* counts by directory name; helpers/assets explicitly excluded. Add .gitkeep, directory-index, helper-file and duplicate-name cases.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.3 lister excludes only tests and index; §5 overlay adds supabase/migrations/.gitkeep and the fixture asserts 0 WARN. A dotfile is not excluded. The component-directory index case is ambiguous but the .gitkeep case holds."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.8 line 129 and §6 line 151",
+      "problem": "audit args silently filters missing declared pack documents and defines no containment or file validation for --doc extras.",
+      "failure_scenario": "With both packs declared but docs/data-model.md missing, the command emits a valid audit for only the design-system doc; the workflow appears complete without mentioning the omitted contract. An accidental --doc ../../private.md can direct the agent outside the repo.",
+      "suggested_fix": "Refuse when any declared contract doc is missing, naming npx cookwright init. Validate extras as existing regular, root-relative, in-repo paths with no symlink escape. Test mixed present/missing pack docs and traversal attempts.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.8 audit args uses .filter(existing) with no message for omitted declared docs and adds --doc extras with no containment or existence validation."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "disposition 20 (line 49), §4.5 line 109, §6 line 148",
+      "problem": "The push-base design does not specify how the remote SHA reaches gateEnv. Current pushContext parses stdin and returns only {skip|label}, while checkGate later calls gateEnv(ctx.env) without push metadata. Behavior is undefined when multiple refs at HEAD have different remote SHAs.",
+      "failure_scenario": "A push of HEAD to two remote branches is labelled as testing both, but standards ratchets against only an arbitrary or fallback base; findings introduced relative to the other remote tip are not measured.",
+      "suggested_fix": "Make pushContext return explicit tested-ref/base data and pass it into the gate environment. For multiple distinct bases, ratchet once per base or SKIP with an explicit ambiguity. Add single-ref, new-ref and multi-ref/different-base tests.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "confirmed",
+      "evidence": "src/lib/hooks/push.mjs:96-110 pushContext returns only {skip}|{label}; push.mjs:48 gateEnv(env) takes only env and checkGate (L125) calls gateEnv(ctx.env). Plan §4.5 says gateEnv adds COOKWRIGHT_PUSH_BASE without a path for the sha or the multi-ref case."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.8 line 127, §5 lines 138-140, §10 line 179",
+      "problem": "The setup skill depends on a new `npx cookwright packs rules` command, but the design and file inventory contain no command module such as src/packs.mjs; only cli-main.mjs is listed for modification.",
+      "failure_scenario": "The setup recipe reaches that command and gets the generic unknown-command usage, so it cannot obtain pack-owned doc-sync defaults without retyping them.",
+      "suggested_fix": "Specify and scope the command module, its argument/refusal behavior, output schema, messages, dispatch registration and tests. Add it to §5 and the s6 checkpoints.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 9,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.8 line 127 relies on npx cookwright packs rules; §5 New lists src/audit.mjs and src/standards.mjs but no packs command module, and §4.5/§5 name only cli-main.mjs registration for standards."
+    },
+    {
+      "severity": "P3",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.7 line 121",
+      "problem": "The B-013 specification contradicts itself: it says 'complete' requires no FAIL, WARN or SKIP, then says WARN-only remains 'complete; weak'.",
+      "failure_scenario": "An implementer makes WARN-only summaries 'not complete' while tests or fixture expectations retain the current 'complete; weak' behavior.",
+      "suggested_fix": "State the rule unambiguously: FAIL means drift, SKIP means not verified, WARN remains 'complete; weak' because it was measured. Add a direct truth-table test for PASS/WARN/SKIP/FAIL.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 10,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.7 B-013 line 121: 'only when no required row is FAIL, WARN or SKIP' then 'with WARNs only, complete; weak stays'. src/lib/doctor/report.mjs:18-30 currently keeps complete plus weak."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 pre-commit `standards` (FAIL `N finding(s) in M staged file(s)`)",
+      "problem": "The pre-commit check lints the whole staged blob and FAILs on any finding, including violations that were already in the file before this commit. The charter's 2026-10-23 amendment says \"pre-commit checks only the staged files, so an existing app is never blocked on code it did not touch\". Judgment rule 1 says \"Only a finding in the user's own change fails a hook\". The kickoff (L87) says \"Nothing in the existing code blocks a commit\". The plan makes the gate a ratchet but leaves the hook absolute, so the hook judges the file rather than the change.",
+      "severity": "P1",
+      "suggested_fix": "Make the hook a per-file ratchet using the engine the plan already specifies: for each matching staged entry, lint `HEAD:<path>` and `:<path>` (an added file counts 0 on the HEAD side) and FAIL only when a pack rule's count rises in that file. Print the findings of the files that rose. Add a test for touching a legacy file without adding a violation (PASS), and add it to QA (c).",
+      "failure_scenario": "QA (c) on the origin repo: a screen file holds 30 literal JSX strings (part of the 412 the plan expects). The developer fixes a one-character typo in it and commits. `standards` FAILs with 30 findings the developer did not write. The only ways through are rewriting the file or `COOKWRIGHT_SKIP=standards` on almost every commit to an existing app, which is the escape habit push.mjs's header says the design avoids.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 11,
+      "verdict": "plausible",
+      "evidence": "Plan §4.5 lints the whole staged blob and FAILs on any finding; CHARTER.md:40 and CHARTER.md:44 (rule 1) say only the user's own change fails a hook. But the kickoff L41 and charter literally say 'staged files only', which the plan meets, so whether pre-existing findings in a touched file count is arguable."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 `src/lib/hooks/standards.mjs` registered as `standards: { run, config: true }`; `lintAt` \"One 60 s cap on the whole call\"",
+      "problem": "The hook pipeline is synchronous end to end. In `src/lib/hooks/registry.mjs`, `verdict()` reads `r.status` straight from `check.run(repo, ctx)`, `runHook` maps the checks synchronously, and `src/hook.mjs` `main` computes `rows.some(FAIL)` synchronously. ESLint's Node API is entirely Promise-based (`import()`, `calculateConfigForFile`, `lintText`). The plan registers the check in the sync registry, says nothing about making the hook runner async, and claims a 60 s cap that an in-process, CPU-bound lint cannot enforce.",
+      "severity": "P2",
+      "suggested_fix": "Either run the engine in a child process from the sync check (`spawnSync(node, [bin, 'standards', '--staged'], { timeout: 60_000, env })`), which keeps the registry synchronous and gives the cap a real meaning (the fake-ESLint seam stays on the engine), or state explicitly that `runHook`, `verdict`, `prepare` and `hook.main` become async. If they become async, list the hook.test.mjs changes and how the cap is enforced.",
+      "failure_scenario": "An implementer writes `run: async (repo, ctx) => …` as the engine requires. `verdict` gets a Promise, `r.status` is undefined, the line prints an undefined status, and `rows.some(([, r]) => r.status === FAIL)` is never true. Every commit with a hex literal goes through and the hook never blocks. A fake-ESLint unit test that awaits the check directly would still pass.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 12,
+      "verdict": "confirmed",
+      "evidence": "Same sync pipeline as [0]: registry.mjs verdict() and hook.mjs:54-55; plan registers standards as a plain check and only the fake-ESLint seam is in-process, so an async run returns a Promise with undefined status."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§2 disposition 4; §4.5 `gate.mjs` `runCheck`: `status === 11` → skipped",
+      "problem": "The exit-11-means-skipped rule is applied to every gate check, not only to `cookwright standards`. Any user command that exits 11 is recorded as `skipped`, and the gate passes, so the plan's own sentence \"Any other non-zero exit stays a fail\" is not true for user checks. Exiting non-zero on absence also breaks the AGENTS.md rule that a check needing a missing tool reports \"skipped, needs X, run setup\" and exits 0, for every caller outside the gate (a CI step, an `&&` chain).",
+      "severity": "P2",
+      "suggested_fix": "Make the convention opt-in per check, for example `{ name: 'standards', run: '…', skipExit: 11 }` with `skipExit` added to `KNOWN_KEYS.check` and the schema, written by freshConfig and by the setup skill. Alternatively let the command exit 11 only under an explicit `--gate` flag and exit 0 with the skip line otherwise. Test that a check without `skipExit` that exits 11 is a fail.",
+      "failure_scenario": "A user writes the gate check `npx cookwright standards --ratchet && npm test`. ESLint is not yet installed, so standards exits 11, the `&&` short-circuits and `npm test` never runs. `runCheck` records the check as skipped, and the gate reads `pass (skipped: standards)`. A push with failing tests goes through. Likewise, any project script that exits 11 on a real failure turns a red gate green.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 13,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.5 gate.mjs runCheck: status === 11 becomes skipped for every check (disposition 4); current runCheck (gate.mjs:77-92) is generic over user commands, so an 11 from any user command or a short-circuited && chain reads skipped and the gate passes."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 `loadESLint` (\"so a config root below the top is read\"), `lintAt`, `matching`, the command's `git ls-files -s`",
+      "problem": "The config root may sit below the work tree's top: `findRoot` walks up to `stopAt`, and the shims `cd <rel>` into it. The plan names this case but mixes path bases. `git ls-files -s` run from the root prints paths relative to the cwd. `git diff --cached --raw` and `git diff --raw` print paths relative to the top. `git show <ref>:<path>` resolves paths from the top. `lintText({ filePath })` resolves against ESLint's cwd (the config root). Nothing in the plan normalises these.",
+      "severity": "P2",
+      "suggested_fix": "Normalise every entry to a path relative to the top, then use `git show <ref>:<topRel>` and pass `filePath: path.join(top, topRel)` (absolute). Limit the listers to the config root, using a pathspec `.` run from the root or `--relative`. Add an engine test and a hook test with cookwright.json in a subdirectory.",
+      "failure_scenario": "In a monorepo with cookwright.json in `apps/mobile`, `npx cookwright standards` lists `src/App.tsx` (relative to the cwd) and runs `git show HEAD:src/App.tsx`. git fails with \"path does not exist\", which the plan's rule counts as 0, so every rule reads 0. On the pre-commit side, a top-relative `apps/mobile/src/x.tsx` is joined to cwd `apps/mobile`, so ESLint ignores the file as outside its base path (a severity-1 warning, not counted) and the hook reads PASS `1 staged file(s), 0 findings`. Rule 3 is broken.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 14,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.5 loadESLint cwd root, git ls-files -s, git diff --raw and git show <ref>:<path> share one path with no top-prefix normalisation; src/hook.mjs:26 comments that a config root may sit below the top."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 `wired(eslint, pack)`; §4.4 the replaced-options caveat",
+      "problem": "`wired` only checks that each active rule's ESLint id is present and not `off`. Flat config replaces a rule's options when a later block names the same id. A later block (the user's own, or one from a shared config) that sets `no-restricted-syntax`, `max-lines-per-function`, `no-restricted-imports` or `i18next/no-literal-string` with other options leaves the id present and on, but the pack's selectors, thresholds or mode are gone. The plan reduces this to a caveat in the guide, while the hook and ratchet keep reporting PASS as though the rule were measured.",
+      "severity": "P2",
+      "suggested_fix": "In `wired`, compare the effective options that `calculateConfigForFile` returns against the manifest: the tagged message present in the `no-restricted-syntax` and `no-restricted-imports` options, `max` equal to 150 or 40, i18next `mode: 'jsx-only'`. A mismatch reads `overridden by a later block in eslint.config.js` and the hook SKIPs (rule 3). Test it with the fake ESLint.",
+      "failure_scenario": "An existing app's eslint.config.js ends with its own `{ rules: { 'no-restricted-syntax': ['error', 'WithStatement'] } }` after the spread. The tokens rule no longer reports hex literals, yet `wired` reads it as wired. A commit adding `color: '#ff0000'` to a component gets PASS `1 staged file(s), 0 findings`, and the ratchet reads `tokens 0 → 0` forever.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 15,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.5 wired() checks id present and not off only; §4.4 states flat config replaces options. Duplicate of [3] in substance."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§10 s4 checkpoint \"the fixture's violating commit refused by standards\"; s5 \"init's eslint.config.js line\"; §2 disposition 6",
+      "problem": "The session order is broken. The overlay supplies Expo's `eslint.config.js` verbatim (disposition 9), and init's insertion of the pack's `require` line is scheduled for s5. In s4 the fixture's config does not name the export, so `wired` reads `not wired` and the hook SKIPs, which makes the s4 checkpoint unreachable. Separately, disposition 6 describes inserting only the expo line. The fixture declares both packs, yet nothing wires `packs/supabase/eslint.cjs`.",
+      "severity": "P2",
+      "suggested_fix": "Move init's eslint.config.js edit (a byte-tested insertion of one line per declared pack's `eslintExport`, after `expoConfig,`) into s4, or s2, ahead of the checkpoint that needs it. State that both lines are inserted when both packs are declared, and add the supabase line to the byte test.",
+      "failure_scenario": "End of s4: the fixture stages `src/components/Greeting.tsx` with a hex literal and a JSX string. `standards` prints SKIP `not wired` (the template has no cookwright line), the commit goes through and the fixture's assertion fails, or the checkpoint is fudged. From s5 on, with only the expo line inserted, `pack.supabase.lint` WARNs and the fixture's ` 0 FAIL, 0 WARN, ` assertion (fixture.sh:137) fails.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 16,
+      "verdict": "confirmed",
+      "evidence": "Plan disposition 9 overlay supplies Expo's eslint.config.js verbatim; disposition 6 inserts only the expo line; §10 schedules init's eslint.config.js line in s5 while the s4 checkpoint needs the violating commit refused; no step wires packs/supabase/eslint.cjs, so pack.supabase.lint WARNs against fixture.sh:137 ' 0 WARN'."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.6 `pack.supabase.types` doctor row; §8 fixture \"`types` SKIP\"; §2 disposition 18",
+      "problem": "The fixture's ` 0 FAIL, 0 WARN, ` assertion now depends on the machine. The overlay supplies `supabase/config.toml` but no `db:types` script. On a machine with the Supabase CLI on PATH (the developer's, for QA b), `pack.supabase.types` reads WARN (script absent), not SKIP. Disposition 18 makes the level-line assertion tool-aware only for gitleaks and claude.",
+      "severity": "P2",
+      "suggested_fix": "Choose one: add the `db:types` script (`supabase gen types typescript --local > src/types/database.ts`) to the overlay's package.json edit together with a tracked types file, or make the fixture's WARN assertion aware of `supabase` on PATH, as disposition 18 does for gitleaks and claude. Run the local fixture once with and once without supabase on PATH.",
+      "failure_scenario": "The developer, who has `brew install supabase/tap/supabase` for QA (b), runs `bash scripts/ci/fixture.sh` at the end of s5. Doctor prints `WARN pack.supabase.types add db:types: …`, the summary reads `1 WARN`, and the fixture fails with \"doctor reported a FAIL or a WARN\". CI (no CLI) stays green, so the red appears only locally, against the plan's \"fixture green at the end of every session\".",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 17,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.6: CLI present and db:types script absent is WARN; overlay (§5) has supabase/config.toml but no package.json script; disposition 18 makes the level-line assertion tool-aware only for gitleaks and claude; fixture.sh:137 asserts ' 0 FAIL, 0 WARN, '."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.6 the `types` gate measure",
+      "problem": "The `types` measure runs `db:types` against the local Supabase stack. That judges the developer's local database, not the pushed commit, while disposition 2 promises both sides are commits. Rule 3 calls for SKIP when the thing judged is not the thing tested. The plan also rewrites a shell command string (\"the redirect replaced by a temp file\") without bounding its shape. The result is any difference reads as `rose` (exit 10), which blocks the push. That is a FAIL the user cannot clear by fixing their change (rule 2).",
+      "severity": "P2",
+      "suggested_fix": "Accept exactly one shape: `supabase gen types <args> > <path>` with nothing after the target. Anything else (`&&`, `|`, `;`, a second redirect, `npx supabase`) is `types: skipped, script shape not recognised`. Run the measure only when `supabase/migrations/**` or the types file changed in `<base>..HEAD`. Say in the line that it measured the local stack, and consider SKIP rather than FAIL when the stack's migration list differs from HEAD's (`supabase migration list --local`).",
+      "failure_scenario": "The script is `supabase gen types typescript --local > src/types/database.ts && prettier --write src/types/database.ts`. The rewrite sends unformatted output to the temp file, while prettier formats the tracked file. They always differ, so every push FAILs with `types rose` and the only remedies are editing the script or COOKWRIGHT_SKIP. In another case, the developer applies branch A's migration locally, switches to branch B and pushes: types differ and B is blocked for A's work.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 18,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.6 runs db:types against the local stack with a rewritten redirect and treats any diff as rose (exit 10). Judges the local DB, not the commit, and any unmatched shape (e.g. a trailing prettier step) always differs; no SKIP for these cases is specified."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 hook output \"findings printed above the line as `path:line:col  rule  message`\"",
+      "problem": "The hook prints ESLint's message text verbatim. eslint-plugin-i18next's `no-literal-string` message embeds the literal itself (`disallow literal string: …`). Every check runs even after a FAIL, so a secret hard-coded as a JSX attribute or text is echoed by `standards` into the terminal and the agent's transcript, beside the FAIL from the secrets scan. AGENTS.md: \"Never put a secret's value in … a log or a transcript.\"",
+      "severity": "P3",
+      "suggested_fix": "Print `path:line:col  <pack rule>` with the pack's own one-line message from messages.mjs, never ESLint's message text. Or truncate or mask string literals in the message. Add a test where the literal is a token-shaped string.",
+      "failure_scenario": "An agent stages `<Config apiKey=\"sk_live_51H…\" />` in a component. `secrets` FAILs, and `standards` prints `src/components/Config.tsx:3:16  i18next/no-literal-string  disallow literal string: <Config apiKey=\"sk_live_51H…\"` into the session transcript.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 19,
+      "verdict": "plausible",
+      "evidence": "Plan §4.5 prints ESLint message text verbatim; eslint-plugin-i18next's no-literal-string message is known to embed the literal, but I did not verify the 6.1.4 message template in this session."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§2 disposition 2 \"A blob absent on one side … counts 0\"; disposition 20 `COOKWRIGHT_PUSH_BASE`; §4.5 `lintAt`",
+      "problem": "`lintAt` infers absence from `git show <ref>:<path>` failing. A base commit that is not in the local object store also makes `git show` fail. That happens when the remote sha in pre-push's stdin was never fetched (a force-push over a remote you have not fetched), or with a shallow clone. Base resolution does not verify that the ref exists before using it.",
+      "severity": "P3",
+      "suggested_fix": "Take absence from the raw diff (mode `000000`, or status A or D) and treat any other `git show` failure as `unmeasured` (exit 11). Verify each base candidate with `git rev-parse --verify -q <ref>^{commit}` and fall through to the next one when it is missing, as disposition 20's order implies. Test a `COOKWRIGHT_PUSH_BASE` that is not a local object.",
+      "failure_scenario": "The developer force-pushes `main` after the remote got a commit they never fetched. `COOKWRIGHT_PUSH_BASE` names a sha not present locally. Either `git diff <sha>..HEAD` errors and the command exits 1, so the gate FAILs on a harness problem (rule 1), or each `git show` failure counts the base as 0 and the HEAD counts read as a rise, exit 10, push blocked.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 20,
+      "verdict": "plausible",
+      "evidence": "Plan disposition 20 and §4.5 lintAt treat a failed git show as an absent blob (count 0) and do not verify the base sha exists locally; only 'none resolvable' gives exit 11. An unfetched remote sha is not covered."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 `lintAt` \"a fatal message makes the file `unmeasured`\" with the ratchet's exit 11",
+      "problem": "Many TS apps lint with typed rules (`parserOptions.project` or `projectService`). typescript-eslint then raises a fatal parse error for a path that is in no project, such as the base side of a file deleted on the branch (`--no-renames` turns every rename into a delete plus an add). One such fatal makes the whole ratchet exit 11, while the pack's rules need no type information.",
+      "severity": "P3",
+      "suggested_fix": "Lint with `overrideConfig: { languageOptions: { parserOptions: { project: null, projectService: false } } }` (overrideConfig appends after the file's blocks, measured in §1). Add a fake-ESLint test for a fatal on a deleted base path.",
+      "failure_scenario": "An app using `tseslint.configs.recommendedTypeChecked` renames `components/Old.tsx` to `components/New.tsx`. The ratchet lints `Old.tsx`'s base blob, gets a fatal \"file not found in any of the provided project(s)\", and exits 11. The gate reads `skipped` on every branch with a rename, so drift is never measured there.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 21,
+      "verdict": "plausible",
+      "evidence": "Plan §4.5: 'a fatal message makes the file unmeasured' and ratchet unmeasured is exit 11; --no-renames makes renames delete+add; typed-lint fatal for a path outside the project is plausible for apps using parserOptions.project but depends on the user's config."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.8 setup skill and `bundle-phase.js` in s6; §5 Changed; §7 step 4",
+      "problem": "This repo's own doc-sync rules will refuse the s6 commits. The `playbook` rule requires `docs/playbook.md` or `skills/bundle/SKILL.md` to be staged with `hosts/claude/workflows/bundle-phase.js`, and neither is in §5. The `setup` rule requires `docs/guides/*.md` to be staged with `skills/setup/SKILL.md`, but the guides are scheduled for s7. §7.4 widens the `setup` rule with `packs/**` and `src/lib/packs/*`, but in this repo those paths live under `packages/cookwright/`, so the added specs match nothing. `src/lib/hosts.mjs` (the SKILLS list a new `docs-audit` pointer needs) is also missing from §5.",
+      "severity": "P3",
+      "suggested_fix": "Add the playbook's reviewer-role line (or `skills/bundle/SKILL.md`) to s6's files. Move each guide edit into the session whose code it describes, or plan the escape with its reason. Write §7.4's specs as `packages/cookwright/packs/**` and `packages/cookwright/src/lib/packs/*`. Add `src/lib/hosts.mjs` and the fixture's new `.claude/skills/docs-audit` row to §5.",
+      "failure_scenario": "The s6 implementer commits the setup skill's new rows. The pre-commit `doc-sync` FAILs `setup: packages/cookwright/skills/setup/SKILL.md staged without docs/guides/*.md`. The session either uses COOKWRIGHT_SKIP=doc-sync or pulls s7's guide work forward, so its scope leaks. After §7.4, editing `packages/cookwright/packs/expo/pack.mjs` never triggers the standards-guide rule.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 22,
+      "verdict": "confirmed",
+      "evidence": "cookwright.json:25-44: playbook rule needs docs/playbook.md or skills/bundle/SKILL.md with bundle-phase.js (not in plan §5); setup rule needs docs/guides/*.md with skills/setup/SKILL.md while guides are s7; rule code paths are prefixed packages/cookwright/, plan §7.4 'packs/**' is not; hosts.mjs missing from §5."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.7 \"they become 18 plus the pack rows\"; §7 step 3 \"Doctor reads 18 rows\"",
+      "problem": "The static table has 17 rows today, and the plan adds two static rows: `packs` (§4.7, \"a static row\") and `repo.node_modules` (B-011). That makes 19, not 18, so the test and dogfood counts are stated wrongly.",
+      "severity": "P3",
+      "suggested_fix": "Say 19 static rows, plus the per-pack rows, or derive the count in tests from `Object.keys(CHECKS).length`.",
+      "failure_scenario": "The s3 implementer updates `doctor.test.mjs:135` and `fixture`/dogfood checks to 18 as the plan says, and the suite reads 19. Either the test is \"fixed\" to fit the plan text, or the closeout carries a wrong number.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 23,
+      "verdict": "confirmed",
+      "evidence": "src/lib/doctor/registry.mjs:46-65 has 17 static rows; plan §4.7 adds static rows packs and repo.node_modules, giving 19, while plan says 'become 18' and §7.3 'Doctor reads 18 rows'."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.7 B-013",
+      "problem": "The level-line sentence contradicts itself: \"`complete` only when no required row is FAIL, WARN or SKIP\" and then \"with WARNs only, `complete; weak: …` stays\". B-013's decision is \"complete only when every check of the level measured\", which permits WARN.",
+      "severity": "P3",
+      "suggested_fix": "State it as: `complete` when no required row is FAIL or SKIP (WARN gives `complete; weak: …`); with a SKIP, the line leads `not verified: …`.",
+      "failure_scenario": "The implementer follows the first clause. A repo whose hooks are managed by husky (now WARN under disposition 17) reads not-complete, which contradicts disposition 17's intent that a chosen state is WARN without losing the level.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 24,
+      "verdict": "confirmed",
+      "evidence": "Same plan text as [10]: §4.7 line 121 states both 'complete only when no required row is FAIL, WARN or SKIP' and 'with WARNs only, complete; weak stays'; disposition 17 relies on WARN keeping the level complete."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 hook and ratchet lines when only some rules are wired; §2 disposition 5",
+      "problem": "Disposition 5 says the strings rule reads SKIP until the plugin is installed, but a hook check has one line. The plan does not say what the line says when tokens and size are wired and strings is not: PASS for the measured rules, or SKIP for the whole check. The likely reading, PASS `M staged file(s), 0 findings`, claims the strings rule too (rule 3). The same gap exists for the ratchet's summary line.",
+      "severity": "P3",
+      "suggested_fix": "Specify it: PASS (or FAIL) naming the measured rules plus `; strings: skipped, needs npm install --save-dev eslint-plugin-i18next`. Test both the hook and the ratchet lines.",
+      "failure_scenario": "A fresh Expo app before the skill installs the plugin: a staged screen with `<Text>Hello</Text>` gets PASS `1 staged file(s), 0 findings`, which reads as if the strings rule was checked.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 25,
+      "verdict": "confirmed",
+      "evidence": "Plan §4.5 hook line list has PASS 'M staged file(s), 0 findings' and SKIPs for absent/not wired, with wired() able to report the strings rule alone as missing (§4.5 wired) but no wording for a partially wired pack in the hook or ratchet summary."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§9 \"close E-003\"; §4.8 `audit args`",
+      "problem": "E-003 asks for \"the doc list for docs-audit.js declared in cookwright.json instead of hand-written args\". The plan derives the list from the packs' manifests plus `--doc` flags. A repo without packs, including this one, still hand-writes the list (now as flags), yet E-003 is closed. The claim is wider than what ships.",
+      "severity": "P3",
+      "suggested_fix": "Close E-003 only for the skill and the pack-derived list, and open a follow-up (or keep E-003 open) for a config-declared doc list, or narrow E-003's text in the closing note.",
+      "failure_scenario": "After the stage, running the docs-audit on this repo still needs `npx cookwright audit args --doc docs/guides/x.md:… …` typed by hand each time, while the backlog says E-003 is done.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 26,
+      "verdict": "plausible",
+      "evidence": "backlog.md:20 E-003 asks for the doc list declared in cookwright.json; plan §4.8 derives it from pack manifests plus --doc flags and §9 closes E-003; this repo declares no packs so the list is still hand-typed as flags."
+    },
+    {
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§8 QA (b) and (c)",
+      "problem": "QA (c) runs `init --packs expo,supabase` on a clone of the origin repo. That repo's eslint.config.js is not Expo's template, so init skips the line (disposition 6) and the ratchet exits 11. The QA steps never say who wires the config. QA (c) still \"tunes the `size` partition\", but disposition 21 removed the partition. The strings exclude list is tuned during QA, which comes after `review:whole`, so it ships without review. QA (b) expects \"doctor all PASS\" on a fresh Expo app, but the default (tabs) template ships `components/` primitives that the empty `docs/design-system.md` lists none of, so `pack.expo.docs` WARNs by design (disposition 11).",
+      "severity": "P3",
+      "suggested_fix": "Add the hand-wiring step to QA (c), noting that the setup skill's recipe for `pack.expo.lint` names the line. Drop \"size partition\". Measure the exclude list in s4, or have QA's tuning go through a fix session with review. Set QA (b)'s expected `docs` row to WARN with the count for the default template, or name the blank template.",
+      "failure_scenario": "In QA (c) the developer runs `standards --ratchet` on the synthetic branch and gets exit 11 `not wired`, not the per-rule FAIL the plan expects. In QA (b) the readout shows `WARN pack.expo.docs 4 of 4 primitives have no entry …` and the \"all PASS\" expectation is recorded as a failure.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 27,
+      "verdict": "confirmed",
+      "evidence": "Plan §8 QA (c) still tunes 'the size partition' that disposition 21 removed; init (disposition 6) only wires a byte-equal Expo template so the origin clone's config stays unwired and the ratchet exits 11; QA (b)'s 'doctor all PASS' conflicts with disposition 11's WARN on undocumented primitives, which the default template's components would trigger (the tabs-template content is inferred, not checked here)."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "Codex run (gpt-5.6-sol, high effort, read-only) on docs/dev/bundles/stage-4/plan.md against the repo; 18 read-only commands used; completed without hitting the ceiling; exit 0",
+    "AGENTS.md and CLAUDE.md rules (via system context)",
+    "node_modules/cookwright/docs/playbook.md (Reviewer, Prompt header)",
+    "docs/dev/bundles/stage-4/plan.md",
+    "docs/dev/bundles/stage-4/state.json",
+    "CHARTER.md (2026-10-23 amendment, Judgment rules)",
+    "docs/dev/stage-4-kickoff.md (ratchet and hook lines)",
+    "docs/dev/backlog.md (B-011, B-012, B-013, E-003, E-039)",
+    "packages/cookwright/src/lib/bundle/gate.mjs",
+    "packages/cookwright/src/lib/bundle/check.mjs (skipped gate check as WARN)",
+    "packages/cookwright/src/lib/hooks/{registry,push,docsync,shims}.mjs",
+    "packages/cookwright/src/hook.mjs, src/cli-main.mjs, bin/cookwright.mjs (sync hook pipeline)",
+    "packages/cookwright/src/lib/config.mjs (findRoot below top, validation, KNOWN_KEYS)",
+    "packages/cookwright/src/lib/rules/block.mjs (marker coexistence)",
+    "packages/cookwright/src/lib/doctor/{registry,report,rules}.mjs, src/lib/levels.mjs",
+    "packages/cookwright/src/lib/init/{config,steps,gitignore,pointers}.mjs, src/lib/probes.mjs",
+    "packages/cookwright/hosts/claude/workflows/{docs-audit,bundle-phase}.js",
+    "packages/cookwright/package.json, cookwright.json",
+    "scripts/ci/fixture.sh, fixtures/expo-overlay/"
+  ],
+  "notes": "Transcribed faithfully from Codex's report (5 P1, 5 P2, 1 P3). No findings added. Codex session id 01a17454-d508-7493-939c-daa1127399f1. Full output: <local path>\n---\nI reviewed the plan read-only against the code it will change. One P1: the pre-commit `standards` check fails on violations a touched file already had, against the charter's 2026-10-23 amendment and Judgment rule 1. The P2s, all confirmed in the code:\n- the hook pipeline is synchronous (registry.mjs `verdict` and `runHook`, hook.mjs `main`) while ESLint's API is async;\n- exit 11 would turn any gate check that exits 11 into a skip;\n- path bases are mixed when the config root sits below the work tree's top, which the shims support;\n- `wired` misses options a later config block overrides;\n- the s4 checkpoint needs the eslint.config.js line that s5 writes;\n- `pack.supabase.types` WARNs locally when the Supabase CLI is on PATH;\n- the `types` measure judges the local database, and its script rewrite can't handle a post-processed script.\nThe P3s are smaller: wrong counts and text, this repo's doc-sync refusing s6 commits, closing E-003 overstates what ships, and gaps in the QA steps.\n\nI could not check two things directly: whether eslint-plugin-i18next's message includes the literal text (from memory, so plausible), and typescript-eslint's fatal on a path in no project (also plausible). A scratch-repo test of git check-ignore was denied, so B-011's directory-pattern behaviour went untested; with node_modules always present at init time it does not matter, so it is not reported.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a17454-d508-7493-939c-daa1127399f1",
+    "partialReportPath": null
+  }
+}

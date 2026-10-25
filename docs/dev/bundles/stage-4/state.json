@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 33,
+  "revision": 55,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -99,9 +99,19 @@
   "phases": [
     {
       "name": "plan-review",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T18:30:49.904Z",
+          "stateRevision": 33,
+          "planSha": "dc96313de741155f",
+          "codex": true,
+          "runId": "wf_df224fca-aa9"
+        }
+      ],
+      "startCommit": "59a4e03eb2ee388d769d5e7a4210548b7b8be6a5",
+      "range": null
     },
     {
       "name": "implement:s1",
@@ -247,7 +257,26 @@
       ]
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-4/findings/plan-review-1.json",
+      "counts": {
+        "confirmed": 23,
+        "plausible": 5,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 6,
+        "P2": 12,
+        "P3": 10
+      },
+      "at": "2026-10-25T18:47:17.741Z",
+      "stored": true,
+      "head": "59a4e03eb2ee388d769d5e7a4210548b7b8be6a5"
+    }
+  ],
   "reports": [],
   "qaRounds": [],
   "decisions": [
@@ -452,6 +481,139 @@
       "actor": "developer",
       "source": "plan §2 disposition 25",
       "text": "Rule 9, the open question answered: no root devDependency for ESLint. The fake-ESLint seam tests the engine; the fixture is the real-ESLint proof, locally from s2 and in CI on every push.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:38.492Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 26",
+      "text": "Findings 0 and 12 (P1, P2), rule 1 and rule 3: the hook pipeline stays synchronous. The pre-commit `standards` check spawns the engine as a child process, `node <bin> standards --staged`, through `spawnSync` with `timeout: 60_000` and `killSignal: SIGKILL`, so the 60 s cap is real and a hung ESLint is one SKIP line, never a hung commit. The check maps the child's exit (0 PASS, 10 FAIL, 11 SKIP, anything else `could not run`) and prints its lines. The engine (`src/lib/packs/standards.mjs`) is async and tested in-process with a Promise-returning fake through `io.loadESLint`; the hook check is tested through an `io.spawn` seam and once end to end through the shim against a fake `eslint` package placed in the scratch repo's `node_modules` (`src/test-fixtures/fake-eslint/`, a Promise-returning `ESLint` class with `version`, `calculateConfigForFile` and `lintText`), so the process boundary is exercised without a dependency (disposition 25 holds).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:38.923Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 27",
+      "text": "Finding 1 (P1), rule 5: shared files are transformed once. `rulesFileStep` replaces `blockStep` and composes `AGENTS.md` in one pass from one text: the core block and every declared pack's section, one row per block (`wrote`, `kept`, `updated`), one file write; `eslintConfigStep` inserts every declared pack's line in one transform. A two-pack fresh init and an idempotent rerun are tested, asserting both sections and both lines survive.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:39.441Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 28",
+      "text": "Findings 2 and 14 (P1, P2), rule 3: one path base. Every entry the engine handles is normalised to a path relative to the work tree's top; git enumeration runs from the top with the config root as pathspec (`-- <rootRel>/`, or `.` when the root is the top), so a sibling workspace's files are never listed; `git show <ref>:<topRel>` reads blobs; ESLint receives the absolute path (`path.join(top, topRel)`) and runs with `cwd` at the config root; display is root-relative. Engine, hook and ratchet are tested with `cookwright.json` in a subdirectory and an unrelated changed sibling.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:39.865Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 29",
+      "text": "Findings 3 and 15 (P1, P2), rule 3: `wired` compares effective options, not presence. From `calculateConfigForFile` it checks severity `error` and, per rule: the tagged message present in the `no-restricted-syntax` and `no-restricted-imports` options, `max` equal to 150 or 40, i18next `mode: 'jsx-only'`. A mismatch reads `overridden by a later block in eslint.config.js` and the rule is skipped on the line (disposition 37), never counted as measured. The Supabase client exemption is `ignores` on the pack's own block (`**/services/supabase.*`, `**/lib/supabase.*`, `**/utils/supabase.*`, `supabase/functions/**`), never a later `off` block that would erase a user's own import restrictions; a test keeps an unrelated user restriction on those files intact.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:40.266Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 30",
+      "text": "Finding 4 (P1), rule 3: independently optional measurements are independent gate checks. `freshConfig` writes two entries, `{ name: 'standards', run: 'npx cookwright standards --ratchet', skipExit: 11 }` and, when the `supabase` pack is declared, `{ name: 'standards:types', run: 'npx cookwright standards --types', skipExit: 11 }`; a types skip is its own recorded `skipped` result, which `check.mjs` reads as WARN and the closeout lists. The command never folds one measurement's skip into another's exit.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:40.705Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 31",
+      "text": "Finding 11 (P1 plausible, confirmed by the charter's sentence and rule 1): the pre-commit check is a per-file ratchet. For each matching staged entry it lints `HEAD:<path>` and `:<path>` (an added file counts 0 on the HEAD side) and FAILs only when a pack rule's count rises in that file; it prints the findings of the risen rule in that file. Touching a legacy file without adding a violation PASSes; that case is tested and in QA (c). The kickoff's \"FAIL names the file, the rule and the line\" holds for the rise.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:41.168Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 32",
+      "text": "Finding 5 (P2): `SKILLS` in `src/lib/hosts.mjs` gains `'docs-audit': { level: 2, needs: 'workflows' }`; the fixture asserts the `.claude/skills/docs-audit` row; a Codex-only host gets no pointer for it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:41.578Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 33",
+      "text": "Finding 6 (P2), rule 3: the omission listers have exact shapes. Migrations are files matching `^\\d{14}_.+\\.sql$` directly under `supabase/migrations/`; primitives are `*.tsx`/`*.jsx` files directly under a `code` directory, by basename, plus `<Dir>/index.{tsx,jsx}` by directory name; excluded: `index.*` at the top level, `*.test.*`, `*.stories.*`, `*.styles.*`, `*.types.*`, any `.ts`/`.js` helper, dotfiles (`.gitkeep`). Cases tested: `.gitkeep`, a directory index, a helper file, a duplicate name across a file and a directory.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:42.034Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 34",
+      "text": "Finding 7 (P2), rule 3: `audit args` refuses when a declared contract doc is missing, naming `npx cookwright init`; a `--doc` extra must be an existing regular file inside the repo, root-relative, with no symbolic link on its path (`linkOnPath` from `init/files.mjs`), else refused naming it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:42.454Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 35",
+      "text": "Finding 9 (P2): `npx cookwright packs rules` is a command module, `src/packs.mjs`, registered in `cli-main.mjs`: it prints `{ docSync: [...], gate: [...] }` for the declared packs (the doc-sync defaults and the gate entries from the manifests), refuses with one line when no pack is declared, and is tested; the setup skill passes its output through, never retyped.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:43.007Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 36",
+      "text": "Finding 13 (P2), rules 1 and 3: the skip exit is opt-in per gate check, `skipExit` in `KNOWN_KEYS.check` and the schema (an integer 1–255), written by `freshConfig` and offered by the setup skill; a check without it that exits 11 is a fail, and that is tested. Outside the gate the command's exit 11 is documented in the standards guide as the gate convention; the doctor and hook paths never see it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:43.677Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 37",
+      "text": "Finding 25 (P3, folded) and finding 4, rule 3: a line names what it measured. When some rules are measured and others are not (the plugin absent, a rule overridden, `types` without its script), the hook's and the ratchet's status covers the measured rules and the line ends with `; strings: skipped, needs npm install --save-dev eslint-plugin-i18next` for each unmeasured rule; the gate's `passLabel` already has this shape. Both lines are tested.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:44.159Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 38",
+      "text": "Finding 16 (P2): init's `eslint.config.js` transform (disposition 27) lands in s2 with the overlay, so s4's checkpoint has a wired fixture; the byte test covers both lines.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:44.823Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 39",
+      "text": "Finding 8 (P2): `pushContext` returns `{ base }`: the remote sha of the one pushed ref at HEAD when it is not the zero sha; with several refs at HEAD and different remote shas it returns no base and says so in its label, and the ratchet falls through disposition 20's order. `checkGate` passes it into `gateEnv` as `COOKWRIGHT_PUSH_BASE`. Single-ref, new-ref and multi-ref cases are tested.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:45.311Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 40",
+      "text": "Finding 18 (P2), rules 2 and 3: the `types` measure accepts exactly one script shape, `supabase gen types <args> > <path>` with nothing after the target (no `&&`, `|`, `;`, second redirect, `npx` prefix); anything else is `skipped, script shape not recognised`. It runs only when `supabase/migrations/**` or the types file changed in `<base>..HEAD`, otherwise `skipped, no migration or types change since <base>`. It reads `supabase migration list --local` first and skips with `local stack behind HEAD's migrations` when the local stack lacks a migration HEAD has; its line says it measured the local stack. A difference with the stack current is `rose`, exit 10, naming `npm run db:types`.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:45.824Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 41",
+      "text": "Finding 19 (P3, folded), the secrets rule of `AGENTS.md`: the hook and the command print `path:line:col  <pack rule>` with the pack's own one-line message from `messages.mjs`, never ESLint's message text, which for the strings rule embeds the literal. Tested with a token-shaped literal.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:46.537Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 42",
+      "text": "Finding 21 (P3, folded), rule 3: the engine lints with `overrideConfig: [{ languageOptions: { parserOptions: { project: null, projectService: false } } }]`, so a typed-linting config raises no fatal on a path in no project (the base side of a renamed file); the pack's rules need no type information, and a typed rule's own error message carries a non-pack id and is not counted.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:47.247Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 43",
+      "text": "Finding 22 (P3, folded): this repo's doc-sync rules are honoured, not escaped: §7.4's specs are `packages/cookwright/packs/**` and `packages/cookwright/src/lib/packs/*`; s6 stages the playbook's Reviewer-role line with `bundle-phase.js` and a first `docs/guides/standards.md` with the setup skill; `src/lib/hosts.mjs` and the fixture's `docs-audit` row are in §5.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:47:47.900Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, plan §2 disposition 44",
+      "text": "Finding 27 (P3, folded): QA (c) hand-wires the two lines into the origin clone's `eslint.config.js` as the setup skill's recipe for `pack.expo.lint` names them; the strings rule's attribute exclude list is measured in s4 against the origin repo's component tree (a throwaway script over its checkout, read-only), so it ships reviewed; QA (b) uses the blank template, or expects `pack.expo.docs` WARN with the count on the tabs template.",
       "claim": true
     }
   ],

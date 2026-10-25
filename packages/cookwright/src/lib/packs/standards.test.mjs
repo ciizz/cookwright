@@ -111,9 +111,11 @@ describe('wired', () => {
     expect(withPlugin.skipped).toEqual([m.ruleSkipped('expo strings', m.notWired('cookwright/packs/expo/eslint.cjs'))]);
   });
 
-  it('a config ESLint cannot load is unmeasurable, with its first line', async () => {
-    const broken = { calculateConfigForFile: async () => Promise.reject(new Error("Cannot find module 'x'\nRequire stack: …")) };
-    await expect(engine.wired(broken, root, rules())).rejects.toThrow(m.configFailed("Cannot find module 'x'"));
+  it('a config ESLint cannot load is unmeasurable: the engine’s own line, the error’s first line its detail', async () => {
+    const broken = { calculateConfigForFile: async () => Promise.reject(new Error("Cannot find module '/Users/someone/app/x'\nRequire stack: …")) };
+    const err = await engine.wired(broken, root, rules()).catch((e) => e);
+    expect(err).toBeInstanceOf(engine.Unmeasurable);
+    expect([err.message, err.detail]).toEqual([m.configFailed, "Cannot find module '/Users/someone/app/x'"]);
   });
 });
 
@@ -141,7 +143,7 @@ describe('scopeAt', () => {
     const relaxed = at((rel) => ({ ...asExported(rel), 'max-lines-per-function': [2, { max: 400 }] }));
     expect(await engine.scopeAt(relaxed, '/top', '/top', 'src/lib/a.ts', cover)).toEqual({ unmeasured: m.changedHere(['expo size']) });
     const throws = { calculateConfigForFile: async () => Promise.reject(new Error('boom /Users/someone/app')) };
-    expect(await engine.scopeAt(throws, '/top', '/top', 'src/lib/a.ts', cover)).toEqual({ unmeasured: m.configAtFile });
+    expect(await engine.scopeAt(throws, '/top', '/top', 'src/lib/a.ts', cover)).toEqual({ unmeasured: m.configAtFile, detail: 'boom /Users/someone/app' });
     expect(await engine.scopeAt(at(undefined), '/top', '/top', 'README.ts.md', cover)).toEqual({ rules: [] });
   });
 });
@@ -252,7 +254,7 @@ describe('lintAt and render', () => {
 
   it('reads a rejected lint, a parsing error or an unreadable blob as unmeasured, never a count of 0', async () => {
     const rejects = { lintText: async () => Promise.reject(new Error('Error while loading rule\nstack')) };
-    expect(await engine.lintAt(rejects, '/t', 'a.ts', 'x', measured)).toEqual({ unmeasured: 'Error while loading rule' });
+    expect(await engine.lintAt(rejects, '/t', 'a.ts', 'x', measured)).toEqual({ unmeasured: m.lintThrew, detail: 'Error while loading rule' });
     const fatal = { lintText: async () => [{ messages: [{ ruleId: null, fatal: true, severity: 2, message: 'Parsing error', line: 4, column: 9 }] }] };
     expect(await engine.lintAt(fatal, '/t', 'a.ts', 'x', measured)).toEqual({ unmeasured: m.parseError(4, 9) });
     expect(await engine.lintAt(fatal, '/t', 'a.ts', null, measured)).toEqual({ unmeasured: m.noBlob });

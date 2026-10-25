@@ -13,7 +13,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { messages } from './lib/messages.mjs';
 import { appliedVersions, typesShape } from './lib/packs/types.mjs';
 import { main } from './standards.mjs';
-import { commit, fakeEslintRepo, gitInit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
+import { PACK_ESLINT_CONFIG, commit, fakeEslintRepo, gitInit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
 
 const m = messages.standards;
 const TMP = scratchRoot('cookwright-standards-');
@@ -179,8 +179,9 @@ describe('--staged: the per-file ratchet', () => {
     const repo = repoWith({ 'src/components/Card.tsx': CLEAN });
     stage(repo, { 'src/components/Card.tsx': `${CLEAN}// FAKE_FATAL\n`, 'src/b.ts': '// FAKE_THROW\n' });
     expect(await standards(repo)).toBe(11);
-    const items = [m.notMeasuredItem('src/b.ts', 'Error while loading rule: the fake was told to throw'), m.notMeasuredItem('src/components/Card.tsx', m.parseError(1, 1))];
+    const items = [m.notMeasuredItem('src/b.ts', m.lintThrew), m.notMeasuredItem('src/components/Card.tsx', m.parseError(1, 1))];
     expect(out).toEqual([m.skippedBecause(m.notMeasured(items))]);
+    expect(err).toEqual([m.detail('src/b.ts', 'Error while loading rule: the fake was told to throw')]);
     out.length = 0;
     stage(repo, { 'src/components/Other.tsx': LEGACY });
     expect(await standards(repo)).toBe(10);
@@ -261,8 +262,39 @@ describe('cannot measure: one line, exit 11', () => {
     const unwired = staged(repoWith({}, { packs: ['supabase'], fake: { config: 'module.exports = [];\n' } }));
     expect(await standards(unwired)).toBe(11);
     expect(out[0]).toBe(m.noEslint('npx expo lint'));
-    expect(out[1]).toMatch(/^skipped, ESLint could not load the repo's config: Cannot find module '\.\/missing'/);
+    expect(out[1]).toBe(m.configFailed);
+    expect(err).toEqual([expect.stringMatching(/^Cannot find module '\.\/missing'/)]);
     expect(out[2]).toBe(m.noneMeasured([m.ruleSkipped('supabase client', m.notWired('cookwright/packs/supabase/eslint.cjs'))]));
+  });
+
+  it('never puts an exception’s text on the line a caller records: a local path or a token goes to stderr only', async () => {
+    const secret = 'ghp_0123456789abcdefghijklmnopqrstuvwxyzAB';
+    const repo = repoWith({}, { fake: { config: `throw new Error('cannot read /Users/someone/app/.secrets ${secret}');\n` } });
+    run(repo.root, 'git', ['checkout', '-qb', 'feat']);
+    commit(repo, { 'src/a.ts': 'a\n' }, 'a');
+    expect(await main(['--ratchet'], { cwd: repo.root, env: ENV })).toBe(11);
+    expect(out).toEqual([m.configFailed]);
+    expect(out.join('\n')).not.toMatch(/Users|ghp_/);
+    expect(err.join('\n')).toContain(secret);
+  });
+
+  it('keeps a config’s own output off stdout, so the verdict stays the first line', async () => {
+    const noisy = `console.log('noise from the config');\nprocess.stdout.write('more noise');\n${PACK_ESLINT_CONFIG}`;
+    const repo = repoWith({ 'src/components/Card.tsx': LEGACY }, { fake: { config: noisy } });
+    run(repo.root, 'git', ['checkout', '-qb', 'feat']);
+    commit(repo, { 'src/components/Card.tsx': CLEAN }, 'clean');
+    const writes = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    let written;
+    try {
+      expect(await main(['--ratchet'], { cwd: repo.root, env: ENV })).toBe(0);
+    } finally {
+      written = writes.mock.calls.map((c) => String(c[0]));
+      writes.mockRestore();
+    }
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatch(/^expo strings 1 → 0, /);
+    expect(err).toContain('noise from the config');
+    expect(written).toContain('more noise');
   });
 
   it('names no ESLint rule on, no config, an invalid one, and no work tree', async () => {
@@ -342,7 +374,7 @@ describe('--ratchet: the branch against its base', () => {
   it('skips, exit 11, when a changed file cannot be measured and nothing rose', async () => {
     const repo = branched({}, { 'src/b.ts': '// FAKE_THROW\n' });
     expect(await ratchet(repo)).toBe(11);
-    expect(out).toEqual([m.skippedBecause(m.notMeasured([m.notMeasuredItem('src/b.ts', 'Error while loading rule: the fake was told to throw')]))]);
+    expect(out).toEqual([m.skippedBecause(m.notMeasured([m.notMeasuredItem('src/b.ts', m.lintThrew)]))]);
   });
 
   it('on the base branch: its upstream, and with none no base, exit 11 naming what it tried', async () => {
@@ -493,7 +525,8 @@ describe('--types: the supabase types against the local stack', () => {
     const odd = supa(todos);
     fs.writeFileSync(path.join(odd.dir, 'list.txt'), 'no table here\n');
     expect(await types(odd)).toBe(11);
-    expect(out).toEqual([t.stackDiffers(0, 1), t.stackDiffers(1, 0), t.stackFailed('failed to connect to postgres'), t.stackUnread]);
+    expect(out).toEqual([t.stackDiffers(0, 1), t.stackDiffers(1, 0), t.stackFailed, t.stackUnread]);
+    expect(err).toEqual(['failed to connect to postgres']);
   });
 
   it('skips: the rule off, no script, another shape, no CLI, no base', async () => {

@@ -6,7 +6,8 @@
 // started says it could not measure (the standards checks' 11, stage-4 dispositions
 // 4, 36 and 45): that exit records the check skipped, and such a check's first
 // stdout line is recorded as its note on every outcome, so a pass says what it
-// measured and what it did not. Without `skipExit`, every non-zero exit is a fail,
+// measured and what it did not (with the repo's path and the home directory
+// replaced, and capped: `noteOf`). Without `skipExit`, every non-zero exit is a fail,
 // 11 included. Every piece is optional (the charter): a check whose
 // tool is missing, or whose command is not on PATH, is SKIPPED with a note and the
 // gate goes on. A check that names an npm script the repo lacks is not absence but a
@@ -21,6 +22,7 @@
 
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { messages } from './messages.mjs';
@@ -85,6 +87,33 @@ const resultOf = (check, status) => (status === 0 ? 'pass' : check.skipExit !== 
 /** The first non-empty line of `text`, or undefined. */
 const firstLine = (text) => (text ?? '').split('\n').map((l) => l.trim()).find(Boolean);
 
+/** The longest note the state keeps; a longer line is cut, ending in `…`. */
+export const NOTE_MAX = 400;
+
+/** `p`'s real path, or `p` when it has none. */
+const real = (p) => {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return p;
+  }
+};
+
+/**
+ * A check's first stdout line as the note the bundle's state keeps (committed): the
+ * repo's path shown as `.` and the home directory as `~`, so a local path never
+ * lands in it, and at most NOTE_MAX characters. The standards command prints only
+ * its own text there; this holds for any check that opts in.
+ */
+export function noteOf(stdout, cwd) {
+  let line = firstLine(stdout);
+  if (!line) return undefined;
+  for (const [abs, shown] of [[real(cwd), '.'], [cwd, '.'], [os.homedir(), '~']]) {
+    if (abs && abs.length > 1) line = line.split(abs).join(shown);
+  }
+  return line.length > NOTE_MAX ? `${line.slice(0, NOTE_MAX - 1)}…` : line;
+}
+
 function runCheck(check, { cwd, env }) {
   if (check.skip) return { name: check.name, result: 'skipped', note: check.skip, ms: 0 };
   const t0 = Date.now();
@@ -103,7 +132,7 @@ function runCheck(check, { cwd, env }) {
   const tail = `${last(r.stdout, 30)}\n── stderr ──\n${last(r.stderr, 10)}`;
   // A check that opts into the convention says what it measured on its first line,
   // on every outcome (disposition 45); recorded as its note.
-  const note = check.skipExit !== undefined ? firstLine(r.stdout) : undefined;
+  const note = check.skipExit !== undefined ? noteOf(r.stdout, cwd) : undefined;
   return { name: check.name, result: resultOf(check, r.status), ms, tail, ...(note ? { note } : {}) };
 }
 

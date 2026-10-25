@@ -21,6 +21,7 @@ import { messages } from '../messages.mjs';
 import { hasTool } from '../probes.mjs';
 import { MIGRATION } from './entries.mjs';
 import { activeRules, declaredPacks } from './registry.mjs';
+import { commandFailed } from './standards.mjs';
 
 const m = messages.standards.types;
 
@@ -32,7 +33,8 @@ const SHAPE = /^supabase +gen +types((?: +\S+)*?) *> *(\S+)$/;
 const ANSI = /\x1b\[[0-9;]*m/g;
 
 const firstLine = (text) => String(text ?? '').trim().split('\n')[0];
-const skipped = (line) => ({ exit: 11, lines: [line] });
+// The line is the measure's own text, the CLI's error the detail, for stderr only (a caller records the line).
+const skipped = (line, detail) => ({ exit: 11, lines: [line], ...(detail ? { details: [detail] } : {}) });
 
 /** The `db:types` script in `root`'s package.json, or null when there is none to read. */
 export function typesScript(root) {
@@ -65,7 +67,7 @@ const at = (repo, cmd, args) => runBounded(cmd, args, { cwd: repo.root, encoding
 /** git at the config root, its stdout; a failure throws naming the command. */
 function git(repo, args) {
   const r = at(repo, 'git', args);
-  if (r.status !== 0) throw new Error(messages.probeFailed(`git ${args[0]}`, firstLine(r.stderr) || `exit ${r.status}`));
+  if (r.status !== 0) throw commandFailed(`git ${args[0]}`, r);
   return r.stdout;
 }
 
@@ -83,16 +85,16 @@ export function appliedVersions(text) {
   return rows.slice(header + 1).map((r) => r[1]).filter((v) => /^\d+$/.test(v ?? ''));
 }
 
-/** Why the local stack does not hold exactly HEAD's migrations, or null when it does. */
+/** The skip when the local stack does not hold exactly HEAD's migrations, or null when it does. */
 function stackProblem(repo) {
   const r = at(repo, 'supabase', ['migration', 'list', '--local']);
-  if (r.status !== 0) return m.stackFailed(firstLine(r.stderr) || firstLine(r.stdout) || `exit ${r.status}`);
+  if (r.status !== 0) return skipped(m.stackFailed, firstLine(r.stderr) || firstLine(r.stdout) || `exit ${r.status}`);
   const applied = appliedVersions(r.stdout);
-  if (applied === null) return m.stackUnread;
+  if (applied === null) return skipped(m.stackUnread);
   const head = headVersions(repo);
   const ahead = applied.filter((v) => !head.includes(v)).length;
   const behind = head.filter((v) => !applied.includes(v)).length;
-  return ahead || behind ? m.stackDiffers(ahead, behind) : null;
+  return ahead || behind ? skipped(m.stackDiffers(ahead, behind)) : null;
 }
 
 /** The types file at HEAD, or null when HEAD has none. */
@@ -104,7 +106,7 @@ function committed(repo, target) {
 /** The comparison itself: the generation's stdout against the committed file. */
 function compare(repo, shape, since) {
   const gen = at(repo, 'supabase', ['gen', 'types', ...shape.args]);
-  if (gen.status !== 0) return skipped(m.genFailed(firstLine(gen.stderr) || `exit ${gen.status}`));
+  if (gen.status !== 0) return skipped(m.genFailed, firstLine(gen.stderr) || `exit ${gen.status}`);
   if (gen.stdout === committed(repo, shape.target)) return { exit: 0, lines: [m.current(shape.target, since)] };
   return { exit: 10, lines: [m.rose(shape.target, TYPES_SCRIPT)] };
 }
@@ -123,6 +125,5 @@ export function measureTypes(repo, { base }) {
   const { sha, since } = base();
   const changed = git(repo, ['diff', '--name-only', sha, 'HEAD', '--', MIGRATIONS, shape.target]).trim();
   if (!changed) return skipped(m.noChange(since));
-  const problem = stackProblem(repo);
-  return problem ? skipped(problem) : compare(repo, shape, since);
+  return stackProblem(repo) ?? compare(repo, shape, since);
 }

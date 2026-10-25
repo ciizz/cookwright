@@ -26,7 +26,7 @@ import {
   summarize,
 } from './lib/bundle/check.mjs';
 import { fiveNumbers, renderCloseoutDraft } from './lib/bundle/closeout.mjs';
-import { commandOf, gatePassed, npmScriptOf, passLabel, planChecks, runGate } from './lib/bundle/gate.mjs';
+import { NOTE_MAX, commandOf, gatePassed, noteOf, npmScriptOf, passLabel, planChecks, runGate } from './lib/bundle/gate.mjs';
 import { dirtyPaths, isAncestor, lastCodeCommit } from './lib/bundle/git.mjs';
 import { messages } from './lib/bundle/messages.mjs';
 import {
@@ -657,6 +657,18 @@ describe('gate', () => {
       expect(passLabel({ checks: out.results })).toBe('pass (partly measured: standards (expo tokens: skipped, needs x (3 file(s) since abc)))');
       const red = runGate({ repo: withChecks([{ name: 'standards', ...says('rose', 10), skipExit: 11 }]), ...quiet });
       expect(red.results[0]).toMatchObject({ result: 'fail', note: 'rose' });
+    });
+
+    it('never records the repo’s path or the home directory in a note, and caps its length', () => {
+      const run = `node -e "console.log(process.cwd() + '/src/a.ts and ' + require('os').homedir() + '/x ' + 'y'.repeat(500))"`;
+      const out = runGate({ repo: withChecks([{ name: 'standards', run, skipExit: 11 }]), ...quiet });
+      const { note } = out.results[0];
+      expect(note.startsWith('./src/a.ts and ~/x yyy')).toBe(true);
+      expect(note).toHaveLength(NOTE_MAX);
+      expect(note.endsWith('…')).toBe(true);
+      expect(note).not.toContain(os.homedir());
+      expect(noteOf('\n  only line  \n', TMP)).toBe('only line');
+      expect(noteOf('', TMP)).toBeUndefined();
     });
 
     it('refuses a gate whose every check skipped at run time, carrying each line', () => {

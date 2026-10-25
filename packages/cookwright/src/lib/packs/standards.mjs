@@ -50,8 +50,18 @@ const ABSENT = 'absent';
 const posix = (p) => p.split(path.sep).join('/');
 const firstLine = (err) => String(err?.message ?? err).split('\n')[0];
 
-/** A state in which the engine cannot measure at all: its message is the line, exit 11. */
-export class Unmeasurable extends Error {}
+/**
+ * A state in which the engine cannot measure at all: its message is the line, exit
+ * 11. A line is always the engine's own text: a caller records it (the gate, in
+ * the bundle's state), so an exception's message, which can carry a local path or
+ * a source literal, never goes in it; it is the `detail`, printed on stderr.
+ */
+export class Unmeasurable extends Error {
+  constructor(line, detail) {
+    super(line);
+    if (detail) this.detail = detail;
+  }
+}
 
 /**
  * The declared packs' ESLint rules that are on, as `{ key, pack, rule }`: `key` is
@@ -128,7 +138,7 @@ export async function wired(eslint, root, rules) {
   try {
     states = await Promise.all(rules.map((item) => wiring(eslint, root, item)));
   } catch (err) {
-    throw new Unmeasurable(m.configFailed(firstLine(err)));
+    throw new Unmeasurable(m.configFailed, firstLine(err));
   }
   const measured = rules.filter((_, i) => states[i].state === MEASURED);
   const skipped = rules.flatMap((item, i) => (states[i].state === MEASURED ? [] : [m.ruleSkipped(item.key, states[i].why)]));
@@ -178,7 +188,7 @@ const changedAt = (config, covering) =>
 /**
  * The measured rules that cover the file at `topRel` and hold there, as `{ rules }`
  * (none when no pack block reaches the file: it is not under a pack's rules), or
- * `{ unmeasured }` when one reaches it but the repo's config ignores the
+ * `{ unmeasured, detail? }` when one reaches it but the repo's config ignores the
  * file or a later block changed the rule for it. The samples `wired` reads cannot
  * see a path-specific ignore or override; this reads the file's own config.
  */
@@ -190,8 +200,8 @@ export async function scopeAt(eslint, top, root, topRel, cover) {
   let config;
   try {
     config = await eslint.calculateConfigForFile(abs);
-  } catch {
-    return { unmeasured: m.configAtFile };
+  } catch (err) {
+    return { unmeasured: m.configAtFile, detail: firstLine(err) };
   }
   if (!config) return { unmeasured: m.fileIgnored };
   const changed = changedAt(config, covering);
@@ -200,15 +210,16 @@ export async function scopeAt(eslint, top, root, topRel, cover) {
 
 // ── entries: what git lists, every path relative to the top ──
 
-/** git at the top; a failure throws naming the command, a timeout is TimedOut. */
+/** The Unmeasurable for a command that failed: its name and exit on the line, its stderr the detail. */
+export const commandFailed = (what, r) =>
+  new Unmeasurable(m.couldNotRun(messages.probeFailed(what, `exit ${r.status ?? r.error?.code ?? 'none'}`)), String(r.stderr || r.error?.message || '').trim().split('\n')[0]);
+
+/** git at the top; a failure is Unmeasurable naming the command, a timeout is TimedOut. */
 function git(top, args, { env, input, encoding = 'utf8' } = {}) {
   const opts = { cwd: top, encoding, ...(env ? { env } : {}), ...(input === undefined ? {} : { input }) };
   const r = runBounded('git', args, opts, GIT_CAP_MS);
   if (r.timedOut) throw new TimedOut(`git ${args[0]}`);
-  if (r.status !== 0) {
-    const detail = String(r.stderr || r.error?.message || '').trim().split('\n')[0];
-    throw new Error(messages.probeFailed(`git ${args[0]}`, detail || `exit ${r.status}`));
-  }
+  if (r.status !== 0) throw commandFailed(`git ${args[0]}`, r);
   return r.stdout;
 }
 
@@ -336,7 +347,8 @@ export const NOTHING = Object.freeze({ counts: new Map(), findings: [] });
 
 /**
  * One side of one file: `code` linted as the file at `topRel`. A blob git could not
- * read, a parsing error or a rejected lint is `{ unmeasured: why }`.
+ * read, a parsing error or a rejected lint is `{ unmeasured: why, detail? }`, `why`
+ * the engine's own text and `detail` the exception's first line, for stderr only.
  */
 export async function lintAt(eslint, top, topRel, code, measured) {
   if (code === null || code === undefined) return { unmeasured: m.noBlob };
@@ -344,7 +356,7 @@ export async function lintAt(eslint, top, topRel, code, measured) {
   try {
     [results] = await eslint.lintText(code, { filePath: path.join(top, topRel) });
   } catch (err) {
-    return { unmeasured: firstLine(err) };
+    return { unmeasured: m.lintThrew, detail: firstLine(err) };
   }
   const messagesOf = results?.messages ?? [];
   const fatal = messagesOf.find((x) => x.fatal);

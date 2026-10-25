@@ -93,6 +93,10 @@ async function judgeAll(ctx, files, blobs) {
   return judged.filter(Boolean);
 }
 
+/** The stderr lines of the judged files: each unmeasured side's exception, once per file. */
+const detailsOf = (judged) =>
+  judged.flatMap((j) => [...new Set([j.now.detail, j.before.detail].filter(Boolean))].map((d) => m.detail(j.file, d)));
+
 /** The `--staged` report over the judged files: exit and lines. */
 function stagedReport(ctx, judged, deleted) {
   const unmeasured = judged.filter((j) => j.now.unmeasured || j.before.unmeasured);
@@ -120,7 +124,7 @@ async function stagedMode(repo, io) {
   const shas = files.flatMap((e) => (engine.hasBase(e) ? [e.sha, e.baseSha] : [e.sha]));
   const judged = await judgeAll(ctx, files, engine.readBlobs(ctx.top, shas, ctx.env));
   if (!judged.length) return { exit: 0, lines: [m.tail(m.noStaged, [...ctx.skipped, ...(deleted ? [m.deleted(deleted)] : [])])] };
-  return stagedReport(ctx, judged, deleted);
+  return { ...stagedReport(ctx, judged, deleted), details: detailsOf(judged) };
 }
 
 /** The base of a branch measure, `{ sha, since }`; Unmeasurable naming every candidate when none resolves. */
@@ -171,7 +175,7 @@ async function ratchetMode(repo, flags, io) {
   const blobs = engine.readBlobs(ctx.top, files.flatMap((e) => (engine.hasBase(e) ? [e.sha, e.baseSha] : [e.sha])), ctx.env);
   const judged = await judgeAll(ctx, files, blobs);
   if (!judged.length) return { exit: 0, lines: [m.tail(m.noChange(since), [...ctx.skipped, ...(deleted ? [m.deleted(deleted)] : [])])] };
-  return ratchetReport(ctx, judged, deleted, since);
+  return { ...ratchetReport(ctx, judged, deleted, since), details: detailsOf(judged) };
 }
 
 /** HEAD's side of one file, counted by the rules that cover it; null when none does. */
@@ -190,10 +194,13 @@ async function countMode(repo, io) {
   const blobs = engine.readBlobs(ctx.top, files.map((e) => e.sha), ctx.env);
   const totals = new Map(ctx.measured.map(({ key }) => [key, 0]));
   const items = [];
+  const details = [];
   let counted = 0;
   for (const entry of files) {
     const side = await headSide(ctx, entry, blobs);
-    if (side?.unmeasured) items.push(m.notMeasuredItem(engine.shownPath(ctx.top, ctx.root, entry.path), side.unmeasured));
+    const file = engine.shownPath(ctx.top, ctx.root, entry.path);
+    if (side?.detail) details.push(m.detail(file, side.detail));
+    if (side?.unmeasured) items.push(m.notMeasuredItem(file, side.unmeasured));
     else if (side) {
       counted += 1;
       for (const [key, n] of side.counts) totals.set(key, totals.get(key) + n);
@@ -201,7 +208,7 @@ async function countMode(repo, io) {
   }
   const lines = ctx.measured.map(({ key, pack, rule }) => m.count(pack.name, rule.id, totals.get(key)));
   const extras = [...ctx.skipped, ...(items.length ? [m.notMeasured(items)] : [])];
-  return { exit: 0, lines: [...lines, m.tail(m.counted(counted), extras)] };
+  return { exit: 0, lines: [...lines, m.tail(m.counted(counted), extras)], details };
 }
 
 const MODES = ['staged', 'ratchet', 'types'];
@@ -226,7 +233,31 @@ async function measure(repo, flags, io) {
   return flags.ratchet ? ratchetMode(ctx, flags, io) : countMode(ctx, io);
 }
 
-const harness = (err) => (err instanceof TimedOut ? messages.timedOut(err.what) : String(err?.message ?? err).split('\n')[0]);
+/**
+ * `fn()` with this process's stdout sent to stderr while it runs: an ESLint config
+ * or plugin that prints while loading never puts a line above the verdict, which is
+ * the line the gate records (disposition 45). The command prints its own lines after.
+ */
+async function quiet(fn) {
+  const { log, info } = console;
+  const write = process.stdout.write;
+  console.log = console.error;
+  console.info = console.error;
+  process.stdout.write = process.stderr.write.bind(process.stderr);
+  try {
+    return await fn();
+  } finally {
+    Object.assign(console, { log, info });
+    process.stdout.write = write;
+  }
+}
+
+/** The line and the stderr detail of a measure that threw: never the exception's text on the line. */
+function thrown(err) {
+  if (err instanceof Unmeasurable) return { line: err.message, detail: err.detail };
+  if (err instanceof TimedOut) return { line: m.couldNotRun(messages.timedOut(err.what)) };
+  return { line: m.couldNotRun(m.unexpected), detail: String(err?.stack ?? err) };
+}
 
 /**
  * `io.cwd`, `io.env` (git's and the supabase CLI's environment, and the source of
@@ -244,11 +275,14 @@ export async function main(argv = [], io = {}) {
     return 2;
   }
   try {
-    const { exit, lines } = await measure(openRepo(io.cwd ?? process.cwd()), flags, io);
+    const { exit, lines, details = [] } = await quiet(() => measure(openRepo(io.cwd ?? process.cwd()), flags, io));
     for (const line of lines) console.log(line);
+    for (const line of details) console.error(line);
     return exit;
   } catch (err) {
-    console.log(err instanceof Unmeasurable ? err.message : m.couldNotRun(harness(err)));
+    const { line, detail } = thrown(err);
+    console.log(line);
+    if (detail) console.error(detail);
     return SKIP_EXIT;
   }
 }

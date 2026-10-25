@@ -29,7 +29,7 @@ export const packDocsStep = (repo) =>
   declaredPacks(repo.config).flatMap(({ name, manifest }) => manifest.docs.map((doc) => docRow(repo.root, name, doc)));
 
 /** ESLint's flat config file names, in the order ESLint looks for them. */
-const ESLINT_CONFIGS = Object.freeze(['js', 'mjs', 'cjs', 'ts', 'mts', 'cts'].map((ext) => `eslint.config.${ext}`));
+export const ESLINT_CONFIGS = Object.freeze(['js', 'mjs', 'cjs', 'ts', 'mts', 'cts'].map((ext) => `eslint.config.${ext}`));
 /**
  * Expo's eslint.config.js as `npx expo lint` writes it, byte for byte (from
  * @expo/cli@58.1.15, static/template/eslint.config.js): the one file init edits.
@@ -40,11 +40,11 @@ const ANCHOR = '  expoConfig,\n';
 const OWN_LINE = /^ {2}\.\.\.require\('cookwright\/packs\/[a-z-]+\/eslint\.cjs'\),\n/gm;
 
 /** The module a pack's export is required by, and the line that spreads it. */
-const exportOf = (manifest) => `cookwright/${manifest.eslintExport}`;
+export const exportOf = (manifest) => `cookwright/${manifest.eslintExport}`;
 export const spreadLine = (manifest) => `  ...require('${exportOf(manifest)}'),`;
 
 /** Whether `text` names the module `spec` in any quote style, so by require or by import. */
-const namesModule = (text, spec) => ["'", '"', '`'].some((q) => text.includes(`${q}${spec}${q}`));
+export const namesModule = (text, spec) => ["'", '"', '`'].some((q) => text.includes(`${q}${spec}${q}`));
 
 /** The binding an ES module config imports a pack's export under: `cookwrightExpo`. */
 const bindingOf = (manifest) =>
@@ -64,11 +64,20 @@ function isModule(root, rel) {
   }
 }
 
+/**
+ * The lines that wire `manifests` into the config `rel` by hand, in its module
+ * system: `{ spreads }` for CommonJS, `{ imports, spreads }` for an ES module.
+ */
+export function handLines(root, rel, manifests) {
+  if (!isModule(root, rel)) return { spreads: manifests.map((mf) => spreadLine(mf).trim()) };
+  const imports = manifests.map((mf) => m.eslint.importLine(bindingOf(mf), exportOf(mf)));
+  return { imports, spreads: manifests.map((mf) => `...${bindingOf(mf)},`) };
+}
+
 /** The row naming, by hand, the lines that wire `missing` into the config `rel`, in its module system. */
 function byHand(root, rel, missing) {
-  if (!isModule(root, rel)) return row(SKIPPED, rel, m.eslint.other(missing.map((mf) => spreadLine(mf).trim())));
-  const imports = missing.map((mf) => m.eslint.importLine(bindingOf(mf), exportOf(mf)));
-  return row(SKIPPED, rel, m.eslint.otherModule(imports, missing.map((mf) => `...${bindingOf(mf)},`)));
+  const { imports, spreads } = handLines(root, rel, missing);
+  return row(SKIPPED, rel, imports ? m.eslint.otherModule(imports, spreads) : m.eslint.other(spreads));
 }
 
 /** `text` (LF) as Expo's template with exactly `lines` after expoConfig, or null when it is not the template. */
@@ -105,11 +114,24 @@ export function eslintConfigStep(repo) {
   return row(SKIPPED, ESLINT_CONFIGS[0], m.eslint.none(manifests[0].setup.eslint));
 }
 
-/** Whether `pkg` is installed where Node resolves it from `root`, whatever its exports map. */
-export function installed(root, pkg) {
+/**
+ * The version of `pkg` installed where Node resolves it from `root`, whatever its
+ * exports map: its package.json's `version` ('' when unreadable), or null when it
+ * is not installed.
+ */
+export function installedVersion(root, pkg) {
   const dirs = createRequire(path.join(root, 'package.json')).resolve.paths(pkg) ?? [];
-  return dirs.some((dir) => fs.existsSync(path.join(dir, pkg, 'package.json')));
+  const file = dirs.map((dir) => path.join(dir, pkg, 'package.json')).find((f) => fs.existsSync(f));
+  if (!file) return null;
+  try {
+    return String(JSON.parse(fs.readFileSync(file, 'utf8')).version ?? '');
+  } catch {
+    return '';
+  }
 }
+
+/** Whether `pkg` is installed where Node resolves it from `root`. */
+export const installed = (root, pkg) => installedVersion(root, pkg) !== null;
 
 /** Each dependency an active rule of a declared pack needs: installed, or the install line. */
 export const packDepsStep = (repo) =>

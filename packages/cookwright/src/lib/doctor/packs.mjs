@@ -1,13 +1,14 @@
 // src/lib/doctor/packs.mjs — doctor's pack rows (stage-4 plan §4.7): the static
-// `packs` row, and for each declared pack `pack.<name>.declared`, `.rules` and
-// `.docs`, and `pack.supabase.types` while its rule is on, appended after the
-// static rows. Every read is a named file or one directory and the one below it:
+// `packs` row, and for each declared pack `pack.<name>.declared`, `.rules`,
+// `.docs`, `.lint` while an ESLint rule is on, and `pack.supabase.types` while
+// its rule is on, appended after the static rows. Every read is a named file or one directory and the one below it:
 // no subprocess, within doctor's budget. Pack rows sit outside every level's
 // `requires`, so they never move the level line.
 
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { ESLINT_CONFIGS, exportOf, handLines, installed, installedVersion, namesModule } from '../init/packs.mjs';
 import { messages } from '../messages.mjs';
 import { detectPacks } from '../packs/detect.mjs';
 import { LISTERS, tableKeys } from '../packs/entries.mjs';
@@ -141,6 +142,38 @@ function checkTypes(repo, pack, probes) {
   return pass(t.ok(TYPES_SCRIPT, shape.target));
 }
 
+/** Each dependency an active rule of `pack` needs that is not installed. */
+const missingDeps = (repo, pack) => {
+  const needed = new Set(activeRules(pack).map((r) => r.needs).filter(Boolean));
+  return pack.manifest.deps.filter((dep) => needed.has(dep.package) && !installed(repo.root, dep.package));
+};
+
+/**
+ * `pack.<name>.lint`: ESLint 9 resolvable from the config root, a flat config file,
+ * its text naming the pack's export, and each plugin an active rule needs. A text
+ * match, so the note says "names": the effective config is what the hook measures.
+ */
+function checkLint(repo, pack) {
+  const l = m.pack.lint;
+  const { manifest } = pack;
+  const version = installedVersion(repo.root, 'eslint');
+  if (version === null) return warn(l.noEslint(manifest.setup.eslint));
+  if (!(Number(version.split('.')[0]) >= 9)) return warn(l.oldEslint(version));
+  const rel = ESLINT_CONFIGS.find((name) => isFile(path.join(repo.root, name)));
+  if (!rel) return warn(l.noConfig(manifest.setup.eslint));
+  const spec = exportOf(manifest);
+  if (!namesModule(fs.readFileSync(path.join(repo.root, rel), 'utf8'), spec)) {
+    const { imports = [], spreads } = handLines(repo.root, rel, [manifest]);
+    return warn(l.unnamed(rel, spec, [...imports, ...spreads]));
+  }
+  const missing = missingDeps(repo, pack);
+  const named = l.ok(version, rel, spec);
+  return missing.length ? warn(`${named}; ${missing.map((d) => l.needs(d.install, d.reason)).join('; ')}`) : pass(named);
+}
+
+/** Whether `pack` has an ESLint rule on, and so an export to wire. */
+const linted = (pack) => Boolean(pack.manifest.eslintExport) && activeRules(pack).some((rule) => rule.measure === 'eslint');
+
 /**
  * The rows of one declared pack, in readout order: each kind's check, and when it
  * `applies` (a row for a measure the pack has on).
@@ -149,6 +182,7 @@ export const PACK_ROWS = Object.freeze({
   declared: { run: (repo, pack) => checkDeclared(pack) },
   rules: { run: checkRules },
   docs: { run: checkDocs },
+  lint: { run: checkLint, applies: linted },
   types: { run: checkTypes, applies: (pack) => activeRules(pack).some((rule) => rule.id === 'types') },
 });
 

@@ -190,7 +190,8 @@ expect_level() {
 
 # pack.supabase.types is the one row that depends on a tool the fixture does not
 # install (stage-4 disposition 18): with supabase on PATH it WARNs, the overlay
-# having no db:types script, and is the only WARN; without it, it SKIPs.
+# having no db:types script, and is the only WARN; without it, it SKIPs. The
+# two lint rows PASS: the install step adds ESLint and init spread both exports.
 expect_types_row() {
   if command -v supabase >/dev/null 2>&1; then
     expect "$WORK/doctor.out" " 0 FAIL, 1 WARN, " "doctor reported a FAIL, or a WARN besides pack.supabase.types"
@@ -201,6 +202,11 @@ expect_types_row() {
     expect "$WORK/doctor.out" "^SKIP +pack\.supabase\.types +skipped, needs supabase" \
       "supabase is not on PATH but pack.supabase.types does not SKIP naming it"
   fi
+  local pack
+  for pack in expo supabase; do
+    expect "$WORK/doctor.out" "^PASS +pack\.$pack\.lint +eslint 9\.[0-9.]+; eslint\.config\.js names cookwright/packs/$pack/eslint\.cjs$" \
+      "pack.$pack.lint is not PASS with ESLint installed and the export spread"
+  done
 }
 
 doctor() {

@@ -28,7 +28,7 @@ import { PACKS, packDefaults, packName } from './lib/packs/registry.mjs';
 import { renderSection } from './lib/packs/section.mjs';
 import { PROBES } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
-import { commit, gitInit, gitWithoutScopes, run, scratchRepo, scratchRoot, stageOnly, v1Block, v2Block } from './test-helpers.mjs';
+import { commit, fakeEslintRepo, gitInit, gitWithoutScopes, run, scratchRepo, scratchRoot, stageOnly, v1Block, v2Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-doctor-');
 const m = messages.doctor;
@@ -898,14 +898,15 @@ describe('packs and the pack rows', () => {
   const withSupabase = probes({ hasTool: (bin) => bin === 'supabase' || PROBES.hasTool(bin) });
 
   it('appends each declared pack’s rows after the static ones, in packs order, every one PASS on a fresh repo', () => {
-    const rows = doctor(packed(['supabase', 'expo'], withTypes), { probes: withSupabase });
-    const kinds = ['declared', 'rules', 'docs'];
+    const rows = doctor(fakeEslintRepo(packed(['supabase', 'expo'], withTypes)), { probes: withSupabase });
+    const kinds = ['declared', 'rules', 'docs', 'lint'];
     expect(Object.keys(rows)).toEqual([
       ...Object.keys(CHECKS),
       ...kinds.map((k) => `pack.supabase.${k}`),
       'pack.supabase.types',
       ...kinds.map((k) => `pack.expo.${k}`),
     ]);
+    expect(rows['pack.expo.lint'].note).toBe('eslint 9.39.0-fake; eslint.config.js names cookwright/packs/expo/eslint.cjs');
     for (const [name, r] of Object.entries(rows)) expect([name, r.status]).toEqual([name, 'PASS']);
     expect(rows['pack.expo.declared'].note).toBe('expo pack v1: strings, tokens, size, design-doc; advisory: 3');
     expect(rows['pack.supabase.declared'].note).toBe('supabase pack v1: client, data-doc, types');
@@ -913,6 +914,45 @@ describe('packs and the pack rows', () => {
     expect(rows['pack.expo.docs'].note).toBe('0 primitives, 0 documented in docs/design-system.md');
     expect(rows['pack.supabase.docs'].note).toBe('0 migrations, 0 documented in docs/data-model.md');
     expect(rows['pack.supabase.types'].note).toBe('measured by the gate against the local stack (db:types writes src/types/db.ts)');
+  });
+
+  it('reads pack.<name>.lint: WARN with no ESLint, an old one, no config, the export not named, its plugin missing', () => {
+    const l = m.pack.lint;
+    const lint = (fake, packs = ['expo'], files = {}) => {
+      const root = packed(packs, files);
+      if (fake) fakeEslintRepo(root, fake);
+      return doctor(root);
+    };
+    expect(lint(null)['pack.expo.lint']).toEqual({ status: 'WARN', note: l.noEslint('npx expo lint') });
+    expect(l.noEslint('npx expo lint')).toBe('not measured; npx expo lint installs ESLint');
+    expect(lint(null, ['supabase'])['pack.supabase.lint']).toEqual({ status: 'WARN', note: l.noEslint('npm install --save-dev eslint') });
+    const old = fs.mkdtempSync(path.join(TMP, 'eslint8-'));
+    fs.writeFileSync(path.join(old, 'package.json'), '{ "name": "eslint", "version": "8.57.0" }');
+    expect(lint({ eslint: old })['pack.expo.lint']).toEqual({ status: 'WARN', note: l.oldEslint('8.57.0') });
+    expect(lint({ config: null })['pack.expo.lint']).toEqual({ status: 'WARN', note: l.noConfig('npx expo lint') });
+    const spread = "...require('cookwright/packs/expo/eslint.cjs'),";
+    expect(lint({ config: 'module.exports = [];\n' })['pack.expo.lint']).toEqual({
+      status: 'WARN',
+      note: l.unnamed('eslint.config.js', 'cookwright/packs/expo/eslint.cjs', [spread]),
+    });
+    expect(l.unnamed('eslint.config.js', 'cookwright/packs/expo/eslint.cjs', [spread])).toBe(
+      `eslint.config.js does not name cookwright/packs/expo/eslint.cjs; add ${spread} (the setup skill does it with consent)`,
+    );
+    const esm = lint({ config: null }, ['expo'], { 'eslint.config.mjs': 'export default [];\n' })['pack.expo.lint'];
+    expect(esm.note).toBe(l.unnamed('eslint.config.mjs', 'cookwright/packs/expo/eslint.cjs', ["import cookwrightExpo from 'cookwright/packs/expo/eslint.cjs';", '...cookwrightExpo,']));
+    const i18next = 'npm install --save-dev eslint-plugin-i18next';
+    expect(lint({ plugin: false })['pack.expo.lint']).toEqual({
+      status: 'WARN',
+      note: `${l.ok('9.39.0-fake', 'eslint.config.js', 'cookwright/packs/expo/eslint.cjs')}; ${l.needs(i18next, PACKS.expo.deps[0].reason)}`,
+    });
+  });
+
+  it('asks for no plugin with its rule off, and has no lint row with every ESLint rule off', () => {
+    const stringsOff = [{ name: 'expo', rules: { strings: false } }];
+    const root = level0({ 'AGENTS.md': agents(expoSection(new Set(['strings']))), ...DOCS }, { packs: stringsOff });
+    expect(doctor(fakeEslintRepo(root, { plugin: false }))['pack.expo.lint'].status).toBe('PASS');
+    const allOff = [{ name: 'supabase', rules: { client: false } }];
+    expect(Object.keys(doctor(level0({}, { packs: allOff })))).not.toContain('pack.supabase.lint');
   });
 
   it('reads pack.supabase.types: SKIP without the CLI, WARN with no script or another shape, absent with the rule off', () => {

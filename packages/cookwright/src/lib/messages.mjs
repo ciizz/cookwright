@@ -201,6 +201,15 @@ const doctor = {
       omitted: (names, n, kind, doc) =>
         `${names.length} of ${counted(n, kind)} ${names.length === 1 ? 'has' : 'have'} no entry in ${doc}: ${shown(names)}`,
     },
+    // pack.<name>.lint: ESLint and the config naming the pack's export, a text match (stage-4 plan §4.7)
+    lint: {
+      noEslint: (setup) => `not measured; ${setup} installs ESLint`,
+      oldEslint: (version) => `not measured; the installed eslint ${version || 'of unknown version'} is older than 9, and the standards need its flat config`,
+      noConfig: (setup) => `not measured; no ESLint config (eslint.config.js); ${setup} sets ESLint up, then ${RUN_INIT}`,
+      unnamed: (file, spec, lines) => `${file} does not name ${spec}; add ${list(lines)} (the setup skill does it with consent)`,
+      ok: (version, file, spec) => `eslint ${version}; ${file} names ${spec}`,
+      needs: (install, reason) => `needs ${install} (${reason})`,
+    },
     // pack.supabase.types: what the gate's types check needs, no subprocess (stage-4 plan §4.6)
     types: {
       needsCli: NEEDS_SUPABASE,

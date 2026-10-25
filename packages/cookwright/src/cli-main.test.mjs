@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { dispatch } from './cli-main.mjs';
+import { CONFIG_VERSION } from './lib/config.mjs';
 import { CLI } from './lib/messages.mjs';
 import { commit, scratchRepo, scratchRoot } from './test-helpers.mjs';
 
@@ -59,7 +60,7 @@ describe('dispatch', () => {
   it('hands `migrate` and its flags to the migrate command', async () => {
     const repo = scratchRepo(TMP, 'migrate');
     expect(await dispatch(['migrate', '--dry-run'], { cwd: repo.root })).toBe(0);
-    expect(logs.at(-1)).toBe('cookwright.json: already at version 2');
+    expect(logs.at(-1)).toBe(`cookwright.json: already at version ${CONFIG_VERSION}`);
     expect(await dispatch(['migrate', '--force'], { cwd: repo.root })).toBe(2);
     expect(errors.at(-1)).toBe(`usage: ${CLI} migrate [--dry-run]`);
   });

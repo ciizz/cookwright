@@ -13,10 +13,11 @@
       "type": "string"
     },
     "version": {
-      "description": "Config format version, bumped only with a migration. 2 is current; a version-1 file is migrated in memory and loads, and npx cookwright migrate writes it at version 2.",
+      "description": "Config format version, bumped only with a migration. 3 is current; a version-1 or version-2 file is migrated in memory and loads, and npx cookwright migrate writes it at version 3.",
       "enum": [
         1,
-        2
+        2,
+        3
       ]
     },
     "level": {
@@ -42,6 +43,82 @@
       "default": [
         "claude"
       ]
+    },
+    "packs": {
+      "description": "Stack packs this repo takes, each once: a pack brings engineering rules, each written into AGENTS.md beside the check that measures it. A name, or { name, rules } to switch rules off. Init declares the packs it detects on a fresh config only.",
+      "type": "array",
+      "uniqueItems": true,
+      "default": [],
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "expo",
+              "supabase"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "const": "expo"
+              },
+              "rules": {
+                "description": "Rules of the expo pack switched off, each set to false. A rule is on unless switched off here; doctor reads a switched-off rule as WARN.",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "strings": {
+                    "const": false
+                  },
+                  "tokens": {
+                    "const": false
+                  },
+                  "size": {
+                    "const": false
+                  },
+                  "design-doc": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "const": "supabase"
+              },
+              "rules": {
+                "description": "Rules of the supabase pack switched off, each set to false. A rule is on unless switched off here; doctor reads a switched-off rule as WARN.",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "client": {
+                    "const": false
+                  },
+                  "data-doc": {
+                    "const": false
+                  },
+                  "types": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     },
     "baseBranch": {
       "description": "The branch bundles branch from and merge back into.",
@@ -118,6 +195,12 @@
                   "type": "string",
                   "minLength": 1
                 }
+              },
+              "skipExit": {
+                "description": "An exit status this check uses to say it could not measure: recorded as skipped, with its first output line, never as a failure. Any other non-zero exit fails.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 255
               }
             }
           }

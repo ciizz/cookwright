@@ -1,9 +1,10 @@
 // src/lib/config.mjs — cookwright.json: where it is, what it may say, what it means.
 //
 // The config is the ONLY place a user repo tells the harness about itself: where the
-// state homes live, which host runs the agent, which commands make up the gate.
-// Everything the lifted scripts hardcoded is a key here, and the repo declares its
-// level (levels.mjs), which doctor measures.
+// state homes live, which host runs the agent, which commands make up the gate,
+// which stack packs it takes (packs/registry.mjs). Everything the lifted scripts
+// hardcoded is a key here, and the repo declares its level (levels.mjs), which
+// doctor measures.
 //
 // Validation is by hand (a handful of keys, no dependency). The JSON Schema under
 // schema/ is the editor-facing twin; a test keeps the two in step. The loader's
@@ -17,14 +18,16 @@ import { TimedOut, runBounded } from './budget.mjs';
 import { KNOWN_HOSTS } from './hosts.mjs';
 import { KNOWN_LEVELS } from './levels.mjs';
 import { MIGRATIONS } from './migrations.mjs';
+import { KNOWN_PACKS, PACKS, packName, switchableRules } from './packs/registry.mjs';
 
 export const CONFIG_FILE = 'cookwright.json';
-export const CONFIG_VERSION = 2;
+export const CONFIG_VERSION = 3;
 
 export const DEFAULTS = Object.freeze({
   version: CONFIG_VERSION,
   level: 0,
   hosts: ['claude'],
+  packs: Object.freeze([]),
   baseBranch: 'main',
   paths: {
     bundles: 'docs/bundles',
@@ -41,12 +44,13 @@ export const OPTIONAL_PATHS = Object.freeze(['playbook']);
 
 /** Every key the validator knows, per object — the schema test compares these. */
 export const KNOWN_KEYS = Object.freeze({
-  top: ['$schema', 'version', 'level', 'hosts', 'baseBranch', 'paths', 'gate', 'hooks', 'ci'],
+  top: ['$schema', 'version', 'level', 'hosts', 'packs', 'baseBranch', 'paths', 'gate', 'hooks', 'ci'],
   paths: ['bundles', 'closeouts', 'backlog', 'playbook', 'changelog'],
   gate: ['checks', 'flakes'],
-  check: ['name', 'run', 'needs'],
+  check: ['name', 'run', 'needs', 'skipExit'],
   hooks: ['docSync'],
   docSyncRule: ['name', 'code', 'docs'],
+  pack: ['name', 'rules'],
   ci: ['workflow'],
 });
 
@@ -197,6 +201,7 @@ export function validateConfig(config) {
   return [
     ...unknownKeys(config, KNOWN_KEYS.top, 'top level'),
     ...validateTop(config),
+    ...validatePacks(config.packs),
     ...validatePaths(config.paths),
     ...validateGate(config.gate),
     ...validateHooks(config.hooks),
@@ -223,6 +228,43 @@ function validateTop({ $schema, version, level, hosts, baseBranch }) {
     if (new Set(hosts).size !== hosts.length) out.push('hosts: each host once');
   }
   if (!isStr(baseBranch)) out.push('baseBranch must be a non-empty string');
+  return out;
+}
+
+/**
+ * `packs`: a list of pack names or `{ name, rules? }`, each pack once; `rules` maps
+ * a measured rule of that pack to `false` (switched off), nothing else. The raw
+ * value is judged here; registry.mjs's declaredPacks reads it once it is valid.
+ */
+function validatePacks(packs) {
+  if (!Array.isArray(packs)) return ['packs must be a list of pack names or { name, rules } objects'];
+  const out = [];
+  packs.forEach((entry, i) => out.push(...validatePack(entry, i)));
+  const names = packs.map(packName).filter(isStr);
+  if (new Set(names).size !== names.length) out.push('packs: each pack once');
+  return out;
+}
+
+function validatePack(entry, i) {
+  const where = `packs[${i}]`;
+  if (!isStr(entry) && !isObj(entry)) return [`${where} must be a pack name or a { name, rules } object`];
+  const out = isObj(entry) ? unknownKeys(entry, KNOWN_KEYS.pack, where) : [];
+  const name = packName(entry);
+  if (!isStr(name)) return [...out, `${where}.name must be a non-empty string`];
+  if (!KNOWN_PACKS.includes(name)) {
+    return [...out, `packs: pack "${name}" is not available in this version of cookwright (known: ${KNOWN_PACKS.join(', ')})`];
+  }
+  return isObj(entry) && entry.rules !== undefined ? [...out, ...validatePackRules(entry.rules, name, where)] : out;
+}
+
+function validatePackRules(rules, name, where) {
+  if (!isObj(rules)) return [`${where}.rules must be an object mapping a rule of pack ${name} to false`];
+  const known = switchableRules(PACKS[name]);
+  const out = [];
+  for (const [id, value] of Object.entries(rules)) {
+    if (!known.includes(id)) out.push(`packs: rule "${id}" is not a rule of pack ${name} (known: ${known.join(', ')})`);
+    else if (value !== false) out.push(`${where}.rules.${id} must be false (switched off); a rule is on unless switched off`);
+  }
   return out;
 }
 
@@ -284,6 +326,10 @@ function validateCheck(check, i) {
   if (!isStr(check.run)) out.push(`${where}.run must be a non-empty command string`);
   if (check.needs !== undefined && (!Array.isArray(check.needs) || !check.needs.every(isStr))) {
     out.push(`${where}.needs must be a list of executable names`);
+  }
+  const skip = check.skipExit;
+  if (skip !== undefined && !(Number.isInteger(skip) && skip >= 1 && skip <= 255)) {
+    out.push(`${where}.skipExit must be an exit status from 1 to 255`);
   }
   return out;
 }

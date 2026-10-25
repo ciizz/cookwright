@@ -33,6 +33,7 @@ import {
 } from './hosts.mjs';
 import { KNOWN_LEVELS } from './levels.mjs';
 import { MIGRATIONS } from './migrations.mjs';
+import { KNOWN_PACKS, PACKS, switchableRules } from './packs/registry.mjs';
 import { gitInit, linkPackage } from '../test-helpers.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -94,6 +95,7 @@ describe('loadConfig', () => {
     expect(config.paths).toEqual({ ...DEFAULTS.paths, bundles: 'state/bundles' });
     expect(config.gate).toEqual({ checks: [], flakes: {} });
     expect(config.hooks).toEqual({ docSync: [] });
+    expect(config.packs).toEqual([]);
     expect(config.ci).toBeUndefined();
   });
 
@@ -129,7 +131,7 @@ describe('loadConfig', () => {
   it('reports every problem at once', () => {
     const dir = repoWith('bad', { version: 0, hosts: [], baseBranch: '', typo: 1 });
     expect(() => loadConfig(dir)).toThrow(
-      /unknown key "typo"[\s\S]*version must be 2[\s\S]*hosts must be a non-empty list[\s\S]*baseBranch/,
+      new RegExp(`unknown key "typo"[\\s\\S]*version must be ${CONFIG_VERSION}[\\s\\S]*hosts must be a non-empty list[\\s\\S]*baseBranch`),
     );
   });
 });
@@ -165,9 +167,9 @@ describe('an older version, migrated in memory', () => {
   });
 
   it('refuses a newer version naming the update, and keeps today’s line for any other', () => {
-    expect(() => loadConfig(repoWith('v3', { version: 3 }))).toThrow(
+    expect(() => loadConfig(repoWith('v4', { version: 4 }))).toThrow(
       new Error(
-        `${CONFIG_FILE}: version 3 is newer than this cookwright's 2: update cookwright (npm install cookwright@latest)`,
+        `${CONFIG_FILE}: version 4 is newer than this cookwright's 3: update cookwright (npm install cookwright@latest)`,
       ),
     );
     for (const [i, version] of [0, -1, 1.5, '1', null].entries()) {
@@ -185,12 +187,13 @@ describe('an older version, migrated in memory', () => {
       seen.push([n, raw.version]);
       return { raw: { ...raw, level: 0 }, outcome: `step${n}` };
     };
-    const migrations = { 0: step(0), 1: step(1) };
+    const migrations = { 0: step(0), 1: step(1), 2: step(2) };
     const dir = repoWith('v0-chain', { version: 0 });
     expect(loadConfig(dir, { migrations }).migratedFrom).toBe(0);
     expect(seen).toEqual([
       [0, 0],
       [1, 1],
+      [2, 2],
     ]);
     // A chain with a gap is not a chain: the validator names the version.
     expect(() => loadConfig(dir, { migrations: { 1: step(1) } })).toThrow(`version must be ${CONFIG_VERSION}`);
@@ -200,9 +203,21 @@ describe('an older version, migrated in memory', () => {
     const raw = structuredClone(stale);
     const out = applyMigrations(raw, { exists: () => false });
     expect(raw).toEqual(stale);
-    expect(out.raw).toEqual({ version: 2, paths: {} });
-    expect(out.steps).toEqual([{ from: 1, to: 2, outcome: 'playbookDropped', detail: 'docs/playbook.md' }]);
+    expect(out.raw).toEqual({ version: 3, paths: {}, packs: [] });
+    expect(out.steps).toEqual([
+      { from: 1, to: 2, outcome: 'playbookDropped', detail: 'docs/playbook.md' },
+      { from: 2, to: 3, outcome: 'packsAdded', detail: undefined },
+    ]);
     expect(applyMigrations({ version: CONFIG_VERSION }, { exists: () => false })).toBeNull();
+  });
+
+  it('loads a version-2 config with packs empty, never a pack declared for it', () => {
+    const dir = repoWith('v2', { version: 2, hosts: ['claude'] });
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ dependencies: { expo: '1' } }));
+    const config = loadConfig(dir);
+    expect([config.version, config.packs, config.migratedFrom]).toEqual([CONFIG_VERSION, [], 2]);
+    const kept = loadConfig(repoWith('v2-packs', { version: 2, packs: ['expo'] }));
+    expect([kept.packs, kept.migratedFrom]).toEqual([['expo'], 2]);
   });
 });
 
@@ -333,6 +348,52 @@ describe('validateConfig', () => {
     expect(docs).toBe('hooks.docSync[0].docs[0]: unknown pathspec magic "prefix:0"');
   });
 
+  it('takes packs as names or { name, rules } objects, each pack once', () => {
+    for (const packs of [[], ['expo'], ['supabase', 'expo'], [{ name: 'expo' }], [{ name: 'expo', rules: {} }]]) {
+      expect([packs, problems({ packs })]).toEqual([packs, '']);
+    }
+    expect(problems({ packs: [{ name: 'expo', rules: { size: false, strings: false } }, 'supabase'] })).toBe('');
+    for (const packs of ['expo', null, {}]) {
+      expect(problems({ packs })).toBe('packs must be a list of pack names or { name, rules } objects');
+    }
+    expect(problems({ packs: ['expo', { name: 'expo' }] })).toBe('packs: each pack once');
+    expect(problems({ packs: [3] })).toBe('packs[0] must be a pack name or a { name, rules } object');
+    expect(problems({ packs: [''] })).toBe('packs[0] must be a pack name or a { name, rules } object');
+    expect(problems({ packs: [{ rules: {} }] })).toBe('packs[0].name must be a non-empty string');
+    expect(problems({ packs: [{ name: 'expo', off: ['size'] }] })).toBe('packs[0]: unknown key "off"');
+  });
+
+  it('refuses a pack this version does not ship, naming the known ones', () => {
+    expect(problems({ packs: ['rails'] })).toBe(
+      'packs: pack "rails" is not available in this version of cookwright (known: expo, supabase)',
+    );
+    expect(problems({ packs: [{ name: 'Expo', rules: { size: false } }] })).toMatch(/^packs: pack "Expo" is not available/);
+  });
+
+  it('switches a measured rule off with false, and nothing else', () => {
+    const rules = (r, name = 'expo') => problems({ packs: [{ name, rules: r }] });
+    expect(rules({ 'max-lines': false })).toBe(
+      'packs: rule "max-lines" is not a rule of pack expo (known: strings, tokens, size, design-doc)',
+    );
+    expect(rules({ client: false })).toMatch(/^packs: rule "client" is not a rule of pack expo/);
+    expect(rules({ 'reuse-first': false })).toMatch(/^packs: rule "reuse-first" is not a rule of pack expo/); // advisory
+    expect(rules({ types: false }, 'supabase')).toBe('');
+    for (const value of [true, 0, 'off', null]) {
+      expect(rules({ size: value })).toBe('packs[0].rules.size must be false (switched off); a rule is on unless switched off');
+    }
+    for (const value of [[], 'size', null]) {
+      expect(rules(value)).toBe('packs[0].rules must be an object mapping a rule of pack expo to false');
+    }
+  });
+
+  it('takes skipExit on a gate check as an exit status from 1 to 255', () => {
+    const check = (skipExit) => problems({ gate: { ...DEFAULTS.gate, checks: [{ name: 'a', run: 'x', skipExit }] } });
+    for (const ok of [1, 11, 255, undefined]) expect([ok, check(ok)]).toEqual([ok, '']);
+    for (const bad of [0, 256, -1, 1.5, '11', null]) {
+      expect([bad, check(bad)]).toEqual([bad, 'gate.checks[0].skipExit must be an exit status from 1 to 255']);
+    }
+  });
+
   it('refuses a ci block without a workflow', () => {
     expect(problems({ ci: {} })).toMatch(/ci\.workflow must name a workflow file/);
     expect(problems({ ci: { workflow: 'ci.yml' } })).toBe('');
@@ -354,6 +415,27 @@ describe('the schema and the validator agree', () => {
     const rule = SCHEMA.properties.hooks.properties.docSync.items;
     expect(props(rule)).toEqual([...KNOWN_KEYS.docSyncRule].sort());
     expect([...rule.required].sort()).toEqual([...KNOWN_KEYS.docSyncRule].sort());
+  });
+
+  it('agree on the packs: the names, the object keys, and each pack’s switchable rules', () => {
+    const packs = SCHEMA.properties.packs;
+    expect(packs.default).toEqual(DEFAULTS.packs);
+    const [names, ...objects] = packs.items.oneOf;
+    expect(names.enum).toEqual(KNOWN_PACKS);
+    expect(objects.map((o) => o.properties.name.const)).toEqual(KNOWN_PACKS);
+    for (const object of objects) {
+      expect(props(object)).toEqual([...KNOWN_KEYS.pack].sort());
+      expect(object.additionalProperties).toBe(false);
+      const { rules } = object.properties;
+      expect(rules.additionalProperties).toBe(false);
+      expect(Object.keys(rules.properties)).toEqual(switchableRules(PACKS[object.properties.name.const]));
+      for (const rule of Object.values(rules.properties)) expect(rule).toEqual({ const: false });
+    }
+  });
+
+  it('agree on skipExit’s range', () => {
+    const skip = SCHEMA.properties.gate.properties.checks.items.properties.skipExit;
+    expect([skip.type, skip.minimum, skip.maximum]).toEqual(['integer', 1, 255]);
   });
 
   it('agree on which pathspec magic is known', () => {

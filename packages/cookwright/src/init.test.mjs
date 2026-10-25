@@ -301,7 +301,7 @@ describe('cookwright.json', () => {
 
   it('keeps an existing config byte for byte, even without level', () => {
     const root = fresh();
-    const text = '{"version":2,"paths":{"backlog":"notes/todo/backlog.md"}}';
+    const text = '{"version":3,"paths":{"backlog":"notes/todo/backlog.md"}}';
     write(root, 'cookwright.json', text);
     const { rows } = init(root);
     expect(rows['cookwright.json']).toEqual({ action: 'kept', note: m.config.kept(0) });

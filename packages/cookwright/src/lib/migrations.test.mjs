@@ -7,6 +7,7 @@ import { MIGRATIONS, STALE_PLAYBOOK } from './migrations.mjs';
 
 const ctx = (present = []) => ({ exists: (rel) => present.includes(rel) });
 const step = MIGRATIONS[1];
+const addPacks = MIGRATIONS[2];
 
 describe('1 → 2: the stale paths.playbook', () => {
   it('drops the stage-1 default when nothing is there, every other key in place', () => {
@@ -49,5 +50,29 @@ describe('1 → 2: the stale paths.playbook', () => {
     expect(bare).toEqual(before);
     const trimmed = { version: 1, paths: { backlog: 'x.md' } };
     expect(step(trimmed, ctx([STALE_PLAYBOOK])).raw).toEqual({ version: 1, paths: { backlog: 'x.md', playbook: STALE_PLAYBOOK } });
+  });
+});
+
+describe('2 → 3: packs', () => {
+  it('adds an empty packs after hosts, every other key in place, the object untouched', () => {
+    const raw = { $schema: 's', version: 2, level: 0, hosts: ['claude'], baseBranch: 'main', paths: {} };
+    const before = structuredClone(raw);
+    const out = addPacks(raw);
+    expect(out).toEqual({ raw: { ...raw, packs: [] }, outcome: 'packsAdded' });
+    expect(Object.keys(out.raw)).toEqual(['$schema', 'version', 'level', 'hosts', 'packs', 'baseBranch', 'paths']);
+    expect(raw).toEqual(before);
+  });
+
+  it('adds it at the end when there is no hosts key', () => {
+    const out = addPacks({ version: 2, level: 0 });
+    expect(Object.keys(out.raw)).toEqual(['version', 'level', 'packs']);
+    expect(out.outcome).toBe('packsAdded');
+  });
+
+  it('keeps any value already there, valid or not, for the validator to judge', () => {
+    for (const packs of [[], ['expo'], 'expo', null]) {
+      const raw = { version: 2, hosts: ['claude'], packs };
+      expect(addPacks(raw)).toEqual({ raw, outcome: 'packsKept' });
+    }
   });
 });

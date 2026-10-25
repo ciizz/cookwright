@@ -1,5 +1,5 @@
 // src/lib/migrations.mjs — the config migrations: one pure step per format version,
-// keyed by the version it starts from (plan §4.3).
+// keyed by the version it starts from (stage-3 plan §4.3).
 //
 // A step takes the raw JSON object (never the defaulted config) and a context whose
 // `exists(rel)` says whether anything is at a root-relative path, and returns
@@ -34,6 +34,24 @@ function absentPlaybook(raw, ctx) {
   return { raw: { ...raw, paths: { ...paths, playbook: STALE_PLAYBOOK } }, outcome: 'playbookPinned', detail: STALE_PLAYBOOK };
 }
 
+/**
+ * 2 → 3: `packs` arrives, written as `[]` when absent (stage-4 plan disposition 22:
+ * an existing config never gets a pack from a migration; doctor's `packs` row and
+ * the setup skill offer the ones the tree shows). It goes after `hosts` when that
+ * key is there, else at the end; a present value is kept for the validator to judge.
+ */
+function addPacks(raw) {
+  if (Object.hasOwn(raw, 'packs')) return { raw, outcome: 'packsKept' };
+  if (!Object.hasOwn(raw, 'hosts')) return { raw: { ...raw, packs: [] }, outcome: 'packsAdded' };
+  const next = {};
+  for (const [key, value] of Object.entries(raw)) {
+    next[key] = value;
+    if (key === 'hosts') next.packs = [];
+  }
+  return { raw: next, outcome: 'packsAdded' };
+}
+
 export const MIGRATIONS = Object.freeze({
   1: dropStalePlaybook,
+  2: addPacks,
 });

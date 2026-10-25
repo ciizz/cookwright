@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 110,
+  "revision": 117,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -216,9 +216,23 @@
     },
     {
       "name": "fix:model",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T20:26:33.177Z",
+          "stateRevision": 110,
+          "planSha": "852cd835f53d5f48",
+          "codex": true,
+          "runId": "wf_87ed9b0b-718",
+          "endedAt": "2026-10-25T20:47:24.251Z",
+          "turnOutputTokens": 176509
+        }
+      ],
+      "startCommit": "05d780cdb4b8db955adfaa8d064184bb0ca911b7",
+      "range": null,
+      "endCommit": "2b5eff801d891646870a1a5be342744a820a7bd7",
+      "endCode": "2b5eff801d891646870a1a5be342744a820a7bd7"
     },
     {
       "name": "implement:s4",
@@ -371,6 +385,19 @@
           "ms": 70124
         }
       ]
+    },
+    {
+      "commit": "2b5eff801d891646870a1a5be342744a820a7bd7",
+      "at": "2026-10-25T20:47:12.866Z",
+      "slice": "model",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 90758
+        }
+      ]
     }
   ],
   "findings": [
@@ -464,6 +491,12 @@
       "phase": "implement:s3",
       "path": "docs/dev/bundles/stage-4/sessions/implement-s3-1.md",
       "at": "2026-10-25T20:16:50.035Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:model",
+      "path": "docs/dev/bundles/stage-4/sessions/fix-model-1.md",
+      "at": "2026-10-25T20:45:40.378Z",
       "stored": true
     }
   ],
@@ -1006,6 +1039,20 @@
       "actor": "orchestrator",
       "source": "review:model finding 8",
       "text": "No code change (planned interim state): the branch is neither merged nor released before s5; s4's fixture step runs ESLint over the scaffold once the exports ship and s5's runs the ratchet, so a dangling reference of this class fails CI from then on.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T20:45:41.122Z",
+      "actor": "orchestrator",
+      "source": "fix:model open question 1",
+      "text": "The pack-owned doc-sync rule must match the manifest exactly (code and docs, any order), a wider or retargeted rule going under the user's own name: accepted over the orchestrator's 'include every pathspec' wording of review:model finding 1, since the pack owns its rule name and an exact match is the only reading doctor can state (rule 3); ruleProblem is the one place to loosen.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T20:45:41.627Z",
+      "actor": "orchestrator",
+      "source": "fix:model strings batch",
+      "text": "fix:model's 8 user-facing strings (the preflight collision refusal, the config overlap problem, the docs row's ruleDiffers and unreadable notes, the ES module ESLint rows and import line, the design-system template's naming sentence, the guide wording) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:whole.",
       "claim": true
     }
   ],

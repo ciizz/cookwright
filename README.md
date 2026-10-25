@@ -41,7 +41,7 @@ On an Expo app, run `npx expo lint` first and add `eslint-plugin-i18next` to the
 
 ## How it works
 
-Nothing is copied into your repo: it holds `cookwright.json`, thin git shims and symbolic links into `node_modules/cookwright`, so an `npm install` of a new version changes the behaviour without touching your tree. Doctor is the state: it reads the repo every time and stores nothing. The hooks call the package, judge only your change, and print one line and let you through when cookwright itself is missing or broken. Every kind of state has one home (`AGENTS.md` for rules, a backlog, closeouts, a generated changelog), named in a managed block of `AGENTS.md` that your agent reads. An update is a version bump, then the `migrate` or `init` that doctor names.
+No script is copied into your repo: it holds `cookwright.json`, thin git shims and symbolic links into `node_modules/cookwright`, so an `npm install` of a new version changes the behaviour without touching your tree. init also writes text that is not a script: the managed blocks of `AGENTS.md`, which it refreshes, and with a stack pack a starter contract doc (`docs/design-system.md`, `docs/data-model.md`) when absent, which is yours from then on and never rewritten. Doctor is the state: it reads the repo every time and stores nothing. The hooks call the package, judge only your change, and print one line and let you through when cookwright itself is missing or broken. Every kind of state has one home (`AGENTS.md` for rules, a backlog, closeouts, a generated changelog), named in a managed block of `AGENTS.md` that your agent reads. An update is a version bump, then the `migrate` or `init` that doctor names.
 
 ## Guides
 

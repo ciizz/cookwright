@@ -1,0 +1,178 @@
+{
+  "phase": "review:measure",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/packs/standards.mjs",
+      "location": "line 245 (countBy); packages/cookwright/src/test-fixtures/fake-eslint/index.cjs:67",
+      "problem": "countBy() requires tagged messages to startsWith() the cookwright tag. Real ESLint no-restricted-imports prefixes its standard explanation and appends the configured custom message, whereas the fake returns the custom message verbatim.",
+      "severity": "P1",
+      "suggested_fix": "Attribute this rule when the unique tag occurs anywhere in the ESLint message, or use reliable message metadata. Make the fake reproduce ESLint's real message shape and add a real-ESLint fixture violation for the Supabase rule.",
+      "failure_scenario": "import { createClient } from '@supabase/supabase-js' outside the shared service produces a real ESLint error, but cookwright ignores it. Both the pre-commit check and branch ratchet can pass with 'supabase client 0'.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "standards.mjs:251 requires String(msg.message).startsWith(rule.eslint.tag). ESLint 9 no-restricted-imports renders \"'{{importSource}}' import is restricted from being used. {{customMessage}}\", so the tag is mid-message. packs/supabase/eslint.cjs:26 puts the tag at the start of the custom message only. fake-eslint/index.cjs:67-68 returns p.message verbatim, which hides this. ESLint source was not available locally to re-read; this rests on my knowledge of the rule's message template."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/standards.mjs",
+      "location": "lines 106 and 267 (wiring check, lintAt)",
+      "problem": "Wiring is checked only against representative sample paths, while candidate selection checks only mode and extension. lintAt() treats every nonfatal ESLint result as measured, including an ignored file or a file where a later path-specific block disabled/replaced the pack rule.",
+      "severity": "P1",
+      "suggested_fix": "Implement the plan's pack-aware path matching, then verify effective wiring for each applicable file. Treat an ignored or unexpectedly overridden applicable file as unmeasured, with tests for global ignores and directory-specific overrides.",
+      "failure_scenario": "A global ignore or override for src/components/legacy/** leaves the sample component correctly wired. A newly staged violation under that directory produces no pack messages, is counted as zero, and the hook reports PASS. Test files explicitly exempt by the pack are also incorrectly reported as 'counted'.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "plausible",
+      "evidence": "standards.mjs:106-112 checks wiring only at item.rule.eslint.options sample paths, and lintAt (standards.mjs:267-278) treats any non-fatal result as measured. Real ESLint lintText on an ignored file returns a severity-1 warning, not a fatal one, so a file under an ignore or override would count as zero. I did not confirm that candidates are never filtered against ignores or overrides elsewhere, and did not reproduce it."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/standards.mjs; packages/cookwright/src/lib/bundle/gate.mjs",
+      "location": "standards.mjs lines 47, 122, 267; gate.mjs line 85",
+      "problem": "ESLint/config exceptions are rendered from raw err.message. The gate then records the first stdout line of every skipExit check as its persistent note. Incidental console.log() output from a config is likewise accepted as evidence.",
+      "severity": "P1",
+      "suggested_fix": "Emit stable, redacted error categories rather than exception messages. Give standards output an explicit machine-readable/sentinel result and have the gate persist only that validated result, never arbitrary first-line stdout. Test with secret-shaped error text and noisy configs.",
+      "failure_scenario": "A plugin throws an error containing a source literal or absolute local path. standards prints it, and the bundle gate stores it in state.json, violating the secrets/private-data rules. Incidental config output can also replace the actual measurement note and hide a partially measured gate.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "Raw err.message flows unredacted to the persisted note. packs/standards.mjs:48 defines firstLine(err) as the first line of err.message with no scrubbing. It is used at standards.mjs:127 (m.configFailed(firstLine(err)) inside an Unmeasurable) and at standards.mjs:272 (lintAt returns {unmeasured: firstLine(err)}). src/standards.mjs:218 does console.log(err.message) for an Unmeasurable. gate.mjs:106 sets note = firstLine(r.stdout) for any check with skipExit, and RATCHET_CHECK (registry.mjs:34) has skipExit 11, so the note is recorded on every outcome. gate.mjs:109 puts it in the result, which becomes state.json, and the gate commits state.json (commit f09b6a1 'chore(bundle)'). Node and ESLint errors such as \"Cannot find module '/abs/path'\" carry absolute local paths, which AGENTS.md forbids in committed files. Nothing in the range sanitizes them; harness(err) at src/standards.mjs:218 only covers the non-Unmeasurable branch. The incidental-output half also holds. gate.mjs:106 takes the first non-empty stdout line, so a console.log in an ESLint config or plugin that runs before the standards output becomes the note and replaces the measurement summary. That could hide a partially measured gate. I did not run it, so that half rests on reading the code."
+    },
+    {
+      "file": "packages/cookwright/src/standards.mjs; packages/cookwright/src/lib/packs/types.mjs",
+      "location": "standards.mjs line 213; types.mjs line 117",
+      "problem": "Missing ESLint, Supabase CLI, or another unmeasurable condition returns exit 11. Although hooks and opted-in gates translate 11 into SKIP, the public script itself violates the repository rule that absence reports a skip and exits 0.",
+      "severity": "P2",
+      "suggested_fix": "Separate the internal gate protocol from the public command, for example a machine/gate mode may return the skip code while ordinary invocation exits 0, or amend the authoritative rule if exit 11 is intentionally becoming the documented exception.",
+      "failure_scenario": "set -e; npx cookwright standards --types aborts setup or CI merely because the optional Supabase CLI is unavailable.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "plausible",
+      "evidence": "The exit code is real. types.mjs:35 defines skipped() as {exit:11}, and types.mjs:122 returns it when the supabase CLI is absent. standards.mjs main() returns SKIP_EXIT (11) on Unmeasurable (standards.mjs:~213), so `set -e; npx cookwright standards --types` would abort. The AGENTS.md rule says an absent tool 'reports skipped and exits 0'. Against that, plan.md lines 140, 151 and dispositions 30 and 36 (lines 68, 74) deliberately make exit 11 the command's 'cannot measure' code. Opted-in gate checks (skipExit: 11) and the hook child translate it to SKIP, and the plan says the command is documented with 11 as a gate convention. So this is a plan-sanctioned deviation from the literal rule, not an oversight. Whether it should still be exit 0 is a judgment call, and I could not refute or confirm it."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/standards.mjs",
+      "location": "countBy, line 251 (`String(msg.message).startsWith(rule.eslint.tag)`), with packs/supabase/eslint.cjs and packs/supabase/pack.mjs (tag '[cookwright supabase client]')",
+      "problem": "The supabase `client` rule is never counted by real ESLint. countBy only gives a shared-id finding to a pack rule when the message STARTS with the rule's tag. ESLint 9's no-restricted-imports does not start its message with the custom text. It renders `'{{importSource}}' import is restricted from being used. {{customMessage}}`, so the tag sits in the middle. `wired` still marks the rule MEASURED, because `tagged()` looks at the options and not at the messages. So the hook, the ratchet and the count all report `supabase client 0 → 0` and claim it was measured. The fake ESLint (src/test-fixtures/fake-eslint/index.cjs:67-68) sends back `p.message` bare, and the unit tests build messages that start with the tag. That is why every test passes while the real behaviour is wrong. The fixture never imports @supabase/supabase-js, so the bug is not caught there either. This breaks Judgment rule 3 (claim only what was measured).",
+      "severity": "P1",
+      "suggested_fix": "Match the tag anywhere in the message (`includes(tag)`), or match per rule id (`startsWith` for no-restricted-syntax, `includes` for no-restricted-imports). Make the fake's no-restricted-imports send ESLint's real wording (`'<name>' import is restricted from being used. <message>`). Add a fixture step that commits a screen importing @supabase/supabase-js and expects `supabase client 0 → 1`.",
+      "failure_scenario": "Measured with the fixture's real ESLint 9.39.5 and its eslint.config.js (both exports spread). Linting `src/screens/Home.tsx` containing `import { createClient } from '@supabase/supabase-js'` gives ruleId no-restricted-imports, severity 2, message \"'@supabase/supabase-js' import is restricted from being used. [cookwright supabase client] import the client …\". Passing that message to engine.countBy with the supabase client rule measured returns `{ counts: Map(0) {}, findings: [] }`. So a commit adding that import goes through pre-commit with `PASS standards 1 staged file(s), no rise`, and `standards --ratchet` exits 0 with `supabase client 0 → 0`.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "Same cause as [0]: standards.mjs:251 startsWith(tag) against ESLint 9's prefixed no-restricted-imports message. Wiring uses tagged() on the options (standards.mjs:80-94), not on messages, so the rule is marked MEASURED while a real violation counts as 0. The fake ESLint (fake-eslint/index.cjs:67-68) emits the bare message, which is why tests pass. I did not run the fixture's ESLint 9.39.5 myself."
+    },
+    {
+      "file": "packages/cookwright/packs/expo/eslint.cjs",
+      "location": "i18nextPlugin(resolve = require.resolve), lines 57-64 and 101; with absent() in src/lib/packs/standards.mjs:98-103 and checkLint in src/lib/doctor/packs.mjs",
+      "problem": "The export looks up eslint-plugin-i18next from cookwright's own install location (its real path), not from the app's config root. The engine (`installed(root, …)`) and doctor (`missingDeps`) look it up from the config root. When the two lookups disagree, the strings block is quietly left out of the config, and the readouts contradict each other. The engine reports `expo strings: skipped, not wired (the ESLint config does not spread cookwright/packs/expo/eslint.cjs)`, but the config does spread it. Doctor's `pack.expo.lint` reads PASS because the plugin is installed and the text names the export. The developer cannot clear this through any remedy shown, which Judgment rule 2 counts as a bug. The test helper hides it: PACK_ESLINT_CONFIG calls `expo.withResolver((id) => require.resolve(id))` so the plugin resolves from the repo, which a user's config never does.",
+      "severity": "P2",
+      "suggested_fix": "Look up the plugin from the consuming repo, e.g. `createRequire(path.join(process.cwd(), 'package.json'))`, falling back to the package's own resolver. Or have the engine's `absent()` say 'the export could not resolve eslint-plugin-i18next from the cookwright package' when the plugin is installed at the root but missing from the effective config. Add a test where the plugin is visible only from the repo root.",
+      "failure_scenario": "An app installed with pnpm (node_modules/cookwright is a link into .pnpm/cookwright@x/node_modules/, whose siblings are only cookwright's own dependencies), or a monorepo where cookwright is hoisted to the workspace root and eslint-plugin-i18next is installed in the app's own node_modules. The developer runs `npm install --save-dev eslint-plugin-i18next` as told. Doctor reads `PASS pack.expo.lint`. Every commit's standards line still ends `expo strings: skipped, not wired (the ESLint config does not spread …)`, and nothing the developer changes clears it.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/packs/expo/eslint.cjs:57-64 and :101 resolve the plugin with require.resolve from the .cjs file's own location. Node uses the real path, so a pnpm link or a hoisted install looks only in cookwright's own node_modules chain. src/lib/packs/standards.mjs:98-103 absent() and src/lib/doctor/packs.mjs:146-149 missingDeps both call installed(root, pkg), defined at src/lib/init/packs.mjs:122-134. That looks up createRequire(root/package.json).resolve.paths, so it uses the app's config root. When the plugin is in the app's node_modules and not reachable from cookwright, the export silently drops the strings block (blocks(null)). absent() sees installed(root) true and returns the 'unwired' state with notWired('cookwright/<eslintExport>'). checkLint (doctor/packs.mjs:156-175) sees the text name the export and the plugin installed, so it returns pass. The readouts contradict each other and no shown remedy clears it. The test seam withResolver (eslint.cjs, last lines) is built with require.resolve from the repo, so tests do not cover the case. I did not run a pnpm install; the conclusion comes from reading the code and Node's resolution rules."
+    },
+    {
+      "file": "packages/cookwright/src/lib/doctor/packs.mjs",
+      "location": "checkTypes, and messages.doctor.pack.types.ok",
+      "problem": "`pack.supabase.types` reads PASS with `measured by the gate against the local stack` once the CLI is on PATH and the script has the accepted shape. It never checks that `gate.checks` holds a `standards --types` entry. Init never edits an existing config, and the setup skill only offers the gate entries (disposition 22). So in a repo that declared the pack but has no such gate check, the row claims a measurement nothing runs (rule 3, a claim wider than the code). Low severity: the plan's own PASS text has the same wording.",
+      "severity": "P3",
+      "suggested_fix": "Read PASS only when some `gate.checks` entry runs `cookwright standards --types`. Otherwise WARN, naming the entry to add (the output of `npx cookwright packs rules`).",
+      "failure_scenario": "An existing version-3 config that declares `packs: ['supabase']` through the setup skill, with the gate entries declined, a `db:types` script of the accepted shape and supabase on PATH. Doctor prints `PASS pack.supabase.types measured by the gate against the local stack (db:types writes …)`. The pre-push gate runs no types check, so a stale types file after a migration is pushed unmeasured.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/doctor/packs.mjs:136-143: checkTypes tests only probes.hasTool('supabase'), then typesScript/typesShape, then returns pass(t.ok(...)). It never reads repo.config.gate.checks for a `standards --types` entry. The types row is registered at packs.mjs:186 with no other applicability check. The messages.mjs:216-217 WARN texts say \"the shape the gate's types check reads\", so the row assumes a gate check exists. The plan (§4.6 line 152) words PASS as `measured by the gate against the local stack`, so the plan has the same gap. The gate entry `standards:types` is written only by freshConfig (disposition 30). Disposition 22 says init never edits an existing config, so an existing v3 config can declare the pack without the entry. Doctor then PASSes a measurement nothing runs. Low severity, a rule 3 claim wider than the code."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/standards.mjs",
+      "location": "stagedEntries / rangeEntries `--diff-filter=ACMRD` (lines 175, 181)",
+      "problem": "A type change (status T), such as a tracked symbolic link replaced by a regular .tsx/.ts file, is filtered out. Neither the per-file hook ratchet nor the branch ratchet ever lints the new regular file. Violations can land through that path, and the line still reports `no staged file under a pack's rules` or `0 files … changed`.",
+      "severity": "P3",
+      "suggested_fix": "Include T in the diff filter. `lintable` already requires a regular new mode and `hasBase` a regular base mode, so a T entry from a link to a file is linted with a zero base side, and the reverse case is dropped.",
+      "failure_scenario": "`src/components/Card.tsx` is tracked as a symlink. The developer replaces it with a regular file containing `color: '#ff0000'` and `git add`s it. The raw diff gives status T, the entry is filtered out, the pre-commit standards check prints `no staged file under a pack's rules` and passes, and the later `--ratchet` does not count it either.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "confirmed",
+      "evidence": "standards.mjs:175 and 181 use --diff-filter=ACMRD, which omits T (type change). A symlink replaced by a regular file shows as T in git diff --raw, so it never reaches lintable() (standards.mjs:~226). Neither the staged hook nor the range ratchet lints it."
+    },
+    {
+      "file": "packages/cookwright/src/standards.mjs",
+      "location": "measure(): `prepare(repo, io)` runs before stagedMode lists the staged entries (lines 191-192)",
+      "problem": "`--staged` loads ESLint and runs `calculateConfigForFile` for every rule before it checks whether any staged file is lintable. Every commit in a repo with a pack pays ESLint's startup cost: the plan measured 1.1 s for `--version` and 1.65 s through the API on the origin app. That includes docs-only commits. When ESLint is absent or its config is broken, a docs-only commit gets a SKIP naming ESLint instead of the plan's exit 0 `no staged file under a pack's rules`.",
+      "severity": "P3",
+      "suggested_fix": "In stagedMode (and ratchetMode), list the entries and filter them with `lintable` first. Return the `noStaged` / `noChange` line before loading ESLint and computing `wired`.",
+      "failure_scenario": "In the fixture app with both packs, `git commit` of a change to docs/design-system.md alone still spawns the child, imports ESLint and computes the config for 4 rules × samples (about 2 s), then prints `PASS standards no staged file …`. With ESLint uninstalled, the same docs-only commit reads `SKIP standards skipped, needs ESLint (npx expo lint installs it)`.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/standards.mjs:191-192 at f09b6a1: measure() awaits prepare(repo, io) (lines 51-58: loadESLint plus engine.wired, which computes the config per rule) before stagedMode runs. stagedMode (lines 95-99) only then lists stagedEntries and returns exit 0 m.noStaged when no file is lintable. stagedEntries needs only ctx.top, ctx.root and ctx.env, which are all available before prepare. A docs-only commit therefore pays the ESLint load. With ESLint absent, prepare throws Unmeasurable, so main() prints the SKIP. The plan (line 142) lists 'no matching file is exit 0' and 'ESLint absent' as separate outcomes, and the plan (line 13) measures ESLint startup at 1.1-1.65 s. The hook (plan line 145) spawns the child whenever packs are declared, with no pre-filter on staged files. The reordering is cheap, but the finding is P3 because the cost is latency and message wording only."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff and git show over 139943d..f09b6a1 (25 read-only commands by Codex)",
+    "CHARTER.md and plan at range end",
+    "standards.mjs, gate.mjs, types.mjs, fake-eslint fixture",
+    "AGENTS.md, CLAUDE.md, the playbook's Reviewer role and Prompt header, and plan.md (dispositions 2-48, §4.4-§4.7, §10 slices s4/s5)",
+    "git diff 139943d0..f09b6a1 (38 files) and the per-commit file lists against this repo's docSync rules (playbook rule honoured by 3efe804)",
+    "src/lib/packs/standards.mjs: entries/parseRaw, path base, readBlobs (64 MiB buffer), wired/judge, countBy, lintAt",
+    "src/standards.mjs: staged/ratchet/count modes, exits, line order for the hook and the gate, flag parsing",
+    "src/lib/packs/base.mjs: base order, --verify fall-through, option-shaped refs refused",
+    "src/lib/packs/types.mjs: script shape (no shell, token whitelist), change condition, stack precheck, comparison with no write",
+    "src/lib/hooks/standards.mjs, registry.mjs, push.mjs: spawnSync 60 s SIGKILL, exit mapping, pushBase, gateEnv strips or sets COOKWRIGHT_PUSH_BASE",
+    "src/lib/bundle/gate.mjs, check.mjs, closeout.mjs, messages.mjs: skipExit, the note on every outcome, partly measured, noCheckRan items",
+    "src/lib/doctor/packs.mjs .lint/.types rows and probes plumbing",
+    "packs/expo/eslint.cjs and packs/supabase/eslint.cjs against the manifests, and the fake ESLint against real ESLint's message formats",
+    "Real ESLint 9.39.5 from a kept fixture tree in the scratchpad (read-only lint through a scratchpad script): tokens and strings messages, and the no-restricted-imports message format; countBy called on the real message",
+    "Diff searched for local paths, private references and secrets (only a test literal `<local path>`, an absolute target the test expects refused)",
+    "Session report implement-s5-1.md checked against the code; standards.test.mjs uses an explicit ENV, so an inherited COOKWRIGHT_PUSH_BASE cannot leak into it"
+  ],
+  "notes": "Codex (gpt-5.6-sol, high effort) finished within the ceiling; no tests were run. Findings transcribed from its final report. Session id 01a1750a-c80f-7d41-af75-a49f267bc80f; full output at <local path>\n---\nThe P1 is confirmed by measurement. With the fixture's real ESLint, a supabase-js import gives the message \\\"'@supabase/supabase-js' import is restricted from being used. [cookwright supabase client] …\\\", and engine.countBy returns no count for it. The supabase client rule therefore measures nothing while reporting itself as measured. The fake ESLint and the unit tests both use messages that start with the tag, so the suite cannot catch it. QA (c)'s 'one violation per rule' step would. The P2 (plugin looked up from the package's location rather than the app's) follows from reading the code and from the test helper's withResolver workaround. pnpm and monorepo layouts were not run. Gate skipExit, note recording and partial-pass reading, base resolution, pushContext's base, the types measure, the hook child's cap and the doctor rows match the plan. Plan deviations the session already flagged (types requiring --local, no temp file, no 'standards:' prefix) were not counted as findings. No secrets or local paths in the committed diff.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a1750a-c80f-7d41-af75-a49f267bc80f",
+    "partialReportPath": null
+  }
+}

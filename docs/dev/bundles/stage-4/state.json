@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 138,
+  "revision": 148,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -276,9 +276,26 @@
     },
     {
       "name": "review:measure",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T21:49:42.044Z",
+          "stateRevision": 138,
+          "planSha": "852cd835f53d5f48",
+          "codex": true,
+          "runId": "wf_8b159032-c64",
+          "endedAt": "2026-10-25T22:01:11.478Z",
+          "turnOutputTokens": 506711
+        }
+      ],
+      "startCommit": "f09b6a1166518efcd447a3b86161ae54a905b783",
+      "range": {
+        "from": "139943d0dffd6505b7a3113a049fa246958a8e75",
+        "to": "f09b6a1166518efcd447a3b86161ae54a905b783"
+      },
+      "endCommit": "f09b6a1166518efcd447a3b86161ae54a905b783",
+      "endCode": "8e823dfed899865406b79d7f0de3d6e70cd3abf6"
     },
     {
       "name": "fix:measure",
@@ -526,6 +543,24 @@
       "at": "2026-10-25T20:25:53.013Z",
       "stored": true,
       "head": "1355fc7f0205e551ecf7761889449bdaff9a9236"
+    },
+    {
+      "phase": "review:measure",
+      "path": "docs/dev/bundles/stage-4/findings/review-measure-1.json",
+      "counts": {
+        "confirmed": 7,
+        "plausible": 2,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 4,
+        "P2": 2,
+        "P3": 3
+      },
+      "at": "2026-10-25T22:00:26.475Z",
+      "stored": true,
+      "head": "f09b6a1166518efcd447a3b86161ae54a905b783"
     }
   ],
   "reports": [
@@ -1196,6 +1231,48 @@
       "actor": "orchestrator",
       "source": "implement:s5 strings batch",
       "text": "s5's user-facing strings (the standards usage with --ratchet and --types, the ratchet's base and rise lines, the types measure's skips and rise, the pre-push no-base label, the gate's partly-measured label and closeout Notes column, the lint and types doctor rows, the playbook's gate section) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:measure.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:01:08.789Z",
+      "actor": "orchestrator",
+      "source": "review:measure findings 0 and 4",
+      "text": "Fix in fix:measure (rule 3): a shared-id finding is attributed to a pack rule when its message contains the rule's tag, matched per rule id (start for no-restricted-syntax, anywhere for no-restricted-imports, whose ESLint 9 template puts the custom message after its own sentence); the fake ESLint renders ESLint's real wording for both rules, and the fixture stages a Supabase client import outside the shared service so real ESLint proves the count.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:01:09.267Z",
+      "actor": "orchestrator",
+      "source": "review:measure finding 1",
+      "text": "Fix in fix:measure (rule 3): every candidate file's effective config is read (isPathIgnored, then calculateConfigForFile) before it is counted; an ignored file, or one where a later block turned a pack rule off or replaced its options, is unmeasured for that rule and named on the line, never a measured 0; tests cover a global ignore and a directory-specific override; the per-sample wired() stays as the fast first check.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:01:09.692Z",
+      "actor": "orchestrator",
+      "source": "review:measure finding 2",
+      "text": "Fix in fix:measure (rules 3 and 7): the standards command prints its verdict on one sentinel-prefixed line that the gate alone records as the note (any other stdout is never persisted); error categories are stable texts from messages.mjs, an exception's own message reduced to its first line with absolute paths and quoted literals redacted; tests feed a secret-shaped error and a noisy config.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:01:10.097Z",
+      "actor": "orchestrator",
+      "source": "review:measure finding 3",
+      "text": "No change (plan dispositions 4, 30, 36): the standards command's exit 11 is the gate's documented skip convention; the hook and an opted-in gate check translate it to SKIP, and ordinary callers read the line; the standards guide (s7) states it, and this repo's AGENTS.md Rules sentence gains the clause 'or the documented gate skip exit' in s7 so the rule and the product agree (rule 3 over the rule's letter).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:01:10.520Z",
+      "actor": "orchestrator",
+      "source": "review:measure finding 5",
+      "text": "Fix in fix:measure (rule 1): the expo export resolves eslint-plugin-i18next from the consuming repo (createRequire at process.cwd()'s package.json), falling back to its own resolver, so the export, the engine and doctor agree on whether the plugin is installed.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:01:10.933Z",
+      "actor": "orchestrator",
+      "source": "review:measure findings 6, 7, 8",
+      "text": "Fixed in fix:measure as cheap P3s: pack.supabase.types reads PASS only when a gate check runs standards --types, else WARN naming the entry (rule 3); the diff filters include status T; --staged and --ratchet list and filter the entries before loading ESLint, so a docs-only commit never pays ESLint's start-up and never reads a SKIP about ESLint (rule 1).",
       "claim": true
     }
   ],

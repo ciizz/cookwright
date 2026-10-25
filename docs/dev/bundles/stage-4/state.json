@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 101,
+  "revision": 110,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -193,9 +193,26 @@
     },
     {
       "name": "review:model",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T20:18:47.663Z",
+          "stateRevision": 101,
+          "planSha": "852cd835f53d5f48",
+          "codex": true,
+          "runId": "wf_a609acc8-48a",
+          "endedAt": "2026-10-25T20:26:32.519Z",
+          "turnOutputTokens": 546188
+        }
+      ],
+      "startCommit": "1355fc7f0205e551ecf7761889449bdaff9a9236",
+      "range": {
+        "from": "82b355ac476e4e799dc5bdd40269cc7aab450ccc",
+        "to": "1355fc7f0205e551ecf7761889449bdaff9a9236"
+      },
+      "endCommit": "1355fc7f0205e551ecf7761889449bdaff9a9236",
+      "endCode": "90fd365a6d4a9fb150eb1e6bee12a16345522224"
     },
     {
       "name": "fix:model",
@@ -410,6 +427,24 @@
       "at": "2026-10-25T18:56:36.672Z",
       "stored": true,
       "head": "b5d665b4ea76dae5561fcdd7d4858fe66fe4b5b5"
+    },
+    {
+      "phase": "review:model",
+      "path": "docs/dev/bundles/stage-4/findings/review-model-1.json",
+      "counts": {
+        "confirmed": 7,
+        "plausible": 2,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 3,
+        "P3": 6
+      },
+      "at": "2026-10-25T20:25:53.013Z",
+      "stored": true,
+      "head": "1355fc7f0205e551ecf7761889449bdaff9a9236"
     }
   ],
   "reports": [
@@ -936,6 +971,41 @@
       "actor": "orchestrator",
       "source": "implement:s3 strings batch",
       "text": "s3's 26 user-facing strings (the packs and pack.* doctor rows, B-012's WARN, the not-verified level line, the node_modules rows, the gitignore notes, the setup skill rows, the fixture's expectations) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:model.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T20:26:30.243Z",
+      "actor": "orchestrator",
+      "source": "review:model finding 0",
+      "text": "Fix in fix:model (rule 1, a crash in cookwright never blocks): init's preflight refuses duplicate or overlapping write targets before anything is applied, naming the two steps; a pack doc path equal to a configured state home is a config problem reported as one line.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T20:26:30.684Z",
+      "actor": "orchestrator",
+      "source": "review:model finding 1",
+      "text": "Fix in fix:model (rule 3): pack.<name>.docs reads the pack's doc-sync rule as PASS only when its docs list is exactly the contract doc and its code pathspecs include every one the manifest ships (a user may add pathspecs, never drop one or add an alternative doc); otherwise WARN naming the difference.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T20:26:31.116Z",
+      "actor": "orchestrator",
+      "source": "review:model finding 4",
+      "text": "Fix in fix:model (rule 1): gitignoreStep lstats node_modules first; a symbolic link is probed and ignored without the trailing slash, a directory with it; exit 128 from the probe reads as not ignored rather than a Refusal; an init test with node_modules as a link.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T20:26:31.586Z",
+      "actor": "orchestrator",
+      "source": "review:model findings 2, 3, 5, 6, 7",
+      "text": "Fixed in fix:model as cheap P3s: dirents returns [] only for ENOENT and ENOTDIR and rethrows the rest (rule 3); the schema gains a per-pack contains constraint; the lister strips platform suffixes and accepts index.<platform>.(tsx|jsx); the ESLint row matches the export specifier in any quote style or import form and prints an import-shaped line for an ESM config; the expo doc-sync defaults exempt **/__tests__/** and **/__snapshots__/**.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T20:26:31.996Z",
+      "actor": "orchestrator",
+      "source": "review:model finding 8",
+      "text": "No code change (planned interim state): the branch is neither merged nor released before s5; s4's fixture step runs ESLint over the scaffold once the exports ship and s5's runs the ratchet, so a dangling reference of this class fails CI from then on.",
       "claim": true
     }
   ],

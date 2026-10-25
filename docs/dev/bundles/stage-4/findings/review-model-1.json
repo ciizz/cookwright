@@ -1,0 +1,175 @@
+{
+  "phase": "review:model",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/init/packs.mjs",
+      "location": "line 21 (packDocsStep vs backlogStep)",
+      "severity": "P2",
+      "problem": "Pack contract-doc targets are not checked against other init targets. All steps preflight against the unchanged filesystem, so two steps can schedule incompatible writes to the same path.",
+      "failure_scenario": "A valid config declares the Expo pack and sets paths.backlog to docs/design-system.md. Both backlogStep and packDocsStep schedule that absent file; init writes the backlog and immediately overwrites it with the design-system template, then doctor reports a broken backlog that rerunning init cannot repair. Using that path for paths.closeouts instead can produce an EISDIR crash after earlier writes have already landed.",
+      "suggested_fix": "During preflight, reject duplicate and file/directory-overlapping write targets before applying anything, or validate pack-owned paths against configured state homes.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "steps.mjs:46-50 preflight maps every step against the unchanged tree. homes.mjs:24 (backlogStep) and packs.mjs:21-25 (packDocsStep) each schedule a WROTE row for an absent path. config.mjs:296 checks overlap only among paths.* keys, never against a pack manifest doc path (packs/expo/pack.mjs:93, docs/design-system.md). So paths.backlog set to docs/design-system.md gives two writes to the same file, and the later pack template overwrites the backlog. closeoutsStep (homes.mjs:38-46) schedules only '<closeouts>/.gitkeep', so a closeouts path equal to a pack doc path sees kind 'none', and the later writes to '<path>/.gitkeep' and to the file collide. The EISDIR crash is the plausible outcome of that collision, and I did not run it."
+    },
+    {
+      "file": "packages/cookwright/src/lib/doctor/packs.mjs",
+      "location": "line 72 (ruleProblem)",
+      "severity": "P2",
+      "problem": "ruleProblem considers a pack doc-sync rule valid merely when its docs array contains the expected document. It does not verify the expected code pathspecs or reject additional alternative documents that weaken enforcement.",
+      "failure_scenario": "Configure expo:design-doc with docs: [\"docs/design-system.md\", \"README.md\"]. Doctor reports pack.expo.docs PASS, but a component change staged with only README.md satisfies the hook, so the design-system contract can drift. Likewise, changing code to src/screens/** leaves component changes entirely unchecked while doctor still passes.",
+      "suggested_fix": "Compare the configured pack-owned rule with the manifest's complete docSync definition: at minimum require all expected code pathspecs and exactly the expected docs list.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "plausible",
+      "evidence": "The mechanism holds. packs.mjs:77 returns null whenever configured.docs.includes(doc.path), and it never compares configured.code with rule.docSync.code or rejects extra docs. docsync.mjs:34 accepts any one staged doc from rule.docs, so docs:['docs/design-system.md','README.md'] passes doctor yet is satisfied by staging README.md alone. A narrowed code list such as src/screens/** also passes doctor. Mitigations: plan.md:120 specifies the check only as the rule 'pointing at the doc', so the code matches the plan. The row can only WARN or PASS (disposition 11) and is advisory. Users may legitimately extend or retarget the rule. I could not show it breaks a stated requirement, so the severity is debatable and I did not confirm it."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "line 20 (dirents)",
+      "severity": "P3",
+      "problem": "dirents converts every readdirSync error into an empty directory, not just an absent or non-directory path.",
+      "failure_scenario": "If src/components or supabase/migrations exists but is unreadable due to permissions or an I/O error, doctor reports '0 primitives, 0 documented' or '0 migrations, 0 documented' as PASS, falsely claiming a successful measurement.",
+      "suggested_fix": "Return [] only for ENOENT and ENOTDIR; rethrow other errors so the doctor row reports that the check could not run.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/packs/entries.mjs:21-26: dirents wraps readdirSync in a bare catch that returns [] for every error (EACCES, EIO), though its docblock says only absent or not-a-directory. listComponents (l.48) and listMigrations (l.60) then return empty lists, so an unreadable directory is indistinguishable from an empty one and reads as a measured 0."
+    },
+    {
+      "file": "packages/cookwright/schema/cookwright.schema.json",
+      "location": "line 47 (packs uniqueItems)",
+      "severity": "P3",
+      "problem": "uniqueItems does not enforce the runtime rule that each pack name appears once, because the schema permits two representations of a pack.",
+      "failure_scenario": "[\"expo\", {\"name\":\"expo\"}] is schema-valid since the two JSON values are distinct, but loadConfig refuses it with 'packs: each pack once'. Editors approve a configuration the CLI rejects.",
+      "suggested_fix": "Add a per-pack contains constraint with minContains 0 and maxContains 1 matching both representations, or normalize the schema to one representation.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/schema/cookwright.schema.json packs: uniqueItems:true with items oneOf [string enum, object {name,rules?}]. ['expo', {name:'expo'}] holds two distinct JSON values, so the schema accepts it. packages/cookwright/src/lib/config.mjs:244 collects names and pushes 'packs: each pack once' when the Set size differs. config.test.mjs:359 asserts the runtime rejects exactly this input. JSON Schema cannot express uniqueness by name across the two forms, so the gap is inherent and low severity, but the stated mismatch holds."
+    },
+    {
+      "file": "packages/cookwright/src/lib/init/gitignore.mjs",
+      "location": "notIgnored(), NODE_MODULES_LINE = 'node_modules/' (lines 188-200 of the diff)",
+      "problem": "B-011's probe asks git about 'node_modules/' with a trailing slash. When node_modules is a symbolic link (some Docker, Nix or monorepo setups), `git check-ignore --no-index -- node_modules/` exits 128 ('pathspec is beyond a symbolic link'). probes.ignored throws on that, notIgnored turns it into a Refusal, and preflight refuses the whole init. Before this range, init worked in such a repo. The directory-only pattern `node_modules/` that init would append does not match a symlink either, so `git add -A` would still commit the link.",
+      "severity": "P2",
+      "suggested_fix": "lstat `node_modules` first. If it is a symbolic link, probe and append `node_modules` without the slash; otherwise keep `node_modules/`. Or treat exit 128 on this one probe as 'not ignored' and append the slash-less line. Add an init test with node_modules as a symlink.",
+      "failure_scenario": "I ran this against HEAD: a scratch repo with `node_modules -> ../realnm` and no .gitignore. gitignoreStep({root}, {probes: PROBES}) throws `Refusal: git check-ignore node_modules/ failed: fatal: ... 'node_modules/' ... beyond a symbolic link`. `npx cookwright init` in that repo is refused outright, with no rows written, where the previous version succeeded.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "Reproduced in a scratch repo with `node_modules -> ../realnm`: `git check-ignore -q --no-index -- node_modules/` exits 128 ('beyond a symbolic link'), while the slashless form exits 1. packages/cookwright/src/lib/probes.mjs:62-68 throws on any status other than 0 or 1. gitignore.mjs:27 probes NODE_MODULES_LINE ('node_modules/', line 21) with that slash. The catch at lines 29-30 rethrows it as a Refusal. Before this range there was no node_modules probe. I did not run the full `npx cookwright init`; the refusal path follows from the code."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "fileComponent() / dirComponent() (COMPONENT, INDEX regexes)",
+      "problem": "The primitive lister does not handle React Native platform extensions. `Map.web.tsx` and `Map.native.tsx` are listed as two primitives, `Map.web` and `Map.native`. A directory `Card/` holding only `index.ios.tsx` and `index.android.tsx` is not counted at all, because INDEX is /^index\\.(tsx|jsx)$/. The template tells the user to key each row by 'file name without the extension'. A correctly documented `Map` row therefore leaves a WARN that never clears, and `Card` is never asked for.",
+      "severity": "P3",
+      "suggested_fix": "Strip a platform suffix (.ios, .android, .native, .web) before naming a file primitive and dedupe. Accept `index.<platform>.(tsx|jsx)` as a directory index. Add both cases to entries.test.mjs.",
+      "failure_scenario": "I ran this against HEAD: listComponents(root, ['components']) over components/{Map.web.tsx, Map.native.tsx, Card/index.ios.tsx, Card/index.android.tsx} returns ['Map.native', 'Map.web']. With a design-system.md row `| Map | ... |`, pack.expo.docs reads WARN '2 of 2 primitives have no entry ...: Map.native, Map.web' indefinitely, and Card is missing from the count.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "entries.mjs:14-16,31-33: COMPONENT=/\\.(tsx|jsx)$/ strips only the final extension, so Map.web.tsx and Map.native.tsx yield 'Map.web' and 'Map.native'. COMPANION (l.18) does not exclude platform suffixes. INDEX=/^index\\.(tsx|jsx)$/ (l.15, used at l.40) rejects index.ios.tsx and index.android.tsx, so Card/ is not listed. A doc row keyed 'Map' therefore never matches either listed name."
+    },
+    {
+      "file": "packages/cookwright/src/lib/init/packs.mjs",
+      "location": "eslintRow(), the `missing` filter and messages.init.pack.eslint.other",
+      "problem": "For any ESLint config that is not Expo's template, init decides whether a pack is wired by a single-quoted substring, `require('cookwright/packs/<name>/eslint.cjs')`. It then tells the user to add `...require('…'),` by hand. In an `eslint.config.mjs`, `.ts` or `.mts` (ESM), `require` is undefined, so following that advice crashes ESLint with a ReferenceError. An ESM user who wires the pack correctly with `import expo from 'cookwright/packs/expo/eslint.cjs'`, or anyone using double quotes, is never recognised: the row reads 'skipped … add … by hand' on every run.",
+      "severity": "P3",
+      "suggested_fix": "Match the export path itself (the module specifier in any quote style, via require or import). For a .mjs/.ts/.mts config, print an import-shaped line instead (`import expo from '…'; …expo`).",
+      "failure_scenario": "An Expo app whose eslint.config.mjs reads `import expoPack from \"cookwright/packs/expo/eslint.cjs\"; export default [...expoConfig, ...expoPack];`. Every `npx cookwright init` reports `skipped eslint.config.mjs … add ...require('cookwright/packs/expo/eslint.cjs') … by hand`. A user who instead pastes the advised require line into the .mjs file gets `ReferenceError: require is not defined` from `npx expo lint`.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "packs.mjs:60 detects wiring with text.includes(`require('${exportOf(mf)}')`), which is a single-quoted require only. An import of the pack, or a double-quoted require, is never matched. packs.mjs:62 then returns SKIPPED, so the row repeats on every run. The advised line comes from spreadLine (packs.mjs:44) and is a require() call, which is undefined in an ESM eslint.config.mjs, .mts or .ts. ESLINT_CONFIGS (packs.mjs:32) includes those extensions and the transform at packs.mjs:56 is limited to the CJS Expo template."
+    },
+    {
+      "file": "packages/cookwright/packs/expo/pack.mjs",
+      "location": "rules[design-doc].docSync.code (['src/components/**', 'components/**', ':!**/*.test.*'])",
+      "problem": "The pack's default doc-sync rule exempts only `*.test.*` files. The Jest and Expo convention of a `__tests__/` directory with `X-test.tsx` files and `__snapshots__/*.snap` is not exempt, so touching only a component test or a snapshot requires staging docs/design-system.md. The plan's ESLint ignores treat `**/__tests__/**` as test code, and the lister skips those directories, so the three measurements disagree on what a component is.",
+      "severity": "P3",
+      "suggested_fix": "Add ':!**/__tests__/**' and ':!**/__snapshots__/**' to the expo pack's doc-sync code pathspecs (the docSync copy stays derived from the manifest), and add a doc-sync test with a `__tests__` file.",
+      "failure_scenario": "A fresh init on an app with `components/__tests__/ThemedText-test.tsx`. The developer updates that test's snapshot and commits only `components/__tests__/__snapshots__/ThemedText-test.tsx.snap`. Pre-commit doc-sync `expo:design-doc` refuses the commit until docs/design-system.md is staged, even though no component changed.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/packs/expo/pack.mjs:71 at 1355fc7 has code: ['src/components/**','components/**',':!**/*.test.*']. Only `*.test.*` is excluded. `components/__tests__/ThemedText-test.tsx` has no `.test.` segment, and `__snapshots__/*.snap` does not match it either. Both fall under `components/**`, so touching only them requires docs/design-system.md to be staged. docs/dev/bundles/stage-4/plan.md:124 ignores `**/__tests__/**` in the ESLint blocks, so the pack does treat `__tests__` as test code in one place and not in the doc-sync rule. I did not check the claim about the lister skipping those directories. The doc-sync mismatch holds without it."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/registry.mjs",
+      "location": "RATCHET_CHECK / packDefaults; init/packs.mjs eslintConfigStep; packs/section.mjs measurement()",
+      "problem": "Planned interim state, flagged so the branch is not merged or released early. At 1355fc7, a fresh init on a detected Expo or Supabase app does three things. It writes gate checks `npx cookwright standards --ratchet` and `--types`, but the CLI has no `standards` command yet (cli-main exits 2 on an unknown command, which is a gate fail; `skipExit` is validated but gate.mjs does not honour it until s5). It rewrites eslint.config.js to `...require('cookwright/packs/expo/eslint.cjs')`, but the package ships no eslint.cjs (packs/ holds only pack.mjs and templates). It writes AGENTS.md sections saying rules are 'measured by ESLint … at commit and … at the gate', and no such check exists yet. The fixture stays green only because it never runs ESLint or a push.",
+      "severity": "P3",
+      "suggested_fix": "No code change in this slice. Keep the branch unmerged and unreleased until s4 and s5 land eslint.cjs, the pre-commit standards check, the `standards` command and gate skipExit. Optionally, have the fixture run `npx expo lint` once (s4) and a pre-push or `bundle gate` (s5), so this class of dangling reference fails CI.",
+      "failure_scenario": "The package is packed from bundle/stage-4 at 1355fc7 and installed into an Expo app. `npx cookwright init` writes the config and eslint.config.js. Then `npx expo lint` fails with `Cannot find module 'cookwright/packs/expo/eslint.cjs'`, and every `git push` fails at pre-push because `npx cookwright standards --ratchet` prints the usage and exits 2.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "plausible",
+      "evidence": "Facts hold at 1355fc7: registry.mjs:34 RATCHET_CHECK 'npx cookwright standards --ratchet' (packDefaults :46); packs/ has only pack.mjs and templates (no eslint.cjs); eslintConfigStep exists at init/packs.mjs:70; cli-main.mjs:18-23 prints usage and exits 2 on an unknown command, and `standards` is not in it. gate.mjs is absent at that path. Plan §10 stages --ratchet, --types, skipExit, and the eslint.cjs exports (s4/s5) after 1355fc7, and the plan says the fixture is green each session. So this is a planned interim state of an unmerged branch. The scenario holds only if the branch is packed or released before s4/s5 land. I could not refute it, and it is not a defect in the final range."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "Codex run (gpt-5.6-sol, high effort, read-only) over 82b355a..1355fc7 completed normally, exit 0",
+    "Codex read CHARTER.md, AGENTS.md, ran doctor, diffed the range and inspected surrounding code and tests",
+    "Commit range 82b355a..1355fc7 (17 commits, slice model s1-s3) against plan §4.1-§4.3, §4.7, §4.9 and dispositions 5-8, 11, 14, 15, 17, 18, 22, 27, 33, 38",
+    "config.mjs: CONFIG_VERSION 3, packs/skipExit validation, defaults before validation; migrations.mjs 2->3 addPacks",
+    "packs/registry.mjs, detect.mjs, section.mjs, entries.mjs; expo and supabase manifests and templates; schema in step with manifests (config.test)",
+    "rules/block.mjs kinds: core marker bytes unchanged, anyBeginRe/endAfter malformed detection",
+    "init/rules.mjs rulesFileStep composition: absent/stale/current/newer, insertAt spacing, one write, CRLF raw offsets",
+    "init/packs.mjs: docs write-if-absent, Expo template transform and idempotence, dep rows; init/config.mjs fresh config, --packs refusal on existing config",
+    "init/gitignore.mjs B-011 (ran it against HEAD with a symlinked node_modules in the scratchpad: refused)",
+    "doctor: packs row, pack.<name>.declared/rules/docs, repo.node_modules (ran it against HEAD with a symlinked node_modules: fine), B-012 WARN, B-013 truth table, foreign hooks WARN, level requires",
+    "entries listers (ran against HEAD: platform-extension behaviour), tableKeys",
+    "fixture.sh assertions, setup SKILL.md rows, guides/README claims, messages.test/skills.test changes, removed test assertions",
+    "No local paths or secrets in the diff or session reports"
+  ],
+  "notes": "Findings transcribed from Codex's final report with none added. Codex session id 01a174b7-8dbe-75b2-bd06-e1bc137121e7; full output at <local path> No ceiling hit, no resume needed.\n---\nI found no P1 issue. The one P2 is B-011's trailing-slash `git check-ignore` probe, which makes init refuse entirely in a repo whose node_modules is a symbolic link; I reproduced it against HEAD. The rest are P3s: primitive counting with platform extensions (reproduced), ESM and quote handling in the ESLint config advice, the `__tests__` and `__snapshots__` doc-sync exemption, and a note that the branch at 1355fc7 references the `standards` command, the eslint.cjs exports and measurements that s4 and s5 have not built yet, so it must not be merged or released before them. The core block's bytes, rulesFileStep composition, migration, validation and the B-012 and B-013 truth table read correct. The implementer's departure from disposition 18 (host.rules measures through the scaffold's CLAUDE.md import) is documented in the fixture and the session report.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a174b7-8dbe-75b2-bd06-e1bc137121e7",
+    "partialReportPath": null
+  }
+}

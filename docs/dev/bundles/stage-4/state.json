@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 181,
+  "revision": 191,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -382,9 +382,23 @@
     },
     {
       "name": "fix:surface",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T23:12:41.033Z",
+          "stateRevision": 181,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_db29110f-837",
+          "endedAt": "2026-10-25T23:25:13.649Z",
+          "turnOutputTokens": 139588
+        }
+      ],
+      "startCommit": "8e93fe0b80157f3e3938788b3c12960cd6f09cec",
+      "range": null,
+      "endCommit": "2465fe3e09ed686c11c37e8c54af48c9c0c7153a",
+      "endCode": "2465fe3e09ed686c11c37e8c54af48c9c0c7153a"
     },
     {
       "name": "review:whole",
@@ -567,6 +581,19 @@
           "ms": 110270
         }
       ]
+    },
+    {
+      "commit": "2465fe3e09ed686c11c37e8c54af48c9c0c7153a",
+      "at": "2026-10-25T23:25:00.335Z",
+      "slice": "surface",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 52511
+        }
+      ]
     }
   ],
   "findings": [
@@ -732,6 +759,12 @@
       "phase": "implement:s7",
       "path": "docs/dev/bundles/stage-4/sessions/implement-s7-1.md",
       "at": "2026-10-25T23:03:55.135Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:surface",
+      "path": "docs/dev/bundles/stage-4/sessions/fix-surface-1.md",
+      "at": "2026-10-25T23:23:39.693Z",
       "stored": true
     }
   ],
@@ -1505,6 +1538,41 @@
       "actor": "orchestrator",
       "source": "review:surface findings 3, 4, 7, 8",
       "text": "Fixed in fix:surface as cheap P3s: this repo's cookwright.json gains a doc-sync rule tying src/audit.mjs, src/packs.mjs, src/lib/command.mjs and skills/docs-audit/SKILL.md to docs/guides/standards.md; README's 'nothing is copied' narrows to scripts and names the starter contract docs the user owns; the docs-audit branch command takes its start point and a suffix when the name exists; the guide's ratchet example quotes the real line shape with the pack prefix on every rule.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:24:05.879Z",
+      "actor": "orchestrator",
+      "source": "fix:surface departure 1",
+      "text": "The docs-audit skill stays on the current branch only when that branch holds the work it verifies (the setup handoff, or a branch the developer names) and otherwise cuts docs-audit/<date>[-n] from the named branch, the base by default: accepted over the disposition's 'any clean non-base branch', which would have put audit commits on an unrelated feature branch (review:surface finding 7's case).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:24:06.283Z",
+      "actor": "orchestrator",
+      "source": "fix:surface departure 2",
+      "text": "Code changed beyond the skill-only disposition on finding 6: the expo manifest's setup.writesConfig and the doctor and init notes that name the export to spread when no declared pack's setup line writes an ESLint config; without it doctor's own line kept naming a step that could not clear it (rule 2). Accepted.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:24:06.743Z",
+      "actor": "orchestrator",
+      "source": "fix:surface measurements",
+      "text": "The fixture was not run by the fix session; the orchestrator ran it after the commits: PASS, 28 checks 27 PASS 1 WARN (pack.supabase.types, no db:types script), the violating component refused naming both rules, audit args printing both contract docs (rule 3).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:24:07.053Z",
+      "actor": "orchestrator",
+      "source": "fix:surface strings batch",
+      "text": "fix:surface's 4 user-facing strings (the twice-listed doc refusal, the write-a-config notes of doctor and init, the docs-audit Workflow's top-relative context) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:whole.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:25:13.148Z",
+      "actor": "orchestrator",
+      "source": "fix:surface measurement",
+      "text": "typescript-eslint 8.59.0's configs.base is one config object (name, languageOptions, plugins), measured on the origin repo's install, so the setup skill's minimal-config remedy for a TypeScript app holds as written.",
       "claim": true
     }
   ],

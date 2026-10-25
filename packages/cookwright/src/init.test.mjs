@@ -652,6 +652,109 @@ describe('stack packs: the sections of AGENTS.md and the contract docs', () => {
   });
 });
 
+describe('stack packs: eslint.config.js and the pack dependencies', () => {
+  const PKG = path.dirname(new URL(import.meta.url).pathname).replace(/\/src$/, '');
+  const EXPO_TEMPLATE = fs.readFileSync(path.join(PKG, 'src/lib/templates/eslint.config.js'), 'utf8');
+  const EXPO_LINE = "  ...require('cookwright/packs/expo/eslint.cjs'),";
+  const SUPABASE_LINE = "  ...require('cookwright/packs/supabase/eslint.cjs'),";
+  const wired = (...lines) => EXPO_TEMPLATE.replace('  expoConfig,\n', `  expoConfig,\n${lines.map((l) => `${l}\n`).join('')}`);
+  const withPacks = (packs, files = {}) => {
+    const root = fresh();
+    write(root, 'cookwright.json', JSON.stringify({ version: 3, packs }));
+    for (const [rel, body] of Object.entries(files)) write(root, rel, body);
+    return root;
+  };
+
+  it('is the template the overlay supplies and npx expo lint writes', () => {
+    expect(fs.readFileSync(path.join(PKG, '../../fixtures/expo-overlay/eslint.config.js'), 'utf8')).toBe(EXPO_TEMPLATE);
+    expect(EXPO_TEMPLATE.split('\n')).toEqual([
+      '// https://docs.expo.dev/guides/using-eslint/',
+      "const { defineConfig } = require('eslint/config');",
+      "const expoConfig = require('eslint-config-expo/flat');",
+      '',
+      'module.exports = defineConfig([',
+      '  expoConfig,',
+      '  {',
+      "    ignores: ['dist/*'],",
+      '  },',
+      ']);',
+      '',
+    ]);
+  });
+
+  it('spreads both packs’ exports after expoConfig in one transform, byte for byte, then keeps it', () => {
+    const root = withPacks(['expo', 'supabase'], { 'eslint.config.js': EXPO_TEMPLATE });
+    const exports = ['cookwright/packs/expo/eslint.cjs', 'cookwright/packs/supabase/eslint.cjs'];
+    expect(init(root).rows['eslint.config.js']).toEqual({ action: 'updated', note: m.pack.eslint.added(exports) });
+    expect(read(root, 'eslint.config.js')).toBe(wired(EXPO_LINE, SUPABASE_LINE));
+    expect(read(root, 'eslint.config.js')).toBe(`// https://docs.expo.dev/guides/using-eslint/
+const { defineConfig } = require('eslint/config');
+const expoConfig = require('eslint-config-expo/flat');
+
+module.exports = defineConfig([
+  expoConfig,
+  ...require('cookwright/packs/expo/eslint.cjs'),
+  ...require('cookwright/packs/supabase/eslint.cjs'),
+  {
+    ignores: ['dist/*'],
+  },
+]);
+`);
+    const before = tree(root);
+    expect(init(root).rows['eslint.config.js']).toEqual({ action: 'kept', note: m.pack.eslint.names(exports) });
+    expect(tree(root)).toEqual(before);
+  });
+
+  it('adds the second pack’s line once it is declared, in the config’s order, and keeps CRLF', () => {
+    const crlf = (t) => t.replace(/\n/g, '\r\n');
+    const root = withPacks(['supabase'], { 'eslint.config.js': crlf(EXPO_TEMPLATE) });
+    init(root);
+    expect(read(root, 'eslint.config.js')).toBe(crlf(wired(SUPABASE_LINE)));
+    write(root, 'cookwright.json', JSON.stringify({ version: 3, packs: ['supabase', 'expo'] }));
+    expect(init(root).rows['eslint.config.js'].action).toBe('updated');
+    expect(read(root, 'eslint.config.js')).toBe(crlf(wired(SUPABASE_LINE, EXPO_LINE)));
+  });
+
+  it('leaves any other config alone, naming the lines, and keeps one that already names the exports', () => {
+    const mine = EXPO_TEMPLATE.replace("'dist/*'", "'dist/*', 'build/*'");
+    const a = withPacks(['expo', 'supabase'], { 'eslint.config.js': mine });
+    expect(init(a).rows['eslint.config.js']).toEqual({
+      action: 'skipped',
+      note: m.pack.eslint.other([EXPO_LINE.trim(), SUPABASE_LINE.trim()]),
+    });
+    expect(read(a, 'eslint.config.js')).toBe(mine);
+    const handWired = `${mine}// mine\nmodule.exports.push(...require('cookwright/packs/expo/eslint.cjs'));\n`;
+    const b = withPacks(['expo'], { 'eslint.config.mjs': handWired });
+    expect(init(b).rows['eslint.config.mjs']).toEqual({
+      action: 'kept',
+      note: m.pack.eslint.names(['cookwright/packs/expo/eslint.cjs']),
+    });
+  });
+
+  it('names the setup line of the first pack when there is no ESLint config, and writes none', () => {
+    const a = withPacks(['expo', 'supabase']);
+    expect(init(a).rows['eslint.config.js']).toEqual({ action: 'skipped', note: m.pack.eslint.none('npx expo lint') });
+    expect(exists(a, 'eslint.config.js')).toBe(false);
+    const b = withPacks(['supabase']);
+    expect(init(b).rows['eslint.config.js'].note).toBe('no ESLint config; npm install --save-dev eslint sets ESLint up, then rerun init');
+    expect(init(withPacks([])).rows['eslint.config.js']).toBe(undefined);
+  });
+
+  it('names eslint-plugin-i18next until it is installed, never installing it, and not when strings is off', () => {
+    const root = withPacks(['expo']);
+    expect(init(root).rows['eslint-plugin-i18next']).toEqual({
+      action: 'skipped',
+      note: 'needs npm install --save-dev eslint-plugin-i18next (the strings rule)',
+    });
+    expect(exists(root, 'node_modules')).toBe(false);
+    write(root, 'node_modules/eslint-plugin-i18next/package.json', '{"name":"eslint-plugin-i18next"}');
+    expect(init(root).rows['eslint-plugin-i18next']).toEqual({ action: 'kept', note: m.pack.dep.installed('the strings rule') });
+    const off = withPacks([{ name: 'expo', rules: { strings: false } }]);
+    expect(init(off).rows['eslint-plugin-i18next']).toBe(undefined);
+    expect(init(withPacks(['supabase'])).rows['eslint-plugin-i18next']).toBe(undefined);
+  });
+});
+
 describe('host rules: the CLAUDE.md import', () => {
   const importRow = (root, opts) => init(root, [], opts).rows['CLAUDE.md'];
 

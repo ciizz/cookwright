@@ -14,7 +14,7 @@ import { refuseLinks } from './files.mjs';
 import { gitignoreStep } from './gitignore.mjs';
 import { hooksStep } from './hooks.mjs';
 import { backlogStep, changelogStep, closeoutsStep } from './homes.mjs';
-import { packDocsStep } from './packs.mjs';
+import { eslintConfigStep, packDepsStep, packDocsStep } from './packs.mjs';
 import { pointersStep } from './pointers.mjs';
 import { rulesFileStep } from './rules.mjs';
 
@@ -33,6 +33,8 @@ export const STEPS = Object.freeze([
   changelogStep,
   rulesFileStep,
   packDocsStep,
+  eslintConfigStep,
+  packDepsStep,
   everyHost('rules'),
   everyHost('hook'),
   everyHost('pointers'),

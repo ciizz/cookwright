@@ -227,6 +227,17 @@ const init = {
       malformed: (file, name, reason) =>
         `${file}: the ${name} pack's section is malformed (${reason === 'noEnd' ? 'a begin marker with no end marker' : 'two begin markers'}); fix the markers by hand`,
     },
+    eslint: {
+      added: (exports) => `${list(exports)} spread after expoConfig; the rest of Expo's template untouched`,
+      names: (exports) => `names ${list(exports)}`,
+      other: (lines) =>
+        `not Expo's template, left alone; add ${list(lines)} to its config array by hand (the setup skill does it with consent)`,
+      none: (setup) => `no ESLint config; ${setup} sets ESLint up, then rerun init`,
+    },
+    dep: {
+      installed: (reason) => `installed (${reason})`,
+      needs: (install, reason) => `needs ${install} (${reason})`,
+    },
     doc: {
       template: (name) => `the ${name} pack's contract doc, from its template`,
       present: (name) => `present; the ${name} pack's contract doc`,

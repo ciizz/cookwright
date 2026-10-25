@@ -50,6 +50,18 @@
         "docs": [
           "docs/guides/*.md"
         ]
+      },
+      {
+        "name": "audit",
+        "code": [
+          "packages/cookwright/src/audit.mjs",
+          "packages/cookwright/src/packs.mjs",
+          "packages/cookwright/src/lib/command.mjs",
+          "packages/cookwright/skills/docs-audit/SKILL.md"
+        ],
+        "docs": [
+          "docs/guides/standards.md"
+        ]
       }
     ]
   }

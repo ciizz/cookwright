@@ -20,16 +20,31 @@
 # float within their ranges, with no lockfile (E-036). A red install or
 # scaffold step with no cookwright change is an upstream release, not a
 # regression. Lifecycle scripts are not run.
+#
+# The app is also what a user has after the two commands the getting-started
+# guide names for the stack packs (stage-4 plan, dispositions 9 and 23), so
+# init detects both packs and the standards measure something. `npx expo lint`
+# installs eslint@^9.0.0 and eslint-config-expo and writes Expo's static
+# eslint.config.js template (@expo/cli 58.1.15): the overlay supplies that file
+# verbatim and the install step adds the two packages, with the expo pack's
+# eslint-plugin-i18next, each pinned by exact version below and bumped by hand
+# like the scaffold (the latest on 2026-10-25; eslint the latest 9.x, the
+# range expo lint installs). `supabase init` writes supabase/config.toml (the
+# overlay's, from supabase 2.98.1, its project_id set to the app's name); the
+# overlay adds an empty supabase/migrations/. CI has no Supabase CLI.
 set -euo pipefail
 
 CREATE_EXPO_VERSION="5.0.1"
 TEMPLATE="expo-template-blank-typescript@58.0.21"
+ESLINT="eslint@9.39.5"
+ESLINT_CONFIG_EXPO="eslint-config-expo@58.0.4"
+I18NEXT_PLUGIN="eslint-plugin-i18next@6.1.5"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OVERLAY="$ROOT/fixtures/expo-overlay"
 
 # Messages, in one place.
-MSG_HEAD="fixture: create-expo@$CREATE_EXPO_VERSION, template $TEMPLATE"
+MSG_HEAD="fixture: create-expo@$CREATE_EXPO_VERSION, template $TEMPLATE, $ESLINT, $ESLINT_CONFIG_EXPO, $I18NEXT_PLUGIN"
 MSG_FROM="fixture: %s from the %s\n"
 MSG_SKIP="fixture: skipped, needs %s, run setup\n"
 MSG_STEP="\n== %s\n"
@@ -83,6 +98,10 @@ scaffold() {
 overlay() {
   step "overlay, git init, one commit"
   cat "$OVERLAY/AGENTS.md" >> "$APP/AGENTS.md"
+  # What npx expo lint and supabase init write (the install step adds the
+  # packages expo lint installs).
+  cp "$OVERLAY/eslint.config.js" "$APP/eslint.config.js"
+  cp -R "$OVERLAY/supabase" "$APP/supabase"
   # The Claude Code files: the scaffold's when it wrote them (a machine with
   # Claude Code), the overlay's copies of the same content otherwise.
   local f
@@ -108,8 +127,9 @@ overlay() {
 }
 
 install_package() {
-  step "npm install --save-dev <tarball>"
-  npm install --save-dev --ignore-scripts --no-audit --no-fund "$TARBALL"
+  step "npm install --save-dev <tarball> $ESLINT $ESLINT_CONFIG_EXPO $I18NEXT_PLUGIN"
+  npm install --save-dev --ignore-scripts --no-audit --no-fund "$TARBALL" \
+    "$ESLINT" "$ESLINT_CONFIG_EXPO" "$I18NEXT_PLUGIN"
 }
 
 init() {
@@ -120,9 +140,27 @@ init() {
     'updated +\.claude/settings\.json' 'wrote +\.claude/skills/setup' \
     'wrote +\.claude/skills/bundle' 'wrote +\.claude/workflows/bundle-phase\.js' \
     'wrote +\.claude/workflows/docs-audit\.js' 'wrote +\.githooks/pre-commit' \
-    'wrote +\.githooks/pre-push'; do
+    'wrote +\.githooks/pre-push' 'updated +AGENTS\.md#expo' \
+    'updated +AGENTS\.md#supabase' 'wrote +docs/design-system\.md' \
+    'wrote +docs/data-model\.md' 'updated +eslint\.config\.js' \
+    'kept +eslint-plugin-i18next'; do
     expect "$WORK/init.out" "^$row " "init row missing: $row"
   done
+  expect "$WORK/init.out" \
+    "^wrote +cookwright\.json +.*packs: expo \(package\.json depends on expo\), supabase \(supabase/config\.toml exists\);" \
+    "init did not detect both packs"
+  local pack
+  for pack in expo supabase; do
+    expect AGENTS.md "^<!-- cookwright:begin pack $pack v[0-9]+ -->$" "AGENTS.md has no $pack section"
+    expect eslint.config.js "^  \.\.\.require\('cookwright/packs/$pack/eslint\.cjs'\),$" \
+      "eslint.config.js does not spread the $pack export"
+  done
+  node -e 'const c = JSON.parse(require("fs").readFileSync("cookwright.json", "utf8"));
+    const names = (l) => l.map((x) => x.name).join(",");
+    process.exit(c.version === 3 && c.packs.join(",") === "expo,supabase"
+      && names(c.hooks.docSync) === "expo:design-doc,supabase:data-doc"
+      && names(c.gate.checks) === "standards,standards:types" ? 0 : 1)' \
+    || fail "cookwright.json does not carry the packs, their doc-sync rules and gate checks"
   expect AGENTS.md "^This is an Expo" "init lost the scaffold's AGENTS.md text"
   expect AGENTS.md "^## My rules" "init lost the overlay's rule"
   node -e 'const s = JSON.parse(require("fs").readFileSync(".claude/settings.json", "utf8"));
@@ -157,7 +195,7 @@ rerun() {
   step "npx cookwright changelog --check, migrate, init again"
   npx cookwright changelog --check || fail "changelog --check exited non-zero"
   npx cookwright migrate | tee "$WORK/migrate.out" || fail "migrate exited non-zero"
-  expect "$WORK/migrate.out" "already at version 2" "migrate did not read version 2"
+  expect "$WORK/migrate.out" "already at version 3" "migrate did not read version 3"
   npx cookwright init >/dev/null || fail "a second init exited non-zero"
   [ -z "$(git status --porcelain)" ] || fail "a second init changed the tree"
 }

@@ -13,6 +13,7 @@ const COMMANDS = {
   hook: () => import('./hook.mjs'),
   migrate: () => import('./migrate.mjs'),
   bundle: () => import('./bundle.mjs'),
+  standards: () => import('./standards.mjs'),
 };
 
 /** Run `cookwright <command> …`; an unknown or missing command → the usage, exit 2. */

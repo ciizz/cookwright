@@ -16,19 +16,21 @@ import { FAIL, PASS, skip } from '../verdict.mjs';
 import { checkDocSync } from './docsync.mjs';
 import { checkChangelog, checkGate, pushContext } from './push.mjs';
 import { checkSecrets } from './secrets.mjs';
+import { checkStandards } from './standards.mjs';
 
 const m = messages.hook;
 
 export const CHECKS = Object.freeze({
   secrets: { run: checkSecrets },
   'doc-sync': { run: checkDocSync, config: true },
+  standards: { run: checkStandards, config: true },
   gate: { run: checkGate, config: true },
   changelog: { run: checkChangelog, config: true },
 });
 
 /** Each hook's checks, in order; `prepare` runs once before them when any will run. */
 export const HOOKS = Object.freeze({
-  'pre-commit': { checks: ['secrets', 'doc-sync'] },
+  'pre-commit': { checks: ['secrets', 'doc-sync', 'standards'] },
   'pre-push': { checks: ['gate', 'changelog'], prepare: pushContext },
 });
 

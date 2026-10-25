@@ -35,8 +35,9 @@ function openHookRepo(cwd, probes) {
 }
 
 /**
- * `io.cwd`, `io.probes`, `io.env` (git's environment, process.env by default) and
- * `io.input` (pre-push's stdin) are the tests' seams; the bin passes none.
+ * `io.cwd`, `io.probes`, `io.env` (git's environment, process.env by default),
+ * `io.input` (pre-push's stdin) and `io.spawn` (the standards check's child) are
+ * the tests' seams; the bin passes none.
  */
 export function main(argv = [], io = {}) {
   const [name] = argv;
@@ -45,7 +46,7 @@ export function main(argv = [], io = {}) {
     return 2;
   }
   try {
-    const ctx = { probes: { ...PROBES, ...io.probes }, env: io.env ?? process.env, input: io.input };
+    const ctx = { probes: { ...PROBES, ...io.probes }, env: io.env ?? process.env, input: io.input, ...(io.spawn ? { spawn: io.spawn } : {}) };
     const repo = openHookRepo(io.cwd ?? process.cwd(), ctx.probes);
     if (!repo) {
       console.log(m.whole(name, m.notWorkTree));

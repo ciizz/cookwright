@@ -19,9 +19,10 @@ import { CONFIG_FILE, CONFIG_VERSION } from './lib/config.mjs';
 import { CLI, messages } from './lib/messages.mjs';
 import { callLine, callsCookwright, shimText } from './lib/hooks/shims.mjs';
 import { hasTool } from './lib/probes.mjs';
-import { commit, gitInit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
+import { commit, fakeEslintRepo, gitInit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-hook-');
+const PKG_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const out = [];
 const err = [];
@@ -113,6 +114,7 @@ describe('the command', () => {
     expect(out).toEqual([
       'pre-commit  PASS  secrets  staged diff clean (gitleaks 8.30.1)',
       'pre-commit  PASS  doc-sync  1 rule(s) checked, no doc missing',
+      'pre-commit  SKIP  standards  no packs declared',
     ]);
   });
 });
@@ -234,6 +236,72 @@ describe('doc-sync', () => {
   });
 });
 
+describe('standards', () => {
+  const sm = messages.hook.standards;
+  /** spawnSync played: records its calls, answers `r`. */
+  function child(r) {
+    const calls = [];
+    const spawn = (cmd, args, opts) => {
+      calls.push({ cmd, args, opts });
+      return { status: 0, stdout: '', stderr: '', ...r };
+    };
+    return { calls, spawn };
+  }
+  const packed = () => repoAt({ packs: ['expo'] });
+
+  it('SKIPs with no packs declared, spawning nothing', () => {
+    const c = child({});
+    expect(main(['pre-commit'], { cwd: repoAt().root, probes: gitleaks(), env: ENV, spawn: c.spawn })).toBe(0);
+    expect(line('standards')).toEqual({ status: 'SKIP', note: 'no packs declared' });
+    expect(c.calls).toEqual([]);
+  });
+
+  it('runs this package’s bin as a child from the config root, with git’s env, a 60 s cap and SIGKILL', () => {
+    const repo = packed();
+    const c = child({ stdout: '1 staged file(s), no rise\n' });
+    const env = { ...ENV, GIT_INDEX_FILE: '.git/next-index.lock' };
+    expect(main(['pre-commit'], { cwd: repo.root, probes: gitleaks(), env, spawn: c.spawn })).toBe(0);
+    expect(c.calls).toHaveLength(1);
+    const [{ cmd, args, opts }] = c.calls;
+    expect(cmd).toBe(process.execPath);
+    expect(args).toEqual([path.join(PKG_DIR, 'bin/cookwright.mjs'), 'standards', '--staged']);
+    expect(opts).toMatchObject({ cwd: fs.realpathSync(repo.root), env, timeout: 60_000, killSignal: 'SIGKILL' });
+    expect(line('standards')).toEqual({ status: 'PASS', note: '1 staged file(s), no rise' });
+  });
+
+  it('FAILs on exit 10, the findings above the line and the escape on it; the commit exits 10', () => {
+    const findings = 'src/components/Card.tsx:2:32  expo tokens  colour or spacing literal in a component; use a theme token';
+    const last = "a pack rule's count rose in 1 staged file(s): src/components/Card.tsx expo tokens 0 → 1";
+    const c = child({ status: 10, stdout: `${findings}\n${last}\n`, stderr: 'Warning: React version was set to detect' });
+    expect(main(['pre-commit'], { cwd: packed().root, probes: gitleaks(), env: ENV, spawn: c.spawn })).toBe(10);
+    expect(line('standards')).toEqual({ status: 'FAIL', note: sm.failed(last) });
+    expect(out.indexOf(findings)).toBe(out.findIndex((l) => l.startsWith('pre-commit  FAIL  standards')) - 1);
+    expect(out.join('\n')).not.toContain('React version');
+  });
+
+  it('SKIPs on exit 11 with the child’s line, a timeout, a crash or no line; none blocks the commit', () => {
+    const cases = [
+      [{ status: 11, stdout: 'skipped, needs ESLint (npx expo lint installs it)\n' }, 'skipped, needs ESLint (npx expo lint installs it)'],
+      [{ status: null, error: Object.assign(new Error('spawnSync node ETIMEDOUT'), { code: 'ETIMEDOUT' }) }, sm.timedOut(60)],
+      [{ status: 1, stderr: 'TypeError: boom\n    at x' }, messages.hook.couldNotRun(sm.exit(1, 'TypeError: boom'))],
+      [{ status: 0, stdout: '' }, messages.hook.couldNotRun(sm.silent)],
+    ];
+    for (const [r, note] of cases) {
+      out.length = 0;
+      expect(main(['pre-commit'], { cwd: packed().root, probes: gitleaks(), env: ENV, spawn: child(r).spawn })).toBe(0);
+      expect(line('standards')).toEqual({ status: 'SKIP', note });
+    }
+  });
+
+  it('COOKWRIGHT_SKIP=standards skips it without spawning', () => {
+    const c = child({ status: 10, stdout: 'rose\n' });
+    const env = { ...ENV, COOKWRIGHT_SKIP: 'standards' };
+    expect(main(['pre-commit'], { cwd: packed().root, probes: gitleaks(), env, spawn: c.spawn })).toBe(0);
+    expect(line('standards').note).toBe('skipped by COOKWRIGHT_SKIP; say why in the commit message');
+    expect(c.calls).toEqual([]);
+  });
+});
+
 describe('a check that throws or times out', () => {
   it('is that check’s SKIP line; another check’s FAIL still exits 10', () => {
     const repo = repoAt();
@@ -270,14 +338,14 @@ describe('COOKWRIGHT_SKIP', () => {
     expect(line('secrets').status).toBe('FAIL');
     out.length = 0;
     expect(hook(repo, 'pre-commit', { env: { ...ENV, COOKWRIGHT_SKIP: ' doc-sync , secrets' } })).toBe(0);
-    expect(out.filter((l) => l.includes('SKIP  '))).toHaveLength(2);
+    expect(out.filter((l) => l.includes('skipped by COOKWRIGHT_SKIP'))).toHaveLength(2);
   });
 
   it('reports an unknown name on one line and ignores it', () => {
     const repo = repoAt();
     expect(hook(repo, 'pre-commit', { env: { ...ENV, COOKWRIGHT_SKIP: 'docsync,secrets' } })).toBe(0);
     expect(out[0]).toBe(
-      'pre-commit  COOKWRIGHT_SKIP names unknown check(s) docsync, ignored (known: secrets, doc-sync, gate, changelog)',
+      'pre-commit  COOKWRIGHT_SKIP names unknown check(s) docsync, ignored (known: secrets, doc-sync, standards, gate, changelog)',
     );
     expect(line('secrets').status).toBe('SKIP');
     expect(line('doc-sync').status).toBe('PASS');
@@ -287,7 +355,7 @@ describe('COOKWRIGHT_SKIP', () => {
     const repo = repoAt();
     stage(repo, { 'src/a.mjs': 'a' });
     expect(hook(repo, 'pre-commit', { probes: gitleaks(3) })).toBe(10);
-    expect(out.map((l) => l.split('  ').slice(1, 3).join(' '))).toEqual(['FAIL secrets', 'FAIL doc-sync']);
+    expect(out.map((l) => l.split('  ').slice(1, 3).join(' '))).toEqual(['FAIL secrets', 'FAIL doc-sync', 'SKIP standards']);
   });
 });
 
@@ -601,6 +669,28 @@ describe('end to end: a real git commit through the shim', () => {
     delete env.COOKWRIGHT_SKIP;
     return { env, cwds: () => fs.readFileSync(log, 'utf8').split('\n').filter(Boolean) };
   }
+
+  it('refuses a component that adds a colour literal and JSX text, through the child and the fake ESLint; lands it fixed', () => {
+    const repo = repoAt({ packs: ['expo'] });
+    fakeEslintRepo(repo.root);
+    commit(repo, { 'README.md': 'x', 'src/components/Card.tsx': 'export function Card() {\n  return null;\n}\n' }, 'init');
+    fs.mkdirSync(path.join(repo.root, '.githooks'));
+    fs.writeFileSync(path.join(repo.root, '.githooks/pre-commit'), shimText('pre-commit'), { mode: 0o755 });
+    run(repo.root, 'git', ['config', 'core.hooksPath', '.githooks']);
+    const before = head(repo);
+    const bad = "export function Greeting() {\n  return <Text style={{ color: '#ff0000' }}>Hello there</Text>;\n}\n";
+    const refused = gitCommit(repo, { 'src/components/Greeting.tsx': bad });
+    expect(refused.status).toBe(1);
+    expect(refused.output).toContain('src/components/Greeting.tsx:2:32  expo tokens  colour or spacing literal in a component; use a theme token');
+    expect(refused.output).toContain('src/components/Greeting.tsx:2:45  expo strings  literal string in JSX; route it through t()');
+    expect(refused.output).toMatch(/pre-commit {2}FAIL {2}standards {2}a pack rule's count rose in 1 staged file\(s\): src\/components\/Greeting\.tsx expo strings 0 → 1, expo tokens 0 → 1; fix them, or COOKWRIGHT_SKIP=standards/);
+    expect(refused.output).not.toContain('Hello there');
+    expect(head(repo)).toBe(before);
+    const good = "export function Greeting() {\n  return <Text style={styles.text}>{t('greeting')}</Text>;\n}\n";
+    const landed = gitCommit(repo, { 'src/components/Greeting.tsx': good });
+    expect(landed.output).toContain('pre-commit  PASS  standards  1 staged file(s), no rise');
+    expect(landed.status).toBe(0);
+  });
 
   it('a config below the work tree top: init writes the shims at the top, a real commit is checked, doctor agrees', () => {
     const top = gitInit(path.join(TMP, `nested-${(n += 1)}`));

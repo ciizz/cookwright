@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 66,
+  "revision": 77,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -133,9 +133,23 @@
     },
     {
       "name": "implement:s1",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T18:56:37.806Z",
+          "stateRevision": 66,
+          "planSha": "852cd835f53d5f48",
+          "codex": true,
+          "runId": "wf_c7a10d25-2b6",
+          "endedAt": "2026-10-25T19:17:55.685Z",
+          "turnOutputTokens": 199896
+        }
+      ],
+      "startCommit": "82b355ac476e4e799dc5bdd40269cc7aab450ccc",
+      "range": null,
+      "endCommit": "af35d987e685aa1b3f8197d0d78eaadfd8f0fcd6",
+      "endCode": "af35d987e685aa1b3f8197d0d78eaadfd8f0fcd6"
     },
     {
       "name": "implement:s2",
@@ -273,6 +287,19 @@
           "ms": 73689
         }
       ]
+    },
+    {
+      "commit": "af35d987e685aa1b3f8197d0d78eaadfd8f0fcd6",
+      "at": "2026-10-25T19:15:46.655Z",
+      "slice": "model",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 54303
+        }
+      ]
     }
   ],
   "findings": [
@@ -331,7 +358,14 @@
       "head": "b5d665b4ea76dae5561fcdd7d4858fe66fe4b5b5"
     }
   ],
-  "reports": [],
+  "reports": [
+    {
+      "phase": "implement:s1",
+      "path": "docs/dev/bundles/stage-4/sessions/implement-s1-1.md",
+      "at": "2026-10-25T19:14:18.088Z",
+      "stored": true
+    }
+  ],
   "qaRounds": [],
   "decisions": [
     {
@@ -696,6 +730,48 @@
       "actor": "orchestrator",
       "source": "plan-review re-check 1, plan §2 disposition 48",
       "text": "Finding 22 (P3, folded): s5 stages the playbook's \"The gate's checks\" section with `gate.mjs`, stating the `skipExit` convention and the recorded note, so this repo's `playbook` doc-sync rule is honoured, not escaped.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:14:48.822Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 1",
+      "text": "The fixture's 'already at version 2' assertion stays red until s2 edits fixture.sh, as the plan schedules (§10 s2, the version-3 line); no CI run of the fixture is claimed green before s2 (rule 3).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:14:49.461Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 2",
+      "text": "freshConfig writes packs with detection and --packs in s2, as §10 schedules; detect.mjs is s2's (§4.1 lists it, §10 places it).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:14:49.869Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 3",
+      "text": "§4.9 strings land with the code that prints them, session by session, so no unused string ships (rule 5: derived or dead text rots); s1's reading confirmed.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:14:50.372Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 4",
+      "text": "The three advisory rules belong to the expo pack, the only pack with visual rules; the supabase section has no Advisory heading. Disposition 1 lists them under expo.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:14:50.882Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 5",
+      "text": "docs/guides/updating.md's 'already at version 2' is dated output of 0.1.0 and is s7's guide work; the standards guide's first version is s6's (disposition 43).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T19:14:51.333Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 strings batch",
+      "text": "39 user-facing strings (migrate outcomes, config validator lines, schema descriptions, section texts, the two manifests' sentences and messages) presented to the developer in chat by the orchestrator after s1; accepted as written pending the developer's ruling at review:model.",
       "claim": true
     }
   ],

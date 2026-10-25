@@ -33,6 +33,19 @@ export const ADVISORY = 'advisory';
  */
 export const RATCHET_CHECK = deepFreeze({ name: 'standards', run: 'npx cookwright standards --ratchet', skipExit: 11 });
 
+/**
+ * What a fresh config takes from the packs `names`, in order (plan §4.3, disposition
+ * 30): `docSync`, each doc-sync rule under its pack-owned name; `gate`, the ratchet
+ * once when any of them has an ESLint rule, then each pack's own gate checks. Plain
+ * copies, so a caller may serialise or extend them.
+ */
+export function packDefaults(names) {
+  const manifests = names.map((n) => PACKS[n]);
+  const of = (measure) => manifests.flatMap((mf) => mf.rules.filter((r) => r.measure === measure));
+  const ratchet = of('eslint').length ? [RATCHET_CHECK] : [];
+  return structuredClone({ docSync: of('doc-sync').map((r) => r.docSync), gate: [...ratchet, ...of('gate').map((r) => r.gate)] });
+}
+
 /** The ids of `manifest`'s measured rules: the ones `packs[].rules` may switch off. */
 export const switchableRules = (manifest) => manifest.rules.filter((r) => r.measure !== ADVISORY).map((r) => r.id);
 

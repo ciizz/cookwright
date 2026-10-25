@@ -186,14 +186,16 @@ const init = {
   dryFooter: 'dry run: nothing written, doctor skipped',
 
   config: {
-    wrote: (base, gate) => `baseBranch ${base}; ${gate}`,
+    wrote: (base, packs, gate) => `baseBranch ${base}; ${packs}; ${gate}`,
     kept: (level) => `present, level ${level}; init never edits an existing config`,
     migrated: (from, to) => `version ${from}, migrated in memory; run ${CLI} migrate to write version ${to}`,
     // --base and --hosts shape a fresh config; init never edits an existing one.
     existing: (flag, key) =>
       `--${flag} applies to a fresh ${CONFIG_FILE} and this repo has one; change ${key} there by hand, then rerun init`,
-    gateTest: (run) => `gate: ${run}`,
+    gateRuns: (runs) => `gate: ${list(runs)}`,
+    gateWithout: (runs, reason) => `gate: ${list(runs)}; no npm test (${reason})`,
     gateNone: (reason) => `gate: no checks (${reason})`,
+    packsNone: 'packs: none',
     noPackage: 'no package.json',
     badPackage: 'package.json is not valid JSON',
     noTestScript: 'package.json has no test script',

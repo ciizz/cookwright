@@ -8,6 +8,7 @@ import path from 'node:path';
 import { Refusal } from '../cli.mjs';
 import { CONFIG_FILE, CONFIG_VERSION, DEFAULTS, loadConfig, validateConfig, withDefaults } from '../config.mjs';
 import { messages } from '../messages.mjs';
+import { packDefaults } from '../packs/registry.mjs';
 import { KEPT, WROTE, readTarget, row } from './files.mjs';
 import { detectBase } from './repo.mjs';
 
@@ -31,10 +32,10 @@ function readPackage(root) {
   }
 }
 
-/** `{ checks, note }`: npm test when package.json defines a test script that exits. */
+/** `{ checks, reason }`: npm test when package.json defines a test script that exits, else why not. */
 export function gateChecks(root) {
   const { pkg, reason } = readPackage(root);
-  if (reason) return { checks: [], note: m.gateNone(reason) };
+  if (reason) return { checks: [], reason };
   const test = pkg?.scripts?.test;
   const why =
     typeof test !== 'string' || !test.trim()
@@ -44,24 +45,41 @@ export function gateChecks(root) {
         : WATCH.test(test)
           ? m.watch
           : null;
-  if (why) return { checks: [], note: m.gateNone(why) };
-  return { checks: [{ ...TEST_CHECK }], note: m.gateTest(TEST_CHECK.run) };
+  if (why) return { checks: [], reason: why };
+  return { checks: [{ ...TEST_CHECK }], reason: null };
 }
 
-/** The config init writes on a fresh repo, every path explicit; `hosts` from --hosts. */
-export function freshConfig(root, base, hosts = DEFAULTS.hosts) {
-  const gate = gateChecks(root);
+/** The gate's note: the commands it runs, and why npm test is not one of them. */
+function gateNote(checks, reason) {
+  if (!checks.length) return m.gateNone(reason);
+  const runs = checks.map((c) => c.run);
+  return reason ? m.gateWithout(runs, reason) : m.gateRuns(runs);
+}
+
+/** No pack: what a fresh config declares when nothing chose one. */
+export const NO_PACKS = Object.freeze({ names: Object.freeze([]), note: m.packsNone });
+
+/**
+ * The config init writes on a fresh repo, every path explicit; `hosts` from --hosts,
+ * `packs` (`{ names, note }`) from --packs or detection, with each pack's doc-sync
+ * rules and gate checks.
+ */
+export function freshConfig(root, base, hosts = DEFAULTS.hosts, packs = NO_PACKS) {
+  const test = gateChecks(root);
+  const defaults = packDefaults(packs.names);
+  const checks = [...test.checks, ...defaults.gate];
   const raw = {
     $schema: SCHEMA_REF,
     version: DEFAULTS.version,
     level: DEFAULTS.level,
     hosts: [...hosts],
+    packs: [...packs.names],
     baseBranch: detectBase(root, base),
     paths: { ...DEFAULTS.paths },
-    gate: { checks: gate.checks },
-    hooks: { docSync: [] },
+    gate: { checks },
+    hooks: { docSync: defaults.docSync },
   };
-  return { raw, note: m.wrote(raw.baseBranch, gate.note) };
+  return { raw, note: m.wrote(raw.baseBranch, packs.note, gateNote(checks, test.reason)) };
 }
 
 /** The flags that shape a fresh config, by the key each sets. */

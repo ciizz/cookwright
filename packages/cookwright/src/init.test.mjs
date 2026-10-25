@@ -11,7 +11,8 @@ import { main } from './init.mjs';
 import { applyRows } from './lib/init/files.mjs';
 import { pointersStep } from './lib/init/pointers.mjs';
 import { openInitRepo } from './lib/init/repo.mjs';
-import { CONFIG_VERSION, DEFAULTS } from './lib/config.mjs';
+import { CONFIG_VERSION, DEFAULTS, validateConfig, withDefaults } from './lib/config.mjs';
+import { NO_PACKS, freshConfig } from './lib/init/config.mjs';
 import { callLine, shimText } from './lib/hooks/shims.mjs';
 import { claudeHookStep } from './lib/init/claude.mjs';
 import { codexHookStep } from './lib/init/codex.mjs';
@@ -20,7 +21,7 @@ import { CODEX_HOOK_COMMAND, HOOK_COMMAND, HOOK_LINES, HOSTS, SKILLS } from './l
 import { messages } from './lib/messages.mjs';
 import { PROBES, hasTool } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, packKind, renderBlock } from './lib/rules/block.mjs';
-import { PACKS } from './lib/packs/registry.mjs';
+import { PACKS, RATCHET_CHECK } from './lib/packs/registry.mjs';
 import { renderSection } from './lib/packs/section.mjs';
 import { shippedPieces } from './lib/doctor/hosts.mjs';
 import { commit, gitInit, gitWithoutScopes, linkPackage, run, scratchRoot, stageOnly, v1Block, v2Block } from './test-helpers.mjs';
@@ -354,6 +355,48 @@ describe('cookwright.json', () => {
     write(root, 'package.json', JSON.stringify({ scripts: { test: 'vitest run' } }));
     init(root);
     expect(JSON.parse(read(root, 'cookwright.json')).gate.checks).toEqual([{ name: 'test', run: 'npm test' }]);
+  });
+});
+
+describe('cookwright.json: a fresh config’s packs, doc-sync rules and gate checks', () => {
+  const RATCHET = { name: 'standards', run: 'npx cookwright standards --ratchet', skipExit: 11 };
+  const TYPES = { name: 'standards:types', run: 'npx cookwright standards --types', skipExit: 11 };
+  const DESIGN_DOC = { name: 'expo:design-doc', code: ['src/components/**', 'components/**', ':!**/*.test.*'], docs: ['docs/design-system.md'] };
+  const DATA_DOC = { name: 'supabase:data-doc', code: ['supabase/migrations/**'], docs: ['docs/data-model.md'] };
+  const fresh3 = (names, pkg) => {
+    const root = fresh();
+    if (pkg) write(root, 'package.json', JSON.stringify(pkg));
+    return freshConfig(root, undefined, ['claude'], { names, note: 'packs: chosen' });
+  };
+
+  it('declares the packs and writes each one’s doc-sync rule and gate checks after npm test, valid as written', () => {
+    const { raw, note } = fresh3(['expo', 'supabase'], { scripts: { test: 'vitest run' } });
+    expect(raw.packs).toEqual(['expo', 'supabase']);
+    expect(Object.keys(raw)).toEqual(['$schema', 'version', 'level', 'hosts', 'packs', 'baseBranch', 'paths', 'gate', 'hooks']);
+    expect(raw.hooks.docSync).toEqual([DESIGN_DOC, DATA_DOC]);
+    expect(raw.gate.checks).toEqual([{ name: 'test', run: 'npm test' }, RATCHET, TYPES]);
+    expect(RATCHET_CHECK).toEqual(RATCHET);
+    expect(validateConfig(withDefaults(raw))).toEqual([]);
+    expect(note).toBe(m.config.wrote('main', 'packs: chosen', m.config.gateRuns(['npm test', RATCHET.run, TYPES.run])));
+    expect(note).toBe('baseBranch main; packs: chosen; gate: npm test, npx cookwright standards --ratchet, npx cookwright standards --types');
+  });
+
+  it('writes the ratchet once for one pack or two, and the types check only with supabase', () => {
+    expect(fresh3(['expo']).raw.gate.checks).toEqual([RATCHET]);
+    expect(fresh3(['expo']).raw.hooks.docSync).toEqual([DESIGN_DOC]);
+    expect(fresh3(['supabase']).raw.gate.checks).toEqual([RATCHET, TYPES]);
+    expect(fresh3(['supabase', 'expo']).raw.hooks.docSync).toEqual([DATA_DOC, DESIGN_DOC]);
+  });
+
+  it('says why npm test is not in a gate the packs fill, and writes an empty packs list with none', () => {
+    expect(fresh3(['expo']).note).toBe(
+      `baseBranch main; packs: chosen; gate: ${RATCHET.run}; no npm test (${m.config.noPackage})`,
+    );
+    const none = freshConfig(fresh(), undefined, ['claude'], NO_PACKS);
+    expect(none.raw.packs).toEqual([]);
+    expect(none.raw.gate.checks).toEqual([]);
+    expect(none.raw.hooks.docSync).toEqual([]);
+    expect(none.note).toBe(`baseBranch main; ${m.config.packsNone}; ${m.config.gateNone(m.config.noPackage)}`);
   });
 });
 

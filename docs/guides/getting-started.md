@@ -20,7 +20,7 @@ npx cookwright init
 
 ```
 npx cookwright init in ~/my-app
-wrote    cookwright.json                    baseBranch main; gate: npm test
+wrote    cookwright.json                    baseBranch main; packs: none; gate: npm test
 wrote    docs/backlog.md                    from the template
 wrote    docs/closeouts/                    created, with a .gitkeep so a clone keeps it
 wrote    CHANGELOG.md                       from the template

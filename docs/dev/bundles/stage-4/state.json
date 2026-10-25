@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 155,
+  "revision": 164,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -319,9 +319,23 @@
     },
     {
       "name": "implement:s6",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T22:29:30.972Z",
+          "stateRevision": 155,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_f26a9950-e86",
+          "endedAt": "2026-10-25T22:54:52.384Z",
+          "turnOutputTokens": 206377
+        }
+      ],
+      "startCommit": "eda3bc4dd8950aa67468c7e8e4a41361d62426d4",
+      "range": null,
+      "endCommit": "46a570b588d25721b98d7c9cdda894a08c67ab20",
+      "endCode": "07de2db21c6b379a287b5c733ba46edf04331245"
     },
     {
       "name": "implement:s7",
@@ -496,6 +510,19 @@
           "ms": 91401
         }
       ]
+    },
+    {
+      "commit": "46a570b588d25721b98d7c9cdda894a08c67ab20",
+      "at": "2026-10-25T22:54:40.380Z",
+      "slice": "surface",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 108569
+        }
+      ]
     }
   ],
   "findings": [
@@ -631,6 +658,12 @@
       "phase": "fix:measure",
       "path": "docs/dev/bundles/stage-4/sessions/fix-measure-1.md",
       "at": "2026-10-25T22:27:44.514Z",
+      "stored": true
+    },
+    {
+      "phase": "implement:s6",
+      "path": "docs/dev/bundles/stage-4/sessions/implement-s6-1.md",
+      "at": "2026-10-25T22:52:49.007Z",
       "stored": true
     }
   ],
@@ -1320,6 +1353,34 @@
       "actor": "orchestrator",
       "source": "fix:measure strings batch",
       "text": "fix:measure's user-facing strings (the stderr-routed error details, the ignored and changed-here reasons, the types row's missing gate entry, the gate note's scrub) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:whole.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:52:49.460Z",
+      "actor": "orchestrator",
+      "source": "implement:s6 open questions 1, 2, 3",
+      "text": "The docs-audit SKILLS entry landed in s6 with its skill directory, as the s2 disposition moved it; this repo's own docs-audit pointer and the AGENTS.md Layout skill list are s7's dogfood (init owns the pointers; the rules-file hash stays put mid-bundle).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:52:49.956Z",
+      "actor": "orchestrator",
+      "source": "implement:s6 open question 4",
+      "text": "audit args prints config-root-relative paths while the docs-audit Workflow reads paths from the session's cwd, so a config root below the work tree's top needs the session started from that root: logged as E-043 beside B-002 (rule 6: the nested-root family is one backlog thread), not fixed here.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:52:50.440Z",
+      "actor": "orchestrator",
+      "source": "implement:s6 open question 5",
+      "text": "The plugin install, the eslint.config.js lines and the detected packs are loop remedies of the setup skill, met at their WARN rows (pack.<name>.lint, packs), with consent; the end pass keeps what no row covers (gate entries from packs rules, doc-sync candidates from the tree, filling a contract doc then the docs-audit). Accepted: the skill meets a problem where doctor names it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:52:50.877Z",
+      "actor": "orchestrator",
+      "source": "implement:s6 strings batch",
+      "text": "s6's user-facing strings (the audit args usage and refusals, the packs rules usage, the setup skill's pack rows and end pass, the docs-audit skill, the standards guide's first version, the red-team advisory sentence and the playbook's Reviewer line) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:surface.",
       "claim": true
     }
   ],

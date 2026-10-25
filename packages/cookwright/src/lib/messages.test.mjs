@@ -6,7 +6,8 @@
 // bundle modules keep their literals until E-004; hosts.mjs (the hook command and
 // its fallback lines) and config.mjs (the loader's messages) are exceptions by the
 // plan's import rule, and the templates, the rules block, the generated
-// changelog's render and the git hook shims (stage-2 plan §4.8) are content.
+// changelog's render, the git hook shims (stage-2 plan §4.8) and a pack's section
+// of AGENTS.md (stage-4 plan §4.2) are content.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,6 +41,7 @@ const SCANNED = [
 const EXEMPT = [
   'src/lib/changelog/render.mjs', // the generated changelog's section titles and count line
   'src/lib/hooks/shims.mjs', // the hook files written into the user's repo, with their fallback lines
+  'src/lib/packs/section.mjs', // a pack's section of AGENTS.md, written into the user's repo
 ];
 
 /** Literals that are not messages, by file. */

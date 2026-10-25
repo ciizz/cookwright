@@ -23,7 +23,7 @@ export const manifest = {
     },
     {
       id: 'data-doc',
-      sentence: 'A migration changes with the data-model doc: a commit touching `supabase/migrations/` stages `docs/data-model.md`',
+      sentence: 'A migration changes with the data-model doc: a commit touching a migration stages `docs/data-model.md`',
       measure: 'doc-sync',
       docSync: {
         name: 'supabase:data-doc',

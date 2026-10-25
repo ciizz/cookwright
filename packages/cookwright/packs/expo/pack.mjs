@@ -48,7 +48,7 @@ export const manifest = {
     },
     {
       id: 'size',
-      sentence: 'A function stays under 40 lines in a `.ts` or `.js` file, and under 150 in a `.tsx` or `.jsx` file (a component)',
+      sentence: 'A function stays under 40 lines in a `.ts` or `.js` file; a component, any function in a `.tsx` or `.jsx` file, under 150',
       measure: 'eslint',
       eslint: {
         ruleIds: ['max-lines-per-function'],
@@ -60,7 +60,7 @@ export const manifest = {
     },
     {
       id: 'design-doc',
-      sentence: 'A component changes with the design-system doc: a commit touching `src/components/` stages `docs/design-system.md`',
+      sentence: 'A component changes with the design-system doc: a commit touching a component stages `docs/design-system.md`',
       measure: 'doc-sync',
       docSync: {
         name: 'expo:design-doc',

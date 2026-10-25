@@ -150,6 +150,18 @@ describe('--staged: the per-file ratchet', () => {
     expect(out).toEqual([m.noRise(1)]);
   });
 
+  it('lints a symbolic link replaced by a regular file (a type change), its HEAD side counting 0', async () => {
+    const repo = repoWith({ 'src/components/Card.tsx': CLEAN });
+    fs.symlinkSync('Card.tsx', path.join(repo.root, 'src/components/Link.tsx'));
+    run(repo.root, 'git', ['add', '-A']);
+    run(repo.root, 'git', ['commit', '-qm', 'link', '--no-verify']);
+    fs.rmSync(path.join(repo.root, 'src/components/Link.tsx'));
+    stage(repo, { 'src/components/Link.tsx': LEGACY });
+    expect(run(repo.root, 'git', ['diff', '--cached', '--name-status'])).toBe('T\tsrc/components/Link.tsx');
+    expect(await standards(repo)).toBe(10);
+    expect(out.at(-1)).toBe(m.rose([m.roseItem('src/components/Link.tsx', ['expo strings 0 → 1', 'expo tokens 0 → 1'])]));
+  });
+
   it('skips, exit 11, when a file cannot be measured and nothing rose; a rise elsewhere still fails', async () => {
     const repo = repoWith({ 'src/components/Card.tsx': CLEAN });
     stage(repo, { 'src/components/Card.tsx': `${CLEAN}// FAKE_FATAL\n`, 'src/b.ts': '// FAKE_THROW\n' });

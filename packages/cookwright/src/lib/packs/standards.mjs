@@ -170,15 +170,20 @@ export function parseRaw(out) {
   return entries;
 }
 
-/** The staged entries under the config root, against HEAD (an unborn HEAD lists every file as added). */
+/**
+ * The staged entries under the config root, against HEAD (an unborn HEAD lists every
+ * file as added). A type change (T) is listed too: a link replaced by a regular file
+ * is linted with no HEAD side (`hasBase` reads the link's mode), and a file replaced
+ * by a link is not linted (`lintable` reads the new mode).
+ */
 export function stagedEntries(top, root, env) {
-  const args = ['diff', '--cached', '--raw', '-z', '--no-abbrev', '-M', '--diff-filter=ACMRD', '--', rootSpec(top, root)];
+  const args = ['diff', '--cached', '--raw', '-z', '--no-abbrev', '-M', '--diff-filter=ACMRTD', '--', rootSpec(top, root)];
   return parseRaw(git(top, args, { env }));
 }
 
 /** The entries under the config root that changed from commit `base` to HEAD, both sides commits (disposition 2). */
 export function rangeEntries(top, root, base, env) {
-  const args = ['diff', '--raw', '-z', '--no-abbrev', '-M', '--diff-filter=ACMRD', base, 'HEAD', '--', rootSpec(top, root)];
+  const args = ['diff', '--raw', '-z', '--no-abbrev', '-M', '--diff-filter=ACMRTD', base, 'HEAD', '--', rootSpec(top, root)];
   return parseRaw(git(top, args, { env }));
 }
 

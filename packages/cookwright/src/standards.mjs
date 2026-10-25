@@ -1,15 +1,21 @@
-// src/standards.mjs — `cookwright standards [--staged]`: the declared packs' ESLint
-// rules, counted (stage-4 plan §4.5). The engine is lib/packs/standards.mjs.
+// src/standards.mjs — `cookwright standards [--staged | --ratchet | --types]`: the
+// declared packs' rules, measured (stage-4 plan §4.5, §4.6). The engine is
+// lib/packs/standards.mjs; the types measure is lib/packs/types.mjs.
 //
 // No flag: the count per pack rule over HEAD's files under the config root, the
 // number an existing app sees first. `--staged` (what the pre-commit check spawns,
 // disposition 26): the per-file ratchet over the staged files (disposition 31), a
 // file's count of a rule at the index against HEAD, so touching a legacy file
-// without adding a violation passes.
+// without adding a violation passes. `--ratchet` (the gate's check): each rule's
+// count over the files the branch changed, at HEAD against the base
+// (lib/packs/base.mjs), so a rise is drift. `--types` (the gate's other check):
+// the Supabase types measure alone, never folded into the ratchet (disposition 30).
 //
-// Exit 0 measured (no rise), 10 a count rose (its findings printed first), 11
-// cannot measure, 2 a usage error. The last line printed is the one a caller
-// records; a line names every rule it did not measure (disposition 37).
+// Exit 0 measured (no rise), 10 a count rose, 11 cannot measure, 2 a usage error.
+// `--staged` prints its findings first and its verdict last, the line the hook
+// records; `--ratchet` and `--types` print their verdict first, the line the gate
+// records as the check's note (disposition 45), the findings below it. A line names
+// every rule it did not measure (disposition 37).
 
 import fs from 'node:fs';
 
@@ -18,6 +24,7 @@ import { Refusal, onlyFlags, parseArgv } from './lib/cli.mjs';
 import { CONFIG_FILE, findRoot, loadConfig, workTreeRoot } from './lib/config.mjs';
 import { oneLine } from './lib/doctor/repo.mjs';
 import { messages } from './lib/messages.mjs';
+import { resolveBase } from './lib/packs/base.mjs';
 import * as engine from './lib/packs/standards.mjs';
 
 const m = messages.standards;
@@ -96,6 +103,56 @@ async function stagedMode(ctx) {
   return stagedReport(ctx, judged, deleted);
 }
 
+/** The base of a branch measure, `{ sha, since }`; Unmeasurable naming every candidate when none resolves. */
+export function branchBase(repo, flags, env) {
+  const base = resolveBase(repo.top, { flag: flags.base, env, baseBranch: repo.config.baseBranch });
+  if (!base.sha) throw new Unmeasurable(m.noBase(base.tried));
+  return { sha: base.sha, since: m.since(base.sha, base.label) };
+}
+
+/** Each measured rule's count summed over the judged files, `{ key, from, to, files }`, `files` those it rose in. */
+function sumsOf(ctx, judged) {
+  return ctx.measured.map(({ key }) => {
+    const side = (j, s) => j[s].counts.get(key) ?? 0;
+    const from = judged.reduce((n, j) => n + side(j, 'before'), 0);
+    const to = judged.reduce((n, j) => n + side(j, 'now'), 0);
+    return { key, from, to, files: judged.filter((j) => side(j, 'now') > side(j, 'before')).map((j) => j.file) };
+  });
+}
+
+/** The `--ratchet` report over the judged files: the verdict line first, the risen rules' findings after. */
+function ratchetReport(ctx, judged, deleted, since) {
+  const unmeasured = judged.filter((j) => j.now.unmeasured || j.before.unmeasured);
+  const items = unmeasured.map((j) => m.notMeasuredItem(j.file, j.now.unmeasured ?? j.before.unmeasured));
+  const gone = deleted ? [m.deleted(deleted)] : [];
+  const extras = [...ctx.skipped, ...(items.length ? [m.notMeasured(items)] : []), ...gone];
+  const measured = judged.filter((j) => !unmeasured.includes(j));
+  const sums = sumsOf(ctx, measured);
+  const risen = sums.filter((c) => c.to > c.from);
+  if (risen.length) {
+    const line = m.tail(m.ratchetRose(risen.map((c) => m.risenItem(m.change(c.key, c.from, c.to), c.files)), since), extras);
+    const findings = measured.flatMap((j) =>
+      j.now.findings.filter((f) => risen.some((c) => c.key === f.key && c.files.includes(j.file))).map((f) => engine.render(j.file, f)),
+    );
+    return { exit: ROSE_EXIT, lines: [line, ...findings] };
+  }
+  if (items.length) return { exit: SKIP_EXIT, lines: [m.tail(m.skippedBecause(m.notMeasured(items)), [...ctx.skipped, ...gone])] };
+  return { exit: 0, lines: [m.ratchet(sums.map((c) => m.change(c.key, c.from, c.to)), extras, judged.length, since)] };
+}
+
+/** `--ratchet`: each rule's count over the files changed since the base, HEAD against the base. */
+async function ratchetMode(ctx, flags) {
+  const { sha, since } = branchBase(ctx, flags, ctx.env);
+  const all = engine.rangeEntries(ctx.top, ctx.root, sha, ctx.env);
+  const files = all.filter(engine.lintable);
+  const deleted = all.filter(engine.deletedLintable).length;
+  if (!files.length) return { exit: 0, lines: [m.tail(m.noChange(since), [...ctx.skipped, ...(deleted ? [m.deleted(deleted)] : [])])] };
+  const blobs = engine.readBlobs(ctx.top, files.flatMap((e) => (engine.hasBase(e) ? [e.sha, e.baseSha] : [e.sha])), ctx.env);
+  const judged = [];
+  for (const entry of files) judged.push(await judgeFile(ctx, entry, blobs));
+  return ratchetReport(ctx, judged, deleted, since);
+}
+
 /** No flag: the count per measured rule over HEAD's files. */
 async function countMode(ctx) {
   const entries = engine.headEntries(ctx.top, ctx.root, ctx.env);
@@ -114,19 +171,31 @@ async function countMode(ctx) {
   return { exit: 0, lines: [...lines, m.tail(m.counted(files.length - items.length), extras)] };
 }
 
-/** The flags, or a Refusal: no positional, nothing but `--staged`. */
+const MODES = ['staged', 'ratchet'];
+
+/** The flags, or a Refusal: no positional, at most one mode, `--base <ref>` only with a branch measure. */
 function parse(argv) {
   const { pos, flags } = parseArgv(argv);
-  onlyFlags(flags, ['staged']);
-  if (pos.length || (flags.staged !== undefined && flags.staged !== true)) throw new Refusal(m.usage);
+  onlyFlags(flags, [...MODES, 'base']);
+  const modes = MODES.filter((f) => flags[f] !== undefined);
+  const base = flags.base === undefined || (typeof flags.base === 'string' && Boolean(flags.ratchet));
+  if (pos.length || modes.length > 1 || modes.some((f) => flags[f] !== true) || !base) throw new Refusal(m.usage);
   return flags;
+}
+
+/** The measure `flags` names over `repo`: `{ exit, lines }`. */
+async function measure(repo, flags, io) {
+  const ctx = await prepare(repo, io);
+  if (flags.staged) return stagedMode(ctx);
+  return flags.ratchet ? ratchetMode(ctx, flags) : countMode(ctx);
 }
 
 const harness = (err) => (err instanceof TimedOut ? messages.timedOut(err.what) : String(err?.message ?? err).split('\n')[0]);
 
 /**
- * `io.cwd`, `io.env` (git's environment, process.env by default) and `io.loadESLint`
- * (the fake ESLint's seam) are the tests'; the bin passes none.
+ * `io.cwd`, `io.env` (git's and the supabase CLI's environment, and the source of
+ * COOKWRIGHT_PUSH_BASE; process.env by default) and `io.loadESLint` (the fake
+ * ESLint's seam) are the tests'; the bin passes none.
  */
 export async function main(argv = [], io = {}) {
   let flags;
@@ -139,8 +208,7 @@ export async function main(argv = [], io = {}) {
     return 2;
   }
   try {
-    const ctx = await prepare(openRepo(io.cwd ?? process.cwd()), io);
-    const { exit, lines } = flags.staged ? await stagedMode(ctx) : await countMode(ctx);
+    const { exit, lines } = await measure(openRepo(io.cwd ?? process.cwd()), flags, io);
     for (const line of lines) console.log(line);
     return exit;
   } catch (err) {

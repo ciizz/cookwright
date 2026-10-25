@@ -58,9 +58,10 @@ function stage(repo, files) {
 const standards = (repo, args = ['--staged'], io = {}) => main(args, { cwd: repo.root, env: ENV, ...io });
 
 describe('usage', () => {
-  it('refuses a positional, an unknown flag or a value on --staged, exit 2, nothing measured', async () => {
+  it('refuses a positional, an unknown flag, a value on a mode, two modes or --base alone, exit 2, nothing measured', async () => {
     const repo = repoWith();
-    for (const argv of [['x'], ['--ratchet'], ['--staged', 'yes']]) {
+    const refused = [['x'], ['--nope'], ['--staged', 'yes'], ['--ratchet', 'main'], ['--staged', '--ratchet'], ['--base', 'main'], ['--ratchet', '--base']];
+    for (const argv of refused) {
       expect(await main(argv, { cwd: repo.root, env: ENV })).toBe(2);
       expect(err.at(-1)).toBe(m.usage);
     }
@@ -211,5 +212,122 @@ describe('cannot measure: one line, exit 11', () => {
     expect(out[1]).toBe(m.noConfig);
     expect(out[2]).toMatch(/^skipped, cookwright\.json invalid: .*nope/);
     expect(out[3]).toBe(m.notWorkTree);
+  });
+});
+
+describe('--ratchet: the branch against its base', () => {
+  const sha = (repo, rev = 'HEAD') => run(repo.root, 'git', ['rev-parse', rev]);
+  const since = (repo, rev, label) => m.since(sha(repo, rev), label);
+  /** A repo with `files` on main and a branch `feat` holding `changes` in one commit. */
+  function branched(files, changes, opts) {
+    const repo = repoWith(files, opts);
+    run(repo.root, 'git', ['checkout', '-qb', 'feat']);
+    commit(repo, changes, 'feat');
+    return repo;
+  }
+  const ratchet = (repo, args = [], env = ENV) => main(['--ratchet', ...args], { cwd: repo.root, env });
+
+  it('passes a branch whose counts did not rise, the verdict line first, against the merge-base', async () => {
+    const repo = branched({ 'src/components/Card.tsx': LEGACY }, { 'src/components/Card.tsx': CLEAN, 'src/a.ts': 'a\n' });
+    expect(await ratchet(repo)).toBe(0);
+    const changes = ['expo strings 1 → 0', 'expo tokens 1 → 0', 'expo size 0 → 0', 'supabase client 0 → 0'];
+    expect(out).toEqual([m.ratchet(changes, [], 2, since(repo, 'main', 'merge-base main HEAD'))]);
+    expect(out[0]).toBe(`${changes.join(', ')} (2 file(s) since ${sha(repo, 'main').slice(0, 8)} (merge-base main HEAD))`);
+  });
+
+  it('fails a rise, the line naming each risen rule and its files, the findings below it', async () => {
+    const repo = branched({ 'src/components/Card.tsx': LEGACY }, { 'src/components/Card.tsx': CLEAN, 'src/components/New.tsx': LEGACY, 'src/components/Two.tsx': `// two\n${LEGACY}` });
+    expect(await ratchet(repo)).toBe(10);
+    const at = since(repo, 'main', 'merge-base main HEAD');
+    const files = ['src/components/New.tsx', 'src/components/Two.tsx'];
+    expect(out[0]).toBe(m.ratchetRose([m.risenItem('expo strings 1 → 2', files), m.risenItem('expo tokens 1 → 2', files)], at));
+    expect(out.slice(1)).toEqual([
+      'src/components/New.tsx:2:32  expo tokens  colour or spacing literal in a component; use a theme token',
+      'src/components/New.tsx:2:45  expo strings  literal string in JSX; route it through t()',
+      'src/components/Two.tsx:3:32  expo tokens  colour or spacing literal in a component; use a theme token',
+      'src/components/Two.tsx:3:45  expo strings  literal string in JSX; route it through t()',
+    ]);
+    expect(out.join('\n')).not.toContain('Hello there');
+  });
+
+  it('names the deleted files it did not count, the rules it did not measure, and no change at all', async () => {
+    const repo = repoWith({ 'src/components/Card.tsx': LEGACY, 'src/a.ts': 'a\n' }, { packs: ['expo'], fake: { plugin: false } });
+    run(repo.root, 'git', ['checkout', '-qb', 'feat']);
+    run(repo.root, 'git', ['rm', '-q', 'src/components/Card.tsx']);
+    run(repo.root, 'git', ['commit', '-qm', 'rm', '--no-verify']);
+    const at = since(repo, 'main', 'merge-base main HEAD');
+    expect(await ratchet(repo)).toBe(0);
+    expect(out).toEqual([m.tail(m.noChange(at), [m.ruleSkipped('expo strings', m.needs(I18NEXT)), m.deleted(1)])]);
+    out.length = 0;
+    commit(repo, { 'src/a.ts': 'b\n' }, 'a');
+    expect(await ratchet(repo)).toBe(0);
+    expect(out).toEqual([m.ratchet(['expo tokens 0 → 0', 'expo size 0 → 0'], [m.ruleSkipped('expo strings', m.needs(I18NEXT)), m.deleted(1)], 1, at)]);
+  });
+
+  it('lints a rename’s base side at its new path: a legacy file moved is no rise', async () => {
+    const repo = repoWith({ 'src/components/Old.tsx': LEGACY });
+    run(repo.root, 'git', ['checkout', '-qb', 'feat']);
+    run(repo.root, 'git', ['mv', 'src/components/Old.tsx', 'src/components/New.tsx']);
+    run(repo.root, 'git', ['commit', '-qm', 'mv', '--no-verify']);
+    expect(await ratchet(repo)).toBe(0);
+    expect(out[0]).toMatch(/^expo strings 1 → 1, expo tokens 1 → 1, .* \(1 file\(s\) since /);
+  });
+
+  it('skips, exit 11, when a changed file cannot be measured and nothing rose', async () => {
+    const repo = branched({}, { 'src/b.ts': '// FAKE_THROW\n' });
+    expect(await ratchet(repo)).toBe(11);
+    expect(out).toEqual([m.skippedBecause(m.notMeasured([m.notMeasuredItem('src/b.ts', 'Error while loading rule: the fake was told to throw')]))]);
+  });
+
+  it('on the base branch: its upstream, and with none no base, exit 11 naming what it tried', async () => {
+    const repo = repoWith({ 'src/components/Card.tsx': CLEAN });
+    commit(repo, { 'src/components/Card.tsx': LEGACY }, 'worse');
+    expect(await ratchet(repo)).toBe(11);
+    expect(out).toEqual([m.noBase(['main@{upstream}'])]);
+    out.length = 0;
+    run(repo.root, 'git', ['branch', 'remote-ish', 'HEAD~1']);
+    run(repo.root, 'git', ['branch', '-q', '--set-upstream-to=remote-ish', 'main']);
+    expect(await ratchet(repo)).toBe(10);
+    expect(out[0]).toBe(
+      m.ratchetRose(['expo strings 0 → 1', 'expo tokens 0 → 1'].map((c) => m.risenItem(c, ['src/components/Card.tsx'])), since(repo, 'HEAD~1', 'main@{upstream}')),
+    );
+  });
+
+  it('takes --base first, then COOKWRIGHT_PUSH_BASE, each falling through when it names no commit here', async () => {
+    const repo = repoWith({ 'src/components/Card.tsx': CLEAN });
+    commit(repo, { 'src/components/Card.tsx': LEGACY }, 'worse');
+    const head = sha(repo);
+    const env = { ...ENV, COOKWRIGHT_PUSH_BASE: head };
+    expect(await ratchet(repo, [], env)).toBe(0);
+    expect(out.at(-1)).toBe(m.tail(m.noChange(m.since(head, 'COOKWRIGHT_PUSH_BASE')), []));
+    out.length = 0;
+    expect(await ratchet(repo, ['--base', 'HEAD~1'], env)).toBe(10);
+    expect(out[0]).toMatch(new RegExp(`since ${sha(repo, 'HEAD~1').slice(0, 8)} \\(--base HEAD~1\\)`));
+    out.length = 0;
+    const missing = 'f'.repeat(40);
+    expect(await ratchet(repo, ['--base', 'no-such-ref'], { ...ENV, COOKWRIGHT_PUSH_BASE: missing })).toBe(11);
+    expect(out).toEqual([m.noBase(['--base no-such-ref', 'COOKWRIGHT_PUSH_BASE', 'main@{upstream}'])]);
+  });
+
+  it('off the base branch with no base branch here: no base, exit 11', async () => {
+    const repo = repoWith({}, { packs: ['expo'] });
+    run(repo.root, 'git', ['checkout', '-qb', 'feat']);
+    run(repo.root, 'git', ['branch', '-qD', 'main']);
+    expect(await ratchet(repo)).toBe(11);
+    expect(out).toEqual([m.noBase(['merge-base main HEAD'])]);
+  });
+
+  it('lists only the config root’s changed files when it sits below the top', async () => {
+    const top = gitInit(path.join(TMP, `nested-r-${(n += 1)}`));
+    const root = path.join(top, 'apps/mobile');
+    fs.mkdirSync(root, { recursive: true });
+    fs.writeFileSync(path.join(root, 'cookwright.json'), JSON.stringify({ version: 3, packs: ['expo'] }));
+    fakeEslintRepo(root);
+    commit({ root: top }, { 'apps/mobile/src/components/Card.tsx': CLEAN, 'apps/web/src/components/W.tsx': CLEAN }, 'init');
+    run(top, 'git', ['checkout', '-qb', 'feat']);
+    commit({ root: top }, { 'apps/mobile/src/components/Card.tsx': LEGACY, 'apps/web/src/components/W.tsx': LEGACY }, 'worse');
+    expect(await main(['--ratchet'], { cwd: root, env: ENV })).toBe(10);
+    const file = ['src/components/Card.tsx'];
+    expect(out[0]).toBe(m.ratchetRose([m.risenItem('expo strings 0 → 1', file), m.risenItem('expo tokens 0 → 1', file)], m.since(run(top, 'git', ['rev-parse', 'main']), 'merge-base main HEAD')));
   });
 });

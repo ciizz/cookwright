@@ -467,6 +467,7 @@ const hook = {
     notHead: (refs) => notTested(refs),
     tested: (heads, others) => `tested ${shown(heads)} at HEAD; ${notTested(others)}`,
     dirty: (n, sha) => `not tested: the working tree has ${n} uncommitted file(s) and is not ${sha}`,
+    noBase: (refs) => `no ratchet base: ${list(refs)} at HEAD have different remote commits`,
   },
   gate: {
     none: 'no gate checks configured (gate.checks)',
@@ -495,7 +496,7 @@ const hook = {
 // standards: the command that counts the packs' ESLint rules (stage-4 plan §4.5).
 // The last line printed is the one a caller records: the hook's note, the gate's.
 const standards = {
-  usage: `usage: ${CLI} standards [--staged]`,
+  usage: `usage: ${CLI} standards [--staged | --ratchet [--base <ref>]]`,
   notWorkTree: 'skipped, not inside a git work tree',
   noConfig: `skipped, no ${CONFIG_FILE}; ${RUN_INIT}`,
   configInvalid: (detail) => `skipped, ${CONFIG_FILE} invalid: ${detail}; run ${CLI} doctor`,
@@ -530,6 +531,19 @@ const standards = {
   counted: (n) => `${n} file(s) counted at HEAD`,
   noHead: 'skipped, no commit yet to count',
   tail: (head, parts) => [head, ...parts].join('; '),
+  // --ratchet: each rule's count over the files the branch changed, HEAD against the base (dispositions 20, 39)
+  noBase: (tried) => `skipped, no base to ratchet against (tried: ${list(tried)})`,
+  since: (sha, label) => `${sha.slice(0, 8)} (${label})`,
+  // the candidate a base came from, as the line names it (lib/packs/base.mjs)
+  base: {
+    flag: (ref) => `--base ${ref}`,
+    upstream: (branch) => `${branch}@{upstream}`,
+    mergeBase: (branch) => `merge-base ${branch} HEAD`,
+  },
+  noChange: (since) => `0 files under a pack's rules changed since ${since}`,
+  ratchet: (changes, parts, n, since) => `${[list(changes), ...parts].join('; ')} (${n} file(s) since ${since})`,
+  ratchetRose: (items, since) => `a pack rule's count rose since ${since}: ${list(items)}`,
+  risenItem: (change, files) => `${change} in ${shown(files)}`,
 };
 
 export const messages = {

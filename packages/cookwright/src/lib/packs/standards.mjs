@@ -176,6 +176,12 @@ export function stagedEntries(top, root, env) {
   return parseRaw(git(top, args, { env }));
 }
 
+/** The entries under the config root that changed from commit `base` to HEAD, both sides commits (disposition 2). */
+export function rangeEntries(top, root, base, env) {
+  const args = ['diff', '--raw', '-z', '--no-abbrev', '-M', '--diff-filter=ACMRD', base, 'HEAD', '--', rootSpec(top, root)];
+  return parseRaw(git(top, args, { env }));
+}
+
 /** HEAD's files under the config root as entries, or null on an unborn HEAD. */
 export function headEntries(top, root, env) {
   const rel = posix(path.relative(top, root));

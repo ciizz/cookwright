@@ -504,6 +504,27 @@ describe('pre-push', () => {
     expect(line('gate').note).toMatch(/^gate check "test" runs npm script "test", which package.json does not define/);
   });
 
+  it('passes the pushed ref’s remote commit to the gate as COOKWRIGHT_PUSH_BASE: one ref, a new ref, refs that disagree', () => {
+    const says = node("console.log(process.env.COOKWRIGHT_PUSH_BASE || 'none')");
+    const repo = pushRepo([{ name: 'base', run: `${says} > base.txt` }]);
+    const older = run(repo.root, 'git', ['rev-parse', 'HEAD~1']);
+    const read = () => fs.readFileSync(path.join(repo.root, 'base.txt'), 'utf8').trim();
+    const ignore = () => fs.appendFileSync(path.join(repo.root, '.git/info/exclude'), 'base.txt\n');
+    ignore();
+    const ref = (name, remote) => `${name} ${repo.head} ${name} ${remote}\n`;
+    expect(push(repo, ref('refs/heads/main', older), { env: { ...ENV, COOKWRIGHT_PUSH_BASE: 'outer' } })).toBe(0);
+    expect(read()).toBe(older);
+    expect(push(repo, ref('refs/heads/main', ZERO), { env: { ...ENV, COOKWRIGHT_PUSH_BASE: 'outer' } })).toBe(0);
+    expect(read()).toBe('none');
+    // A new tag beside the branch: the tag has no remote commit, the branch's is the base.
+    expect(push(repo, `${ref('refs/heads/main', older)}${ref('refs/tags/v1', ZERO)}`)).toBe(0);
+    expect(read()).toBe(older);
+    out.length = 0;
+    expect(push(repo, `${ref('refs/heads/main', older)}${ref('refs/heads/other', repo.head)}`)).toBe(0);
+    expect(read()).toBe('none');
+    expect(line('gate').note).toMatch(/, no ratchet base: main, other at HEAD have different remote commits$/);
+  });
+
   it('runs the gate commands without git’s hook variables, keeping the rest', () => {
     const vars = "['GIT_INDEX_FILE', 'GIT_PREFIX', 'GIT_DIR'].some((k) => k in process.env)";
     const leak = node(`process.exit(${vars} ? 1 : 0)`);

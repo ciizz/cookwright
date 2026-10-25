@@ -66,7 +66,7 @@ function verdict(name, repo, ctx, prep) {
   if (prep.skip) return skip(prep.skip);
   let r;
   try {
-    r = check.run(repo, ctx);
+    r = check.run(repo, prep.base ? { ...ctx, pushBase: prep.base } : ctx);
   } catch (err) {
     return skip(m.couldNotRun(harness(err)));
   }

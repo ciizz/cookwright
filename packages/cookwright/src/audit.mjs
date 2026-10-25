@@ -16,8 +16,7 @@ import path from 'node:path';
 
 import { TimedOut } from './lib/budget.mjs';
 import { Refusal } from './lib/cli.mjs';
-import { CONFIG_FILE, findRoot, loadConfig, workTreeRoot } from './lib/config.mjs';
-import { oneLine } from './lib/doctor/repo.mjs';
+import { openConfig } from './lib/command.mjs';
 import { kindOf, linkOnPath } from './lib/init/files.mjs';
 import { messages } from './lib/messages.mjs';
 import { declaredPacks } from './lib/packs/registry.mjs';
@@ -47,19 +46,6 @@ function readArgs(argv) {
     extras.push(splitDoc(value));
   }
   return extras;
-}
-
-/** `{ root, config }`: the config found as doctor finds it, loaded. */
-function openConfig(cwd) {
-  const top = workTreeRoot(cwd);
-  const root = findRoot(cwd, { stopAt: top ?? undefined });
-  if (!root) throw new Refusal(m.noConfig(cwd));
-  try {
-    return { root, config: loadConfig(root) };
-  } catch (err) {
-    const line = oneLine(err.message);
-    throw new Refusal(m.configInvalid(line.startsWith(`${CONFIG_FILE}:`) ? line.slice(CONFIG_FILE.length + 1).trim() : line));
-  }
 }
 
 /** `rel` normalised, or null when it leaves the root (absolute, `..`, the root itself). */
@@ -98,7 +84,7 @@ function extraDocs(root, extras) {
 
 /** The Workflow's args for the repo at `cwd`; refuses a duplicate path or an empty list. */
 export function auditArgs(cwd, extras) {
-  const { root, config } = openConfig(cwd);
+  const { root, config } = openConfig(cwd, m);
   const docs = [...packDocs(root, config), ...extraDocs(root, extras)];
   if (!docs.length) throw new Refusal(m.nothing);
   const seen = new Set();

@@ -15,6 +15,7 @@ const COMMANDS = {
   bundle: () => import('./bundle.mjs'),
   standards: () => import('./standards.mjs'),
   audit: () => import('./audit.mjs'),
+  packs: () => import('./packs.mjs'),
 };
 
 /** Run `cookwright <command> …`; an unknown or missing command → the usage, exit 2. */

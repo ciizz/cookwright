@@ -42,7 +42,15 @@ export const RATCHET_CHECK = deepFreeze({ name: 'standards', run: 'npx cookwrigh
 export function packDefaults(names) {
   // An unknown or repeated name contributes nothing: the validator refuses it.
   const manifests = [...new Set(names)].filter((n) => Object.hasOwn(PACKS, n)).map((n) => PACKS[n]);
-  const of = (measure) => manifests.flatMap((mf) => mf.rules.filter((r) => r.measure === measure));
+  return defaultsOf(manifests.flatMap((mf) => mf.rules));
+}
+
+/**
+ * `{ docSync, gate }` of `rules`, in order, as packDefaults builds them: what
+ * `npx cookwright packs rules` prints for the declared packs' active rules.
+ */
+export function defaultsOf(rules) {
+  const of = (measure) => rules.filter((r) => r.measure === measure);
   const ratchet = of('eslint').length ? [RATCHET_CHECK] : [];
   return structuredClone({ docSync: of('doc-sync').map((r) => r.docSync), gate: [...ratchet, ...of('gate').map((r) => r.gate)] });
 }

@@ -26,6 +26,7 @@ const SCANNED = [
   'src/hook.mjs',
   'src/standards.mjs',
   'src/audit.mjs',
+  'src/packs.mjs',
   'src/migrate.mjs',
   'src/lib/cli.mjs',
   'src/lib/init',

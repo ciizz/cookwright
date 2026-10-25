@@ -606,6 +606,15 @@ const audit = {
   nothing: `nothing to audit: no pack is declared in ${CONFIG_FILE} and no --doc was given`,
 };
 
+// packs: `npx cookwright packs rules`, the declared packs' doc-sync rules and gate checks (disposition 35).
+const packs = {
+  usage: `usage: ${CLI} packs rules`,
+  refused: (detail) => `packs: ${detail}`,
+  noConfig: (cwd) => `no ${CONFIG_FILE} at or above ${cwd}; ${RUN_INIT}`,
+  configInvalid: (detail) => `${CONFIG_FILE} invalid: ${detail}; run ${CLI} doctor`,
+  none: `no pack declared in ${CONFIG_FILE} (packs is empty; the setup skill offers the ones your tree shows)`,
+};
+
 export const messages = {
   // the bin
   usage: (commands) => `usage: ${CLI} <${commands.join('|')}> …`,
@@ -648,4 +657,5 @@ export const messages = {
   hook,
   standards,
   audit,
+  packs,
 };

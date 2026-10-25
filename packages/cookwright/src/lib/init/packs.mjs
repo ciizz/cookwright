@@ -67,7 +67,7 @@ function isModule(root, rel) {
 /** The row naming, by hand, the lines that wire `missing` into the config `rel`, in its module system. */
 function byHand(root, rel, missing) {
   if (!isModule(root, rel)) return row(SKIPPED, rel, m.eslint.other(missing.map((mf) => spreadLine(mf).trim())));
-  const imports = missing.map((mf) => `import ${bindingOf(mf)} from '${exportOf(mf)}';`);
+  const imports = missing.map((mf) => m.eslint.importLine(bindingOf(mf), exportOf(mf)));
   return row(SKIPPED, rel, m.eslint.otherModule(imports, missing.map((mf) => `...${bindingOf(mf)},`)));
 }
 

@@ -194,6 +194,7 @@ const doctor = {
       ruleDiffers: (rule, doc) =>
         `the doc-sync rule ${rule} is not the pack's, so a change to the code may go without ${doc} (the setup skill offers the pack's rule; a rule of your own goes under another name)`,
       ok: (n, kind, doc) => `${counted(n, kind)}, ${n} documented in ${doc}`,
+      unreadable: (kind, dir, code) => `${ENTRY_NOUNS[kind][1]} not counted: ${dir} could not be read (${code})`,
       omitted: (names, n, kind, doc) =>
         `${names.length} of ${counted(n, kind)} ${names.length === 1 ? 'has' : 'have'} no entry in ${doc}: ${shown(names)}`,
     },

@@ -81,6 +81,21 @@ describe('listComponents', () => {
   });
 });
 
+describe('an unreadable directory', () => {
+  // root reads any directory, so the case only exists for another user.
+  it.skipIf(process.getuid?.() === 0)('throws, never lists it as empty', () => {
+    const root = tree({ 'components/Button.tsx': '', 'supabase/migrations/20261025120000_init.sql': '' });
+    const dirs = ['components', 'supabase/migrations'].map((rel) => path.join(root, rel));
+    dirs.forEach((dir) => fs.chmodSync(dir, 0o000));
+    try {
+      expect(() => listComponents(root, ['components'])).toThrow(expect.objectContaining({ code: 'EACCES' }));
+      expect(() => listMigrations(root, ['supabase/migrations'])).toThrow(expect.objectContaining({ code: 'EACCES' }));
+    } finally {
+      dirs.forEach((dir) => fs.chmodSync(dir, 0o755));
+    }
+  });
+});
+
 describe('listMigrations', () => {
   it('lists the files named <14 digits>_<name>.sql directly under the directory, by file name', () => {
     const root = tree({

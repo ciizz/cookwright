@@ -13,7 +13,7 @@ import { LISTERS, tableKeys } from '../packs/entries.mjs';
 import { ADVISORY, declaredPacks } from '../packs/registry.mjs';
 import { renderSection } from '../packs/section.mjs';
 import { RULES_FILE, blockState, packKind } from '../rules/block.mjs';
-import { FAIL, PASS, WARN, fail, pass, warn } from '../verdict.mjs';
+import { FAIL, PASS, SKIP, WARN, fail, pass, skip, warn } from '../verdict.mjs';
 import { isFile, readLF } from './repo.mjs';
 
 const m = messages.doctor;
@@ -86,24 +86,43 @@ function ruleProblem(repo, pack, doc) {
   return sameSet(configured.code, code) && sameSet(configured.docs, docs) ? null : m.pack.docs.ruleDiffers(name, doc.path);
 }
 
+/**
+ * A contract doc whose code directory could not be read: the count is not measured,
+ * so SKIP, or WARN beside a problem that was; the directory is named root-relative.
+ */
+function uncounted(repo, doc, err, problems) {
+  const where = err.path ? path.relative(repo.root, err.path) : doc.code.join(', ');
+  const note = [...problems, m.pack.docs.unreadable(doc.entries, where, err.code ?? String(err.message))].join('; ');
+  return problems.length ? warn(note) : skip(note);
+}
+
 /** `{ status, note }` of one contract doc: present, tied by its rule, every entry listed. */
 function docVerdict(repo, pack, doc) {
   const abs = path.join(repo.root, doc.path);
   const present = isFile(abs);
   const problems = [present ? null : m.pack.docs.missing(doc.path), ruleProblem(repo, pack, doc)].filter(Boolean);
   if (!present) return warn(problems.join('; '));
-  const entries = LISTERS[doc.entries](repo.root, doc.code);
+  let entries;
+  try {
+    entries = LISTERS[doc.entries](repo.root, doc.code);
+  } catch (err) {
+    return uncounted(repo, doc, err, problems);
+  }
   const keys = tableKeys(fs.readFileSync(abs, 'utf8'));
   const omitted = entries.filter((e) => !keys.has(e));
   if (omitted.length) problems.push(m.pack.docs.omitted(omitted, entries.length, doc.entries, doc.path));
   return problems.length ? warn(problems.join('; ')) : pass(m.pack.docs.ok(entries.length, doc.entries, doc.path));
 }
 
-/** `pack.<name>.docs`: each contract doc's verdict; any WARN makes the row WARN (disposition 11, never FAIL). */
+/**
+ * `pack.<name>.docs`: each contract doc's verdict; any WARN makes the row WARN, else
+ * any SKIP makes it SKIP (disposition 11, never FAIL).
+ */
 function checkDocs(repo, pack) {
   const verdicts = pack.manifest.docs.map((doc) => docVerdict(repo, pack, doc));
-  const status = verdicts.some((v) => v.status === WARN) ? WARN : PASS;
-  const shown = status === PASS ? verdicts : verdicts.filter((v) => v.status === WARN);
+  const has = (st) => verdicts.some((v) => v.status === st);
+  const status = has(WARN) ? WARN : has(SKIP) ? SKIP : PASS;
+  const shown = status === PASS ? verdicts : verdicts.filter((v) => v.status !== PASS);
   return { status, note: shown.map((v) => v.note).join('; ') };
 }
 

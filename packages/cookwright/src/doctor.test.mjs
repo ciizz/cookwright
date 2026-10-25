@@ -989,6 +989,23 @@ describe('packs and the pack rows', () => {
       note: '1 of 2 migrations has no entry in docs/data-model.md: 20261025130000_todos.sql',
     });
   });
+
+  it.skipIf(process.getuid?.() === 0)('SKIPs the count of a code directory it cannot read, never a measured 0', () => {
+    const root = packed(['expo'], { 'src/components/Button.tsx': '' });
+    const dir = path.join(root, 'src/components');
+    fs.chmodSync(dir, 0o000);
+    try {
+      expect(doctor(root)['pack.expo.docs']).toEqual({
+        status: 'SKIP',
+        note: m.pack.docs.unreadable('components', 'src/components', 'EACCES'),
+      });
+    } finally {
+      fs.chmodSync(dir, 0o755);
+    }
+    expect(m.pack.docs.unreadable('components', 'src/components', 'EACCES')).toBe(
+      'primitives not counted: src/components could not be read (EACCES)',
+    );
+  });
 });
 
 describe('repo.node_modules', () => {

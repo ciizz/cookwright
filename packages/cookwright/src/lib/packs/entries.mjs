@@ -5,7 +5,8 @@
 // Two listers, by the manifest doc's `entries`: `components`, the primitives under
 // each `code` directory; `migrations`, the migration files under it. Each reads its
 // directory and, for components, one level below: no walk, no subprocess. A
-// directory that does not exist lists nothing (the blank scaffold). The table-cell
+// directory that does not exist lists nothing (the blank scaffold); one that cannot
+// be read throws, and the row says it could not count. The table-cell
 // reader takes the first cell of every body row of every table in the doc.
 
 import fs from 'node:fs';
@@ -19,12 +20,16 @@ const INDEX = /^index(\.(ios|android|native|web))?\.(tsx|jsx)$/;
 // A component's companion files, never a primitive of their own.
 const COMPANION = /\.(test|stories|styles|types)\./;
 
-/** The entries of `dir`, or none when it is absent or not a directory. */
+/**
+ * The entries of `dir`, or none when it is absent or not a directory. Any other
+ * error (EACCES, EIO) throws: an unreadable directory is not an empty one.
+ */
 function dirents(dir) {
   try {
     return fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return [];
+  } catch (err) {
+    if (err.code === 'ENOENT' || err.code === 'ENOTDIR') return [];
+    throw err;
   }
 }
 

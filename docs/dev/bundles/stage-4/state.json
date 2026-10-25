@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 172,
+  "revision": 181,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -359,9 +359,26 @@
     },
     {
       "name": "review:surface",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T23:06:01.372Z",
+          "stateRevision": 172,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_46d4e6a6-49f",
+          "endedAt": "2026-10-25T23:12:40.126Z",
+          "turnOutputTokens": 497072
+        }
+      ],
+      "startCommit": "6f29a68151675c6006795e64210ddcd2f53f8301",
+      "range": {
+        "from": "eda3bc4dd8950aa67468c7e8e4a41361d62426d4",
+        "to": "6f29a68151675c6006795e64210ddcd2f53f8301"
+      },
+      "endCommit": "6f29a68151675c6006795e64210ddcd2f53f8301",
+      "endCode": "c5de2b3ecadbfed3091ca61ad29479c4b185ba2e"
     },
     {
       "name": "fix:surface",
@@ -642,6 +659,24 @@
       "at": "2026-10-25T22:00:26.475Z",
       "stored": true,
       "head": "f09b6a1166518efcd447a3b86161ae54a905b783"
+    },
+    {
+      "phase": "review:surface",
+      "path": "docs/dev/bundles/stage-4/findings/review-surface-1.json",
+      "counts": {
+        "confirmed": 8,
+        "plausible": 1,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 5,
+        "P3": 4
+      },
+      "at": "2026-10-25T23:12:02.763Z",
+      "stored": true,
+      "head": "6f29a68151675c6006795e64210ddcd2f53f8301"
     }
   ],
   "reports": [
@@ -1435,6 +1470,41 @@
       "actor": "orchestrator",
       "source": "implement:s7 dogfood",
       "text": "This repo's setup doc-sync rule gained ':!*.test.mjs' beside the two pack specs plan §7.4 named, mirroring the playbook rule so a test-only change never demands a guide edit; verified over the bundle's range. Accepted beyond the plan's letter.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:12:37.806Z",
+      "actor": "orchestrator",
+      "source": "review:surface finding 0",
+      "text": "Fix in fix:surface (rule 3): audit args prints paths relative to the work tree's top, where a Claude Code session runs, and the docs-audit skill says the Workflow runs from the top; a nested-config test covers it; E-043 closes with the fix.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:12:38.220Z",
+      "actor": "orchestrator",
+      "source": "review:surface finding 1",
+      "text": "Fix in fix:surface (rule 1): audit args detects a doc listed twice by real path and by device and inode after refusing links, so one physical file never gets two auditors on a case-insensitive filesystem or through a hard link; tested with a hard link, the case alias where the filesystem allows it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:12:38.666Z",
+      "actor": "orchestrator",
+      "source": "review:surface findings 2 and 5",
+      "text": "Fix in fix:surface: the setup skill commits the fill by path on docs/fill-<doc>, with consent, before the handoff; the docs-audit skill runs on the current branch when it is clean and not the base branch, and cuts docs-audit/<date> from the named branch otherwise; skills.test.mjs ties the two texts (the handoff sentence and the precondition).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:12:39.073Z",
+      "actor": "orchestrator",
+      "source": "review:surface finding 6",
+      "text": "Fix in fix:surface (rule 2: a WARN the developer cannot clear is a bug): the no-config lint row splits per pack; for pack.expo.lint the remedy stays npx expo lint; for pack.supabase.lint on an app without Expo the remedy writes, with consent, a minimal flat eslint.config.js spreading the supabase export and names the parser a TypeScript app needs, then npx cookwright init.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:12:39.527Z",
+      "actor": "orchestrator",
+      "source": "review:surface findings 3, 4, 7, 8",
+      "text": "Fixed in fix:surface as cheap P3s: this repo's cookwright.json gains a doc-sync rule tying src/audit.mjs, src/packs.mjs, src/lib/command.mjs and skills/docs-audit/SKILL.md to docs/guides/standards.md; README's 'nothing is copied' narrows to scripts and names the starter contract docs the user owns; the docs-audit branch command takes its start point and a suffix when the name exists; the guide's ratchet example quotes the real line shape with the pack prefix on every rule.",
       "claim": true
     }
   ],

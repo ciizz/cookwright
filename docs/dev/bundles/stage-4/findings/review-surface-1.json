@@ -1,0 +1,181 @@
+{
+  "phase": "review:surface",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/audit.mjs",
+      "location": "lines 85-95; also hosts/claude/workflows/docs-audit.js:114-115",
+      "problem": "audit args emits config-root-relative paths, while the Workflow resolves them from its launch directory.",
+      "severity": "P2",
+      "suggested_fix": "Emit worktree-top-relative paths, or pass the config root explicitly and make the Workflow resolve every path against it. Add a nested-config integration test.",
+      "failure_scenario": "With cookwright.json under apps/mobile/ but the Workflow launched at the worktree root, docs/design-system.md refers to the root document or no file instead of apps/mobile/docs/design-system.md, so an audit can edit the wrong doc. Acknowledged as E-043 but remains a correctness defect.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "audit.mjs:85-95 builds docs from openConfig root (lib/command.mjs:10-15, findRoot below the work-tree top) and emits root-relative paths. docs-audit.js:114-115 tells the agents the repo is the launch cwd and to use relative paths. The docs-audit skill does not tell the user to launch from the config root (grep found nothing). With cookwright.json under a subdirectory and the Workflow launched at the work-tree top, the paths resolve wrongly. Already logged as E-043 in docs/dev/backlog.md:44, so it is a known gap, not new."
+    },
+    {
+      "file": "packages/cookwright/src/audit.mjs",
+      "location": "lines 90-94",
+      "problem": "Duplicate detection compares only normalized path strings, so it does not ensure one physical file per auditor.",
+      "severity": "P2",
+      "suggested_fix": "Detect duplicates by canonical real path and/or device/inode after rejecting symlinks. Test case aliases where supported and hard-linked aliases everywhere.",
+      "failure_scenario": "On case-insensitive macOS, docs/design-system.md and DOCS/DESIGN-SYSTEM.md name the same file but pass the Set check (hard links likewise); the Workflow then launches two parallel writers on one file, risking lost or conflicting edits.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "plausible",
+      "evidence": "audit.mjs:90-94 dedupes only on posix-normalized path strings (inside() at the same file), and checkDoc/kindOf/linkOnPath do not compare realpath or inode. So docs/x.md and DOCS/X.md pass on a case-insensitive filesystem, and so do hard links. I did not run it on macOS. The scenario needs the user or a pack manifest to name one file two ways, which is unlikely but possible. Not refuted."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "lines 185-190; conflicts with skills/docs-audit/SKILL.md:12,18",
+      "problem": "Setup edits a contract doc and immediately says to run docs-audit, but docs-audit requires a completely clean tree.",
+      "severity": "P2",
+      "suggested_fix": "Define a clean handoff: isolate and commit the initial fill by named paths with consent, then run the audit from that commit; or give the audit an explicit pre-filled-doc mode with a known baseline. Add a test or lint assertion tying these skill preconditions together.",
+      "failure_scenario": "After setup fills missing rows, possibly alongside uncommitted config/init changes, the audit skill stops at its first step because the tree is dirty; the promised semantic verification never runs.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "setup/SKILL.md:188 has the fill left uncommitted and then says to run docs-audit. docs-audit/SKILL.md:12 says never on a dirty tree, and step 1 (line 18) stops on any non-empty `git status --porcelain`. The only commit step in setup is the final 'commit by path' at line 190, which comes after the audit is promised."
+    },
+    {
+      "file": "cookwright.json",
+      "location": "lines 42-52",
+      "problem": "The widened doc-sync rule covers pack manifests and src/lib/packs/*, but not src/audit.mjs, src/packs.mjs, src/lib/command.mjs, or skills/docs-audit/SKILL.md, though their behavior is documented in docs/guides/standards.md.",
+      "severity": "P3",
+      "suggested_fix": "Add a focused standards or docs-audit doc-sync rule linking these files to the relevant guides.",
+      "failure_scenario": "A later change to audit args, packs rules, path validation, or the audit procedure can commit without updating the guide, defeating the doc-sync policy.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "cookwright.json:42-52 (setup rule code globs) lists only setup/SKILL.md, agents-block.md, packs/**, src/lib/packs/*, and :!*.test.mjs. The only other rule (playbook) covers bundle files. No rule matches packages/cookwright/src/audit.mjs, src/packs.mjs, src/lib/command.mjs or skills/docs-audit/SKILL.md. docs/guides/standards.md:57 documents `audit args` behavior (refusals, symlink and duplicate checks, the docs-audit skill), and line 29 documents the semantic audit. A change to those files can therefore commit without the guide. The plan (docs/dev/bundles/stage-4/plan.md item 43) scoped the specs to packs/** and src/lib/packs/* only, so the gap is a coverage omission, not a bug in the globs as written."
+    },
+    {
+      "file": "README.md",
+      "location": "line 44",
+      "problem": "\"Nothing is copied into your repo\" is no longer accurate: pack contract docs are materialized from shipped templates and become user-owned files.",
+      "severity": "P3",
+      "suggested_fix": "Narrow the claim to executable logic/scripts being imported; state that config, managed sections, shims and initial contract-doc templates are materialized into the repo.",
+      "failure_scenario": "A user expects a package update to refresh docs/design-system.md or docs/data-model.md, but those files remain unchanged by design.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "README.md:44 says \"Nothing is copied into your repo\", listing only cookwright.json, shims and symlinks. docs/guides/standards.md:53 says init writes docs/design-system.md (expo) and docs/data-model.md (supabase) when absent, each a header and an empty table. Those are real files in the user's repo, so the README sentence is inaccurate. The doc is user-owned, and a package update does not refresh it. Impact is low: AGENTS.md's \"Scripts are imported, not copied\" rule covers scripts only, and the README's \"changes the behaviour\" claim still holds. The fix is a wording change, for example \"no script is copied; init writes config, shims, links and starter contract docs you own\". I did not check the template source in packages/cookwright."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "line 188 (At the end, 'Filling a contract doc'), against packages/cookwright/skills/docs-audit/SKILL.md steps 1-2",
+      "problem": "The setup skill fills the contract doc on `docs/fill-<doc>` and leaves the fill uncommitted: the walkthrough only names files for the developer to commit at the very end. It then says to run the docs-audit skill 'on that branch to verify the fill'. The docs-audit skill cannot do that. Its step 1 stops on any dirty tree, and its step 2 always creates a new `docs-audit/<date>` branch. The flow from plan disposition 16 (fill on a branch, then the docs-audit verifies it) is written as two skills that cannot be chained.",
+      "severity": "P2",
+      "suggested_fix": "In the setup skill, commit the fill by path on `docs/fill-<doc>` (with consent) before handing off. Then do one of two things: let the docs-audit skill accept the current non-base branch when its tree is clean, instead of always creating `docs-audit/<date>`, or say plainly that the audit runs on its own branch cut from the fill branch. Add a skills.test assertion that ties the two texts together.",
+      "failure_scenario": "An existing Expo app has `pack.expo.docs` WARN `3 of 12 primitives have no entry in docs/design-system.md`. /setup offers the fill, the developer consents, and the agent runs `git checkout -b docs/fill-design-system`, adds 12 rows and runs doctor until PASS. With docs/design-system.md modified and uncommitted, it then invokes /docs-audit. Step 1 (`git status --porcelain` prints nothing) fails, so the skill names the dirty file and stops. The promised verification never runs. If the agent committed first, step 2 would still fork a new branch instead of auditing 'on that branch'.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "setup/SKILL.md:188 says to run docs-audit 'on that branch' with the fill uncommitted. docs-audit/SKILL.md step 1 stops on a dirty tree. Even if the agent committed first, step 2 runs `git checkout -b docs-audit/<date>`, which forks a new branch rather than auditing on docs/fill-*. The two skills cannot be chained as written."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "line 160 (pack.expo.lint / pack.supabase.lint WARN 'not measured; no ESLint config (eslint.config.js); …')",
+      "problem": "The remedy for the no-config note is 'the command the line names … (`npm install --save-dev eslint`), then `npx cookwright init`'. For the supabase pack without Expo, neither command writes an eslint.config.* file. eslintConfigStep reports `no ESLint config` and leaves it, and doctor shows the same WARN again. So the recipe cannot clear the line it is written for. The skill's loop stops at 'a line its remedy did not clear' and gives the developer no actionable next step.",
+      "severity": "P2",
+      "suggested_fix": "Split the row. For `pack.expo.lint` keep `npx expo lint`. For `pack.supabase.lint` with no config file, the remedy should create a minimal flat config with consent: an `eslint.config.js` exporting `[...require('cookwright/packs/supabase/eslint.cjs')]` plus the app's parser, or `npm init @eslint/config`. Better still, change `messages.doctor.pack.lint.noConfig` for packs whose setup line installs only ESLint, so the note names a step that writes the file.",
+      "failure_scenario": "A React Native CLI or web app has supabase/config.toml and no ESLint. The fresh init declares `supabase`. Doctor shows `pack.supabase.lint WARN not measured; npm install --save-dev eslint installs ESLint`. /setup runs the install, and doctor then shows `not measured; no ESLint config (eslint.config.js); npm install --save-dev eslint sets ESLint up, then run npx cookwright init`. The same row's remedy reruns the install and init, init reports `skipped eslint.config.js no ESLint config`, and the WARN is unchanged. The supabase `client` rule stays unmeasured, and no step in the skill clears it.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "setup/SKILL.md:160 gives the remedy as the named command then `npx cookwright init`. For supabase, packs/supabase/pack.mjs:53 sets setup.eslint to `npm install --save-dev eslint`, which creates no config file. src/lib/init/packs.mjs:107-115 (eslintConfigStep) only transforms an existing config. When none exists it returns a SKIPPED row ('none') and writes nothing. src/lib/doctor/packs.mjs:171 then emits the noConfig WARN again (messages.mjs:208). Expo's `npx expo lint` can scaffold a config, but the supabase-only path has no remedy that clears the line."
+    },
+    {
+      "file": "packages/cookwright/skills/docs-audit/SKILL.md",
+      "location": "line 19 (step 2)",
+      "problem": "Step 2 says to branch 'from the branch the developer names (the base branch by default)', but the command it gives, `git checkout -b docs-audit/<YYYY-MM-DD>`, has no start point. It always forks from the current HEAD. It also fails when a branch of that name already exists, for example a second audit on the same day.",
+      "severity": "P3",
+      "suggested_fix": "Use `git checkout -b docs-audit/<YYYY-MM-DD> <branch>` with the named branch (default `baseBranch` from cookwright.json), and add a suffix when the name already exists.",
+      "failure_scenario": "The developer is on `feature/x` and asks for an audit against the default base. The skill runs `git checkout -b docs-audit/2026-10-26`, so the audit branch carries feature/x's unmerged commits. The audit diff merged later drags them along, or it audits docs against code that is not on main. A second audit the same day fails at `git checkout -b` because the branch already exists.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/skills/docs-audit/SKILL.md:19 gives `git checkout -b docs-audit/<YYYY-MM-DD>` with no start point, so it forks from the current HEAD whatever branch the developer names. Step 1 (line 18) only checks that the tree is clean, and no step checks out or names the base. A developer on feature/x therefore gets an audit branch that carries feature/x's commits. `checkout -b` also fails when docs-audit/<date> already exists, so a second audit on the same day hits that error. Nothing in the Rules (lines 12-15) or later steps handles either case."
+    },
+    {
+      "file": "docs/guides/standards.md",
+      "location": "'The command' section, the ratchet's first line example",
+      "problem": "The example gate line `expo strings 412 → 410, tokens 3 → 3; …` drops the pack prefix on the second rule. `messages.standards.change(key, …)` prints each rule under its pack key, `expo tokens 3 → 3`, as the hooks guide's fixture output shows (`expo strings 0 → 1, expo tokens 0 → 1`). The guide's example is not what the gate records.",
+      "severity": "P3",
+      "suggested_fix": "Change the example to `expo strings 412 → 410, expo tokens 3 → 3; …`, or quote a real ratchet line from the fixture run.",
+      "failure_scenario": "A developer greps the bundle state or landing check for `tokens 3 → 3` as the guide shows it. The text found is `expo tokens 3 → 3`, so the guide reads as describing another format.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "confirmed",
+      "evidence": "docs/guides/standards.md:45 shows `expo strings 412 → 410, tokens 3 → 3`. In packages/cookwright/src/standards.mjs:164 the ratchet line is built as `m.ratchet(sums.map(c => m.change(c.key, c.from, c.to)), …)`. sumsOf (standards.mjs:138-145) takes `key` from ctx.measured, the full pack-qualified key. messages.mjs:555 formats `${key} ${from} → ${to}` and messages.mjs:586 joins the changes with `list(changes)`. Each rule therefore carries its own pack prefix, giving `expo strings 412 → 410, expo tokens 3 → 3`. The pack-qualified form matches docs/guides/hooks-and-escapes.md:33 and scripts/ci/fixture.sh:276,316 (`expo strings 0 → 1, expo tokens 0 → 1`). The guide's second-rule format is not what the gate records. The impact is minor: it is a doc example only, and a leading `standards:` prefix may differ too."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "Read CHARTER.md, the Stage 4 plan, and repository rules",
+    "Ran doctor: 19 PASS, 0 FAIL/WARN/SKIP",
+    "Inspected all 11 commits and the complete 32-file range",
+    "Reviewed new CLI commands, shared config loader, manifests, skills, Workflow prompt, guides, fixture changes, backlog/state updates, tests",
+    "Checked dependency/package surface, copied-script policy, optional-tool behavior, centralized CLI strings, function sizes, secrets/private paths, symlinks, doc sync, whitespace errors",
+    "git diff --check passed; no private path or secret-like addition found",
+    "AGENTS.md, CLAUDE.md, playbook Reviewer role and Prompt header, plan.md (all sections), state.json review:surface entry",
+    "git diff eda3bc4..6f29a68: audit.mjs, packs.mjs, command.mjs, registry.mjs defaultsOf, doctor/packs.mjs packRowNames, hosts.mjs SKILLS, messages.mjs, cli-main, tests (audit, packs, skills, init, cli-main)",
+    "setup SKILL.md new rows and end pass against doctor/packs.mjs and messages.doctor.pack.* texts",
+    "docs-audit SKILL.md against hosts/claude/workflows/docs-audit.js args contract",
+    "bundle-phase.js redTeam() sentence vs plan §4.8 text and playbook line (doc-sync rule 'playbook' honoured in 07de2db)",
+    "this repo's cookwright.json v3, setup doc-sync rule pathspecs (verified with git diff), per-commit staging against doc-sync rules",
+    "README, AGENTS.md Layout, getting-started, hooks-and-escapes, standards, updating, codex guides vs messages.mjs and init/doctor code (types shape, exit codes, 60 s cap, row counts, migrate lines)",
+    "backlog closures/openings vs plan §9",
+    "fixture.sh audit_args step and paths",
+    "npm pack --dry-run: packs/ shipped, src/test-fixtures and tests excluded",
+    "scan of diff for local paths/credentials: none",
+    "ran vitest on audit, packs, skills tests: 130 passed",
+    "Advisory-rule check: the diff touches no UI primitives or app components (harness code and docs only), and this repo declares no pack and has no ### Advisory section in its rules file, so no advisory findings apply"
+  ],
+  "notes": "Codex ran to completion within the ceiling (18 shell commands, no repo changes); no resume needed. Targeted tests could not run in Codex's read-only sandbox (Vitest could not create node_modules/.vite-temp); committed gate records report 730 passing tests. Full output at <local path> (session 01a17550-bb13-7fb1-8ee7-75d882c3ff83).\n---\nThe surface slice delivers what plan §4.8 and s7 promised: audit args, packs rules, the setup recipe rows tied by skills.test, the docs-audit skill and SKILLS entry, the red-team sentence plus playbook line, the guides, README, AGENTS.md, the dogfood to v3, and the backlog. I found no security or secret problems, and the new tests pass. Both P2s are setup and docs-audit skill flows that cannot reach their stated end state: the fill-then-audit handoff, and the supabase-only ESLint config. The nested-config-root path issue in audit args is already logged as E-043, so it is not re-raised. The E-039 closure text puts the packs' doc-sync rules in the end pass, but they are actually offered by the pack.<name>.docs row remedy. That is cosmetic and not raised.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a17550-bb13-7fb1-8ee7-75d882c3ff83",
+    "partialReportPath": null
+  }
+}

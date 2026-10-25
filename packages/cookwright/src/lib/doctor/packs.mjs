@@ -197,6 +197,17 @@ export const PACK_ROWS = Object.freeze({
 /** The row name of `pack`'s check `kind`: `pack.expo.rules`. */
 export const packRowName = (name, kind) => `pack.${name}.${kind}`;
 
+/**
+ * Every row name the packs of `packs` (the registry's table) can add, each pack
+ * declared with all its rules on: the inventory the setup skill's recipe covers.
+ */
+export const packRowNames = (packs) =>
+  Object.values(packs).flatMap((manifest) => {
+    const pack = { name: manifest.name, manifest, off: new Set() };
+    const kinds = Object.entries(PACK_ROWS).filter(([, row]) => !row.applies || row.applies(pack));
+    return kinds.map(([kind]) => packRowName(manifest.name, kind));
+  });
+
 /** `[name, run]` for every declared pack's rows, in `packs` order; none without a config. */
 export function packChecks(repo) {
   if (!repo.config) return [];

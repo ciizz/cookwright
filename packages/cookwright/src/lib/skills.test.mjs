@@ -10,9 +10,11 @@ import { describe, expect, it } from 'vitest';
 
 import { messages as bundleMessages } from './bundle/messages.mjs';
 import { newerVersion } from './config.mjs';
+import { packRowNames } from './doctor/packs.mjs';
 import { CHECKS } from './doctor/registry.mjs';
 import { PACKAGE_ROOT, SKILLS, SKILLS_DIR } from './hosts.mjs';
 import { messages } from './messages.mjs';
+import { PACKS } from './packs/registry.mjs';
 
 const root = path.join(PACKAGE_ROOT, SKILLS_DIR);
 const shipped = fs
@@ -55,6 +57,8 @@ describe('shipped skills', () => {
 
 const d = messages.doctor;
 const i = messages.init;
+const p = d.pack;
+const [i18next] = PACKS.expo.deps;
 
 /**
  * Each stable fragment the setup recipe matches a line by, beside the note it comes
@@ -122,6 +126,35 @@ const QUOTED = [
   ['not verified: ', d.levelNotVerified(0, ['tools.gitleaks'])],
   ['no pack declared; the setup skill offers it', d.packs.detected([{ name: 'expo', evidence: 'x' }])],
   ['node_modules is tracked (git rm -r --cached node_modules, then commit)', d.nodeModules.tracked],
+  ['pack section (run npx cookwright init)', p.rules.noFile('AGENTS.md', 'expo')],
+  ['pack section (run npx cookwright init)', p.rules.absent('AGENTS.md', 'expo')],
+  ["pack's section is stale (run npx cookwright init)", p.rules.stale('AGENTS.md', 'expo')],
+  ['is newer than this cookwright (update cookwright)', p.rules.newer('AGENTS.md', 'expo', 2)],
+  ["pack's section is malformed (", p.rules.malformed('AGENTS.md', 'expo', 'noEnd')],
+  ['; fix the markers by hand', p.rules.malformed('AGENTS.md', 'expo', 'twoBegins')],
+  ['switched off: ', p.rules.off(['size'])],
+  ['missing (run npx cookwright init)', p.docs.missing('docs/design-system.md')],
+  ['in hooks.docSync, so a change to the code never asks for', p.docs.noRule('expo:design-doc', 'docs/design-system.md')],
+  ["is not the pack's, so a change to the code may go without", p.docs.ruleDiffers('expo:design-doc', 'docs/design-system.md')],
+  ['have no entry in', p.docs.omitted(['Avatar', 'Chip'], 3, 'components', 'docs/design-system.md')],
+  ['has no entry in', p.docs.omitted(['Avatar'], 3, 'components', 'docs/design-system.md')],
+  ['not counted: ', p.docs.unreadable('components', 'src/components', 'EACCES')],
+  ['could not be read (', p.docs.unreadable('migrations', 'supabase/migrations', 'EACCES')],
+  ['not measured; ', p.lint.noEslint(PACKS.expo.setup.eslint)],
+  ['installs ESLint', p.lint.noEslint(PACKS.supabase.setup.eslint)],
+  [PACKS.expo.setup.eslint, p.lint.noEslint(PACKS.expo.setup.eslint)],
+  [PACKS.supabase.setup.eslint, p.lint.noConfig(PACKS.supabase.setup.eslint)],
+  ['not measured; no ESLint config (eslint.config.js); ', p.lint.noConfig(PACKS.expo.setup.eslint)],
+  ['is older than 9, and the standards need its flat config', p.lint.oldEslint('8.57.0')],
+  ['does not name ', p.lint.unnamed('eslint.config.js', 'cookwright/packs/expo/eslint.cjs', ['x'])],
+  ['(the setup skill does it with consent)', p.lint.unnamed('eslint.config.js', 'cookwright/packs/expo/eslint.cjs', ['x'])],
+  ['needs npm install --save-dev eslint-plugin-i18next (the strings rule)', p.lint.needs(i18next.install, i18next.reason)],
+  ['skipped, needs supabase (brew install supabase/tap/supabase)', p.types.needsCli],
+  ['no db:types script in package.json; add ', p.types.noScript('db:types')],
+  ["the db:types script is not the shape the gate's types check reads; use ", p.types.shape('db:types')],
+  ['the gate runs no types check; add ', p.types.noGate('{}')],
+  ['to gate.checks (npx cookwright packs rules prints it)', p.types.noGate('{}')],
+  ['measured by the gate against the local stack', p.types.ok('db:types', 'src/types/database.ts')],
   ['tracked env file(s): ', d.secrets.tracked(['.env'])],
   ['at the root: a plaintext env file', d.secrets.untracked(['.env'])],
   ['not ignored by git', d.secrets.notIgnored(['.env'])],
@@ -139,6 +172,17 @@ describe('the setup skill', () => {
 
   it('has a recipe for every check doctor runs', () => {
     for (const check of Object.keys(CHECKS)) expect(text).toContain(`\`${check}\``);
+  });
+
+  it("names every row a declared pack adds, so a pack's line never ends the walkthrough unnamed", () => {
+    const rows = packRowNames(PACKS);
+    expect(rows).toEqual(expect.arrayContaining(['pack.expo.lint', 'pack.supabase.types']));
+    for (const row of rows) expect(text).toContain(`\`${row}\``);
+  });
+
+  it('copies the pack defaults from npx cookwright packs rules, never retyped', () => {
+    expect(text).toContain('`npx cookwright packs rules`');
+    expect(text.slice(text.indexOf('## At the end'))).toContain('npx cookwright packs rules');
   });
 
   it.each(QUOTED)('quotes %j as the note doctor or init prints', (fragment, note) => {

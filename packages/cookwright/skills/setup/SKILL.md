@@ -138,7 +138,34 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 
 | status | note | remedy |
 |---|---|---|
-| WARN | `… detected (…), no pack declared; the setup skill offers it` (or `them`) | with consent, add the detected packs' names to `packs` in `cookwright.json` by hand (init never edits an existing config), then `npx cookwright init`, which writes each pack's section of `AGENTS.md` and its contract doc |
+| WARN | `… detected (…), no pack declared; the setup skill offers it` (or `them`) | with consent, add the detected packs' names to `packs` in `cookwright.json` by hand (init never edits an existing config), then `npx cookwright init`, which writes each pack's section of `AGENTS.md`, its contract doc and the `eslint.config.js` lines when that file is Expo's template; the pack's doc-sync rules and gate checks come from its own lines and "At the end" |
+
+### One declared pack's rows (`pack.<name>.…`)
+
+Each pack in `packs` adds its rows after the others: `pack.expo.declared`, `pack.expo.rules`, `pack.expo.docs`, `pack.expo.lint`; `pack.supabase.declared`, `pack.supabase.rules`, `pack.supabase.docs`, `pack.supabase.lint`, `pack.supabase.types`. A `.lint` row appears while one of the pack's ESLint rules is on, `pack.supabase.types` while its `types` rule is on. `pack.expo.declared` and `pack.supabase.declared` always read PASS, naming the pack's version and rules: nothing to do. A note can carry several of the parts below, joined by `; `: take each part as its own line.
+
+`npx cookwright packs rules` prints the declared packs' doc-sync rules and gate checks as JSON, `{ "docSync": […], "gate": […] }`. Where a remedy below writes one of them, copy the entry from that output into `hooks.docSync` or `gate.checks` of `cookwright.json` as printed, never retyped; an entry of the same name that is the developer's own is theirs to rename first.
+
+| check | status | note | remedy |
+|---|---|---|---|
+| `pack.expo.rules`, `pack.supabase.rules` | FAIL | `… pack section (run npx cookwright init)`, `… pack's section is stale (run npx cookwright init)` | `npx cookwright init` |
+| `pack.expo.rules`, `pack.supabase.rules` | WARN | `… pack's section v… is newer than this cookwright (update cookwright)` | ask first, then `npm install cookwright@latest` |
+| `pack.expo.rules`, `pack.supabase.rules` | FAIL | `… pack's section is malformed (…); fix the markers by hand` | show the reason; with consent, repair the markers by hand (init refuses a malformed section too) |
+| `pack.expo.rules`, `pack.supabase.rules` | WARN | `…; switched off: …` | **stop at**: a rule switched off in `packs` (`{ "name": "expo", "rules": { "size": false } }`) is a choice; say no check counts it, and that removing the switch, then `npx cookwright init`, brings it back |
+| `pack.expo.docs`, `pack.supabase.docs` | WARN | `… missing (run npx cookwright init)` | `npx cookwright init`, which writes the doc from the pack's template |
+| `pack.expo.docs`, `pack.supabase.docs` | WARN | `no doc-sync rule … in hooks.docSync, so a change to the code never asks for …` | with consent, add the rule of that name from `npx cookwright packs rules` to `hooks.docSync` |
+| `pack.expo.docs`, `pack.supabase.docs` | WARN | `the doc-sync rule … is not the pack's, so a change to the code may go without …` | show both; with consent, rename the developer's rule (it stays theirs under another name) and add the pack's from `npx cookwright packs rules`; declined → **stop at** |
+| `pack.expo.docs`, `pack.supabase.docs` | WARN | `… of … have no entry in …: …` (or `has no entry in`) | **stop at**: the doc lacks those entries; "At the end" offers to fill it |
+| `pack.expo.docs`, `pack.supabase.docs` | SKIP | `… not counted: … could not be read (…)` | **stop at**: show the line; the directory's permissions are the developer's |
+| `pack.expo.lint`, `pack.supabase.lint` | WARN | `not measured; … installs ESLint`, `not measured; no ESLint config (eslint.config.js); …` | ask first (it changes `package.json`), then the command the line names (`npx expo lint`, or `npm install --save-dev eslint`), then `npx cookwright init`, which adds the pack's lines to Expo's template |
+| `pack.expo.lint`, `pack.supabase.lint` | WARN | `not measured; the installed eslint … is older than 9, and the standards need its flat config` | **stop at**: moving the app to ESLint 9 is the developer's; the pack's ESLint rules measure nothing until then |
+| `pack.expo.lint`, `pack.supabase.lint` | WARN | `… does not name …; add … (the setup skill does it with consent)` | with consent, add the lines the note names to the config file it names, exactly as named: a `...require(…)` line goes in the exported array after the app's own config (after `expoConfig,` in Expo's), an `import` line at the top of an ES module config |
+| `pack.expo.lint` | WARN | `…; needs npm install --save-dev eslint-plugin-i18next (the strings rule)` | ask first (a new devDependency), then that command |
+| `pack.supabase.types` | SKIP | `skipped, needs supabase (brew install supabase/tap/supabase)` | give the install command, the developer's hands (on Linux and Windows, the Supabase CLI guide's), then doctor again; declined → **stop at** |
+| `pack.supabase.types` | WARN | `no db:types script in package.json; add …` | with consent, add the script the note names to `package.json`, with the path of the app's generated types file (ask for it) in place of `<path>` |
+| `pack.supabase.types` | WARN | `the db:types script is not the shape the gate's types check reads; use …` | show their script beside the accepted shape; with consent, rewrite it to that shape keeping its target path; declined → **stop at** |
+| `pack.supabase.types` | WARN | `the gate runs no types check; add … to gate.checks (npx cookwright packs rules prints it)` | with consent, add that entry from `npx cookwright packs rules` to `gate.checks` |
+| `pack.supabase.types` | PASS | `measured by the gate against the local stack` | at the end (see "At the end") |
 
 ### Doctor itself
 
@@ -154,5 +181,10 @@ With consent, add the host (`claude`, `codex`) to `hosts` in `cookwright.json` b
 ## At the end
 
 - Read the last readout's PASS lines once for the one that carries advice, and act on it when it is there: a Codex `host.hook` line reading `whether it is trusted is yours: restart Codex, then /hooks`, when init wrote or rewrote `.codex/hooks.json` in this walkthrough: say that Codex reads that file only at startup: restart Codex at the work tree's top, trust the hook there with `/hooks`, and the readout comes in the next new session; the same restart and trust again after every rewrite of that file.
+- A `pack.supabase.types` line reading `measured by the gate against the local stack`: say the gate's types check regenerates the types from the local Supabase stack, so it measures only while that stack runs (`supabase start`) and skips, naming why, otherwise.
+- With a pack declared, offer each of these in turn, each with consent, the developer free to decline any:
+  - **The gate checks.** Every `gate` entry of `npx cookwright packs rules` whose name is not in `gate.checks` (the `standards` ratchet among them), added as printed. Their exit 11 is "cannot measure", recorded as skipped (`skipExit`), never a failure.
+  - **Doc-sync rules from the tree.** A doc under `docs/` whose name matches a code directory (`docs/api.md` beside `src/api/`) is a candidate: show each, and add the ones the developer keeps to `hooks.docSync` under a name of theirs (never a pack's `expo:`/`supabase:` name), for instance `{ "name": "api", "code": ["src/api/**"], "docs": ["docs/api.md"] }`.
+  - **Filling a contract doc.** When a `pack.<name>.docs` line named entries missing from its doc, offer to fill it from the code: on a new branch (`git checkout -b docs/fill-<doc name>`, never on the base branch), add one row per primitive or migration that has none (the line shows the first few names; list them all from the code directory), each read from its file, in this session, then `npx cookwright doctor` until that line reads PASS. Then, when the `docs-audit` skill is installed, run it on that branch to verify the fill; otherwise say the diff is the developer's to review.
 - Print the level line and the `next:` line of the last readout. A level line reading `not verified: …` names the required checks that could not measure (a tool not on PATH, as their lines say): the level is not complete until they measure.
 - Name every file init, migrate or you wrote in this walkthrough, so the developer commits them by path (`git add <paths>`, never `-A`).

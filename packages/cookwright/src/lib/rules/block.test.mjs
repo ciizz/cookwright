@@ -6,11 +6,13 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULTS } from '../config.mjs';
 import { CLI } from '../messages.mjs';
 import {
+  CORE_KIND,
   END_MARKER,
   RULES_VERSION,
   beginMarker,
   blockState,
   hasImport,
+  packKind,
   renderBlock,
   renderTemplate,
 } from './block.mjs';
@@ -94,6 +96,53 @@ describe('blockState', () => {
 
   it('needs the markers on lines of their own', () => {
     expect(blockState(`see \`${beginMarker()}\` in the docs\n`, block).state).toBe('absent');
+  });
+});
+
+describe('kinds: the core block and a pack section in one file', () => {
+  const expo = packKind('expo');
+  const section = (body = 'expo rules', version = 1) => `${beginMarker(version, expo)}\n${body}\n${END_MARKER}`;
+  const both = `# My rules\n\n${block}\n\n${section()}\n\nmine\n`;
+
+  it('keeps the core markers byte for byte, the kind defaulting to the core', () => {
+    expect(CORE_KIND).toBe('rules');
+    expect(beginMarker()).toBe('<!-- cookwright:begin rules v3 -->');
+    expect(beginMarker(RULES_VERSION, CORE_KIND)).toBe(beginMarker());
+    expect(beginMarker(1, expo)).toBe('<!-- cookwright:begin pack expo v1 -->');
+    expect(blockState(both, block)).toEqual(blockState(both, block, CORE_KIND));
+  });
+
+  it('finds each block by its own marker, its span ending at its own end marker', () => {
+    const core = blockState(both, block);
+    expect(core.state).toBe('current');
+    expect(both.slice(core.start, core.end)).toBe(block);
+    const pack = blockState(both, section(), expo);
+    expect(pack).toMatchObject({ state: 'current', version: 1 });
+    expect(both.slice(pack.start, pack.end)).toBe(section());
+    // In either order.
+    const swapped = `${section()}\n\n${block}\n`;
+    expect(blockState(swapped, block).state).toBe('current');
+    expect(blockState(swapped, section(), expo).state).toBe('current');
+  });
+
+  it('reads a pack section absent, stale, newer and malformed on its own, the core untouched', () => {
+    expect(blockState(`${block}\n`, section(), expo)).toEqual({ state: 'absent' });
+    expect(blockState(both, section('edited'), expo).state).toBe('stale');
+    expect(blockState(both, section('expo rules', 2), expo)).toMatchObject({ state: 'stale', version: 1 });
+    expect(blockState(both, section('expo rules', 0), expo)).toMatchObject({ state: 'newer', version: 1 });
+    expect(blockState(`${both}\n${section()}\n`, section(), expo)).toEqual({ state: 'malformed', reason: 'twoBegins' });
+    expect(blockState(both, block).state).toBe('current');
+    // Another pack's section is not this one's.
+    expect(blockState(both, section(), packKind('supabase'))).toEqual({ state: 'absent' });
+  });
+
+  it('never lets a block missing its end take the next block’s', () => {
+    const coreOpen = `${beginMarker()}\nno end here\n\n${section()}\n`;
+    expect(blockState(coreOpen, block)).toEqual({ state: 'malformed', reason: 'noEnd' });
+    expect(blockState(coreOpen, section(), expo).state).toBe('current');
+    const packOpen = `${beginMarker(1, expo)}\nno end\n\n${block}\n`;
+    expect(blockState(packOpen, section(), expo)).toEqual({ state: 'malformed', reason: 'noEnd' });
+    expect(blockState(packOpen, block).state).toBe('current');
   });
 });
 

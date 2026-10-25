@@ -51,7 +51,6 @@ const ALLOWED = {
   'src/lib/doctor/hosts.mjs': ["'git ls-files'"], // the command a probe failure names
   'src/lib/probes.mjs': ['`git check-ignore ${rel}`', "'git check-ignore'"], // the command a probe failure names
   'src/lib/hooks/push.mjs': ["'git status'"], // the command a failure names
-  'src/lib/rules/block.mjs': ['`<!-- cookwright:begin rules v${version} -->`'], // the marker: content
   'src/lib/packs/registry.mjs': ["'npx cookwright standards --ratchet'"], // the gate command written into the config
 };
 

@@ -1,0 +1,419 @@
+{
+  "version": 1,
+  "revision": 30,
+  "slug": "stage-4",
+  "branch": "bundle/stage-4",
+  "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
+  "createdAt": "2026-10-25T18:11:46.742Z",
+  "plan": {
+    "path": "docs/dev/bundles/stage-4/plan.md",
+    "sha": "dc96313de741155f"
+  },
+  "slices": [
+    {
+      "id": "model",
+      "sessions": [
+        {
+          "id": "s1",
+          "scope": "plan §4.1, §4.2 (block kind, section render), §4.9 strings",
+          "checkpoints": [
+            "config version 3 with validation, migration 2→3 and schema tests",
+            "the two manifests and the pack registry",
+            "block.mjs kinds with the core block's bytes unchanged",
+            "the section renderer with tests"
+          ]
+        },
+        {
+          "id": "s2",
+          "scope": "plan §4.2 init step, §4.3 (templates, doc-sync defaults, gate entry in a fresh config), detection and --packs (§4.1 detect.mjs, disposition 14), fixture overlay and fixture.sh (dispositions 9, 18, 23, the version-3 line)",
+          "checkpoints": [
+            "init section and template steps with tests",
+            "fresh-config defaults: packs, doc-sync rules, the standards gate entry",
+            "detection and --packs on fresh and existing configs",
+            "the fixture green locally with the new rows asserted and the pinned ESLint versions"
+          ]
+        },
+        {
+          "id": "s3",
+          "scope": "plan §4.7 without .lint and .types: the packs row with detection (disposition 22), declared, rules and docs rows, the entries listers (§4.3); B-012; B-013 with disposition 17; B-011 last (disposition 15)",
+          "checkpoints": [
+            "the packs row and the per-pack declared, rules, docs rows with tests",
+            "B-012 WARN and B-013 level line with the readout tests and the fixture's level-line assertion",
+            "B-011: gitignore line and the repo.node_modules row"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "measure",
+      "sessions": [
+        {
+          "id": "s4",
+          "scope": "plan §4.4 (the two eslint.cjs exports), §4.5 runner (standards.mjs engine) and the pre-commit standards check",
+          "checkpoints": [
+            "packs/expo/eslint.cjs and packs/supabase/eslint.cjs with tests",
+            "the standards engine with the fake-ESLint seam, the mode filter and countBy",
+            "the pre-commit standards check with its lines, registered in the hook registry",
+            "the fixture's violating commit refused by standards"
+          ]
+        },
+        {
+          "id": "s5",
+          "scope": "plan §4.5 command and ratchet (disposition 20 base order, push.mjs env, gate exit 11 in gate.mjs and bundle messages), §4.6 types, the pack.<name>.lint and pack.supabase.types doctor rows (§4.7), init's eslint.config.js line (disposition 6)",
+          "checkpoints": [
+            "npx cookwright standards and --ratchet with tests for the three exits and the base order",
+            "the types measure and its doctor row",
+            "gate.mjs skip exit with noCheckRan notes",
+            "the lint doctor row",
+            "init's template edit, byte-tested against Expo's eslint.config.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "surface",
+      "sessions": [
+        {
+          "id": "s6",
+          "scope": "plan §4.8: setup skill rows and end pass (E-039, dispositions 16, 22), the docs-audit skill (E-003), audit args, packs rules, the review-prompt sentence in bundle-phase.js; skills.test.mjs",
+          "checkpoints": [
+            "setup skill recipe rows and end pass, tied by skills.test.mjs",
+            "the docs-audit skill and npx cookwright audit args with tests",
+            "npx cookwright packs rules",
+            "the advisory sentence in the red-team prompt"
+          ]
+        },
+        {
+          "id": "s7",
+          "scope": "plan §8 guides (docs/guides/standards.md, getting-started, hooks-and-escapes, updating), README, §7 dogfood of this repo, AGENTS.md Layout, package files (npm pack --dry-run), §9 backlog",
+          "checkpoints": [
+            "the standards guide and the three updated guides",
+            "README and AGENTS.md Layout",
+            "this repo at config version 3 with the setup doc-sync rule widened and the pointers refreshed",
+            "the backlog closures and openings, and npm pack --dry-run listing packs/"
+          ]
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "name": "plan-review",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s1",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s2",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s3",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:model",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:model",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s4",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s5",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:measure",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:measure",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s6",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s7",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:surface",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:surface",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "qa",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "closeout",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    }
+  ],
+  "gates": [],
+  "findings": [],
+  "reports": [],
+  "qaRounds": [],
+  "decisions": [
+    {
+      "at": "2026-10-25T18:12:36.778Z",
+      "actor": "developer",
+      "source": "kickoff 2026-10-25, decision 1",
+      "text": "Two packs, expo and supabase.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:37.282Z",
+      "actor": "developer",
+      "source": "kickoff 2026-10-25, decision 2",
+      "text": "The ratchet compares the files the branch changed; no whole-repo count through worktrees.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:38.323Z",
+      "actor": "developer",
+      "source": "kickoff 2026-10-25, decision 3",
+      "text": "eslint-plugin-i18next is the expo pack's dependency, installed into the user's repo with consent, never a dependency of cookwright (rule 9).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:39.105Z",
+      "actor": "developer",
+      "source": "plan review 2026-10-25",
+      "text": "Plan approved with four P2 amendments (dispositions 21-24) and the answer to the open question (disposition 25); dispositions 3, 4, 5, 7, 11, 17, 18, 19, 20 and the seven-session split accepted as planned.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:39.759Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 1",
+      "text": "Rule 3 (claim what was measured): the pack names its rules by what they measure, `strings`, `tokens`, `size`, `design-doc` (expo); `client`, `data-doc`, `types` (supabase); advisory `components-first`, `visual-contract`, `reuse-first`. The kickoff's example `{ \"rules\": { \"max-lines\": false } }` used an ESLint rule id; one ESLint id (`no-restricted-syntax`) carries two pack rules and a doc-sync rule has no ESLint id, so the switch is per pack rule: `{ \"name\": \"expo\", \"rules\": { \"size\": false } }`.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:40.232Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 2",
+      "text": "Rule 5 (derived state is never stored) and rule 3: the ratchet lints the base version of each changed file from `git show <base>:<path>` through ESLint's `lintText`, and the HEAD version from `git show HEAD:<path>`, so both sides are commits, never the tree. A blob absent on one side (a file added or deleted on the branch) counts 0 on that side. Nothing is written.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:40.940Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 3",
+      "text": "Rule 3: `pack.<name>.count` is not a doctor row. Doctor's budget is 1800 ms and ESLint needs 1.1 s to start (§1); a row that always reads SKIP claims nothing. The repo-wide count is `npx cookwright standards`, printed per rule; the gate runs `npx cookwright standards --ratchet`. The kickoff allowed the SKIP; this removes the row instead, so B-013's \"complete\" is not defeated by a standing SKIP.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:41.451Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 4",
+      "text": "Rule 1 (a harness problem never blocks) and rule 3: a gate check may now say it skipped after it started. `npx cookwright standards --ratchet` exits 11 with one line when it cannot measure, and `runCheck` in `gate.mjs` records exit 11 as `skipped` with that line, the way the hook's `FINDINGS_EXIT = 10` is a convention; `noCheckRan` carries the skip lines, so a fresh app whose only gate check skipped reads why. Any other non-zero exit stays a fail.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:41.890Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 5",
+      "text": "Rule 9 (every dependency asked first) and the no-npm rule of init: init never installs `eslint-plugin-i18next`. It reports `skipped  eslint-plugin-i18next  needs npm install --save-dev eslint-plugin-i18next (the strings rule)`, doctor's `pack.expo.lint` WARNs with the same line, and the setup skill runs the install with consent. The strings rule reads SKIP with the install line in the hook until then, never FAIL. The kickoff said \"init installs it with consent\"; init has no consent surface, the skill does.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:42.300Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 6",
+      "text": "Rule 4 (imported, never copied): the ESLint config is `require('cookwright/packs/expo/eslint.cjs')`, spread into the repo's `eslint.config.js`. Init writes that one line when the file is byte-equal to Expo's template (§1), inserting `...require('cookwright/packs/expo/eslint.cjs'),` after `expoConfig,`, with `--dry-run` as the preview; any other file is `skipped` naming the line, and doctor WARNs until the config names the export.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:42.737Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 7",
+      "text": "Rule 4 and the kickoff's E-039 path: the pack's two doc-sync rules are config, not logic, so they are written into `cookwright.json` with a pack-owned name (`expo:design-doc`, `supabase:data-doc`): by init into a fresh config, by the setup skill with consent into an existing one. Doctor's `pack.<name>.docs` reads a missing rule as WARN naming it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:43.137Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 8",
+      "text": "Rule 2 (a chosen state is WARN): a rule switched off reads WARN on `pack.<name>.rules` naming it; the sentence stays in the section marked \"(switched off)\"; no measurement counts it (hook, ratchet, doctor): the engine drops its findings in `countBy` and `wired` does not require it, so a user's own selector on the same ESLint id keeps working; the editor still shows the ESLint rule, which the guide says (disposition 24).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:43.574Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 9",
+      "text": "Rule 3: the fixture's scaffold has no ESLint, so a pack measured on it would measure nothing. The fixture installs `eslint`, `eslint-config-expo` and `eslint-plugin-i18next`, each pinned by exact version in `fixture.sh` (disposition 23), and supplies Expo's `eslint.config.js` template from the overlay; `supabase init`'s shape (`supabase/config.toml`, an empty `supabase/migrations/`) comes from the overlay too, since CI has no Supabase CLI. Both are the files a user has after the two commands the getting-started guide names.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:44.223Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 10",
+      "text": "Rule 3: the semantic audit is an agent workflow and GitHub CI has no agent, so the kickoff's \"calibration run in CI\" is split: CI runs the mechanical tiers on the fixture (the `pack.<name>.docs` omission rows at zero, `npx cookwright audit args` producing the two docs with their scopes), and the agent run with an expected zero findings is a QA step on the fixture tree (`KEEP=1`), its result on the closeout line.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:45.061Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 11",
+      "text": "Rule 2 and the kickoff's existing-app sentence: `pack.<name>.docs` reads undocumented primitives or migrations as WARN with the count and the first names, never FAIL: a standing omission on an existing app is a count the ratchet makes bearable, not drift the developer caused.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:45.534Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 12",
+      "text": "Rule 6 (wanted twice): a `docs-audit` skill ships (E-003, wanted in stage 1 and again here), minimal: branch, `audit args`, the Workflow call, review the diff, the cost line.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:46.019Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 13",
+      "text": "Rule 3 (amended by the developer, disposition 21): the size rule measures what the sentence says, functions. `max-lines-per-function` with 150 on `.tsx` and `.jsx` files (a component is a function) and 40 on `.ts` and `.js` files. No `max-lines`: a file limit is a different claim. A directory partition would read a screen outside `app/` as functions (review finding 6).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:46.465Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 14",
+      "text": "Rule 1: pack detection is a default, not a gate, and runs on a fresh config only. A fresh config declares `expo` when `package.json` depends on `expo`, `supabase` when `supabase/config.toml` exists or `@supabase/supabase-js` is a dependency; `init --packs <a,b>` overrides on a fresh config and is refused on an existing one like `--hosts`. An existing config never gets a pack from init or migrate (disposition 22).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:47.242Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 15",
+      "text": "B-011 rides along (kickoff: \"if the plan finds it free\"): one more path through `probes.ignored` in `init/gitignore.mjs` and one doctor row, the last checkpoint of s3, dropped first if s3 runs long.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:47.984Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 16",
+      "text": "The kickoff's \"the setup skill offers to have the agent fill the templates from the code\" is kept as an end-pass item of the skill (review finding 5): with consent, on a branch, the agent fills each contract doc from the tree (one entry per listed primitive or migration, one session), then the docs-audit verifies it. The docs-audit has no generate mode and none is built (rule 6: once).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:48.387Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 17",
+      "text": "Rule 2 (review finding 8): a hooks setup managed elsewhere (husky, lefthook, a global `core.hooksPath`) is a chosen state, so `hooks.pre-commit` and `hooks.pre-push` read WARN with the reason instead of SKIP, and B-013's \"not verified\" lists only what could not be measured. A FAIL or a \"not verified\" the developer cannot clear is a bug by rule 2.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:48.814Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 18",
+      "text": "Rule 3 (review finding 1): the fixture asserts `level 0 declared: complete` only when both `gitleaks` and `claude` are on PATH, and otherwise asserts that the `not verified:` list names exactly the absent tools' rows.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:49.316Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 19",
+      "text": "Rule 3 (review finding 2): the standards checks never lint a symbolic link. `matching` reads modes (`git diff --cached --raw -z`, `git ls-files -s`, `git diff --raw` for the ratchet) and drops `120000` entries; the exports also carry `ignores: ['.claude/**', '.agents/**', '.codex/**', 'node_modules/**']`.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:49.741Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 20",
+      "text": "Rule 3 (review finding 3): the ratchet's base is resolved in order: `--base <ref>`; `COOKWRIGHT_PUSH_BASE`, which the pre-push hook sets to the remote sha of the pushed ref at HEAD when that sha is not the zero sha; when HEAD is on `baseBranch`, its `@{upstream}`; otherwise `merge-base(baseBranch, HEAD)`; none resolvable → exit 11 naming what was tried. A solo developer pushing `main` is therefore ratcheted against what the remote has.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:50.195Z",
+      "actor": "developer",
+      "source": "plan §2 disposition 21",
+      "text": "Rule 3: the size rule is `max-lines-per-function` only, 150 on `.tsx`/`.jsx`, 40 on `.ts`/`.js` (disposition 13 as amended).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:50.712Z",
+      "actor": "developer",
+      "source": "plan §2 disposition 22",
+      "text": "Rules 2 and 4: existing configs never get a pack. The 2→3 migration writes `packs: []` (outcome `packsAdded`), init never edits an existing config, `--packs` is refused on one, detection runs only on a fresh config. Instead: a doctor row `packs` reads WARN when `packs` is empty and the tree shows a stack (`expo detected (package.json depends on expo), no pack declared; the setup skill offers it`), so an all-PASS readout gives a reason to run the skill (the B-012 lesson); the setup skill's end pass offers the detected packs, written into `packs` with consent, then `init` writes the section, the templates and the pointers, and the skill offers the doc-sync rules and the gate entry (§4.8). The row is PASS listing the declared packs, or `no packs declared, none detected`.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:51.178Z",
+      "actor": "developer",
+      "source": "plan §2 disposition 23",
+      "text": "The stage-3 create-expo lesson: the fixture pins `eslint`, `eslint-config-expo` and `eslint-plugin-i18next` by exact version in `fixture.sh`, printed on its first line with the scaffold pins, bumped by hand; the versions are the latest on the day s2 runs.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:51.794Z",
+      "actor": "developer",
+      "source": "plan §2 disposition 24",
+      "text": "Rules 4 and 6: no `cookwright.json` reader inside `eslint.cjs` (two readers of one config for an editor-only benefit). The exports are static; switched-off rules are honoured by the engine (disposition 8). The guide says the editor still shows a switched-off rule.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:12:52.221Z",
+      "actor": "developer",
+      "source": "plan §2 disposition 25",
+      "text": "Rule 9, the open question answered: no root devDependency for ESLint. The fake-ESLint seam tests the engine; the fixture is the real-ESLint proof, locally from s2 and in CI on every push.",
+      "claim": true
+    }
+  ],
+  "costs": []
+}

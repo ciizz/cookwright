@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 164,
+  "revision": 172,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -339,9 +339,23 @@
     },
     {
       "name": "implement:s7",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T22:54:53.177Z",
+          "stateRevision": 164,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_b3bbe961-eea",
+          "endedAt": "2026-10-25T23:06:00.395Z",
+          "turnOutputTokens": 161834
+        }
+      ],
+      "startCommit": "ba500994f75442ab149c6a433a63fe953b4451ca",
+      "range": null,
+      "endCommit": "19697465cb8b4d3e94f64816e46615818db70ece",
+      "endCode": "c5de2b3ecadbfed3091ca61ad29479c4b185ba2e"
     },
     {
       "name": "review:surface",
@@ -523,6 +537,19 @@
           "ms": 108569
         }
       ]
+    },
+    {
+      "commit": "19697465cb8b4d3e94f64816e46615818db70ece",
+      "at": "2026-10-25T23:05:47.791Z",
+      "slice": "surface",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 110270
+        }
+      ]
     }
   ],
   "findings": [
@@ -664,6 +691,12 @@
       "phase": "implement:s6",
       "path": "docs/dev/bundles/stage-4/sessions/implement-s6-1.md",
       "at": "2026-10-25T22:52:49.007Z",
+      "stored": true
+    },
+    {
+      "phase": "implement:s7",
+      "path": "docs/dev/bundles/stage-4/sessions/implement-s7-1.md",
+      "at": "2026-10-25T23:03:55.135Z",
       "stored": true
     }
   ],
@@ -1381,6 +1414,27 @@
       "actor": "orchestrator",
       "source": "implement:s6 strings batch",
       "text": "s6's user-facing strings (the audit args usage and refusals, the packs rules usage, the setup skill's pack rows and end pass, the docs-audit skill, the standards guide's first version, the red-team advisory sentence and the playbook's Reviewer line) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:surface.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:03:55.573Z",
+      "actor": "orchestrator",
+      "source": "implement:s7 open questions 1, 2",
+      "text": "getting-started's dated 0.1.0 transcripts stay as the labelled record, the prose naming where the current tree differs (rule 5: measured output is never retyped); the full transcript and README's status rows are refreshed from a fresh run at release time, the developer's hands in the release order, the document-release pass naming the version that ships the packs.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:03:56.069Z",
+      "actor": "orchestrator",
+      "source": "implement:s7 open question 3",
+      "text": "git 2.52's ls-files listing nothing for a pathspec with an exclude magic is noted in the session report; no caller in the package uses ls-files with one (doc-sync reads git diff --cached), so no backlog entry (rule 6).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T23:03:56.541Z",
+      "actor": "orchestrator",
+      "source": "implement:s7 dogfood",
+      "text": "This repo's setup doc-sync rule gained ':!*.test.mjs' beside the two pack specs plan §7.4 named, mirroring the playbook rule so a test-only change never demands a guide edit; verified over the bundle's range. Accepted beyond the plan's letter.",
       "claim": true
     }
   ],

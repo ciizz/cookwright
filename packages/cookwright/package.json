@@ -26,6 +26,7 @@
     "hosts",
     "skills",
     "docs",
+    "packs",
     "!src/**/*.test.mjs",
     "!src/test-helpers.mjs"
   ],

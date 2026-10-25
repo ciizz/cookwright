@@ -1,12 +1,15 @@
 {
   "$schema": "./packages/cookwright/schema/cookwright.schema.json",
-  "version": 2,
+  "version": 3,
   "level": 0,
   "hosts": [
     "claude"
   ],
+  "packs": [],
   "baseBranch": "main",
-  "ci": { "workflow": "ci.yml" },
+  "ci": {
+    "workflow": "ci.yml"
+  },
   "paths": {
     "bundles": "docs/dev/bundles",
     "closeouts": "docs/dev/closeouts",
@@ -39,7 +42,10 @@
         "name": "setup",
         "code": [
           "packages/cookwright/skills/setup/SKILL.md",
-          "packages/cookwright/src/lib/rules/agents-block.md"
+          "packages/cookwright/src/lib/rules/agents-block.md",
+          "packages/cookwright/packs/**",
+          "packages/cookwright/src/lib/packs/*",
+          ":!*.test.mjs"
         ],
         "docs": [
           "docs/guides/*.md"

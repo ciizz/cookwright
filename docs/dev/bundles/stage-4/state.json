@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 62,
+  "revision": 66,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -99,7 +99,7 @@
   "phases": [
     {
       "name": "plan-review",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -115,10 +115,21 @@
           "planSha": "e3ab6a11a2b61b7f",
           "codex": true,
           "runId": "wf_794277d9-d9a"
+        },
+        {
+          "startedAt": "2026-10-25T18:54:34.914Z",
+          "stateRevision": 62,
+          "planSha": "98272823999c4f4b",
+          "codex": true,
+          "runId": "wf_f41c950c-37f",
+          "endedAt": "2026-10-25T18:56:37.314Z",
+          "turnOutputTokens": 452019
         }
       ],
       "startCommit": "59a4e03eb2ee388d769d5e7a4210548b7b8be6a5",
-      "range": null
+      "range": null,
+      "endCommit": "b5d665b4ea76dae5561fcdd7d4858fe66fe4b5b5",
+      "endCode": "38b20a6ad364a49360cfe63737a3e5370c282335"
     },
     {
       "name": "implement:s1",
@@ -300,6 +311,24 @@
       "at": "2026-10-25T18:53:01.264Z",
       "stored": true,
       "head": "3b2c8b40a9e33dae6b3e5a83cd55f3eccdd88d3e"
+    },
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-4/findings/plan-review-3.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 0,
+        "rejected": 4,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      },
+      "at": "2026-10-25T18:56:36.672Z",
+      "stored": true,
+      "head": "b5d665b4ea76dae5561fcdd7d4858fe66fe4b5b5"
     }
   ],
   "reports": [],

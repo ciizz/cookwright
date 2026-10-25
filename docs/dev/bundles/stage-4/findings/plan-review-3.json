@@ -1,0 +1,56 @@
+{
+  "phase": "plan-review",
+  "stored": true,
+  "issues": [
+    {
+      "severity": "P1",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 line 110 and §4.6 lines 114-115",
+      "problem": "A skipped Supabase types measurement is folded into an exit-0 standards command when ESLint succeeds. The gate records only the process exit, so it stores standards: pass; the internal 'types: skipped' stdout is not represented in gate state or the landing check.",
+      "failure_scenario": "Generated types are stale, the local Supabase stack is unavailable, and ESLint has no findings. Pre-push and bundle gates record PASS, and closeout/landing no longer disclose that the types rule was never measured.",
+      "suggested_fix": "Give independently optional measurements independently recorded gate results, or extend the gate protocol/state to preserve partial skips. Do not encode 'some enabled rules skipped' as ordinary exit 0. Add a test that the landing check still reports the skipped types rule.",
+      "verdict": "rejected",
+      "evidence": "Disposition 45 and §4.5 `gate.mjs` bullet (line 147): a check that opts into `skipExit` has its first stdout line recorded as `note` on every outcome, `recordGate` stores the note for every result, `check.mjs` reads a passed check whose note names a skipped rule as WARN naming it, and the closeout's gate table prints the note. The ratchet's exit-0 first line carries the unmeasured-rule tail (§4.5 `--ratchet`, line 143). §6 Gate tests cover the note recorded on pass and fail and the pass-naming-a-skipped-rule WARN. The types case stays its own check (disposition 30). The partial skip now reaches the state and the landing check."
+    },
+    {
+      "severity": "P2",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.6 the `types` gate measure",
+      "problem": "The `types` measure runs `db:types` against the local Supabase stack. That judges the developer's local database, not the pushed commit, while disposition 2 promises both sides are commits. Rule 3 calls for SKIP when the thing judged is not the thing tested. The plan also rewrites a shell command string (\"the redirect replaced by a temp file\") without bounding its shape. The result is any difference reads as `rose` (exit 10), which blocks the push. That is a FAIL the user cannot clear by fixing their change (rule 2).",
+      "failure_scenario": "The script is `supabase gen types typescript --local > src/types/database.ts && prettier --write src/types/database.ts`. The rewrite sends unformatted output to the temp file, while prettier formats the tracked file. They always differ, so every push FAILs with `types rose` and the only remedies are editing the script or COOKWRIGHT_SKIP. In another case, the developer applies branch A's migration locally, switches to branch B and pushes: types differ and B is blocked for A's work.",
+      "suggested_fix": "Accept exactly one shape: `supabase gen types <args> > <path>` with nothing after the target. Anything else (`&&`, `|`, `;`, a second redirect, `npx supabase`) is `types: skipped, script shape not recognised`. Run the measure only when `supabase/migrations/**` or the types file changed in `<base>..HEAD`. Say in the line that it measured the local stack, and consider SKIP rather than FAIL when the stack's migration list differs from HEAD's (`supabase migration list --local`).",
+      "verdict": "rejected",
+      "evidence": "Disposition 46 (and disposition 40 as revised, line 78) compares `supabase migration list --local` with HEAD's migration files in both directions and skips with `local stack differs from HEAD's migrations (<n> ahead, <m> behind)` on any difference. A migration applied locally for another branch therefore skips instead of failing this branch's push. The script-shape bound and the change condition were already resolved by disposition 40. §4.6 lists the local-stack precheck, and §10 s5 ties `--types` to dispositions 40 and 46."
+    },
+    {
+      "severity": "P3",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.5 `lintAt` \"a fatal message makes the file `unmeasured`\" with the ratchet's exit 11",
+      "problem": "Many TS apps lint with typed rules (`parserOptions.project` or `projectService`). typescript-eslint then raises a fatal parse error for a path that is in no project, such as the base side of a file deleted on the branch (`--no-renames` turns every rename into a delete plus an add). One such fatal makes the whole ratchet exit 11, while the pack's rules need no type information.",
+      "failure_scenario": "An app using `tseslint.configs.recommendedTypeChecked` renames `components/Old.tsx` to `components/New.tsx`. The ratchet lints `Old.tsx`'s base blob, gets a fatal \"file not found in any of the provided project(s)\", and exits 11. The gate reads `skipped` on every branch with a rename, so drift is never measured there.",
+      "suggested_fix": "Lint with `overrideConfig: { languageOptions: { parserOptions: { project: null, projectService: false } } }` (overrideConfig appends after the file's blocks, measured in §1). Add a fake-ESLint test for a fatal on a deleted base path.",
+      "verdict": "rejected",
+      "evidence": "Disposition 47 and §4.5 `loadESLint`/`entries`/`lintAt` (lines 134-137): the engine no longer nulls the parser's project (`new ESLint({ cwd: root })`). Renames are detected with `-M` (status R), and a rename's base blob is linted with `filePath` set to the HEAD path, which is on disk and in the project, so typed parsing holds. Deleted files are not linted and are counted on the line as `<n> deleted file(s) not counted`. A rejected `lintText` (a typed rule without a program, a rule crash) is caught per file and reads `unmeasured`. §6 adds a fake whose `lintText` rejects and the rename's base side linted at the HEAD path. A typed-lint app is no longer broken everywhere, and a rename no longer forces exit 11."
+    },
+    {
+      "severity": "P3",
+      "file": "docs/dev/bundles/stage-4/plan.md",
+      "location": "§4.8 setup skill and `bundle-phase.js` in s6; §5 Changed; §7 step 4",
+      "problem": "This repo's own doc-sync rules will refuse the s6 commits. The `playbook` rule requires `docs/playbook.md` or `skills/bundle/SKILL.md` to be staged with `hosts/claude/workflows/bundle-phase.js`, and neither is in §5. The `setup` rule requires `docs/guides/*.md` to be staged with `skills/setup/SKILL.md`, but the guides are scheduled for s7. §7.4 widens the `setup` rule with `packs/**` and `src/lib/packs/*`, but in this repo those paths live under `packages/cookwright/`, so the added specs match nothing. `src/lib/hosts.mjs` (the SKILLS list a new `docs-audit` pointer needs) is also missing from §5.",
+      "failure_scenario": "The s6 implementer commits the setup skill's new rows. The pre-commit `doc-sync` FAILs `setup: packages/cookwright/skills/setup/SKILL.md staged without docs/guides/*.md`. The session either uses COOKWRIGHT_SKIP=doc-sync or pulls s7's guide work forward, so its scope leaks. After §7.4, editing `packages/cookwright/packs/expo/pack.mjs` never triggers the standards-guide rule.",
+      "suggested_fix": "Add the playbook's reviewer-role line (or `skills/bundle/SKILL.md`) to s6's files. Move each guide edit into the session whose code it describes, or plan the escape with its reason. Write §7.4's specs as `packages/cookwright/packs/**` and `packages/cookwright/src/lib/packs/*`. Add `src/lib/hosts.mjs` and the fixture's new `.claude/skills/docs-audit` row to §5.",
+      "verdict": "rejected",
+      "evidence": "Disposition 48, §4.5 `gate.mjs` bullet (line 147) and §10 s5 (line 219): s5 stages the playbook's \"The gate's checks\" section (it exists at docs/playbook.md:156) with `gate.mjs`, stating the `skipExit` convention and the recorded note. That satisfies cookwright.json's `playbook` rule, whose code includes `packages/cookwright/src/lib/bundle/*`, for s5's gate/messages/check changes. The s6 part was already resolved by disposition 43. Minor residue, not this finding: §5 Changed lists `src/lib/bundle/{gate,messages}.mjs` but not `check.mjs` and `closeout.mjs`, which s5 also changes, and it describes the playbook edit only as \"(Reviewer role)\"."
+    }
+  ],
+  "checked": [
+    "§4.5 line 110 and §4.6 lines 114-115",
+    "§4.6 the `types` gate measure",
+    "§4.5 `lintAt` \"a fatal message makes the file `unmeasured`\" with the ratchet's exit 11",
+    "§4.8 setup skill and `bundle-phase.js` in s6; §5 Changed; §7 step 4"
+  ],
+  "notes": "Re-check of plan-review-2.json's 4 non-rejected findings (indices 4, 18, 21, 22) against plan.md as revised by dispositions 45-48. All four are resolved, so all are rejected. One small file-list gap is left: §5 Changed omits src/lib/bundle/check.mjs and closeout.mjs, both of which s5 changes under dispositions 45/48. The playbook doc-sync rule is still met because s5 stages docs/playbook.md.",
+  "timedOut": false,
+  "incomplete": [],
+  "recheckOf": "docs/dev/bundles/stage-4/findings/plan-review-2.json"
+}

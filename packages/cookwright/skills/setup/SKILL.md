@@ -167,6 +167,8 @@ Each pack in `packs` adds its rows after the others: `pack.expo.declared`, `pack
 | `pack.supabase.types` | WARN | `no db:types script in package.json; add …` | with consent, add the script the note names to `package.json`, with the path of the app's generated types file (ask for it) in place of `<path>` |
 | `pack.supabase.types` | WARN | `the db:types script is not the shape the gate's types check reads; use …` | show their script beside the accepted shape; with consent, rewrite it to that shape keeping its target path; declined → **stop at** |
 | `pack.supabase.types` | WARN | `the gate runs no types check; add … to gate.checks (npx cookwright packs rules prints it)` | with consent, add that entry from `npx cookwright packs rules` to `gate.checks` |
+| `pack.expo.lint`, `pack.supabase.lint` | WARN | `…; the gate runs no standards ratchet; add … to gate.checks (npx cookwright packs rules prints it)` | with consent, add that entry from `npx cookwright packs rules` to `gate.checks` |
+| `pack.expo.lint`, `pack.supabase.lint`, `pack.supabase.types` | WARN | `the gate check … has no "skipExit": 11, so its "cannot measure" exit fails the gate; add it` | with consent, add `"skipExit": 11` to that entry of `gate.checks` |
 | `pack.supabase.types` | PASS | `measured by the gate against the local stack` | at the end (see "At the end") |
 
 ### Doctor itself

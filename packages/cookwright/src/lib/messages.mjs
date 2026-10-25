@@ -210,7 +210,10 @@ const doctor = {
       unnamed: (file, spec, lines) => `${file} does not name ${spec}; add ${list(lines)} (the setup skill does it with consent)`,
       ok: (version, file, spec) => `eslint ${version}; ${file} names ${spec}`,
       needs: (install, reason) => `needs ${install} (${reason})`,
+      noGate: (entry) => `the gate runs no standards ratchet; add ${entry} to gate.checks (${CLI} packs rules prints it)`,
     },
+    // a pack's gate check without its skip exit: "cannot measure" would fail the gate (disposition 36)
+    noSkipExit: (name, exit) => `the gate check ${name} has no "skipExit": ${exit}, so its "cannot measure" exit fails the gate; add it`,
     // pack.supabase.types: what the gate's types check needs, no subprocess (stage-4 plan §4.6)
     types: {
       needsCli: NEEDS_SUPABASE,

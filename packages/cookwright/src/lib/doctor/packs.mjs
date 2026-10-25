@@ -12,7 +12,7 @@ import { ESLINT_CONFIGS, exportOf, handLines, installed, installedVersion, names
 import { messages } from '../messages.mjs';
 import { detectPacks } from '../packs/detect.mjs';
 import { LISTERS, tableKeys } from '../packs/entries.mjs';
-import { ADVISORY, activeRules, declaredPacks } from '../packs/registry.mjs';
+import { ADVISORY, RATCHET_CHECK, activeRules, declaredPacks } from '../packs/registry.mjs';
 import { renderSection } from '../packs/section.mjs';
 import { TYPES_SCRIPT, typesScript, typesShape } from '../packs/types.mjs';
 import { RULES_FILE, blockState, packKind } from '../rules/block.mjs';
@@ -129,14 +129,34 @@ function checkDocs(repo, pack) {
   return { status, note: shown.map((v) => v.note).join('; ') };
 }
 
-/** A gate check's command that runs the types measure, `npx cookwright standards --types` or a path to the bin. */
-const TYPES_RUN = /(^|[\s/])cookwright standards --types(\s|$)/;
+/**
+ * Whether `run` is cookwright's `standards --<mode>` and nothing else: through npx,
+ * node or a path to the bin, with at most `--base <ref>` after it. An `echo …` or a
+ * command chained after it measures nothing the gate can record.
+ */
+const runsStandards = (run, mode) =>
+  new RegExp(`^(?:npx (?:--no-install |--no )?|node )?(?:\\S*/)?cookwright(?:\\.mjs)? standards --${mode}(?: --base \\S+)?$`).test(
+    String(run ?? '').trim(),
+  );
+
+/**
+ * The problem with the gate's entry for `want` (a pack's gate check: `{ name, run,
+ * skipExit }`), or null: no `gate.checks` entry runs its measure, or none that does
+ * opts into its skip exit, so the measure's "cannot measure" would fail the gate
+ * (disposition 36). `noGate` names the entry to add.
+ */
+function gateProblem(repo, want, noGate) {
+  const mode = /--(\w+)$/.exec(want.run)[1];
+  const runs = (repo.config.gate?.checks ?? []).filter((c) => runsStandards(c.run, mode));
+  if (!runs.length) return noGate(JSON.stringify(want));
+  return runs.some((c) => c.skipExit === want.skipExit) ? null : m.pack.noSkipExit(runs[0].name, want.skipExit);
+}
 
 /**
  * `pack.supabase.types`: what the gate's types check needs, read without running it
  * (the measure needs the local stack): the CLI on PATH, the one script shape, then a
- * `gate.checks` entry that runs it. Init writes that entry only into a fresh config,
- * so a PASS claims a measurement only when the gate has the entry.
+ * `gate.checks` entry that runs it with its skip exit. Init writes that entry only
+ * into a fresh config, so a PASS claims a measurement only when the gate has it.
  */
 function checkTypes(repo, pack, probes) {
   const t = m.pack.types;
@@ -144,10 +164,8 @@ function checkTypes(repo, pack, probes) {
   const script = typesScript(repo.root);
   const shape = typesShape(script);
   if (!shape) return warn(script === null ? t.noScript(TYPES_SCRIPT) : t.shape(TYPES_SCRIPT));
-  if (!(repo.config.gate?.checks ?? []).some((c) => TYPES_RUN.test(String(c.run ?? '')))) {
-    return warn(t.noGate(JSON.stringify(pack.manifest.rules.find((r) => r.id === 'types').gate)));
-  }
-  return pass(t.ok(TYPES_SCRIPT, shape.target));
+  const problem = gateProblem(repo, pack.manifest.rules.find((r) => r.id === 'types').gate, t.noGate);
+  return problem ? warn(problem) : pass(t.ok(TYPES_SCRIPT, shape.target));
 }
 
 /** Each dependency an active rule of `pack` needs that is not installed. */
@@ -158,8 +176,9 @@ const missingDeps = (repo, pack) => {
 
 /**
  * `pack.<name>.lint`: ESLint 9 resolvable from the config root, a flat config file,
- * its text naming the pack's export, and each plugin an active rule needs. A text
- * match, so the note says "names": the effective config is what the hook measures.
+ * its text naming the pack's export, each plugin an active rule needs, and the
+ * gate's ratchet entry, which init writes only into a fresh config. A text match,
+ * so the note says "names": the effective config is what the hook measures.
  */
 function checkLint(repo, pack) {
   const l = m.pack.lint;
@@ -174,9 +193,9 @@ function checkLint(repo, pack) {
     const { imports = [], spreads } = handLines(repo.root, rel, [manifest]);
     return warn(l.unnamed(rel, spec, [...imports, ...spreads]));
   }
-  const missing = missingDeps(repo, pack);
+  const problems = [...missingDeps(repo, pack).map((d) => l.needs(d.install, d.reason)), gateProblem(repo, RATCHET_CHECK, l.noGate)].filter(Boolean);
   const named = l.ok(version, rel, spec);
-  return missing.length ? warn(`${named}; ${missing.map((d) => l.needs(d.install, d.reason)).join('; ')}`) : pass(named);
+  return problems.length ? warn([named, ...problems].join('; ')) : pass(named);
 }
 
 /** Whether `pack` has an ESLint rule on, and so an export to wire. */

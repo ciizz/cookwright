@@ -24,7 +24,7 @@ import { LEVELS } from './lib/levels.mjs';
 import { shimText } from './lib/hooks/shims.mjs';
 import { CODEX_HOOK_COMMAND, HOOK_COMMAND, HOSTS } from './lib/hosts.mjs';
 import { messages } from './lib/messages.mjs';
-import { PACKS, packDefaults, packName } from './lib/packs/registry.mjs';
+import { PACKS, RATCHET_CHECK, packDefaults, packName } from './lib/packs/registry.mjs';
 import { renderSection } from './lib/packs/section.mjs';
 import { PROBES } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
@@ -926,7 +926,7 @@ describe('packs and the pack rows', () => {
   it('reads pack.<name>.lint: WARN with no ESLint, an old one, no config, the export not named, its plugin missing', () => {
     const l = m.pack.lint;
     const lint = (fake, packs = ['expo'], files = {}) => {
-      const root = packed(packs, files);
+      const root = packedWithGate(packs, files);
       if (fake) fakeEslintRepo(root, fake);
       return doctor(root);
     };
@@ -959,9 +959,32 @@ describe('packs and the pack rows', () => {
     });
   });
 
+  it('WARNs pack.<name>.lint when the gate has no ratchet entry, or one without its skip exit', () => {
+    const l = m.pack.lint;
+    const named = l.ok('9.39.0-fake', 'eslint.config.js', 'cookwright/packs/expo/eslint.cjs');
+    const lint = (checks) => {
+      const root = level0({ 'AGENTS.md': agents(expoSection()), ...DOCS }, { packs: ['expo'], hooks: { docSync: packDefaults(['expo']).docSync }, gate: { checks } });
+      return doctor(fakeEslintRepo(root))['pack.expo.lint'];
+    };
+    const entry = JSON.stringify(RATCHET_CHECK);
+    expect(lint(GATE.checks)).toEqual({ status: 'WARN', note: `${named}; ${l.noGate(entry)}` });
+    expect(l.noGate(entry)).toBe(
+      'the gate runs no standards ratchet; add {"name":"standards","run":"npx cookwright standards --ratchet","skipExit":11} to gate.checks (npx cookwright packs rules prints it)',
+    );
+    const bare = { name: 'standards', run: 'npx cookwright standards --ratchet' };
+    expect(lint([bare])).toEqual({ status: 'WARN', note: `${named}; ${m.pack.noSkipExit('standards', 11)}` });
+    expect(m.pack.noSkipExit('standards', 11)).toBe('the gate check standards has no "skipExit": 11, so its "cannot measure" exit fails the gate; add it');
+    expect(lint([{ ...bare, run: 'echo cookwright standards --ratchet', skipExit: 11 }]).note).toBe(`${named}; ${l.noGate(entry)}`);
+    expect(lint([{ ...bare, run: 'npx cookwright standards --ratchet && true', skipExit: 11 }]).note).toBe(`${named}; ${l.noGate(entry)}`);
+    for (const run of ['npx cookwright standards --ratchet --base main', 'node node_modules/cookwright/bin/cookwright.mjs standards --ratchet']) {
+      expect(lint([{ ...bare, run, skipExit: 11 }])).toEqual({ status: 'PASS', note: named });
+    }
+  });
+
   it('asks for no plugin with its rule off, and has no lint row with every ESLint rule off', () => {
     const stringsOff = [{ name: 'expo', rules: { strings: false } }];
-    const root = level0({ 'AGENTS.md': agents(expoSection(new Set(['strings']))), ...DOCS }, { packs: stringsOff });
+    const gate = { checks: [...GATE.checks, RATCHET_CHECK] };
+    const root = level0({ 'AGENTS.md': agents(expoSection(new Set(['strings']))), ...DOCS }, { packs: stringsOff, gate });
     expect(doctor(fakeEslintRepo(root, { plugin: false }))['pack.expo.lint'].status).toBe('PASS');
     const allOff = [{ name: 'supabase', rules: { client: false } }];
     expect(Object.keys(doctor(level0({}, { packs: allOff })))).not.toContain('pack.supabase.lint');
@@ -983,6 +1006,18 @@ describe('packs and the pack rows', () => {
     expect(types(withTypes)).toEqual({ status: 'WARN', note: t.noGate(entry) });
     expect(t.noGate(entry)).toBe(`the gate runs no types check; add ${entry} to gate.checks (npx cookwright packs rules prints it)`);
     expect(doctor(packedWithGate(['supabase'], withTypes), { probes: withSupabase })['pack.supabase.types'].status).toBe('PASS');
+    const typesWith = (check) => {
+      const root = level0(
+        { 'AGENTS.md': agents(renderSection(PACKS.supabase)), ...DOCS, ...withTypes },
+        { packs: ['supabase'], hooks: { docSync: packDefaults(['supabase']).docSync }, gate: { checks: [RATCHET_CHECK, check] } },
+      );
+      return doctor(root, { probes: withSupabase })['pack.supabase.types'];
+    };
+    const bare = { name: 'standards:types', run: 'npx cookwright standards --types' };
+    expect(typesWith(bare)).toEqual({ status: 'WARN', note: m.pack.noSkipExit('standards:types', 11) });
+    expect(typesWith({ ...bare, run: 'echo cookwright standards --types', skipExit: 11 })).toEqual({ status: 'WARN', note: t.noGate(entry) });
+    expect(typesWith({ ...bare, run: 'npx cookwright standards --types --staged', skipExit: 11 })).toEqual({ status: 'WARN', note: t.noGate(entry) });
+    expect(typesWith({ ...bare, skipExit: 11 }).status).toBe('PASS');
     expect(types(withTypes, withSupabase, [{ name: 'supabase', rules: { types: false } }])).toBeUndefined();
   });
 

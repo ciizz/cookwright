@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 148,
+  "revision": 155,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -299,9 +299,23 @@
     },
     {
       "name": "fix:measure",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T22:01:12.223Z",
+          "stateRevision": 148,
+          "planSha": "852cd835f53d5f48",
+          "codex": true,
+          "runId": "wf_aeb01d3f-1c9",
+          "endedAt": "2026-10-25T22:29:30.021Z",
+          "turnOutputTokens": 258340
+        }
+      ],
+      "startCommit": "162ffbcab03e545307b5065190d6bd43273c3b85",
+      "range": null,
+      "endCommit": "4c8b85ac21872702bf628d6b980529ebbe060652",
+      "endCode": "4c8b85ac21872702bf628d6b980529ebbe060652"
     },
     {
       "name": "implement:s6",
@@ -469,6 +483,19 @@
           "ms": 88033
         }
       ]
+    },
+    {
+      "commit": "4c8b85ac21872702bf628d6b980529ebbe060652",
+      "at": "2026-10-25T22:29:17.338Z",
+      "slice": "measure",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 91401
+        }
+      ]
     }
   ],
   "findings": [
@@ -598,6 +625,12 @@
       "phase": "implement:s5",
       "path": "docs/dev/bundles/stage-4/sessions/implement-s5-1.md",
       "at": "2026-10-25T21:47:57.779Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:measure",
+      "path": "docs/dev/bundles/stage-4/sessions/fix-measure-1.md",
+      "at": "2026-10-25T22:27:44.514Z",
       "stored": true
     }
   ],
@@ -1273,6 +1306,20 @@
       "actor": "orchestrator",
       "source": "review:measure findings 6, 7, 8",
       "text": "Fixed in fix:measure as cheap P3s: pack.supabase.types reads PASS only when a gate check runs standards --types, else WARN naming the entry (rule 3); the diff filters include status T; --staged and --ratchet list and filter the entries before loading ESLint, so a docs-only commit never pays ESLint's start-up and never reads a SKIP about ESLint (rule 1).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:27:45.011Z",
+      "actor": "orchestrator",
+      "source": "fix:measure open question 1",
+      "text": "The standards command keeps exit 11 standalone (the decision on review:measure finding 3 stands): one exit code whatever the caller, documented in the standards guide and this repo's rules sentence in s7; an environment-driven exit would make the same line mean two things (rule 3).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T22:27:45.464Z",
+      "actor": "orchestrator",
+      "source": "fix:measure strings batch",
+      "text": "fix:measure's user-facing strings (the stderr-routed error details, the ignored and changed-here reasons, the types row's missing gate entry, the gate note's scrub) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:whole.",
       "claim": true
     }
   ],

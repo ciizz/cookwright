@@ -47,15 +47,18 @@ function openRepo(cwd) {
   return { top: fs.realpathSync(top), root: fs.realpathSync(root), config };
 }
 
-/** The repo with ESLint loaded and each rule's wiring read; Unmeasurable when no rule can count. */
+/**
+ * The repo with ESLint loaded and each rule's wiring read; Unmeasurable when no rule
+ * can count. A mode calls it only once git listed a file to lint, so a commit with
+ * none never pays ESLint's start-up (about 1.1 s) nor skips for its absence.
+ */
 async function prepare(repo, io) {
   const rules = engine.eslintRules(repo.config);
-  if (!rules.length) throw new Unmeasurable(m.noRules);
   const load = io.loadESLint ?? engine.loadESLint;
   const { eslint } = await load(repo.root, rules[0].pack.manifest.setup.eslint);
   const { measured, skipped } = await engine.wired(eslint, repo.root, rules);
   if (!measured.length) throw new Unmeasurable(m.noneMeasured(skipped));
-  return { ...repo, env: io.env ?? process.env, eslint, measured, skipped };
+  return { ...repo, eslint, measured, skipped };
 }
 
 /** Each rule whose count in one file rose, in the rules' order: `{ key, from, to }`. */
@@ -92,11 +95,12 @@ function stagedReport(ctx, judged, deleted) {
 }
 
 /** `--staged`: the per-file ratchet over the staged entries under the config root. */
-async function stagedMode(ctx) {
-  const all = engine.stagedEntries(ctx.top, ctx.root, ctx.env);
+async function stagedMode(repo, io) {
+  const all = engine.stagedEntries(repo.top, repo.root, repo.env);
   const files = all.filter(engine.lintable);
   const deleted = all.filter(engine.deletedLintable).length;
   if (!files.length) return { exit: 0, lines: [m.tail(m.noStaged, deleted ? [m.deleted(deleted)] : [])] };
+  const ctx = await prepare(repo, io);
   const shas = files.flatMap((e) => (engine.hasBase(e) ? [e.sha, e.baseSha] : [e.sha]));
   const blobs = engine.readBlobs(ctx.top, shas, ctx.env);
   const judged = [];
@@ -142,12 +146,13 @@ function ratchetReport(ctx, judged, deleted, since) {
 }
 
 /** `--ratchet`: each rule's count over the files changed since the base, HEAD against the base. */
-async function ratchetMode(ctx, flags) {
-  const { sha, since } = branchBase(ctx, flags, ctx.env);
-  const all = engine.rangeEntries(ctx.top, ctx.root, sha, ctx.env);
+async function ratchetMode(repo, flags, io) {
+  const { sha, since } = branchBase(repo, flags, repo.env);
+  const all = engine.rangeEntries(repo.top, repo.root, sha, repo.env);
   const files = all.filter(engine.lintable);
   const deleted = all.filter(engine.deletedLintable).length;
-  if (!files.length) return { exit: 0, lines: [m.tail(m.noChange(since), [...ctx.skipped, ...(deleted ? [m.deleted(deleted)] : [])])] };
+  if (!files.length) return { exit: 0, lines: [m.tail(m.noChange(since), deleted ? [m.deleted(deleted)] : [])] };
+  const ctx = await prepare(repo, io);
   const blobs = engine.readBlobs(ctx.top, files.flatMap((e) => (engine.hasBase(e) ? [e.sha, e.baseSha] : [e.sha])), ctx.env);
   const judged = [];
   for (const entry of files) judged.push(await judgeFile(ctx, entry, blobs));
@@ -155,9 +160,10 @@ async function ratchetMode(ctx, flags) {
 }
 
 /** No flag: the count per measured rule over HEAD's files. */
-async function countMode(ctx) {
-  const entries = engine.headEntries(ctx.top, ctx.root, ctx.env);
+async function countMode(repo, io) {
+  const entries = engine.headEntries(repo.top, repo.root, repo.env);
   if (!entries) throw new Unmeasurable(m.noHead);
+  const ctx = await prepare(repo, io);
   const files = entries.filter(engine.lintable);
   const blobs = engine.readBlobs(ctx.top, files.map((e) => e.sha), ctx.env);
   const totals = new Map(ctx.measured.map(({ key }) => [key, 0]));
@@ -188,9 +194,10 @@ function parse(argv) {
 async function measure(repo, flags, io) {
   const env = io.env ?? process.env;
   if (flags.types) return measureTypes({ ...repo, env }, { base: () => branchBase(repo, flags, env) });
-  const ctx = await prepare(repo, io);
-  if (flags.staged) return stagedMode(ctx);
-  return flags.ratchet ? ratchetMode(ctx, flags) : countMode(ctx);
+  if (!engine.eslintRules(repo.config).length) throw new Unmeasurable(m.noRules);
+  const ctx = { ...repo, env };
+  if (flags.staged) return stagedMode(ctx, io);
+  return flags.ratchet ? ratchetMode(ctx, flags, io) : countMode(ctx, io);
 }
 
 const harness = (err) => (err instanceof TimedOut ? messages.timedOut(err.what) : String(err?.message ?? err).split('\n')[0]);

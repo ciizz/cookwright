@@ -142,6 +142,19 @@ describe('--staged: the per-file ratchet', () => {
     expect(out).toEqual([m.noStaged]);
   });
 
+  it('passes a commit with no file to lint before loading ESLint: no start-up cost, no skip for its absence', async () => {
+    const repo = repoWith({}, { fake: { eslint: null } });
+    stage(repo, { 'docs/notes.md': 'n\n', 'README.md': 'changed' });
+    const loads = [];
+    expect(await standards(repo, ['--staged'], { loadESLint: async (...a) => loads.push(a) })).toBe(0);
+    expect(out).toEqual([m.noStaged]);
+    expect(loads).toEqual([]);
+    out.length = 0;
+    stage(repo, { 'src/a.ts': 'a\n' });
+    expect(await standards(repo)).toBe(11);
+    expect(out).toEqual([m.noEslint('npx expo lint')]);
+  });
+
   it('never lints a symbolic link staged beside a file', async () => {
     const repo = repoWith({ 'src/components/Card.tsx': CLEAN });
     fs.symlinkSync('Card.tsx', path.join(repo.root, 'src/components/Link.tsx'));
@@ -212,11 +225,12 @@ describe('--staged: the per-file ratchet', () => {
 
 describe('cannot measure: one line, exit 11', () => {
   it('names a missing ESLint with the first pack’s setup line, a config that does not load, and no rule wired', async () => {
-    const noEslint = repoWith({}, { fake: { eslint: null } });
+    const staged = (repo) => (stage(repo, { 'src/a.ts': 'a\n' }), repo);
+    const noEslint = staged(repoWith({}, { fake: { eslint: null } }));
     expect(await standards(noEslint)).toBe(11);
-    const broken = repoWith({}, { fake: { config: "require('./missing');\n" } });
+    const broken = staged(repoWith({}, { fake: { config: "require('./missing');\n" } }));
     expect(await standards(broken)).toBe(11);
-    const unwired = repoWith({}, { packs: ['supabase'], fake: { config: 'module.exports = [];\n' } });
+    const unwired = staged(repoWith({}, { packs: ['supabase'], fake: { config: 'module.exports = [];\n' } }));
     expect(await standards(unwired)).toBe(11);
     expect(out[0]).toBe(m.noEslint('npx expo lint'));
     expect(out[1]).toMatch(/^skipped, ESLint could not load the repo's config: Cannot find module '\.\/missing'/);
@@ -281,7 +295,7 @@ describe('--ratchet: the branch against its base', () => {
     run(repo.root, 'git', ['commit', '-qm', 'rm', '--no-verify']);
     const at = since(repo, 'main', 'merge-base main HEAD');
     expect(await ratchet(repo)).toBe(0);
-    expect(out).toEqual([m.tail(m.noChange(at), [m.ruleSkipped('expo strings', m.needs(I18NEXT)), m.deleted(1)])]);
+    expect(out).toEqual([m.tail(m.noChange(at), [m.deleted(1)])]);
     out.length = 0;
     commit(repo, { 'src/a.ts': 'b\n' }, 'a');
     expect(await ratchet(repo)).toBe(0);

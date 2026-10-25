@@ -141,7 +141,7 @@ describe('a fresh repo', () => {
       '.githooks/pre-push': 'wrote',
     });
     expect(POINTERS.map(({ rel }) => rel)).toEqual(
-      expect.arrayContaining(['.claude/skills/bundle', '.claude/workflows/bundle-phase.js', '.claude/workflows/docs-audit.js']),
+      expect.arrayContaining(['.claude/skills/bundle', '.claude/skills/docs-audit', '.claude/workflows/bundle-phase.js', '.claude/workflows/docs-audit.js']),
     );
     for (const { rel, text } of POINTERS) {
       expect(fs.readlinkSync(path.join(root, rel))).toBe(text);
@@ -1601,7 +1601,7 @@ describe('codex: --hosts, its rules row, .codex/hooks.json and its pointers', ()
     // setup's SKILL.md left out: the manifest, not the package's files, names the skills.
     for (const rel of ['skills/bundle/SKILL.md', 'hosts/claude/workflows/bundle-phase.js']) write(pkg, rel, '');
     expect(shippedPieces('codex', pkg)).toEqual([SETUP]);
-    expect(shippedPieces('claude', pkg).map((p) => p.name)).toEqual(['bundle', 'setup', 'bundle-phase']);
+    expect(shippedPieces('claude', pkg).map((p) => p.name)).toEqual(['bundle', 'docs-audit', 'setup', 'bundle-phase']);
   });
 
   it('refuses --hosts and --base on an existing config, before any write; refuses an unknown host on a fresh one', () => {

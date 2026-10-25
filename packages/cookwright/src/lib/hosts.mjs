@@ -45,6 +45,7 @@ export const SKILLS_DIR = 'skills';
 export const SKILLS = Object.freeze({
   setup: Object.freeze({ level: 0 }),
   bundle: Object.freeze({ level: 2, needs: 'workflows' }),
+  'docs-audit': Object.freeze({ level: 2, needs: 'workflows' }),
 });
 
 /** The level the workflow scripts belong to: the bundle runner's. */

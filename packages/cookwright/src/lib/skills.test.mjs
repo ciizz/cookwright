@@ -197,3 +197,19 @@ describe('the setup skill', () => {
     for (const note of notes) expect(end).toContain(note);
   });
 });
+
+describe('the docs-audit skill', () => {
+  const text = read('docs-audit');
+
+  it('builds the args with the CLI, runs the named Workflow on a branch of its own, and commits by path', () => {
+    for (const step of ['npx cookwright audit args', '--doc <path>[:<scope>]', "Workflow({ name: 'docs-audit'", 'git checkout -b docs-audit/', 'git diff', 'git add <each doc>']) {
+      expect(text).toContain(step);
+    }
+    expect(text).toContain(messages.audit.defaultScope);
+  });
+
+  it("names the Workflow the package ships under that name", () => {
+    const workflow = fs.readFileSync(path.join(PACKAGE_ROOT, 'hosts/claude/workflows/docs-audit.js'), 'utf8');
+    expect(workflow).toMatch(/^\s*name: 'docs-audit',$/m);
+  });
+});

@@ -588,6 +588,24 @@ const standards = {
   risenItem: (change, files) => `${change} in ${shown(files)}`,
 };
 
+// audit: `npx cookwright audit args`, the docs-audit Workflow's arguments (stage-4 plan §4.8, disposition 34).
+const audit = {
+  usage: `usage: ${CLI} audit args [--doc <path>[:<scope>] …]`,
+  refused: (detail) => `audit: ${detail}`,
+  docFlag: '--doc <path>[:<scope>]',
+  noConfig: (cwd) => `no ${CONFIG_FILE} at or above ${cwd}; ${RUN_INIT}`,
+  configInvalid: (detail) => `${CONFIG_FILE} invalid: ${detail}; run ${CLI} doctor`,
+  // the scope of a --doc extra that names none
+  defaultScope: 'every claim against the code',
+  packDocMissing: (rel, pack) => `${rel} missing, the ${pack} pack's contract doc (${RUN_INIT})`,
+  emptyPath: '--doc names no path',
+  outside: (rel) => `--doc ${rel}: not a path inside the repo (give it relative to the directory holding ${CONFIG_FILE})`,
+  link: (rel, link) => `${rel}: ${link} is a symbolic link, and the audit edits no doc through one`,
+  notAFile: (rel) => `--doc ${rel}: no file there`,
+  twice: (rel) => `${rel} is listed twice`,
+  nothing: `nothing to audit: no pack is declared in ${CONFIG_FILE} and no --doc was given`,
+};
+
 export const messages = {
   // the bin
   usage: (commands) => `usage: ${CLI} <${commands.join('|')}> …`,
@@ -629,4 +647,5 @@ export const messages = {
   changelog,
   hook,
   standards,
+  audit,
 };

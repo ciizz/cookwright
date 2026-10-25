@@ -36,6 +36,8 @@ A line names every rule it did not measure (`strings: skipped, needs npm install
 
 `npx cookwright packs rules` prints the declared packs' doc-sync rules and gate checks as JSON, `{ "docSync": […], "gate": […] }`, for copying into an existing `cookwright.json`, which init never edits.
 
+`npx cookwright audit args [--doc <path>[:<scope>] …]` prints the arguments of the `docs-audit` Workflow as JSON: each declared pack's contract doc with what to audit it against, then each extra doc named, a path relative to the directory holding `cookwright.json`. It refuses a pack's doc that is missing (init writes it), an extra that is not a file in the repo or is reached through a symbolic link, and a path listed twice. The `docs-audit` skill (Level 2, experimental) runs the Workflow with them on a branch of its own.
+
 ## Escapes and switches
 
 `COOKWRIGHT_SKIP=standards git commit …` skips the check and says so; put the reason in the message. A rule switched off in `packs` (`{ "name": "expo", "rules": { "size": false } }`) is counted by no check and reads WARN on `pack.<name>.rules`; its sentence stays in the section, marked switched off. The editor still shows the ESLint rule, since the export reads no config.

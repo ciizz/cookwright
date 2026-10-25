@@ -2,7 +2,7 @@
 
 ## Setting it up
 
-With `codex` in `hosts` (`npx cookwright init --hosts codex` on a fresh repo, `--hosts claude,codex` for both hosts, or the key edited in `cookwright.json` and init rerun), init writes `.agents/skills/setup` (Codex has no workflows, so no `bundle`) and the session-start hook in `.codex/hooks.json`.
+With `codex` in `hosts` (`npx cookwright init --hosts codex` on a fresh repo, `--hosts claude,codex` for both hosts, or the key edited in `cookwright.json` and init rerun), init writes `.agents/skills/setup` (Codex has no workflows, so no `bundle` and no `docs-audit`) and the session-start hook in `.codex/hooks.json`.
 
 ## Trusting the hook
 

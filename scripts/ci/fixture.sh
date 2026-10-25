@@ -3,8 +3,8 @@
 # overlay appended, then the package's published shape (an npm pack tarball)
 # installed and init, doctor, the hooks (a violating component refused by the
 # standards check, then landed corrected), the gate's standards checks (the
-# ratchet with no base on main and a rise on a branch, the types measure),
-# changelog and migrate run against it.
+# ratchet with no base on main and a rise on a branch, the types measure), the
+# docs-audit's arguments, changelog and migrate run against it.
 # Runs locally and in CI: bash scripts/ci/fixture.sh. KEEP=1 keeps the temp dir;
 # FIXTURE_STRICT=1 turns a missing tool from a skip into a failure.
 #
@@ -141,7 +141,8 @@ init() {
   local row
   for row in 'wrote +cookwright\.json' 'updated +AGENTS\.md' 'kept +CLAUDE\.md' \
     'updated +\.claude/settings\.json' 'wrote +\.claude/skills/setup' \
-    'wrote +\.claude/skills/bundle' 'wrote +\.claude/workflows/bundle-phase\.js' \
+    'wrote +\.claude/skills/bundle' 'wrote +\.claude/skills/docs-audit' \
+    'wrote +\.claude/workflows/bundle-phase\.js' \
     'wrote +\.claude/workflows/docs-audit\.js' 'wrote +\.githooks/pre-commit' \
     'wrote +\.githooks/pre-push' 'updated +AGENTS\.md#expo' \
     'updated +AGENTS\.md#supabase' 'wrote +docs/design-system\.md' \
@@ -348,6 +349,18 @@ links() {
   done
 }
 
+# The docs-audit's arguments (stage-4 disposition 10), the tier CI can run with
+# no agent: the two packs' contract docs, each with its scope.
+audit_args() {
+  step "npx cookwright audit args"
+  npx cookwright audit args > "$WORK/audit.out" || fail "audit args exited non-zero"
+  cat "$WORK/audit.out"
+  node -e 'const { docs } = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    process.exit(docs.map((d) => d.path).join(",") === "docs/design-system.md,docs/data-model.md"
+      && docs.every((d) => typeof d.scope === "string" && d.scope.length > 0) ? 0 : 1)' "$WORK/audit.out" \
+    || fail "audit args did not print the two contract docs with their scopes"
+}
+
 main() {
   echo "$MSG_HEAD"
   need git; need node; need npm; need npx
@@ -356,7 +369,7 @@ main() {
   [ -n "${KEEP:-}" ] || trap 'rm -rf "$WORK"' EXIT
   printf "$MSG_DIR" "$WORK"
   pack; scaffold; overlay; install_package
-  init; doctor; commit_through_hooks; standards_commit; branch_measures; rerun; links
+  init; doctor; commit_through_hooks; standards_commit; branch_measures; audit_args; rerun; links
   echo; echo "$MSG_OK"
 }
 

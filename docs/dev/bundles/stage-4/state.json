@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 117,
+  "revision": 129,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -236,9 +236,23 @@
     },
     {
       "name": "implement:s4",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-25T20:47:24.783Z",
+          "stateRevision": 117,
+          "planSha": "852cd835f53d5f48",
+          "codex": true,
+          "runId": "wf_3599478b-a15",
+          "endedAt": "2026-10-25T21:19:27.954Z",
+          "turnOutputTokens": 260862
+        }
+      ],
+      "startCommit": "139943d0dffd6505b7a3113a049fa246958a8e75",
+      "range": null,
+      "endCommit": "0477192085bf23ab2516fb0e36a976e0cf5d0b7a",
+      "endCode": "63ecb36c590cc7ac0e8e493421d843c0992e8490"
     },
     {
       "name": "implement:s5",
@@ -398,6 +412,19 @@
           "ms": 90758
         }
       ]
+    },
+    {
+      "commit": "0477192085bf23ab2516fb0e36a976e0cf5d0b7a",
+      "at": "2026-10-25T21:19:13.569Z",
+      "slice": "measure",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 96503
+        }
+      ]
     }
   ],
   "findings": [
@@ -497,6 +524,12 @@
       "phase": "fix:model",
       "path": "docs/dev/bundles/stage-4/sessions/fix-model-1.md",
       "at": "2026-10-25T20:45:40.378Z",
+      "stored": true
+    },
+    {
+      "phase": "implement:s4",
+      "path": "docs/dev/bundles/stage-4/sessions/implement-s4-1.md",
+      "at": "2026-10-25T21:16:49.931Z",
       "stored": true
     }
   ],
@@ -1053,6 +1086,55 @@
       "actor": "orchestrator",
       "source": "fix:model strings batch",
       "text": "fix:model's 8 user-facing strings (the preflight collision refusal, the config overlap problem, the docs row's ruleDiffers and unreadable notes, the ES module ESLint rows and import line, the design-system template's naming sentence, the guide wording) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:whole.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T21:16:50.450Z",
+      "actor": "orchestrator",
+      "source": "implement:s4 open question 1",
+      "text": "standards --ratchet exits 2 until s5 lands it, which is the next session; no repo outside this branch has a fresh config naming it and the fixture never pushes, so no early exit-11 stub (rule 3: a stub that skips would claim a measurement path that does not exist yet).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T21:16:50.946Z",
+      "actor": "orchestrator",
+      "source": "implement:s4 open question 2",
+      "text": "The hooks guide, the standards guide, AGENTS.md's Layout and the backlog follow in s6 and s7 as the plan schedules; none of this repo's doc-sync rules covers s4's paths, so no escape was needed.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T21:16:51.495Z",
+      "actor": "orchestrator",
+      "source": "implement:s4 open question 3",
+      "text": "The no-flag count measures HEAD with git ls-tree, as the plan's 'on HEAD' says; §4.5's 'ls-files -s' named the index by mistake (rule 3: a count of HEAD reads HEAD's tree).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T21:16:52.455Z",
+      "actor": "orchestrator",
+      "source": "implement:s4 open question 4",
+      "text": "Blobs read by sha through one git cat-file --batch per 500 instead of one git show per path: the same bytes, fewer processes, no path quoting; accepted as a departure from the plan's letter (rule 5: nothing stored).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T21:16:52.970Z",
+      "actor": "orchestrator",
+      "source": "implement:s4 open question 5",
+      "text": "This checkout's core.hooksPath read .husky/_ (set 2026-10-25 18:05, before this session, no .husky directory exists), so no cookwright pre-commit ran on this bundle's commits until the orchestrator restored .githooks after s4; the secrets scan and the doc-sync rules were re-measured over the whole range by the orchestrator (results in the state's next decision) and the cause is logged as B-016.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T21:16:53.689Z",
+      "actor": "orchestrator",
+      "source": "implement:s4 strings batch",
+      "text": "s4's 29 user-facing strings (the standards command's usage and skip lines, the per-rule skipped tails, the hook's lines and finding format, the fixture's expectations) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:measure.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T21:17:35.855Z",
+      "actor": "orchestrator",
+      "source": "orchestrator after implement:s4, re-measurement",
+      "text": "With core.hooksPath found at .husky/_, the pre-commit checks were re-run by hand over the whole range e966c45..HEAD (41 commits): gitleaks git scan, no leaks found; every commit checked against the two doc-sync rules of cookwright.json with git diff-tree pathspecs, 0 unmet. The bypass let nothing through that the hook would have refused (rule 3: measured, not assumed).",
       "claim": true
     }
   ],

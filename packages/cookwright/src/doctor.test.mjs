@@ -893,12 +893,17 @@ describe('packs and the pack rows', () => {
     expect(doctor(level0({}, { hosts: ['gemini'] })).packs).toEqual({ status: 'SKIP', note: m.configInvalid });
   });
 
-  it('appends each declared pack’s three rows after the static ones, in packs order, every one PASS on a fresh repo', () => {
-    const rows = doctor(packed(['supabase', 'expo']));
+  const TYPES_SCRIPT = 'supabase gen types --local > src/types/db.ts';
+  const withTypes = { 'package.json': JSON.stringify({ scripts: { test: 'vitest run', 'db:types': TYPES_SCRIPT } }) };
+  const withSupabase = probes({ hasTool: (bin) => bin === 'supabase' || PROBES.hasTool(bin) });
+
+  it('appends each declared pack’s rows after the static ones, in packs order, every one PASS on a fresh repo', () => {
+    const rows = doctor(packed(['supabase', 'expo'], withTypes), { probes: withSupabase });
     const kinds = ['declared', 'rules', 'docs'];
     expect(Object.keys(rows)).toEqual([
       ...Object.keys(CHECKS),
       ...kinds.map((k) => `pack.supabase.${k}`),
+      'pack.supabase.types',
       ...kinds.map((k) => `pack.expo.${k}`),
     ]);
     for (const [name, r] of Object.entries(rows)) expect([name, r.status]).toEqual([name, 'PASS']);
@@ -907,6 +912,22 @@ describe('packs and the pack rows', () => {
     expect(rows['pack.expo.rules'].note).toBe("AGENTS.md: the expo pack's section is current");
     expect(rows['pack.expo.docs'].note).toBe('0 primitives, 0 documented in docs/design-system.md');
     expect(rows['pack.supabase.docs'].note).toBe('0 migrations, 0 documented in docs/data-model.md');
+    expect(rows['pack.supabase.types'].note).toBe('measured by the gate against the local stack (db:types writes src/types/db.ts)');
+  });
+
+  it('reads pack.supabase.types: SKIP without the CLI, WARN with no script or another shape, absent with the rule off', () => {
+    const t = m.pack.types;
+    const types = (files, p = withSupabase, packs = ['supabase']) => doctor(packed(packs, files), { probes: p })['pack.supabase.types'];
+    const noSupabase = probes({ hasTool: (bin) => bin !== 'supabase' && PROBES.hasTool(bin) });
+    expect(types(withTypes, noSupabase)).toEqual({ status: 'SKIP', note: t.needsCli });
+    expect(t.needsCli).toBe('skipped, needs supabase (brew install supabase/tap/supabase)');
+    expect(types({})).toEqual({ status: 'WARN', note: t.noScript('db:types') });
+    expect(t.noScript('db:types')).toBe(
+      'no db:types script in package.json; add "db:types": "supabase gen types --local > <path>", the shape the gate\'s types check reads',
+    );
+    const linked = { 'package.json': JSON.stringify({ scripts: { test: 'vitest run', 'db:types': 'supabase gen types --linked > db.ts' } }) };
+    expect(types(linked)).toEqual({ status: 'WARN', note: t.shape('db:types') });
+    expect(types(withTypes, withSupabase, [{ name: 'supabase', rules: { types: false } }])).toBeUndefined();
   });
 
   it('has no pack row without a config, and a pack FAIL never moves the level line', () => {

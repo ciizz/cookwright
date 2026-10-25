@@ -1,8 +1,9 @@
 // src/standards.test.mjs — `cookwright standards`, in process, over scratch repos
 // measured by the fake ESLint package linked into their node_modules, the packs'
 // real exports spread by their eslint.config.js (stage-4 plan §4.5, §6): the count
-// on HEAD, the per-file ratchet of `--staged` with its exits and lines, and every
-// state in which it cannot measure.
+// on HEAD, the per-file ratchet of `--staged` with its exits and lines, the branch
+// ratchet of `--ratchet` with its base order, the types measure of `--types`
+// through a fake supabase CLI on PATH, and every state in which it cannot measure.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,6 +11,7 @@ import path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { messages } from './lib/messages.mjs';
+import { appliedVersions, typesShape } from './lib/packs/types.mjs';
 import { main } from './standards.mjs';
 import { commit, fakeEslintRepo, gitInit, run, scratchRepo, scratchRoot } from './test-helpers.mjs';
 
@@ -329,5 +331,127 @@ describe('--ratchet: the branch against its base', () => {
     expect(await main(['--ratchet'], { cwd: root, env: ENV })).toBe(10);
     const file = ['src/components/Card.tsx'];
     expect(out[0]).toBe(m.ratchetRose([m.risenItem('expo strings 0 → 1', file), m.risenItem('expo tokens 0 → 1', file)], m.since(run(top, 'git', ['rev-parse', 'main']), 'merge-base main HEAD')));
+  });
+});
+
+describe('--types: the supabase types against the local stack', () => {
+  const t = m.types;
+  const SCRIPT = 'supabase gen types --local --schema public > src/types/db.ts';
+  const INIT = '20261025120000_init.sql';
+  const TODOS = '20261025130000_todos.sql';
+  const TYPES = 'export type Database = { public: { todos: {} } };\n';
+  /** A fake `supabase` on PATH: `migration list` prints list.txt (or fails), `gen types` records its args and prints types.ts. */
+  function fakeSupabase() {
+    const dir = fs.mkdtempSync(path.join(TMP, 'supabase-'));
+    const bin = path.join(dir, 'supabase');
+    const script = [
+      '#!/bin/sh',
+      'here=$(dirname "$0")',
+      'case "$1 $2" in',
+      '  "migration list") [ -f "$here/list.fail" ] && { echo "failed to connect to postgres" >&2; exit 1; }; cat "$here/list.txt" ;;',
+      '  "gen types") shift 2; echo "$@" > "$here/gen.args"; cat "$here/types.ts" ;;',
+      '  *) exit 3 ;;',
+      'esac',
+      '',
+    ].join('\n');
+    fs.writeFileSync(bin, script, { mode: 0o755 });
+    return dir;
+  }
+  const table = (versions) =>
+    ['', '   Local          | Remote         | Time (UTC)          ', '  ----------------|----------------|---------------------',
+      ...versions.map((v) => `   ${v} | ${v} | 2026-10-25 12:00:00 `), ''].join('\n');
+  /** main with the init migration and its types, a branch `feat` adding `changes`; the fake stack applied `applied`. */
+  function supa(changes, { script = SCRIPT, applied = ['20261025120000', '20261025130000'], generated = TYPES } = {}) {
+    const repo = repoWith(
+      { 'package.json': JSON.stringify({ scripts: { 'db:types': script } }), [`supabase/migrations/${INIT}`]: 'create table a();\n', 'src/types/db.ts': 'export type Database = {};\n' },
+      { packs: ['supabase'] },
+    );
+    run(repo.root, 'git', ['checkout', '-qb', 'feat']);
+    if (changes) commit(repo, changes, 'feat');
+    const dir = fakeSupabase();
+    fs.writeFileSync(path.join(dir, 'list.txt'), table(applied));
+    fs.writeFileSync(path.join(dir, 'types.ts'), generated);
+    return { repo, dir, env: { ...ENV, PATH: `${dir}${path.delimiter}${ENV.PATH}` } };
+  }
+  const types = ({ repo, env }, args = []) => main(['--types', ...args], { cwd: repo.root, env });
+  const at = (repo) => m.since(run(repo.root, 'git', ['rev-parse', 'main']), 'merge-base main HEAD');
+
+  it('accepts exactly one script shape, --local among its args, nothing after the target', () => {
+    expect(typesShape(SCRIPT)).toEqual({ args: ['--local', '--schema', 'public'], target: 'src/types/db.ts' });
+    expect(typesShape('supabase gen types typescript --local>types.ts')).toEqual({ args: ['typescript', '--local'], target: 'types.ts' });
+    for (const bad of [
+      'supabase gen types --linked > db.ts',
+      'npx supabase gen types --local > db.ts',
+      'supabase gen types --local > db.ts && prettier --write db.ts',
+      'supabase gen types --local | tee db.ts',
+      'supabase gen types --local > db.ts; echo done',
+      'supabase gen types --local > a.ts > b.ts',
+      'supabase gen types --local >> db.ts',
+      "supabase gen types --local --schema 'public' > db.ts",
+      'supabase gen types --local > /tmp/db.ts',
+      'supabase gen types --local > ../db.ts',
+      'supabase gen types --local',
+      undefined,
+    ]) {
+      expect([bad, typesShape(bad)]).toEqual([bad, null]);
+    }
+  });
+
+  it('passes types that match what the local stack generates, its args passed through', async () => {
+    const s = supa({ [`supabase/migrations/${TODOS}`]: 'create table todos();\n', 'src/types/db.ts': TYPES });
+    expect(await types(s)).toBe(0);
+    expect(out).toEqual([t.current('src/types/db.ts', at(s.repo))]);
+    expect(fs.readFileSync(path.join(s.dir, 'gen.args'), 'utf8').trim()).toBe('--local --schema public');
+  });
+
+  it('fails stale types, exit 10, naming the file and npm run db:types', async () => {
+    const s = supa({ [`supabase/migrations/${TODOS}`]: 'create table todos();\n' });
+    expect(await types(s)).toBe(10);
+    expect(out).toEqual([t.rose('src/types/db.ts', 'db:types')]);
+    expect(out[0]).toBe('src/types/db.ts differs from what the local stack generates; run npm run db:types and commit it (measured against the local stack)');
+  });
+
+  it('skips with no migration or types change since the base', async () => {
+    const s = supa({ 'README.md': 'other' });
+    expect(await types(s)).toBe(11);
+    expect(out).toEqual([t.noChange(at(s.repo))]);
+  });
+
+  it('skips when the local stack differs from HEAD’s migrations, either direction, or cannot be read', async () => {
+    const todos = { [`supabase/migrations/${TODOS}`]: 'create table todos();\n' };
+    const behind = supa(todos, { applied: ['20261025120000'] });
+    expect(await types(behind)).toBe(11);
+    const ahead = supa(todos, { applied: ['20261025120000', '20261025130000', '20261026090000'] });
+    expect(await types(ahead)).toBe(11);
+    const down = supa(todos);
+    fs.writeFileSync(path.join(down.dir, 'list.fail'), '');
+    expect(await types(down)).toBe(11);
+    const odd = supa(todos);
+    fs.writeFileSync(path.join(odd.dir, 'list.txt'), 'no table here\n');
+    expect(await types(odd)).toBe(11);
+    expect(out).toEqual([t.stackDiffers(0, 1), t.stackDiffers(1, 0), t.stackFailed('failed to connect to postgres'), t.stackUnread]);
+  });
+
+  it('skips: the rule off, no script, another shape, no CLI, no base', async () => {
+    const off = supa(null);
+    expect(await main(['--types'], { cwd: repoWith({}, { packs: ['expo'] }).root, env: off.env })).toBe(11);
+    const none = supa(null, { script: null });
+    fs.writeFileSync(path.join(none.repo.root, 'package.json'), '{}');
+    expect(await types(none)).toBe(11);
+    expect(await types(supa(null, { script: 'supabase gen types --linked > db.ts' }))).toBe(11);
+    const noCli = supa(null);
+    expect(await types({ ...noCli, env: { ...ENV, PATH: fs.mkdtempSync(path.join(TMP, 'empty-')) } })).toBe(11);
+    const noBase = supa(null);
+    run(noBase.repo.root, 'git', ['checkout', '-q', 'main']);
+    expect(await types(noBase)).toBe(11);
+    expect(out).toEqual([t.off, t.noScript('db:types'), t.shape('db:types'), t.needsCli, m.noBase(['main@{upstream}'])]);
+  });
+
+  it('reads the applied versions from the Remote column of migration list --local', () => {
+    expect(appliedVersions(table(['20261025120000']))).toEqual(['20261025120000']);
+    const pending = '   Local          | Remote | Time (UTC)\n  ---|---|---\n   20261025120000 |        | 2026-10-25 12:00:00\n';
+    expect(appliedVersions(pending)).toEqual([]);
+    expect(appliedVersions('\u001b[1m   Local | Remote | Time\u001b[0m\n x | 20261025120000 | y\n')).toEqual(['20261025120000']);
+    expect(appliedVersions('Cannot connect')).toBeNull();
   });
 });

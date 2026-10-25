@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const MIGRATION = /^\d{14}_.+\.sql$/;
+export const MIGRATION = /^\d{14}_.+\.sql$/;
 const COMPONENT = /\.(tsx|jsx)$/;
 // React Native's platform files: `Map.web.tsx` and `Map.native.tsx` are one primitive, `Map`.
 const PLATFORM = /\.(ios|android|native|web)$/;

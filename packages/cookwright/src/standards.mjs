@@ -26,6 +26,7 @@ import { oneLine } from './lib/doctor/repo.mjs';
 import { messages } from './lib/messages.mjs';
 import { resolveBase } from './lib/packs/base.mjs';
 import * as engine from './lib/packs/standards.mjs';
+import { measureTypes } from './lib/packs/types.mjs';
 
 const m = messages.standards;
 const { ROSE_EXIT, SKIP_EXIT, Unmeasurable } = engine;
@@ -171,20 +172,22 @@ async function countMode(ctx) {
   return { exit: 0, lines: [...lines, m.tail(m.counted(files.length - items.length), extras)] };
 }
 
-const MODES = ['staged', 'ratchet'];
+const MODES = ['staged', 'ratchet', 'types'];
 
 /** The flags, or a Refusal: no positional, at most one mode, `--base <ref>` only with a branch measure. */
 function parse(argv) {
   const { pos, flags } = parseArgv(argv);
   onlyFlags(flags, [...MODES, 'base']);
   const modes = MODES.filter((f) => flags[f] !== undefined);
-  const base = flags.base === undefined || (typeof flags.base === 'string' && Boolean(flags.ratchet));
+  const base = flags.base === undefined || (typeof flags.base === 'string' && Boolean(flags.ratchet || flags.types));
   if (pos.length || modes.length > 1 || modes.some((f) => flags[f] !== true) || !base) throw new Refusal(m.usage);
   return flags;
 }
 
 /** The measure `flags` names over `repo`: `{ exit, lines }`. */
 async function measure(repo, flags, io) {
+  const env = io.env ?? process.env;
+  if (flags.types) return measureTypes({ ...repo, env }, { base: () => branchBase(repo, flags, env) });
   const ctx = await prepare(repo, io);
   if (flags.staged) return stagedMode(ctx);
   return flags.ratchet ? ratchetMode(ctx, flags) : countMode(ctx);

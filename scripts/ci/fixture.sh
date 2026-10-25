@@ -2,7 +2,9 @@
 # The harness fixture (E-014): a real create-expo-app scaffold, the committed
 # overlay appended, then the package's published shape (an npm pack tarball)
 # installed and init, doctor, the hooks (a violating component refused by the
-# standards check, then landed corrected), changelog and migrate run against it.
+# standards check, then landed corrected), the gate's standards checks (the
+# ratchet with no base on main and a rise on a branch, the types measure),
+# changelog and migrate run against it.
 # Runs locally and in CI: bash scripts/ci/fixture.sh. KEEP=1 keeps the temp dir;
 # FIXTURE_STRICT=1 turns a missing tool from a skip into a failure.
 #
@@ -186,11 +188,26 @@ expect_level() {
   fi
 }
 
+# pack.supabase.types is the one row that depends on a tool the fixture does not
+# install (stage-4 disposition 18): with supabase on PATH it WARNs, the overlay
+# having no db:types script, and is the only WARN; without it, it SKIPs.
+expect_types_row() {
+  if command -v supabase >/dev/null 2>&1; then
+    expect "$WORK/doctor.out" " 0 FAIL, 1 WARN, " "doctor reported a FAIL, or a WARN besides pack.supabase.types"
+    expect "$WORK/doctor.out" "^WARN +pack\.supabase\.types +no db:types script in package\.json" \
+      "supabase is on PATH but pack.supabase.types does not WARN for the missing db:types script"
+  else
+    expect "$WORK/doctor.out" " 0 FAIL, 0 WARN, " "doctor reported a FAIL or a WARN"
+    expect "$WORK/doctor.out" "^SKIP +pack\.supabase\.types +skipped, needs supabase" \
+      "supabase is not on PATH but pack.supabase.types does not SKIP naming it"
+  fi
+}
+
 doctor() {
   step "npx cookwright doctor"
   npx cookwright doctor | tee "$WORK/doctor.out" || fail "doctor exited non-zero"
   expect_level
-  expect "$WORK/doctor.out" " 0 FAIL, 0 WARN, " "doctor reported a FAIL or a WARN"
+  expect_types_row
   if command -v gitleaks >/dev/null 2>&1; then
     expect "$WORK/doctor.out" "^PASS +tools\.gitleaks " "gitleaks is on PATH but tools.gitleaks is not PASS"
   fi
@@ -252,6 +269,41 @@ standards_commit() {
   [ -z "$(git status --porcelain)" ] || fail "the tree is dirty after the corrected commit"
 }
 
+# The gate's two checks on the fixture: on main with no upstream the ratchet has
+# no base, and the types measure has no db:types script, both exit 11 naming
+# why. On a branch, a violating component landed with the escape is a rise the
+# ratchet names, measured by the real ESLint; the branch is then dropped.
+branch_measures() {
+  step "npx cookwright standards --ratchet and --types"
+  local code
+  code=0; npx cookwright standards --ratchet > "$WORK/ratchet.out" || code=$?
+  cat "$WORK/ratchet.out"
+  [ "$code" = 11 ] || fail "standards --ratchet on main with no upstream exited $code, not 11"
+  expect "$WORK/ratchet.out" "^skipped, no base to ratchet against \(tried: main@\{upstream\}\)$" \
+    "standards --ratchet did not name the base it tried"
+  code=0; npx cookwright standards --types > "$WORK/types.out" || code=$?
+  cat "$WORK/types.out"
+  [ "$code" = 11 ] || fail "standards --types without a db:types script exited $code, not 11"
+  expect "$WORK/types.out" "^skipped, no db:types script in package\.json" "standards --types did not name the missing script"
+  git checkout -qb feat
+  mkdir -p src/components
+  printf '%s\n' "$GREETING_BAD" > src/components/Farewell.tsx
+  printf '| Farewell | src/components/Farewell.tsx | none | |\n' >> docs/design-system.md
+  git add src/components/Farewell.tsx docs/design-system.md
+  COOKWRIGHT_SKIP=standards git commit -qm "feat: farewell (standards skipped to test the ratchet)" > /dev/null 2>&1 \
+    || fail "the escaped commit was refused"
+  code=0; npx cookwright standards --ratchet > "$WORK/rose.out" || code=$?
+  cat "$WORK/rose.out"
+  [ "$code" = 10 ] || fail "standards --ratchet on a branch with a new violation exited $code, not 10"
+  expect "$WORK/rose.out" "^a pack rule's count rose since [0-9a-f]{8} \(merge-base main HEAD\): expo strings 0 → 1 in src/components/Farewell\.tsx, expo tokens 0 → 1 in src/components/Farewell\.tsx" \
+    "the ratchet's first line does not name both risen rules and the file"
+  expect "$WORK/rose.out" "^src/components/Farewell\.tsx:4:[0-9]+ +expo tokens " "the ratchet did not name the colour literal"
+  grep -q "Hello there" "$WORK/rose.out" && fail "a ratchet line echoed the literal"
+  git checkout -q main
+  git branch -qD feat
+  [ -z "$(git status --porcelain)" ] || fail "the tree is dirty after the branch measures"
+}
+
 rerun() {
   step "npx cookwright changelog --check, migrate, init again"
   npx cookwright changelog --check || fail "changelog --check exited non-zero"
@@ -279,7 +331,7 @@ main() {
   [ -n "${KEEP:-}" ] || trap 'rm -rf "$WORK"' EXIT
   printf "$MSG_DIR" "$WORK"
   pack; scaffold; overlay; install_package
-  init; doctor; commit_through_hooks; standards_commit; rerun; links
+  init; doctor; commit_through_hooks; standards_commit; branch_measures; rerun; links
   echo; echo "$MSG_OK"
 }
 

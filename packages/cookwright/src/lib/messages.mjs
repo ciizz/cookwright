@@ -16,6 +16,9 @@ const list = (names) => names.join(', ');
 /** The first five of `files`, then `…`: a line names the first few, never a whole tree. */
 const shown = (files) => (files.length > 5 ? [...files.slice(0, 5), '…'] : files).join(', ');
 const RUN_INIT = `run ${CLI} init`;
+// The one script shape the supabase pack's types measure reads (stage-4 disposition 40).
+const TYPES_ACCEPTED = '"db:types": "supabase gen types --local > <path>"';
+const NEEDS_SUPABASE = 'skipped, needs supabase (brew install supabase/tap/supabase)';
 /** Appended when a JSON file is rewritten in a layout other than the one it had. */
 const RELAID = ' (the file is rewritten in standard JSON layout, its indent kept)';
 
@@ -197,6 +200,13 @@ const doctor = {
       unreadable: (kind, dir, code) => `${ENTRY_NOUNS[kind][1]} not counted: ${dir} could not be read (${code})`,
       omitted: (names, n, kind, doc) =>
         `${names.length} of ${counted(n, kind)} ${names.length === 1 ? 'has' : 'have'} no entry in ${doc}: ${shown(names)}`,
+    },
+    // pack.supabase.types: what the gate's types check needs, no subprocess (stage-4 plan §4.6)
+    types: {
+      needsCli: NEEDS_SUPABASE,
+      noScript: (script) => `no ${script} script in package.json; add ${TYPES_ACCEPTED}, the shape the gate's types check reads`,
+      shape: (script) => `the ${script} script is not the shape the gate's types check reads; use ${TYPES_ACCEPTED}`,
+      ok: (script, file) => `measured by the gate against the local stack (${script} writes ${file})`,
     },
   },
 
@@ -496,7 +506,7 @@ const hook = {
 // standards: the command that counts the packs' ESLint rules (stage-4 plan §4.5).
 // The last line printed is the one a caller records: the hook's note, the gate's.
 const standards = {
-  usage: `usage: ${CLI} standards [--staged | --ratchet [--base <ref>]]`,
+  usage: `usage: ${CLI} standards [--staged | --ratchet [--base <ref>] | --types [--base <ref>]]`,
   notWorkTree: 'skipped, not inside a git work tree',
   noConfig: `skipped, no ${CONFIG_FILE}; ${RUN_INIT}`,
   configInvalid: (detail) => `skipped, ${CONFIG_FILE} invalid: ${detail}; run ${CLI} doctor`,
@@ -539,6 +549,21 @@ const standards = {
     flag: (ref) => `--base ${ref}`,
     upstream: (branch) => `${branch}@{upstream}`,
     mergeBase: (branch) => `merge-base ${branch} HEAD`,
+  },
+  // --types: the supabase pack's types rule against the local stack (dispositions 40, 46)
+  types: {
+    off: `skipped, the supabase pack's types rule is not on (packs in ${CONFIG_FILE})`,
+    noScript: (script) => `skipped, no ${script} script in package.json (the types measure reads ${TYPES_ACCEPTED})`,
+    shape: (script) => `skipped, the ${script} script's shape is not recognised (accepted: ${TYPES_ACCEPTED})`,
+    needsCli: NEEDS_SUPABASE,
+    noChange: (since) => `skipped, no migration or types change since ${since}`,
+    stackFailed: (detail) => `skipped, supabase migration list --local failed: ${detail} (is the local stack running? supabase start)`,
+    stackUnread: 'skipped, supabase migration list --local printed no table this measure reads',
+    stackDiffers: (ahead, behind) => `skipped, local stack differs from HEAD's migrations (${ahead} ahead, ${behind} behind)`,
+    genFailed: (detail) => `skipped, supabase gen types failed: ${detail}`,
+    current: (file, since) => `${file} matches what the local stack generates (measured against the local stack, changes since ${since})`,
+    rose: (file, script) =>
+      `${file} differs from what the local stack generates; run npm run ${script} and commit it (measured against the local stack)`,
   },
   noChange: (since) => `0 files under a pack's rules changed since ${since}`,
   ratchet: (changes, parts, n, since) => `${[list(changes), ...parts].join('; ')} (${n} file(s) since ${since})`,

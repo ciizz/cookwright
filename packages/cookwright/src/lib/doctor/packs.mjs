@@ -1,8 +1,9 @@
 // src/lib/doctor/packs.mjs — doctor's pack rows (stage-4 plan §4.7): the static
 // `packs` row, and for each declared pack `pack.<name>.declared`, `.rules` and
-// `.docs`, appended after the static rows. Every read is a named file or one
-// directory and the one below it: no subprocess, within doctor's budget. Pack rows
-// sit outside every level's `requires`, so they never move the level line.
+// `.docs`, and `pack.supabase.types` while its rule is on, appended after the
+// static rows. Every read is a named file or one directory and the one below it:
+// no subprocess, within doctor's budget. Pack rows sit outside every level's
+// `requires`, so they never move the level line.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,8 +11,9 @@ import path from 'node:path';
 import { messages } from '../messages.mjs';
 import { detectPacks } from '../packs/detect.mjs';
 import { LISTERS, tableKeys } from '../packs/entries.mjs';
-import { ADVISORY, declaredPacks } from '../packs/registry.mjs';
+import { ADVISORY, activeRules, declaredPacks } from '../packs/registry.mjs';
 import { renderSection } from '../packs/section.mjs';
+import { TYPES_SCRIPT, typesScript, typesShape } from '../packs/types.mjs';
 import { RULES_FILE, blockState, packKind } from '../rules/block.mjs';
 import { FAIL, PASS, SKIP, WARN, fail, pass, skip, warn } from '../verdict.mjs';
 import { isFile, readLF } from './repo.mjs';
@@ -126,11 +128,28 @@ function checkDocs(repo, pack) {
   return { status, note: shown.map((v) => v.note).join('; ') };
 }
 
-/** The row names of one declared pack, in readout order, each with its check. */
+/**
+ * `pack.supabase.types`: what the gate's types check needs, read without running it
+ * (the measure needs the local stack): the CLI on PATH, then the one script shape.
+ */
+function checkTypes(repo, pack, probes) {
+  const t = m.pack.types;
+  if (!probes.hasTool('supabase')) return skip(t.needsCli);
+  const script = typesScript(repo.root);
+  const shape = typesShape(script);
+  if (!shape) return warn(script === null ? t.noScript(TYPES_SCRIPT) : t.shape(TYPES_SCRIPT));
+  return pass(t.ok(TYPES_SCRIPT, shape.target));
+}
+
+/**
+ * The rows of one declared pack, in readout order: each kind's check, and when it
+ * `applies` (a row for a measure the pack has on).
+ */
 export const PACK_ROWS = Object.freeze({
-  declared: (repo, pack) => checkDeclared(pack),
-  rules: checkRules,
-  docs: checkDocs,
+  declared: { run: (repo, pack) => checkDeclared(pack) },
+  rules: { run: checkRules },
+  docs: { run: checkDocs },
+  types: { run: checkTypes, applies: (pack) => activeRules(pack).some((rule) => rule.id === 'types') },
 });
 
 /** The row name of `pack`'s check `kind`: `pack.expo.rules`. */
@@ -140,6 +159,8 @@ export const packRowName = (name, kind) => `pack.${name}.${kind}`;
 export function packChecks(repo) {
   if (!repo.config) return [];
   return declaredPacks(repo.config).flatMap((pack) =>
-    Object.entries(PACK_ROWS).map(([kind, run]) => [packRowName(pack.name, kind), () => run(repo, pack)]),
+    Object.entries(PACK_ROWS)
+      .filter(([, row]) => !row.applies || row.applies(pack))
+      .map(([kind, row]) => [packRowName(pack.name, kind), (r, probes) => row.run(repo, pack, probes)]),
   );
 }

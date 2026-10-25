@@ -42,7 +42,7 @@ Before counting, the check asks ESLint for the effective config of a file each r
 
 `npx cookwright standards` with no flag prints the repo-wide count per rule at `HEAD`, the number an existing app sees first. `--staged` is what the hook runs, `--ratchet` and `--types` are the gate's. Exit 0 is measured with no rise, 10 a count rose, 11 cannot measure (one line naming why), 2 a usage error. A gate check that runs it carries `"skipExit": 11`, so exit 11 is recorded as skipped with that line, never as a failure.
 
-The ratchet's first line is what the gate records with the result, `expo strings 412 → 410, tokens 3 → 3; <rules not measured> (14 file(s) since <base>)`, and the bundle runner's landing check reads a pass whose line names a skipped rule as weak. Exit 11 is recorded as skipped only by a gate check that opts in with `skipExit`; a check without it that exits 11 is a failure. The pre-commit check reads its own child's exit 11 as SKIP.
+The ratchet's first line is what the gate records with the result, `expo strings 412 → 410, expo tokens 3 → 3; <rules not measured> (14 file(s) since <base>)`, and the bundle runner's landing check reads a pass whose line names a skipped rule as weak. Exit 11 is recorded as skipped only by a gate check that opts in with `skipExit`; a check without it that exits 11 is a failure. The pre-commit check reads its own child's exit 11 as SKIP.
 
 ## The types measure
 

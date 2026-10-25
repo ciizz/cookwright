@@ -28,7 +28,8 @@
     "docs",
     "packs",
     "!src/**/*.test.mjs",
-    "!src/test-helpers.mjs"
+    "!src/test-helpers.mjs",
+    "!src/test-fixtures/**"
   ],
   "scripts": {
     "test": "vitest run"

@@ -187,10 +187,12 @@ const changedAt = (config, covering) =>
 
 /**
  * The measured rules that cover the file at `topRel` and hold there, as `{ rules }`
- * (none when no pack block reaches the file: it is not under a pack's rules), or
- * `{ unmeasured, detail? }` when one reaches it but the repo's config ignores the
- * file or a later block changed the rule for it. The samples `wired` reads cannot
- * see a path-specific ignore or override; this reads the file's own config.
+ * (none when no pack block reaches the file: it is not under a pack's rules);
+ * `{ rules: [], ignored: true }` when one reaches it but the repo's config ignores
+ * the file, a chosen exclusion that puts it outside the pack's rules too; or
+ * `{ unmeasured, detail? }` when a later block changed the rule for it or its config
+ * could not be computed. The samples `wired` reads cannot see a path-specific
+ * ignore or override; this reads the file's own config.
  */
 export async function scopeAt(eslint, top, root, topRel, cover) {
   const abs = path.join(top, topRel);
@@ -203,7 +205,7 @@ export async function scopeAt(eslint, top, root, topRel, cover) {
   } catch (err) {
     return { unmeasured: m.configAtFile, detail: firstLine(err) };
   }
-  if (!config) return { unmeasured: m.fileIgnored };
+  if (!config) return { rules: [], ignored: true };
   const changed = changedAt(config, covering);
   return changed.length ? { unmeasured: m.changedHere(changed) } : { rules: covering.map((c) => c.item) };
 }

@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { skippedParts } from './lib/bundle/gate.mjs';
 import { messages } from './lib/messages.mjs';
 import { appliedVersions, typesShape } from './lib/packs/types.mjs';
 import { main } from './standards.mjs';
@@ -211,7 +212,7 @@ describe('--staged: the per-file ratchet', () => {
     );
   });
 
-  it('reads a file the repo’s config ignores, or where a later block changed a covering rule, as not measured', async () => {
+  it('reads a file where a later block changed a covering rule as not measured, and names one the config ignores without skipping', async () => {
     const own = [
       "const expo = require('cookwright/packs/expo/eslint.cjs').withResolver((id) => require.resolve(id));",
       'module.exports = [',
@@ -224,8 +225,20 @@ describe('--staged: the per-file ratchet', () => {
     const repo = repoWith({}, { fake: { config: own } });
     stage(repo, { 'src/components/legacy/Card.tsx': LEGACY, 'src/components/old/Card.tsx': LEGACY, 'src/components/Fine.tsx': CLEAN });
     expect(await standards(repo)).toBe(11);
-    const items = [m.notMeasuredItem('src/components/legacy/Card.tsx', m.fileIgnored), m.notMeasuredItem('src/components/old/Card.tsx', m.changedHere(['expo size']))];
-    expect(out).toEqual([m.skippedBecause(m.notMeasured(items))]);
+    const items = [m.notMeasuredItem('src/components/old/Card.tsx', m.changedHere(['expo size']))];
+    const ignored = m.ignoredFiles(['src/components/legacy/Card.tsx']);
+    expect(out).toEqual([m.tail(m.skippedBecause(m.notMeasured(items)), [ignored])]);
+    out.length = 0;
+    run(repo.root, 'git', ['rm', '-q', '--cached', 'src/components/old/Card.tsx']);
+    // The ignore is the repo's choice: the other files are measured, the line names it, the exit is 0.
+    expect(await standards(repo)).toBe(0);
+    expect(out).toEqual([m.tail(m.noRise(1), [ignored])]);
+    expect(ignored).toBe('1 file(s) the ESLint config ignores not counted: src/components/legacy/Card.tsx');
+    expect(skippedParts(out.at(-1))).toEqual([]);
+    out.length = 0;
+    run(repo.root, 'git', ['rm', '-q', '--cached', 'src/components/Fine.tsx']);
+    expect(await standards(repo)).toBe(0);
+    expect(out).toEqual([m.tail(m.noStaged, [ignored])]);
   });
 
   it('never counts a file no pack rule covers: a test file is not under the packs’ rules', async () => {

@@ -138,8 +138,8 @@ describe('scopeAt', () => {
     expect(await keys('src/services/supabase.ts')).toEqual(['expo size']);
   });
 
-  it('reads a covered file the config ignores, a rule changed for it, or a config it cannot compute as unmeasured', async () => {
-    expect(await engine.scopeAt(at(undefined), '/top', '/top', 'src/lib/a.ts', cover)).toEqual({ unmeasured: m.fileIgnored });
+  it('reads a covered file the config ignores as outside the rules, a rule changed for it or a config it cannot compute as unmeasured', async () => {
+    expect(await engine.scopeAt(at(undefined), '/top', '/top', 'src/lib/a.ts', cover)).toEqual({ rules: [], ignored: true });
     const relaxed = at((rel) => ({ ...asExported(rel), 'max-lines-per-function': [2, { max: 400 }] }));
     expect(await engine.scopeAt(relaxed, '/top', '/top', 'src/lib/a.ts', cover)).toEqual({ unmeasured: m.changedHere(['expo size']) });
     const throws = { calculateConfigForFile: async () => Promise.reject(new Error('boom /Users/someone/app')) };

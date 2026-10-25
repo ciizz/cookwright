@@ -71,7 +71,8 @@ function rises(ctx, { now, before }) {
 /**
  * One changed entry, both sides: the new blob, and the base's (none for an added
  * file), counted by the rules that cover the file and hold there. Null when no pack
- * rule covers it; both sides unmeasured when the repo's config ignores it there or
+ * rule covers it; `{ file, ignored }` when the repo's config ignores it (its choice,
+ * counted by nothing, named on the line); both sides unmeasured when a later block
  * changed a covering rule for it.
  */
 async function judgeFile(ctx, entry, blobs) {
@@ -79,6 +80,7 @@ async function judgeFile(ctx, entry, blobs) {
   const file = engine.shownPath(top, ctx.root, entry.path);
   const scope = await engine.scopeAt(eslint, top, ctx.root, entry.path, ctx.cover);
   if (scope.unmeasured) return { entry, file, now: scope, before: scope };
+  if (scope.ignored) return { file, ignored: true };
   if (!scope.rules.length) return null;
   const now = await engine.lintAt(eslint, top, entry.path, blobs.get(entry.sha), scope.rules);
   // A rename's HEAD side is linted at its new path, which is on disk and in the project (disposition 47).
@@ -86,22 +88,29 @@ async function judgeFile(ctx, entry, blobs) {
   return { entry, now, before, file };
 }
 
-/** Every entry of `files` judged, in order, without those no pack rule covers. */
+/**
+ * Every entry of `files` judged, in order, without those no pack rule covers: `{
+ * judged, ignored }`, `ignored` the files the repo's ESLint config ignores.
+ */
 async function judgeAll(ctx, files, blobs) {
-  const judged = [];
-  for (const entry of files) judged.push(await judgeFile(ctx, entry, blobs));
-  return judged.filter(Boolean);
+  const all = [];
+  for (const entry of files) all.push(await judgeFile(ctx, entry, blobs));
+  const found = all.filter(Boolean);
+  return { judged: found.filter((j) => !j.ignored), ignored: found.filter((j) => j.ignored).map((j) => j.file) };
 }
+
+/** The informational tail parts: the files the config ignores, the deleted files; neither reads as a skipped rule. */
+const notesOf = (ignored, deleted) => [...(ignored.length ? [m.ignoredFiles(ignored)] : []), ...(deleted ? [m.deleted(deleted)] : [])];
 
 /** The stderr lines of the judged files: each unmeasured side's exception, once per file. */
 const detailsOf = (judged) =>
   judged.flatMap((j) => [...new Set([j.now.detail, j.before.detail].filter(Boolean))].map((d) => m.detail(j.file, d)));
 
-/** The `--staged` report over the judged files: exit and lines. */
-function stagedReport(ctx, judged, deleted) {
+/** The `--staged` report over the judged files: exit and lines; `notes` the informational tail parts. */
+function stagedReport(ctx, judged, notes) {
   const unmeasured = judged.filter((j) => j.now.unmeasured || j.before.unmeasured);
   const items = unmeasured.map((j) => m.notMeasuredItem(j.file, j.now.unmeasured ?? j.before.unmeasured));
-  const extras = [...ctx.skipped, ...(items.length ? [m.notMeasured(items)] : []), ...(deleted ? [m.deleted(deleted)] : [])];
+  const extras = [...ctx.skipped, ...(items.length ? [m.notMeasured(items)] : []), ...notes];
   const risen = judged.filter((j) => !unmeasured.includes(j)).map((j) => ({ j, changes: rises(ctx, j) })).filter((r) => r.changes.length);
   if (risen.length) {
     const findings = risen.flatMap(({ j, changes }) =>
@@ -110,7 +119,7 @@ function stagedReport(ctx, judged, deleted) {
     const rose = m.rose(risen.map(({ j, changes }) => m.roseItem(j.file, changes.map((c) => m.change(c.key, c.from, c.to)))));
     return { exit: ROSE_EXIT, lines: [...findings, m.tail(rose, extras)] };
   }
-  if (items.length) return { exit: SKIP_EXIT, lines: [m.tail(m.skippedBecause(m.notMeasured(items)), [...ctx.skipped, ...(deleted ? [m.deleted(deleted)] : [])])] };
+  if (items.length) return { exit: SKIP_EXIT, lines: [m.tail(m.skippedBecause(m.notMeasured(items)), [...ctx.skipped, ...notes])] };
   return { exit: 0, lines: [m.tail(m.noRise(judged.length), extras)] };
 }
 
@@ -122,9 +131,10 @@ async function stagedMode(repo, io) {
   if (!files.length) return { exit: 0, lines: [m.tail(m.noStaged, deleted ? [m.deleted(deleted)] : [])] };
   const ctx = await prepare(repo, io);
   const shas = files.flatMap((e) => (engine.hasBase(e) ? [e.sha, e.baseSha] : [e.sha]));
-  const judged = await judgeAll(ctx, files, engine.readBlobs(ctx.top, shas, ctx.env));
-  if (!judged.length) return { exit: 0, lines: [m.tail(m.noStaged, [...ctx.skipped, ...(deleted ? [m.deleted(deleted)] : [])])] };
-  return { ...stagedReport(ctx, judged, deleted), details: detailsOf(judged) };
+  const { judged, ignored } = await judgeAll(ctx, files, engine.readBlobs(ctx.top, shas, ctx.env));
+  const notes = notesOf(ignored, deleted);
+  if (!judged.length) return { exit: 0, lines: [m.tail(m.noStaged, [...ctx.skipped, ...notes])] };
+  return { ...stagedReport(ctx, judged, notes), details: detailsOf(judged) };
 }
 
 /** The base of a branch measure, `{ sha, since }`; Unmeasurable naming every candidate when none resolves. */
@@ -145,11 +155,10 @@ function sumsOf(ctx, judged) {
 }
 
 /** The `--ratchet` report over the judged files: the verdict line first, the risen rules' findings after. */
-function ratchetReport(ctx, judged, deleted, since) {
+function ratchetReport(ctx, judged, notes, since) {
   const unmeasured = judged.filter((j) => j.now.unmeasured || j.before.unmeasured);
   const items = unmeasured.map((j) => m.notMeasuredItem(j.file, j.now.unmeasured ?? j.before.unmeasured));
-  const gone = deleted ? [m.deleted(deleted)] : [];
-  const extras = [...ctx.skipped, ...(items.length ? [m.notMeasured(items)] : []), ...gone];
+  const extras = [...ctx.skipped, ...(items.length ? [m.notMeasured(items)] : []), ...notes];
   const measured = judged.filter((j) => !unmeasured.includes(j));
   const sums = sumsOf(ctx, measured);
   const risen = sums.filter((c) => c.to > c.from);
@@ -160,7 +169,7 @@ function ratchetReport(ctx, judged, deleted, since) {
     );
     return { exit: ROSE_EXIT, lines: [line, ...findings] };
   }
-  if (items.length) return { exit: SKIP_EXIT, lines: [m.tail(m.skippedBecause(m.notMeasured(items)), [...ctx.skipped, ...gone])] };
+  if (items.length) return { exit: SKIP_EXIT, lines: [m.tail(m.skippedBecause(m.notMeasured(items)), [...ctx.skipped, ...notes])] };
   return { exit: 0, lines: [m.ratchet(sums.map((c) => m.change(c.key, c.from, c.to)), extras, judged.length, since)] };
 }
 
@@ -173,15 +182,16 @@ async function ratchetMode(repo, flags, io) {
   if (!files.length) return { exit: 0, lines: [m.tail(m.noChange(since), deleted ? [m.deleted(deleted)] : [])] };
   const ctx = await prepare(repo, io);
   const blobs = engine.readBlobs(ctx.top, files.flatMap((e) => (engine.hasBase(e) ? [e.sha, e.baseSha] : [e.sha])), ctx.env);
-  const judged = await judgeAll(ctx, files, blobs);
-  if (!judged.length) return { exit: 0, lines: [m.tail(m.noChange(since), [...ctx.skipped, ...(deleted ? [m.deleted(deleted)] : [])])] };
-  return { ...ratchetReport(ctx, judged, deleted, since), details: detailsOf(judged) };
+  const { judged, ignored } = await judgeAll(ctx, files, blobs);
+  const notes = notesOf(ignored, deleted);
+  if (!judged.length) return { exit: 0, lines: [m.tail(m.noChange(since), [...ctx.skipped, ...notes])] };
+  return { ...ratchetReport(ctx, judged, notes, since), details: detailsOf(judged) };
 }
 
-/** HEAD's side of one file, counted by the rules that cover it; null when none does. */
+/** HEAD's side of one file, counted by the rules that cover it; null when none does, `{ ignored }` when the config ignores it. */
 async function headSide(ctx, entry, blobs) {
   const scope = await engine.scopeAt(ctx.eslint, ctx.top, ctx.root, entry.path, ctx.cover);
-  if (scope.unmeasured) return scope;
+  if (scope.unmeasured || scope.ignored) return scope;
   return scope.rules.length ? engine.lintAt(ctx.eslint, ctx.top, entry.path, blobs.get(entry.sha), scope.rules) : null;
 }
 
@@ -194,6 +204,7 @@ async function countMode(repo, io) {
   const blobs = engine.readBlobs(ctx.top, files.map((e) => e.sha), ctx.env);
   const totals = new Map(ctx.measured.map(({ key }) => [key, 0]));
   const items = [];
+  const ignored = [];
   const details = [];
   let counted = 0;
   for (const entry of files) {
@@ -201,13 +212,14 @@ async function countMode(repo, io) {
     const file = engine.shownPath(ctx.top, ctx.root, entry.path);
     if (side?.detail) details.push(m.detail(file, side.detail));
     if (side?.unmeasured) items.push(m.notMeasuredItem(file, side.unmeasured));
+    else if (side?.ignored) ignored.push(file);
     else if (side) {
       counted += 1;
       for (const [key, n] of side.counts) totals.set(key, totals.get(key) + n);
     }
   }
   const lines = ctx.measured.map(({ key, pack, rule }) => m.count(pack.name, rule.id, totals.get(key)));
-  const extras = [...ctx.skipped, ...(items.length ? [m.notMeasured(items)] : [])];
+  const extras = [...ctx.skipped, ...(items.length ? [m.notMeasured(items)] : []), ...notesOf(ignored, 0)];
   return { exit: 0, lines: [...lines, m.tail(m.counted(counted), extras)], details };
 }
 

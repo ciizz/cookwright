@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 55,
+  "revision": 62,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -108,6 +108,13 @@
           "planSha": "dc96313de741155f",
           "codex": true,
           "runId": "wf_df224fca-aa9"
+        },
+        {
+          "startedAt": "2026-10-25T18:47:59.383Z",
+          "stateRevision": 55,
+          "planSha": "e3ab6a11a2b61b7f",
+          "codex": true,
+          "runId": "wf_794277d9-d9a"
         }
       ],
       "startCommit": "59a4e03eb2ee388d769d5e7a4210548b7b8be6a5",
@@ -275,6 +282,24 @@
       "at": "2026-10-25T18:47:17.741Z",
       "stored": true,
       "head": "59a4e03eb2ee388d769d5e7a4210548b7b8be6a5"
+    },
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-4/findings/plan-review-2.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 4,
+        "rejected": 24,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 1,
+        "P2": 1,
+        "P3": 2
+      },
+      "at": "2026-10-25T18:53:01.264Z",
+      "stored": true,
+      "head": "3b2c8b40a9e33dae6b3e5a83cd55f3eccdd88d3e"
     }
   ],
   "reports": [],
@@ -614,6 +639,34 @@
       "actor": "orchestrator",
       "source": "plan-review round 1, plan §2 disposition 44",
       "text": "Finding 27 (P3, folded): QA (c) hand-wires the two lines into the origin clone's `eslint.config.js` as the setup skill's recipe for `pack.expo.lint` names them; the strings rule's attribute exclude list is measured in s4 against the origin repo's component tree (a throwaway script over its checkout, read-only), so it ships reviewed; QA (b) uses the blank template, or expects `pack.expo.docs` WARN with the count on the tabs template.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:54:32.994Z",
+      "actor": "orchestrator",
+      "source": "plan-review re-check 1, plan §2 disposition 45",
+      "text": "Finding 4 (P1), rule 3 and rule 5: a gate check that opts into the convention (`skipExit`) has its first stdout line recorded as the result's `note` on every outcome, not only on a skip, so the state and the landing check carry `expo tokens 3 → 3, size 12 → 12; strings: skipped, needs eslint-plugin-i18next (14 files since <base>)`. `check.mjs` reads a passed check whose note names a skipped rule as WARN naming it, as it reads a skipped check today; the closeout's gate table prints the note. `recordGate` stores `note` for every result (today only skips carry one).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:54:33.399Z",
+      "actor": "orchestrator",
+      "source": "plan-review re-check 1, plan §2 disposition 46",
+      "text": "Finding 18 (P2), rules 2 and 3: the `types` precheck compares `supabase migration list --local` with HEAD's migration files in both directions and skips with `local stack differs from HEAD's migrations (<n> ahead, <m> behind)` on any difference, so a migration applied locally for another branch never fails this branch's push.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:54:33.993Z",
+      "actor": "orchestrator",
+      "source": "plan-review re-check 1, plan §2 disposition 47",
+      "text": "Finding 21 (P3, folded), rule 3: the engine never nulls the parser's project. Renames are detected (`-M`, status R); a rename's base blob is linted with `filePath` set to the HEAD path, which exists on disk and is in the project, so config matching and typed parsing hold; a deleted file (status D) is not linted and the line says `<n> deleted file(s) not counted`, since a deletion cannot raise a count; a lint that throws (a typed rule without a program, any other rule crash) is caught per file and reads `unmeasured` with the message. Tested with a fake whose `lintText` rejects.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-25T18:54:34.416Z",
+      "actor": "orchestrator",
+      "source": "plan-review re-check 1, plan §2 disposition 48",
+      "text": "Finding 22 (P3, folded): s5 stages the playbook's \"The gate's checks\" section with `gate.mjs`, stating the `skipExit` convention and the recorded note, so this repo's `playbook` doc-sync rule is honoured, not escaped.",
       "claim": true
     }
   ],

@@ -20,7 +20,7 @@ function measurement(rule) {
   if (rule.measure === 'gate') return `measured by the gate check ${code(rule.gate.name)}`;
   const ids = rule.eslint.ruleIds.map(code).join(', ');
   const needs = rule.needs ? `; needs ${code(rule.needs)}` : '';
-  return `measured by ESLint ${ids} on the staged files at commit and against the base branch at the gate${needs}`;
+  return `measured by ESLint ${ids} on the staged files at commit and against the ratchet's base at the gate${needs}`;
 }
 
 const enforcedLine = (rule, off) =>

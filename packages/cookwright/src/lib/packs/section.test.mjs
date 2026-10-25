@@ -84,7 +84,7 @@ it('renders the supabase section byte for byte', () => {
       '',
       'This section is managed by cookwright: `npx cookwright init` refreshes it from the package. Each enforced rule names the check that measures it. Switch a rule off in `cookwright.json` (`packs`), never by editing here.',
       '',
-      '- The Supabase client is imported only from the shared service (`services/supabase`, `lib/supabase` or `utils/supabase`), never from `@supabase/supabase-js` in a screen, component or feature file (measured by ESLint `no-restricted-imports` on the staged files at commit and against the base branch at the gate).',
+      '- The Supabase client is imported only from the shared service (`services/supabase`, `lib/supabase` or `utils/supabase`), never from `@supabase/supabase-js` in a screen, component or feature file (measured by ESLint `no-restricted-imports` on the staged files at commit and against the ratchet\'s base at the gate).',
       '- A migration changes with the data-model doc: a commit touching a migration stages `docs/data-model.md` (measured by the doc-sync rule `supabase:data-doc` at commit).',
       '- The generated database types match the schema: `npm run db:types` regenerates them after a migration (measured by the gate check `standards:types`).',
       '<!-- cookwright:end -->',

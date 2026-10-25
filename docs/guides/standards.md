@@ -31,7 +31,7 @@ The ESLint rules reach ESLint through the pack's export, spread into the app's o
 ## Where they are measured
 
 - **pre-commit**, the `standards` check, per file: each staged file's count of a rule against the same file at `HEAD`. It FAILs only when a count rose in a file, naming the file, the line and the rule, so touching a legacy file without adding a violation passes. It runs as a child process capped at 60 s.
-- **the gate**, `npx cookwright standards --ratchet`: each rule's count over the files the branch changed, at `HEAD` against a base: `--base <ref>`, else the remote's commit of the ref being pushed, else the base branch's upstream when `HEAD` is on it, else the merge-base with the base branch.
+- **the gate**, `npx cookwright standards --ratchet`: each rule's count over the files the branch changed, at `HEAD` against the ratchet's base, as each rule's sentence in `AGENTS.md` names it: `--base <ref>`, else the remote's commit of the ref being pushed, else the base branch's upstream when `HEAD` is on it, else the merge-base with the base branch.
 - **doctor**: the section is current, the contract doc is there with its doc-sync rule, every primitive or migration has an entry in it, and ESLint and the export are in place. Doctor runs no ESLint.
 
 A line names every rule it did not measure (`strings: skipped, needs npm install --save-dev eslint-plugin-i18next`), and the findings print the pack's own message, never ESLint's text, which for a string literal would echo it.

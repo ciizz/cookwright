@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 21,
+  "revision": 29,
   "slug": "b-018",
   "branch": "bundle/b-018",
   "base": "8492811aa8317df203611a6a6d93b0546c29e560",
@@ -55,9 +55,23 @@
     },
     {
       "name": "implement:s1",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-26T11:39:47.623Z",
+          "stateRevision": 21,
+          "planSha": "2d855629732d6d80",
+          "codex": true,
+          "runId": "wf_c8d1bef0-803",
+          "endedAt": "2026-10-26T11:47:04.899Z",
+          "turnOutputTokens": 1898605
+        }
+      ],
+      "startCommit": "6b1a9c7e85e8533cc0d6628c6ac1a0640e7239d4",
+      "range": null,
+      "endCommit": "6f845b27c4dcc190b583541e9c11e6f012ac853a",
+      "endCode": "6f845b27c4dcc190b583541e9c11e6f012ac853a"
     },
     {
       "name": "review:fix",
@@ -109,6 +123,19 @@
           "ms": 55753
         }
       ]
+    },
+    {
+      "commit": "6f845b27c4dcc190b583541e9c11e6f012ac853a",
+      "at": "2026-10-26T11:47:04.270Z",
+      "slice": "fix",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 72535
+        }
+      ]
     }
   ],
   "findings": [
@@ -149,7 +176,14 @@
       "head": "cbe7fa18db1e994922217f6733a9ef13004a5d24"
     }
   ],
-  "reports": [],
+  "reports": [
+    {
+      "phase": "implement:s1",
+      "path": "docs/dev/bundles/b-018/sessions/implement-s1-1.md",
+      "at": "2026-10-26T11:45:49.738Z",
+      "stored": true
+    }
+  ],
   "qaRounds": [],
   "decisions": [
     {
@@ -241,6 +275,27 @@
       "actor": "orchestrator",
       "source": "phase done plan-review --accept-open",
       "text": "closed plan-review with findings open: every finding is resolved in the same record; the five open entries are round-1 originals re-added by carryForward because the re-check filed them under the plan's path (B-019)",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T11:45:50.448Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 1",
+      "text": "The doc-sync rule setup (packs/** -> docs/guides/*.md) puts the standards guide bullet in the export's commit, so checkpoint 3 holds the backlog and the README row; the split's checkpoint text is met across c6da82c and 6f845b2, no deviation from the plan.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T11:45:51.093Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 2",
+      "text": "The kept fixture tree of the negative control stays on disk for the developer to delete (the sandbox refuses rm); its path is machine-local and is not recorded in a state home.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T11:45:51.392Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 strings batch",
+      "text": "The five strings (three fixture failure texts, the guide bullet, the README row) presented to the developer in chat and recorded as presented pending the developer's ruling.",
       "claim": true
     }
   ],

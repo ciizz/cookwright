@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 56,
+  "revision": 61,
   "slug": "b-018",
   "branch": "bundle/b-018",
   "base": "8492811aa8317df203611a6a6d93b0546c29e560",
@@ -180,7 +180,7 @@
     },
     {
       "name": "closeout",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -189,13 +189,24 @@
           "planSha": "2d855629732d6d80",
           "codex": true,
           "runId": "wf_8ee15395-115"
+        },
+        {
+          "startedAt": "2026-10-26T12:06:11.051Z",
+          "stateRevision": 56,
+          "planSha": "2d855629732d6d80",
+          "codex": true,
+          "runId": "wf_5279ac9a-199",
+          "endedAt": "2026-10-26T12:14:26.924Z",
+          "turnOutputTokens": 1978082
         }
       ],
       "startCommit": "5ea218a1de39e6c5130d2e7daaa0a5d3f2c4c386",
       "range": {
         "from": "8492811aa8317df203611a6a6d93b0546c29e560",
         "to": "5ea218a1de39e6c5130d2e7daaa0a5d3f2c4c386"
-      }
+      },
+      "endCommit": "f6fe5055f370379eec17d2973ca48634e75dbcb0",
+      "endCode": "5dac823cb0226d384a87a0f5e3a0c9b8bf71d3d3"
     }
   ],
   "gates": [
@@ -235,6 +246,19 @@
           "name": "test",
           "result": "pass",
           "ms": 70021
+        }
+      ]
+    },
+    {
+      "commit": "f6fe5055f370379eec17d2973ca48634e75dbcb0",
+      "at": "2026-10-26T12:14:26.230Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 55114
         }
       ]
     }
@@ -330,6 +354,25 @@
       "stored": true,
       "head": "0249941edf466d8cd79de91da11e7c8eda1f02b2",
       "closeoutSha": "5617cef84313aa1b"
+    },
+    {
+      "phase": "closeout",
+      "path": "docs/dev/bundles/b-018/findings/closeout-2.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 0,
+        "rejected": 8,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      },
+      "at": "2026-10-26T12:13:19.736Z",
+      "stored": true,
+      "head": "f6fe5055f370379eec17d2973ca48634e75dbcb0",
+      "closeoutSha": "173c04a878a17c9a"
     }
   ],
   "reports": [

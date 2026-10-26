@@ -142,6 +142,12 @@ describe('tableKeys', () => {
     expect([...tableKeys(text)]).toEqual(['20261025120000_init.sql', '20261025130000_todos.sql', 'todos']);
   });
 
+  it('reads no row of a table inside a fenced code block', () => {
+    const text = ['```md', '| Primitive |', '| --- |', '| Ghost |', '```', '', '| Primitive |', '| --- |', '| Real |'].join('\n');
+    expect([...tableKeys(text)]).toEqual(['Real']);
+    expect([...docKeys('```md\n| Primitive |\n| --- |\n| Ghost |\n```\n')]).toEqual([]);
+  });
+
   it('reads nothing from a template with empty tables', () => {
     const template = fs.readFileSync(new URL('../../../packs/supabase/templates/data-model.md', import.meta.url), 'utf8');
     expect(tableKeys(template).size).toBe(0);

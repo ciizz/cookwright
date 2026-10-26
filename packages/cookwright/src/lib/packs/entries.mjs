@@ -6,9 +6,9 @@
 // each `code` directory; `migrations`, the migration files under it. Each reads its
 // directory and, for components, one level below: no walk, no subprocess. A
 // directory that does not exist lists nothing (the blank scaffold); one that cannot
-// be read throws, and the row says it could not count. The doc's entries are the
-// first cell of every body row of every table, and the text of every `##` or `###`
-// heading outside a fenced code block (a doc written one section per primitive).
+// be read throws, and the row says it could not count. The doc's entries are, outside
+// a fenced code block, the first cell of every body row of every table and the text
+// of every `##` or `###` heading (a doc written one section per primitive).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -81,22 +81,6 @@ const unwrap = (text) => text.replace(/^\[([^\]]*)\]\([^)]*\)$/, '$1').replace(/
 /** A table row's first cell, its code span or link markup dropped. */
 const firstCell = (line) => unwrap(line.trim().replace(/^\|/, '').split('|')[0].trim());
 
-/**
- * The first cell of every body row of every pipe table in `text`: a header row is
- * the row a separator row follows, and neither counts. Empty cells are dropped.
- */
-export function tableKeys(text) {
-  const lines = text.replace(/\r\n/g, '\n').split('\n');
-  const keys = new Set();
-  lines.forEach((line, i) => {
-    if (!line.trim().startsWith('|') || SEPARATOR.test(line.trim())) return;
-    if (SEPARATOR.test((lines[i + 1] ?? '').trim())) return;
-    const key = firstCell(line);
-    if (key) keys.add(key);
-  });
-  return keys;
-}
-
 const HEADING = /^ {0,3}#{2,3}[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
 const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 
@@ -116,19 +100,45 @@ const closes = (line, run) => {
 };
 
 /**
+ * `text`'s lines, every line of a fenced code block, its delimiters too, blanked so
+ * the others keep their places.
+ */
+function unfenced(text) {
+  let fence = null;
+  return text.replace(/\r\n/g, '\n').split('\n').map((line) => {
+    if (fence !== null) {
+      if (closes(line, fence)) fence = null;
+      return '';
+    }
+    fence = opens(line);
+    return fence === null ? line : '';
+  });
+}
+
+/**
+ * The first cell of every body row of every pipe table in `text`, outside a fenced
+ * code block: a header row is the row a separator row follows, and neither counts.
+ * Empty cells are dropped.
+ */
+export function tableKeys(text) {
+  const lines = unfenced(text);
+  const keys = new Set();
+  lines.forEach((line, i) => {
+    if (!line.trim().startsWith('|') || SEPARATOR.test(line.trim())) return;
+    if (SEPARATOR.test((lines[i + 1] ?? '').trim())) return;
+    const key = firstCell(line);
+    if (key) keys.add(key);
+  });
+  return keys;
+}
+
+/**
  * The text of every `##` or `###` heading in `text`, its closing hashes, code span
  * or link markup dropped; a line inside a fenced code block is not a heading.
  */
 export function headingKeys(text) {
   const keys = new Set();
-  let fence = null;
-  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
-    if (fence !== null) {
-      if (closes(line, fence)) fence = null;
-      continue;
-    }
-    fence = opens(line);
-    if (fence !== null) continue;
+  for (const line of unfenced(text)) {
     const key = unwrap(HEADING.exec(line)?.[1] ?? '');
     if (key) keys.add(key);
   }

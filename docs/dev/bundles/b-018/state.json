@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "revision": 1,
+  "slug": "b-018",
+  "branch": "bundle/b-018",
+  "base": "8492811aa8317df203611a6a6d93b0546c29e560",
+  "createdAt": "2026-10-26T11:29:14.676Z",
+  "plan": {
+    "path": "docs/dev/bundles/b-018/plan.md",
+    "sha": "1e0a4a6f9422a9ca"
+  },
+  "slices": [
+    {
+      "id": "fix",
+      "sessions": [
+        {
+          "id": "s1",
+          "scope": "plan §4 whole: the two exports' global-ignores block, their tests and the engine case, the fixture's lint-run step, the standards guide bullet, the backlog (B-018 closed, E-056 opened) and the README row",
+          "checkpoints": [
+            "packs/expo/eslint.cjs and packs/supabase/eslint.cjs with a first block cookwright/<pack>/ignores, eslint.test.mjs green on the shape and coverage, standards.test.mjs with the engine case",
+            "scripts/ci/fixture.sh lint_run step, the fixture green locally",
+            "docs/guides/standards.md bullet, docs/dev/backlog.md, README.md packs row"
+          ]
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "name": "plan-review",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s1",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:fix",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:fix",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "qa",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "closeout",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    }
+  ],
+  "gates": [],
+  "findings": [],
+  "reports": [],
+  "qaRounds": [],
+  "decisions": [],
+  "costs": []
+}

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The harness fixture (E-014): a real create-expo-app scaffold, the committed
 # overlay appended, then the package's published shape (an npm pack tarball)
-# installed and init, doctor, the hooks (a violating component refused by the
+# installed and init, doctor, the user's own lint run (npx eslint ., no file
+# under .claude/ reported, B-018), the hooks (a violating component refused by the
 # standards check, then landed corrected), the gate's standards checks (the
 # ratchet with no base on main and a rise on a branch, the types measure), the
 # docs-audit's arguments, changelog and migrate run against it.
@@ -54,6 +55,9 @@ MSG_STEP="\n== %s\n"
 MSG_FAIL="fixture: FAIL: %s\n"
 MSG_DIR="fixture: working in %s\n"
 MSG_OK="fixture: PASS, every step as expected"
+MSG_LINT_RAN="the user's own lint run (npx eslint .) exited %s, ESLint failing to run: %s"
+MSG_LINT_HARNESS="the user's own lint run reported a harness file: %s"
+MSG_LINT_APP="the user's own lint run did not report App.tsx under i18next/no-literal-string"
 
 fail() { printf "$MSG_FAIL" "$1" >&2; exit 1; }
 step() { printf "$MSG_STEP" "$1"; }
@@ -220,6 +224,31 @@ doctor() {
   fi
 }
 
+# The user's own lint run (B-018), what npx expo lint and the editor run: ESLint
+# over the whole app with the config init spread the exports into. It exits 1
+# for App.tsx's literal string, the scaffold's own legacy violation, which also
+# shows the pack's rules reach the user's run; 2 or more is ESLint failing to
+# run. No reported file may lie under .claude/: the exports' first block ignores
+# the workflow pointers, whose top-level `return` ESLint cannot parse.
+lint_run() {
+  step "npx eslint . --format json"
+  local code=0
+  npx eslint . --format json > "$WORK/lint.json" 2> "$WORK/lint.err" || code=$?
+  [ "$code" -le 1 ] || fail "$(printf "$MSG_LINT_RAN" "$code" "$(tail -n 5 "$WORK/lint.err" | tr '\n' ' ')")"
+  code=0
+  node -e 'const path = require("path");
+    const results = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).filter((r) => r.messages.length > 0);
+    const rel = (r) => path.relative(process.cwd(), r.filePath).split(path.sep).join("/");
+    for (const r of results) console.log(`${rel(r)} ${[...new Set(r.messages.map((x) => x.ruleId ?? "parse"))].join(",")}`);
+    const harness = results.find((r) => rel(r).startsWith(".claude/"));
+    if (harness) { console.log(rel(harness)); process.exit(2); }
+    const app = results.find((r) => rel(r) === "App.tsx");
+    process.exit(app && app.messages.some((x) => x.ruleId === "i18next/no-literal-string") ? 0 : 3)' "$WORK/lint.json" \
+    | tee "$WORK/lint.out" || code=$?
+  [ "$code" != 2 ] || fail "$(printf "$MSG_LINT_HARNESS" "$(tail -n 1 "$WORK/lint.out")")"
+  [ "$code" = 0 ] || fail "$MSG_LINT_APP"
+}
+
 commit_through_hooks() {
   step "commit init's files through the hooks"
   [ "$(git config core.hooksPath)" = ".githooks" ] || fail "core.hooksPath is not .githooks"
@@ -369,7 +398,7 @@ main() {
   [ -n "${KEEP:-}" ] || trap 'rm -rf "$WORK"' EXIT
   printf "$MSG_DIR" "$WORK"
   pack; scaffold; overlay; install_package
-  init; doctor; commit_through_hooks; standards_commit; branch_measures; audit_args; rerun; links
+  init; doctor; lint_run; commit_through_hooks; standards_commit; branch_measures; audit_args; rerun; links
   echo; echo "$MSG_OK"
 }
 

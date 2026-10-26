@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 228,
+  "revision": 236,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -461,6 +461,13 @@
           "planSha": "3f4aa96c4462829c",
           "codex": true,
           "runId": "wf_0418b5c6-cf9"
+        },
+        {
+          "startedAt": "2026-10-26T00:16:20.526Z",
+          "stateRevision": 228,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_fbcc5729-228"
         }
       ],
       "startCommit": "5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b",
@@ -684,6 +691,19 @@
           "ms": 45367
         }
       ]
+    },
+    {
+      "commit": "4725503c38b02ce89f9c3819d1b3f8fd0bf8a442",
+      "at": "2026-10-26T00:27:40.707Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 50572
+        }
+      ]
     }
   ],
   "findings": [
@@ -848,6 +868,24 @@
       "at": "2026-10-26T00:14:51.914Z",
       "stored": true,
       "head": "85787820f6a6bb51a274f8f9272df77ec892dbaf"
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/findings/qa-3.json",
+      "counts": {
+        "confirmed": 5,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 3,
+        "P3": 2
+      },
+      "at": "2026-10-26T00:26:10.668Z",
+      "stored": true,
+      "head": "4725503c38b02ce89f9c3819d1b3f8fd0bf8a442"
     }
   ],
   "reports": [
@@ -927,6 +965,12 @@
       "phase": "qa",
       "path": "docs/dev/bundles/stage-4/sessions/qa-2.md",
       "at": "2026-10-26T00:14:51.636Z",
+      "stored": true
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/sessions/qa-3.md",
+      "at": "2026-10-26T00:26:10.380Z",
       "stored": true
     }
   ],
@@ -1860,6 +1904,27 @@
       "actor": "orchestrator",
       "source": "qa run 2 strings batch",
       "text": "The second QA run's one changed string (the hand-add advice's second clause, measured against ESLint 9: a later severity-only block keeps the pack's options) presented to the developer in chat by the orchestrator; accepted pending the developer's ruling at the closeout.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:26:48.736Z",
+      "actor": "orchestrator",
+      "source": "qa run 3 review findings 1 and 3",
+      "text": "Fix in the next QA run (rule 3): one comparison in both phases. wired() and scopeAt() both judge a pack rule's effective entry by the same test, severity error and every option the pack's export sets deep-equal (the manifest's expect derived from the export's own options, not a hand-picked subset); the hand-wiring advice, the guide and the setup skill say 'a later block that sets a severity other than error, or changes any option the pack sets, leaves the rule overridden'; a test passes the same later block through both phases.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:26:49.091Z",
+      "actor": "orchestrator",
+      "source": "qa run 3 review findings 0, 2 and 4",
+      "text": "The contract-doc reader's grammar is declared, not CommonMark (rule 3): headings, table rows and fences at the start of a line or on a list-marker line, indentation in columns with a tab as four; the next QA run fixes the tab columns (finding 0, one function) and the trailing blank line (finding 2); a fence on a continuation line of a nested item (finding 4, P3) and blockquote containers are E-052, a real Markdown block parser if wanted twice (rule 6).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:26:49.499Z",
+      "actor": "orchestrator",
+      "source": "qa run 3 strings batch",
+      "text": "The third QA run's one changed string (the hand-add advice's third clause) presented to the developer in chat by the orchestrator; it changes again in the next run with the one-comparison rule.",
       "claim": true
     }
   ],

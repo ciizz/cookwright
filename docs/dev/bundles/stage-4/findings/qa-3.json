@@ -1,0 +1,114 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "line 118, within()",
+      "problem": "within() measures indentation by JS character count, treating a tab as one column; CommonMark uses four-column tab stops for block structure.",
+      "severity": "P2",
+      "suggested_fix": "Compute indentation in Markdown columns, expanding tabs to tab stops, both when deriving the list-content indent and in within(). Add a tab-indented fenced-table regression test.",
+      "failure_scenario": "A fenced example opened by '- ```md' containing a tab-indented 'Ghost' table is validly inside the fence, but docKeys() returns Ghost; doctor can PASS though the real Ghost component has no contract-doc entry.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "entries.mjs:118 within() uses line.length - line.trimStart().length, so a tab counts as 1 column. Ran docKeys('- ```md\\n\\t| Ghost | x |\\n\\t```\\n\\n## Real\\n') and got ['Ghost','Real']. Under CommonMark the tab-indented lines are inside the item's fence, so Ghost should not be returned."
+    },
+    {
+      "file": "packages/cookwright/src/lib/messages.mjs",
+      "location": "line 31 (also skills/setup/SKILL.md:164, docs/guides/standards.md:23)",
+      "problem": "New advice says a later rule stays measured when its options contain all pack options plus extras. wired() accepts that subset, but scopeAt() in standards.mjs:172 uses exact deep equality.",
+      "severity": "P2",
+      "suggested_fix": "Make both phases consistent: safest is to require exact pack options in judge() and update the advice; alternatively use subset matching in scopeAt(). Add a test passing the 'more options' configuration through both wired() and scopeAt().",
+      "failure_scenario": "A later i18next/no-literal-string block keeps the pack options and adds should-validate-template. Setup says it is safe and wired() accepts it, but every covered file is then reported unmeasured.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "messages.mjs:28-31 says the engine measures a rule whose effective options hold the pack's. standards.mjs:~108 subset()/judge() accepts extra options in wired(). standards.mjs:172 asSet() uses isDeepStrictEqual(options, want) and changedAt()/scopeAt() then return unmeasured: m.changedHere for any covered file. So an options superset passes wired() but reads unmeasured per file, as scenario states."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.test.mjs",
+      "location": "line 227",
+      "problem": "Added trailing blank line at EOF; git diff --check reports 'new blank line at EOF'.",
+      "severity": "P3",
+      "suggested_fix": "Remove the extra final blank line.",
+      "failure_scenario": "Any CI or release check running git diff --check rejects the patch.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "`git diff --check 5d42ecd..HEAD -- packages/cookwright/src/lib/packs/entries.test.mjs` prints 'entries.test.mjs:227: new blank line at EOF.' and exits 2. The file ends '});\\n\\n', so line 227 is a blank line added in the range. Whether CI actually runs `git diff --check` was not checked."
+    },
+    {
+      "file": "packages/cookwright/src/lib/messages.mjs",
+      "location": "handAdd (lines ~31-43); same claim in docs/guides/standards.md:23, packages/cookwright/skills/setup/SKILL.md:164, commit 2bb52b2 message",
+      "problem": "The new hand-wiring advice says a later block that sets 'options that change or leave out one of the pack's' makes the rule read overridden. The engine does not check that. judge() in src/lib/packs/standards.mjs only tests whether the manifest's `expect` subset holds: { mode: 'jsx-only' } for strings, { max } for size, plus the tag. The pack's other options are never compared: 'jsx-attributes': { exclude: NOT_TEXT } for strings, and skipBlankLines, skipComments and IIFEs for size. The test this commit adds is itself a counter-example. It drops skipComments and IIFEs from max-lines-per-function and replaces the pack's jsx-attributes exclude list with [], and it asserts both rules are measured. So the user-facing string, the standards guide and the setup skill each promise a check the code does not make. The commit message's 'the engine measures a rule whose effective options hold every one of the pack's' is also false.",
+      "severity": "P2",
+      "suggested_fix": "Pick one and make the code and text agree. (a) Make the comparison cover every option the pack's export sets: derive each rule's `expect` from the export's own options (deep-equal per key the pack sets), so a dropped skipComments or a replaced jsx-attributes list reads overridden. Or (b) narrow the message, standards.md:23 and SKILL.md:164 to name only what is compared ('a severity other than error, a different mode or max limit, or a replaced tagged selector'), and say that other options a later block changes are not detected. Either way, rename and adjust the new standards.test.mjs case so it does not pin a changed jsx-attributes list as 'the pack's own options'.",
+      "failure_scenario": "An app spreads the pack's lines before its own block `{ files: ['**/*.tsx'], rules: { 'i18next/no-literal-string': ['error', { mode: 'jsx-only', 'jsx-attributes': { exclude: ['.*'] } }], 'max-lines-per-function': ['error', { max: 150 }] } }`. Following init's or doctor's advice, the developer expects these rules to read overridden, because the block changes jsx-attributes and leaves out skipBlankLines, skipComments and IIFEs. Instead doctor's lint row and the hook's standards line report expo strings and expo size as measured. Every JSX attribute string goes unflagged, and the size count includes blank lines and comments. The ratchet reports these numbers as the pack's rules when they are not.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "standards.mjs judge() (~line 108-114) only checks severity, the tag, and subset(want, options[0]), where want is the manifest's `expect` (e.g. mode or max). Other pack options (jsx-attributes exclude, skipBlankLines, skipComments, IIFEs) are never compared in wired(). The handAdd text at messages.mjs:~38-43, 'options that change or leave out one of the pack's ... reads overridden', therefore over-promises. Caveat: asSet() in scopeAt does compare all options exactly, but only for files covered by pack blocks and only where the later block applies. Doctor's wired lint row and the hook's standards line still report measured, and asSet() does not make the advice true."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "opening()/unfenced() (lines ~103-137)",
+      "problem": "The list-item fence fix only knows an item's content indent when the fence is on the marker line itself. A fence on a continuation line of a nested item sits at 4 or more spaces (for example, after '- x' and '  - sub'). opens() rejects it because FENCE allows at most 3 leading spaces, so the block is never blanked. tableKeys() matches rows with line.trim().startsWith('|'), so a fenced example row inside it still counts as a documented entry. That contradicts 9ef8c4e's 'a table row inside a contract doc's fenced code block is not an entry' and the module header's 'outside a fenced code block (one a list item opens too)'. Measured: docKeys('- Example:\\n  - sub\\n    ```md\\n    | Fake | x |\\n    ```\\n\\n## Real\\n') returns ['Fake', 'Real'].",
+      "severity": "P3",
+      "suggested_fix": "Track the current list item's content indent across lines: set it from the last marker line and keep it while lines stay indented that far. Detect a fence relative to that indent (line.slice(indent) with 0-3 spaces), as within() already does for marker-line fences. Add the nested continuation case to entries.test.mjs. Or narrow the header comment and standards guide to fences on a top-level line or on a list marker line.",
+      "failure_scenario": "In docs/design-system.md, an example sits under a nested list item: '- Adding a primitive:' then '  - add a row like:' then a 4-space-indented ```md fence holding '| Button | primary action |'. Button has no real entry. pack.expo.docs counts Button as documented, and the doctor row under-reports the undocumented primitives.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "entries.mjs:103-137: opening() sets indent only from markers on the fence's own line, and opens() uses FENCE (/^ {0,3}.../, line 90), so a fence at 4 spaces on a nested item's continuation line is never opened. Ran docKeys('- Example:\\n  - sub\\n    ```md\\n    | Fake | x |\\n    ```\\n\\n## Real\\n') and got ['Fake','Real']."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 5d42ecd..HEAD across the 4 fix commits",
+    "packages/cookwright/src/lib/packs/entries.mjs fence/list handling",
+    "hand-wiring advice vs wired()/scopeAt() consistency",
+    "git diff --check",
+    "npx cookwright doctor (19 checks passed)",
+    "9ef8c4e: tableKeys now reads unfenced() lines; verified top-level fences blank table rows and headings",
+    "6dc66db: opening()/within()/closes() with list-item indent; probed '- ```', '10. ```', tab after marker, continuation-line fence at 2 spaces, blockquote fences, closing fence less indented (matches CommonMark: item and fence end)",
+    "2bb52b2: handAdd message, init/doctor test expectations, standards.md:23 and :39, SKILL.md:164 against judge()/subset() in src/lib/packs/standards.mjs and the expo export's actual options in packs/expo/eslint.cjs and the manifest's expect in packs/expo/pack.mjs",
+    "4725503: SKILL.md remedy sample files against the expo/supabase export files/ignores scopes; standards.md wording",
+    "User-facing strings kept in messages.mjs; no secrets, local paths or .env in the diff",
+    "AGENTS.md has no '### Advisory' heading under a pack section, so there were no advisory rules to check against the diff",
+    "Ran vitest on standards.test.mjs and entries.test.mjs (filtered): green"
+  ],
+  "notes": "Codex ran once to completion (session 01a17596-deea-7b40-8a66-6b8125f7dc4f), no P1 findings. Focused tests could not run because Vitest needed to write node_modules/.vite-temp in the read-only sandbox. Output at <local path>\n---\nI reviewed the four fix commits of QA run 2 (9ef8c4e, 6dc66db, 2bb52b2, 4725503) inside the frozen range 5d42ecd..HEAD. The fence parser changes match CommonMark for every case I probed except nested continuation-line fences (P3). The main finding is P2: the reworded hand-wiring advice and the guide/skill text promise an options comparison the engine does not make, and the commit's own new test shows it. Probe script: <local path> I made no edits and no git writes.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a17596-deea-7b40-8a66-6b8125f7dc4f",
+    "partialReportPath": null
+  }
+}

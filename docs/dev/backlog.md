@@ -48,6 +48,7 @@ Bugs are `B-nnn`, enhancements `E-nnn`; ids are stable and never reused. One lin
 - **E-048** (2026-10-25) Windows paths of the packs' ESLint export: the `require('cookwright/packs/<name>/eslint.cjs')` line init writes, its `ignores` globs and the engine's absolute `filePath` are measured on POSIX only. Lands with the Windows CI job (B-008, E-029). Opened by the stage-4 plan.
 - **E-049** (2026-10-25) A `pack.<name>.count` doctor row, if a measurement cheap enough for doctor's 1800 ms budget appears; ESLint takes 1.1 s to start, so the repo-wide count is `npx cookwright standards` today (disposition 3 of the stage-4 plan). Opened by the stage-4 plan.
 - **E-050** (2026-10-25) A generate mode for the docs-audit Workflow (fill a contract doc from the code, then verify), if a second need shows; today the setup skill's end pass fills a doc in its own session and the audit verifies it (disposition 16 of the stage-4 plan). Opened by the stage-4 plan.
+- **E-052** (2026-10-26) The contract-doc reader (`src/lib/packs/entries.mjs`, the omission rows' entries) implements a declared grammar, not CommonMark: headings, table rows and fences at the start of a line or on a list-marker line, tabs as four columns. A fence opened on a continuation line of a nested list item, or inside a blockquote, is not seen, so a heading or row inside it counts as an entry. A Markdown block parser, or a small dependency (asked for first, rule 9), if a second doc shape needs it. Found by the QA reviews of stage-4 (three rounds of Markdown cases).
 
 ## Closed
 

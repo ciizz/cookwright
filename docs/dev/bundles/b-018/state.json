@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 40,
+  "revision": 52,
   "slug": "b-018",
   "branch": "bundle/b-018",
   "base": "8492811aa8317df203611a6a6d93b0546c29e560",
@@ -118,21 +118,65 @@
     },
     {
       "name": "review:whole",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-26T11:54:26.280Z",
+          "stateRevision": 40,
+          "planSha": "2d855629732d6d80",
+          "codex": true,
+          "runId": "wf_94fdaac3-9b0",
+          "endedAt": "2026-10-26T11:59:08.532Z",
+          "turnOutputTokens": 1943150
+        }
+      ],
+      "startCommit": "fe545b0b32215f567d08bcb49044d460ea2e0321",
+      "range": {
+        "from": "8492811aa8317df203611a6a6d93b0546c29e560",
+        "to": "fe545b0b32215f567d08bcb49044d460ea2e0321"
+      },
+      "endCommit": "fe545b0b32215f567d08bcb49044d460ea2e0321",
+      "endCode": "5dac823cb0226d384a87a0f5e3a0c9b8bf71d3d3"
     },
     {
       "name": "fix:whole",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-26T11:59:09.134Z",
+          "stateRevision": 44,
+          "planSha": "2d855629732d6d80",
+          "codex": true,
+          "endedAt": "2026-10-26T11:59:36.780Z"
+        }
+      ],
+      "startCommit": "fe545b0b32215f567d08bcb49044d460ea2e0321",
+      "range": null,
+      "endCommit": "fe545b0b32215f567d08bcb49044d460ea2e0321",
+      "endCode": "5dac823cb0226d384a87a0f5e3a0c9b8bf71d3d3"
     },
     {
       "name": "qa",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-26T11:59:37.071Z",
+          "stateRevision": 48,
+          "planSha": "2d855629732d6d80",
+          "codex": true,
+          "endedAt": "2026-10-26T11:59:37.972Z"
+        }
+      ],
+      "startCommit": "fe545b0b32215f567d08bcb49044d460ea2e0321",
+      "range": {
+        "from": "fe545b0b32215f567d08bcb49044d460ea2e0321",
+        "to": "HEAD"
+      },
+      "endCommit": "fe545b0b32215f567d08bcb49044d460ea2e0321",
+      "endCode": "5dac823cb0226d384a87a0f5e3a0c9b8bf71d3d3"
     },
     {
       "name": "closeout",
@@ -236,6 +280,24 @@
       "at": "2026-10-26T11:51:14.463Z",
       "stored": true,
       "head": "e6fcbc7dc0f30c13b749de1c2de9c977c5008e34"
+    },
+    {
+      "phase": "review:whole",
+      "path": "docs/dev/bundles/b-018/findings/review-whole-1.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      },
+      "at": "2026-10-26T11:59:08.196Z",
+      "stored": true,
+      "head": "fe545b0b32215f567d08bcb49044d460ea2e0321"
     }
   ],
   "reports": [
@@ -250,9 +312,21 @@
       "path": "docs/dev/bundles/b-018/sessions/fix-fix-1.md",
       "at": "2026-10-26T11:53:14.097Z",
       "stored": true
+    },
+    {
+      "phase": "fix:whole",
+      "path": "docs/dev/bundles/b-018/sessions/fix-whole-1.md",
+      "at": "2026-10-26T11:59:36.081Z",
+      "stored": true
     }
   ],
-  "qaRounds": [],
+  "qaRounds": [
+    {
+      "path": "docs/dev/bundles/b-018/qa/round-1.md",
+      "at": "2026-10-26T11:59:37.381Z",
+      "stored": true
+    }
+  ],
   "decisions": [
     {
       "at": "2026-10-26T11:29:35.388Z",
@@ -378,6 +452,20 @@
       "actor": "orchestrator",
       "source": "fix:fix strings batch",
       "text": "One string (the fixture's MSG_LINT_READ) presented to the developer in chat and recorded as presented pending the developer's ruling.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T11:59:36.382Z",
+      "actor": "orchestrator",
+      "source": "fix:whole phase close",
+      "text": "Rule 3: review:whole returned no findings, so fix:whole ran no Workflow; its session record says so and carries no commits.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T11:59:37.673Z",
+      "actor": "orchestrator",
+      "source": "qa phase close",
+      "text": "Rule 3: QA round 1 (the user's own lint run on the scratch Expo tree with the branch's tarball, the fixture at fe545b0b, the implement session's negative control) found nothing, so no fix run; the round is recorded with its measurements.",
       "claim": true
     }
   ],

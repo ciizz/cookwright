@@ -1,0 +1,45 @@
+{
+  "phase": "review:whole",
+  "stored": true,
+  "issues": [],
+  "incomplete": [],
+  "checked": [
+    "git diff and git show over 8492811..fe545b0",
+    "packs/expo/eslint.cjs and packs/supabase/eslint.cjs",
+    "eslint.test.mjs and standards.test.mjs",
+    "scripts/ci/fixture.sh",
+    "syntax checks (node --check, bash -n) on changed files",
+    "Read AGENTS.md, CLAUDE.md, plan.md (dispositions 1 to 10, sections 4 to 9), state.json, the implement:s1 and fix:fix session reports, and the review:fix findings",
+    "Full diff 8492811..fe545b0: README row, backlog (B-018 closed, B-019 and E-056 opened), the standards.md bullet, both pack exports, eslint.test.mjs, standards.test.mjs, fixture.sh",
+    "packs/expo/eslint.cjs: the ignores block comes first in blocks(), so module.exports, withResolver and coverage all carry it. IGNORES is byte-identical to before. The header claim (a block whose only keys are name and ignores is a global ignore) matches ESLint 9's @eslint/config-array, whose META_FIELDS set is {name, basePath}.",
+    "packs/supabase/eslint.cjs: the same WORKFLOWS block comes first and the header is rewritten as two blocks (disposition 10)",
+    "Engine (standards.mjs): coverage() filters on `b.rules && id in b.rules`, so the rules-less block never reaches scopeAt or changedAt. scopeAt returns {rules: []} before calculateConfigForFile when no rule block covers a path. lintAt's fatal and severity filtering is unaffected by the global ignore.",
+    "The fake ESLint (test-fixtures/fake-eslint) treats a name+ignores block as a global ignore, so the existing measurements through test-helpers' real-export config exercise the new block",
+    "Pointer targets: only hosts/claude/workflows/*.js are linted files. The skills directories hold only SKILL.md, so the narrow `.claude/workflows/**` glob covers every linted file init writes (plan section 1).",
+    "The Expo overlay template (defineConfig over a flat array) keeps a spread name+ignores block global. init inserts the spread after expoConfig at the top level of the array.",
+    "fixture.sh lint_run under set -euo pipefail: the `|| code=$?` capture works for both eslint and the node | tee pipeline (pipefail gives node's status). Exit 1, 2 and 3 each get their own MSG_ text. Exit 2 or more from eslint fails with the stderr tail. main() runs the step after doctor.",
+    "Negative control (disposition 6) reported in the implement session: with the block removed, the step fails naming .claude/workflows/bundle-phase.js",
+    "eslint.test.mjs dispositions 8 and 9: blocks are found by name, `files ?? []`, `rules ?? {}`, applies() and coverage are limited to rule blocks, and the pointer and non-pointer paths are checked with both matchers. standards.test.mjs has the coverage-equality case.",
+    "Docs that describe the export's shape (standards.md, getting-started.md, setup SKILL.md) were checked for stale claims: none found that changes behaviour",
+    "Privacy and secrets: grep over the diff found no local paths, no .env and no credentials. The session report redacts the temp dir as <local path>. git diff --check is clean.",
+    "Advisory: AGENTS.md has no `### Advisory` heading under a pack section, so there was nothing to check"
+  ],
+  "notes": "Codex (high effort, read-only) ran in the foreground and finished within the command budget. Its final report: \"No actionable P1/P2/P3 defects found in 8492811..fe545b0.\" Output is at <local path> Codex session id: 01a17810-665f-7240-ba20-0dd8e77197d9.\n---\nI found no P1, P2 or P3 issue in 8492811..fe545b0 that has a concrete failure scenario. The change does what the plan promises: a rules-less `{ name, ignores: ['.claude/workflows/**'] }` block comes first in each pack's export, the engine drops it before it computes coverage, the tests stop relying on block positions, and the fixture runs a real-ESLint lint step with distinct exit codes.\n\nThings I looked at and left out:\n- The test 'puts no rule block on a workflow pointer' does not catch a regression. It also passes against the 0.2.0 export, because the per-block IGNORES already exclude `.claude/**`. The plan asked for it by name, and disposition 4 makes the fixture the real proof.\n- The supabase header still says \"rules only\" in its conventions sentence, though its first block now has no rules. The next sentence explains that block, so this is cosmetic.\n- On ESLint below 9 the `name` key might keep the block from being a global ignore. The engine needs ESLint 9 or later and Expo's template imports eslint/config, so this cannot happen in practice.\n\nPlan section 7's scratch-Expo `npx expo lint` run, the closeout and CI on the branch belong to later phases (QA and closeout), so they are not counted as missing here.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a17810-665f-7240-ba20-0dd8e77197d9",
+    "partialReportPath": null
+  }
+}

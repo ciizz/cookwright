@@ -16,7 +16,7 @@
 //
 // A rule counts only when `wired` finds it in the effective config as the pack set
 // it (disposition 29): at each of the manifest's sample paths, severity error and
-// every option the pack's own block sets there deep-equal (`holds`), the reading
+// exactly the options the pack's own block sets there (`holds`), the reading
 // `scopeAt` makes per file. A rule switched off, overridden, not wired or missing its
 // plugin counts nothing and is named on the line (disposition 37). Then per file
 // (`scopeAt`): a file counts only by the rules whose pack blocks cover it, and a
@@ -92,24 +92,19 @@ export async function loadESLint(root, setup) {
 
 // ── wired: the effective config against what the pack set (disposition 29) ──
 
-const plain = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
-
-/** Whether the effective option `have` holds the pack's `want`: an object's every key deep-equal, else the value itself. */
-const holdsOption = (want, have) =>
-  plain(want) ? plain(have) && Object.entries(want).every(([k, v]) => isDeepStrictEqual(have[k], v)) : isDeepStrictEqual(have, want);
-
 /**
  * Whether the effective `entry` is the pack's `block`'s rule for `id`: severity
- * error, and every option the block sets, at its place, deep-equal. A later block's
- * options replace the pack's whole (flat config does not merge them), so one that
- * changes or leaves out an option the pack sets is not the pack's rule; options set
- * beside the pack's keep it. Both phases judge by this: `wired` at the manifest's
- * samples, `scopeAt` at each file.
+ * error and exactly the options the block sets, deep-equal. A later block's options
+ * replace the pack's whole (flat config does not merge them), and an option set
+ * beside the pack's can narrow what the rule flags (the strings rule's
+ * `jsx-components` or `words` exclude lists), so any other options are not the
+ * pack's rule; a later block that sets only a severity keeps the pack's options.
+ * Both phases judge by this: `wired` at the manifest's samples, `scopeAt` at each file.
  */
 function holds(entry, block, id) {
   const [severity, ...options] = [].concat(entry ?? []);
   const [, ...want] = [].concat(block.rules[id]);
-  return (severity === 2 || severity === 'error') && want.every((w, i) => holdsOption(w, options[i]));
+  return (severity === 2 || severity === 'error') && isDeepStrictEqual(options, want);
 }
 
 /** One ESLint id's effective entry against the pack's `block` that sets it at a sample: MEASURED, ABSENT or overridden. */

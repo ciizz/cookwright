@@ -32,16 +32,16 @@ const counted = (n, kind) => `${n} ${ENTRY_NOUNS[kind][n === 1 ? 0 : 1]}`;
  * Where a pack's lines go in an ESLint config init did not write, and what the place
  * decides (stage-4 QA round 1): spread last, the pack's options win for the rules it sets.
  * ESLint keeps an earlier block's options when a later one sets only a severity, and
- * the engine measures a rule whose effective entry is error with every option the
- * pack sets deep-equal (holds() in packs/standards.mjs, at the samples and at each
- * file alike), so only a later severity other than error, or a later block that
- * changes or leaves out an option the pack sets, leaves a rule overridden.
+ * the engine measures a rule whose effective entry is error with exactly the options
+ * the pack sets (holds() in packs/standards.mjs, at the samples and at each file
+ * alike), so a later block leaves a rule measured only by setting error alone or
+ * error with exactly the pack's options.
  */
 const handAdd = (spreads, imports = []) =>
   `add ${imports.length ? `${list(imports)} at its top and ` : ''}${list(spreads)} at the end of its config array by hand: ` +
   "spread last, the pack's options replace yours for any ESLint rule a block of yours also sets on the pack's files; " +
-  "spread before a block of yours that sets a severity other than error for such a rule, " +
-  "or changes or leaves out any option the pack sets for it, that rule reads overridden and is not measured";
+  "spread before a block of yours that sets such a rule, that rule reads overridden and is not measured " +
+  "unless the block sets only error, or error with exactly the pack's options";
 
 // doctor: one note per verdict of each check (plan §4.8), then the readout's lines.
 const doctor = {

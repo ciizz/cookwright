@@ -5,7 +5,7 @@
 //
 // Static: it reads no cookwright.json (disposition 24). A rule switched off in
 // `packs` still shows in the editor; the standards engine drops its findings. The
-// blocks carry rules only (and the i18next plugin): the parser is the repo's own,
+// rule blocks carry rules only (and the i18next plugin): the parser is the repo's own,
 // which is why the export is spread into the repo's config and never run alone.
 // Each block is named `cookwright/expo/<pack rule>[/<part>]`, so a reader of the
 // effective config sees whose block it is. A finding of a shared ESLint id
@@ -18,11 +18,24 @@
 // engine look it up from the config root), then from this file: under pnpm, or a
 // monorepo with cookwright hoisted, this file's own location cannot see the app's
 // node_modules.
+//
+// The first block is a global ignore: in flat config a block whose only keys are
+// `name` and `ignores` keeps ESLint off those paths for the whole run, wherever the
+// spread lands, while an `ignores` beside `files` or `rules` only narrows its own
+// block. It covers `.claude/workflows/`, Claude Code's workflow scripts, whose format
+// (a top-level `return`) ESLint cannot parse, the package's pointers among them, so
+// the user's own lint run (`npx expo lint`, the editor) does not fail on them. Nothing
+// else of the user's host directories is ignored: their hooks and their own skills'
+// scripts stay linted as their own config says. The engine drops the block, which
+// carries no rules, before it reads which files a rule covers.
 
 'use strict';
 
 const { createRequire } = require('node:module');
 const path = require('node:path');
+
+/** Claude Code's workflow scripts, ignored for the whole lint run by the first block. */
+const WORKFLOWS = ['.claude/workflows/**'];
 
 /** Paths no pack rule reads: the harness's own links, dependencies and tests (disposition 19). */
 const IGNORES = ['.claude/**', '.agents/**', '.codex/**', 'node_modules/**', '**/*.test.*', '**/__tests__/**'];
@@ -103,15 +116,17 @@ const tokens = {
   },
 };
 
+const ignores = { name: 'cookwright/expo/ignores', ignores: WORKFLOWS };
+
 const sizeRule = (max) => ['error', { max, skipBlankLines: true, skipComments: true, IIFEs: true }];
 const size = [
   { name: 'cookwright/expo/size/components', files: ['**/*.{tsx,jsx}'], ignores: IGNORES, rules: { 'max-lines-per-function': sizeRule(150) } },
   { name: 'cookwright/expo/size', files: ['**/*.{ts,js}'], ignores: IGNORES, rules: { 'max-lines-per-function': sizeRule(40) } },
 ];
 
-/** The blocks, the strings block only when `plugin` is there. */
+/** The blocks, the global ignore first, the strings block only when `plugin` is there. */
 function blocks(plugin) {
-  return [...(plugin ? [strings(plugin)] : []), tokens, ...size];
+  return [ignores, ...(plugin ? [strings(plugin)] : []), tokens, ...size];
 }
 
 module.exports = blocks(i18nextPlugin());

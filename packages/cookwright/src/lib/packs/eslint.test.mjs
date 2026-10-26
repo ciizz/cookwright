@@ -2,8 +2,12 @@
 // repo's eslint.config.js requires them (stage-4 plan §4.4, §6): the blocks, their
 // names and ignores, every ESLint id a manifest rule names in exactly that rule's
 // blocks with the manifest's options, the Supabase service exemption, and the
-// strings block left out when eslint-plugin-i18next does not resolve, and the
-// engine's own reading of which files each block covers (glob.mjs, `coverage`).
+// strings block left out when eslint-plugin-i18next does not resolve, the first
+// block's global ignore of Claude Code's workflow scripts and nothing else (B-018),
+// and the engine's own reading of which files each block covers (glob.mjs,
+// `coverage`). A block without rules is the global ignore: the rule-application
+// and coverage assertions read only the blocks with rules, as the engine's
+// `coverage()` does.
 
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -13,7 +17,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scratchRoot } from '../../test-helpers.mjs';
-import { SUPPORTED, blockCovers } from './glob.mjs';
+import { SUPPORTED, blockCovers, matchesAny as engineMatches } from './glob.mjs';
 import { PACKS } from './registry.mjs';
 
 const require = createRequire(import.meta.url);
@@ -28,9 +32,14 @@ fs.writeFileSync(STUB, 'module.exports = { rules: {} };\n');
 /** Each pack's blocks with the plugin resolving (the expo pack's strings block in). */
 const EXPORTS = { expo: expoExport.withResolver(() => STUB), supabase: supabaseExport };
 const HARNESS = ['.claude/**', '.agents/**', '.codex/**', 'node_modules/**', '**/*.test.*', '**/__tests__/**'];
+const WORKFLOWS = ['.claude/workflows/**'];
+const POINTERS = ['.claude/workflows/bundle-phase.js', '.claude/workflows/docs-audit.js', '.claude/workflows/mine.js'];
+const NOT_POINTERS = ['.claude/hooks/x.ts', '.claude/skills/mine/index.ts', '.agents/skills/mine/index.ts', '.codex/hooks.json', 'src/workflows/a.js'];
 
 const ruleOf = (pack, block) => block.name.split('/')[2];
-const applies = (block, rel) => matchesAny(block.files, rel) && !matchesAny(block.ignores ?? [], rel);
+/** The blocks that set rules: the global ignore, which sets none, left out. */
+const ruled = (blocks) => blocks.filter((b) => b.rules);
+const applies = (block, rel) => Boolean(block.rules) && matchesAny(block.files, rel) && !matchesAny(block.ignores ?? [], rel);
 const eslintRules = (name) => PACKS[name].rules.filter((r) => r.measure === 'eslint');
 
 /** Every string under `value`, at any depth. */
@@ -40,10 +49,12 @@ const strings = (value) =>
 describe.each(Object.keys(PACKS))('the %s export', (name) => {
   const blocks = EXPORTS[name];
 
-  it('is an array of named blocks carrying rules only, every one ignoring the harness and tests', () => {
+  it('is an array of named blocks, the global ignore first, the others carrying rules only and ignoring the harness and tests', () => {
     expect(Array.isArray(blocks)).toBe(true);
+    expect(blocks[0]).toEqual({ name: `cookwright/${name}/ignores`, ignores: WORKFLOWS });
+    expect(ruled(blocks)).toEqual(blocks.slice(1));
     const ids = eslintRules(name).map((r) => r.id);
-    for (const block of blocks) {
+    for (const block of blocks.slice(1)) {
       expect(block.name).toMatch(new RegExp(`^cookwright/${name}/[a-z-]+(/[a-z-]+)?$`));
       expect(ids).toContain(ruleOf(name, block));
       expect(Object.keys(block).every((k) => ['name', 'files', 'ignores', 'plugins', 'rules'].includes(k))).toBe(true);
@@ -54,10 +65,10 @@ describe.each(Object.keys(PACKS))('the %s export', (name) => {
 
   it('names each ESLint id of a manifest rule in exactly that rule’s blocks, with its options at each sample', () => {
     for (const rule of eslintRules(name)) {
-      const own = blocks.filter((b) => ruleOf(name, b) === rule.id);
+      const own = ruled(blocks).filter((b) => ruleOf(name, b) === rule.id);
       expect(own.length).toBeGreaterThan(0);
       for (const block of own) expect(Object.keys(block.rules).sort()).toEqual([...rule.eslint.ruleIds].sort());
-      const others = blocks.filter((b) => ruleOf(name, b) !== rule.id).flatMap((b) => Object.keys(b.rules));
+      const others = blocks.filter((b) => ruleOf(name, b) !== rule.id).flatMap((b) => Object.keys(b.rules ?? {}));
       for (const id of rule.eslint.ruleIds) expect(others).not.toContain(id);
       for (const { sample, expect: want } of rule.eslint.options) {
         const at = own.filter((b) => applies(b, sample));
@@ -81,6 +92,20 @@ describe.each(Object.keys(PACKS))('the %s export', (name) => {
       expect([rel, blocks.filter((b) => applies(b, rel)).map((b) => b.name)]).toEqual([rel, []]);
     }
   });
+
+  it('ignores Claude Code’s workflow scripts for the whole run, and no other file of the host directories', () => {
+    const [ignores] = blocks;
+    for (const rel of POINTERS) {
+      expect([rel, matchesAny(ignores.ignores, rel), engineMatches(ignores.ignores, rel)]).toEqual([rel, true, true]);
+    }
+    for (const rel of NOT_POINTERS) {
+      expect([rel, matchesAny(ignores.ignores, rel), engineMatches(ignores.ignores, rel)]).toEqual([rel, false, false]);
+    }
+  });
+
+  it('puts no rule block on a workflow pointer', () => {
+    for (const block of ruled(blocks)) for (const rel of POINTERS) expect([block.name, rel, blockCovers(block, rel)]).toEqual([block.name, rel, false]);
+  });
 });
 
 describe('the expo export', () => {
@@ -91,6 +116,9 @@ describe('the expo export', () => {
     expect(absent.map((b) => b.name)).toEqual(EXPORTS.expo.filter((b) => b.name !== 'cookwright/expo/strings').map((b) => b.name));
     const strings = EXPORTS.expo.find((b) => b.name === 'cookwright/expo/strings');
     expect(strings.plugins.i18next).toBe(require(STUB));
+    for (const variant of [absent, EXPORTS.expo, expoExport.coverage, [...expoExport]]) {
+      expect(variant[0]).toEqual({ name: 'cookwright/expo/ignores', ignores: WORKFLOWS });
+    }
   });
 
   it('finds eslint-plugin-i18next in the app’s node_modules when this package’s own location cannot see it', () => {
@@ -111,7 +139,8 @@ describe('the expo export', () => {
   });
 
   it('keeps the user-facing attributes measured and the attribute names that are never text out', () => {
-    const { exclude } = EXPORTS.expo[0].rules['i18next/no-literal-string'][1]['jsx-attributes'];
+    const strings = EXPORTS.expo.find((b) => b.name === 'cookwright/expo/strings');
+    const { exclude } = strings.rules['i18next/no-literal-string'][1]['jsx-attributes'];
     // The plugin's own matching: each pattern anchored at the end, after the start or a dot.
     const excluded = (attr) => exclude.some((p) => new RegExp(`(^|\\.)${p}$`).test(attr));
     for (const attr of ['accessibilityLabel', 'accessibilityHint', 'placeholder', 'title', 'label', 'value', 'alt', 'children']) {
@@ -133,7 +162,7 @@ describe('the expo export', () => {
 });
 
 describe('the supabase export', () => {
-  const [client] = supabaseExport;
+  const client = supabaseExport.find((b) => b.name === 'cookwright/supabase/client');
 
   it('exempts the shared service files and the Edge Functions by its own ignores', () => {
     for (const rel of ['src/services/supabase.ts', 'lib/supabase.ts', 'src/utils/supabase.js', 'supabase/functions/hello/index.ts']) {
@@ -159,11 +188,11 @@ describe('the engine’s reading of the exports', () => {
   ];
 
   it.each(Object.keys(PACKS))('%s: every glob is in the subset the engine matches', (name) => {
-    for (const block of EXPORTS[name]) for (const glob of [...block.files, ...(block.ignores ?? [])]) expect([glob, SUPPORTED.test(glob)]).toEqual([glob, true]);
+    for (const block of EXPORTS[name]) for (const glob of [...(block.files ?? []), ...(block.ignores ?? [])]) expect([glob, SUPPORTED.test(glob)]).toEqual([glob, true]);
   });
 
   it.each(Object.keys(PACKS))('%s: covers the same files as the fake ESLint’s matcher', (name) => {
-    for (const block of EXPORTS[name]) for (const rel of PATHS) expect([block.name, rel, blockCovers(block, rel)]).toEqual([block.name, rel, applies(block, rel)]);
+    for (const block of ruled(EXPORTS[name])) for (const rel of PATHS) expect([block.name, rel, blockCovers(block, rel)]).toEqual([block.name, rel, applies(block, rel)]);
   });
 
   it('reads the expo export’s every block, the strings block whatever resolves, never as a spread element', () => {

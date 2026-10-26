@@ -6,6 +6,7 @@
 // fake, as a package (src/test-fixtures/fake-eslint) or as a plain object.
 
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -148,6 +149,21 @@ describe('wired', () => {
     const err = await engine.wired(broken, root, rules()).catch((e) => e);
     expect(err).toBeInstanceOf(engine.Unmeasurable);
     expect([err.message, err.detail]).toEqual([m.configFailed, "Cannot find module '/Users/someone/app/x'"]);
+  });
+});
+
+describe('coverage', () => {
+  const require = createRequire(import.meta.url);
+  const exported = { expo: require('../../../packs/expo/eslint.cjs').coverage, supabase: require('../../../packs/supabase/eslint.cjs') };
+
+  it('reads the same blocks with the global ignore first in each export as without it', () => {
+    for (const { item, blocks } of engine.coverage(rules())) {
+      const [first, ...rest] = exported[item.pack.name];
+      expect(first).toEqual({ name: `cookwright/${item.pack.name}/ignores`, ignores: ['.claude/workflows/**'] });
+      const without = rest.filter((b) => item.rule.eslint.ruleIds.some((id) => id in b.rules));
+      expect([item.key, blocks]).toEqual([item.key, without]);
+      expect(blocks.length).toBeGreaterThan(0);
+    }
   });
 });
 

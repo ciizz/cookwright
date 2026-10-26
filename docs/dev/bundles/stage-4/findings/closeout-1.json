@@ -1,0 +1,96 @@
+{
+  "phase": "closeout",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "Decided during the stage",
+      "problem": "The closeout says every session's strings batch was presented to the developer and recorded as presented. QA run 6's session report (sessions/qa-6.md, 'User-facing strings') lists three changed strings: two standards-guide sentences and the setup skill's pack.*.lint remedy. The state has no 'qa run 6 strings batch' decision. Recorded batches stop at 'qa run 5 strings batch' (2026-10-26T00:57:12.698Z), and the 01:05:47 qa-6 decisions cover only the findings residue and the phase close.",
+      "severity": "P2",
+      "suggested_fix": "Either record qa run 6's strings batch through `bundle decide` before the closeout regenerates, or narrow the sentence to name qa run 6's three strings as not recorded as presented.",
+      "failure_scenario": "The developer reads that every user-facing string change reached them for a ruling. Three guide and skill strings changed in the last QA run never did, so they ship unreviewed under a closeout that says otherwise.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "State at close (Backlog)",
+      "problem": "'B-015 and B-016 opened and closed with their measurements' goes further than the backlog shows. B-016 sits under Closed, but its entry has no closing note. It says 'Cause unknown' and ends with a 'Proposed:' fix (run in test-helpers.mjs refusing a cwd outside the scratch root), and that fix was not implemented: `run` is still a bare execFileSync. B-015's entry says 'Reopened to watch 2026-10-25 (stage-4 s6)' after its 'Closed:' note.",
+      "severity": "P2",
+      "suggested_fix": "Say B-016 was opened with its re-measurement and its cause left unknown, the proposed guard not built. Either move it to Open bugs or give it a dated closing note. Say B-015 is closed but reopened to watch after the s6 recurrence.",
+      "failure_scenario": "A reader takes the hooksPath incident as resolved. The writer of core.hooksPath was never found and the guard was never built, so a recurrence would again silently disable the hooks while sessions report them passing.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "What shipped (Init and the fixture)",
+      "problem": "'doctor's `packs` row WARNs when the tree shows a stack no pack declares' is wider than the code. src/lib/doctor/packs.mjs:31-33 returns PASS as soon as any pack is declared and WARNs only when `packs` is empty. Backlog E-042, opened in this stage, records exactly the case the sentence claims is covered: expo declared and supabase/config.toml present still reads PASS.",
+      "severity": "P3",
+      "suggested_fix": "Change it to 'WARNs when no pack is declared and the tree shows a stack (a partly declared tree is E-042)'.",
+      "failure_scenario": "A developer with expo declared adds Supabase and trusts the PASS packs row to flag the undeclared supabase pack. It never does.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "What shipped (Init and the fixture)",
+      "problem": "The closeout says AGENTS.md is composed in one pass 'after review:model showed that two steps writing one file clobber each other through init's preflight'. That clobbering was plan-review round 1 finding 1 (P1), handled by disposition 27 (rulesFileStep composing AGENTS.md in one pass) before any code existed. review:model finding 0 was a different collision: a pack contract-doc path equal to a configured state home (paths.backlog). That finding produced the preflight refusal of duplicate targets.",
+      "severity": "P3",
+      "suggested_fix": "Credit the one-pass composition to plan-review round 1 (disposition 27), and the preflight refusal of two writes to one path to review:model finding 0.",
+      "failure_scenario": "The review trajectory is misread: review:model gets credit for a P1 the plan review caught, and the state-home path collision it actually found goes unmentioned.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "QA",
+      "problem": "The closeout says 'then five review rounds on the fixes, each narrower (4, 4, 5, 4, 3, 3 findings ...)'. That lists six review counts (qa-1 to qa-6, one per Workflow run), not five. They are not each narrower either: run 3 (5 findings) is wider than run 2 (4). The same wording is copied from the 01:05:47 phase-close decision.",
+      "severity": "P3",
+      "suggested_fix": "Change it to 'six review runs (4, 4, 5, 4, 3, 3 findings; the last three P3 only)' and drop 'each narrower'.",
+      "failure_scenario": "A reader takes the QA trajectory as converging steadily over five rounds. The recorded findings show six reviews and a rise at run 3.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "Deviations from the plan, recorded as decisions",
+      "problem": "'after three QA rounds of Markdown cases' does not match the record. The state has one QA round (qaRounds length 1; the closeout itself says 'One recorded round'). Contract-doc reader cases came up in five or six runs: run 1 fences, run 2 list items, run 3 tabs and trailing blank line, run 4 indented table rows, run 5 thematic breaks and blockquotes, run 6 a bare --- under a table.",
+      "severity": "P3",
+      "suggested_fix": "Change it to 'after five QA runs of Markdown cases (runs 1 to 5, a sixth noted on E-052)'.",
+      "failure_scenario": "The sentence contradicts the QA section's one-round count and understates how many fix-and-review cycles the reader's grammar took.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "Decided during the stage",
+      "problem": "'the rest the orchestrator's dispositions ..., each citing a Judgment rule or recording a measurement' is too wide. Leaving out strings batches, about 29 orchestrator decisions in the state cite no rule number and record no measurement. Examples: 18:47:41.168Z (finding 5, the SKILLS entry), 18:47:44.823Z (finding 8, pushContext), 19:43:41.435Z (the docs-audit SKILLS move), 23:12:38.666Z (the fix:surface fill branch), 23:46:26.206Z (pack versions stay at 1).",
+      "severity": "P3",
+      "suggested_fix": "Change it to 'most citing a Judgment rule or recording a measurement; scheduling and wording dispositions cite the plan section instead', or cite the rules in those decisions.",
+      "failure_scenario": "An auditor relying on the memory rule that every disposition cites a Judgment rule trusts this sentence and skips checking. Dozens of decisions lack the citation.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "What shipped (This repo eats its own cooking)",
+      "problem": "The paragraph is labelled (s7), but the 'two new rules tying the audit, standards and pack modules to the standards guide' came later: fix:surface (5a3a587, decision 23:12:39.527Z) and fix:whole (71b1ef6, decision 23:34:34.067Z). s7's own dogfood commit c5de2b3 only moved the repo to version 3 and widened the setup rule.",
+      "severity": "P3",
+      "suggested_fix": "Label the paragraph (s7, fix:surface, fix:whole), or attribute the two rules to their fix phases.",
+      "failure_scenario": "Someone tracing why the standards doc-sync rules exist looks in s7's session report and finds neither one.",
+      "verdict": "plausible"
+    }
+  ],
+  "checked": [
+    "Header: 109 commits, 81 code/docs (19 feat incl. feat(bundle)/feat(config), 41 fix, 1 refactor, 2 test, 15 docs, 3 chore(config)), 28 chore(bundle), 128 files, +13476/-274: all match git over e966c45..c039db3",
+    "No private paths: git grep over docs/dev/bundles/stage-4 and backlog.md at c039db3 found none",
+    "Generated tables vs state revision 262 (HEAD 26ac424): gate history 0-19 commits and results, review trajectory counts for all 13 findings files, 144 decisions with 9 by the developer, output tokens 7075529, wall clock 6.9 h, 13 review runs, 1 QA round, costs empty -> USD not recorded",
+    "Review summary: plan-review 28 (6/12/10), re-check 1 24 resolved and 4 left, re-check 2 all; review:model 9 (3 P2), review:measure 9 (4 P1, finding 0 is the client tag), review:surface 9 (5 P2), review:whole 6 (3 P2); fix commit counts 9/7/6/5 match the session reports (the fix:whole phase range also holds an orchestrator backlog commit, 6cf3d49)",
+    "Test counts per session match the chore(bundle) subjects; 17 test files at base and 26 at close; 478 baseline per B-015",
+    "QA (c) numbers (28 checks, 22 PASS, 6 WARN; 40 of 40; 110; strings 50, tokens 0, size 110, client 0; 557 files, 13.1 s; no rise; exit 10 with five findings; the fall line) match qa/round-1.md",
+    "Fixture pins 9.39.5/58.0.4/6.1.5 and @expo/cli 58.1.15 are in fixture.sh and init/packs.mjs; fixture PASS after the listed phases per the session reports and decision 241; 27 PASS 1 WARN with supabase and 1 SKIP without (s5 report)",
+    "changelog --unreleased: 121 at HEAD = 120 at c039db3; --check up to date; doctor now reads 19 PASS, level 0 complete",
+    "No dependency change (only the files list in packages/cookwright/package.json); packs in files, test-fixtures excluded",
+    "B-016: 41 commits = e966c45..63ecb36; B-015: 7adc312 tried and reverted, 38b20a6 the setImmediate fix, gates 2-19 green",
+    "Plan amendments: 82b355a (§5 changed files) and eda3bc4 (§4.5 tag); charter unchanged; pack manifests at version 1 (section v1); tag matched anywhere (standards.mjs:337)",
+    "Backlog openings and closings E-040 to E-053 and B-011/12/13, E-003, E-039, E-043; B-014 untouched"
+  ],
+  "notes": "I re-derived the closeout from range e966c45..c039db3, from state.json at revision 262 (the HEAD commit 26ac424, the revision the closeout names), and from the findings, session and QA files. The task text says the state is at revision 261. That was the revision at c039db3. HEAD holds 262 (the closeout run's start), and the working tree is at 263 (the run id added). The generated tables match revision 262 exactly.\n\nThe weightiest problems:\n- **QA run 6's strings were never recorded.** Its three user-facing strings have no strings-batch decision in the state, yet the closeout says every batch was presented.\n- **B-016 is called closed but is not.** Its cause is unknown and its proposed guard was never built. B-015 is marked \"reopened to watch\".\n\nThe rest are wider claims or wrong attributions:\n- the packs row's WARN condition;\n- the review that led to the one-pass composition;\n- the QA review count and the \"each narrower\" trajectory;\n- \"three QA rounds\" of Markdown cases;\n- \"each citing a Judgment rule\";\n- the (s7) label on the doc-sync rules added in fix:surface and fix:whole.",
+  "timedOut": false,
+  "incomplete": [],
+  "closeoutSha": "ce6020c4175692a5"
+}

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 262,
+  "revision": 265,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -510,7 +510,8 @@
           "startedAt": "2026-10-26T01:07:01.269Z",
           "stateRevision": 261,
           "planSha": "3f4aa96c4462829c",
-          "codex": true
+          "codex": true,
+          "runId": "wf_bc782d43-ad9"
         }
       ],
       "startCommit": "c039db3fe86328a3a15d7720bd9c053b33f93338",
@@ -1016,6 +1017,25 @@
       "at": "2026-10-26T01:05:09.894Z",
       "stored": true,
       "head": "3a07f4a1613d5fcd3e7f90d3c18620eafdc05bfe"
+    },
+    {
+      "phase": "closeout",
+      "path": "docs/dev/bundles/stage-4/findings/closeout-1.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 8,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 2,
+        "P3": 6
+      },
+      "at": "2026-10-26T01:15:44.191Z",
+      "stored": true,
+      "head": "26ac42461fa07c588cbbf955ad2467029eb5ffd7",
+      "closeoutSha": "ce6020c4175692a5"
     }
   ],
   "reports": [
@@ -2136,6 +2156,13 @@
       "actor": "orchestrator",
       "source": "qa phase close",
       "text": "Six QA runs: round 1's two findings from QA (c) fixed, then five review rounds on the fixes, each narrower (4, 4, 5, 4, 3, 3 findings; the last three P3s only), all code reviewed and gated; QA (b), a fresh Expo app with a local Supabase stack, and the semantic-audit calibration on a kept fixture tree remain the developer's, recorded as such for the closeout (rule 3).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T01:15:44.503Z",
+      "actor": "orchestrator",
+      "source": "qa run 6 strings batch",
+      "text": "The sixth QA run's three user-facing strings (two standards-guide sentences on the array-valued rules and the reader's grammar, the setup skill's pack lint remedy) presented to the developer in chat by the orchestrator; accepted pending the developer's ruling at the closeout. Recorded after the closeout verify found the batch missing (finding 0).",
       "claim": true
     }
   ],

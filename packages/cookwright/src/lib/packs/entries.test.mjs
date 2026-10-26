@@ -187,6 +187,24 @@ describe('headingKeys', () => {
     expect([...headingKeys(info)]).toEqual(['After']);
   });
 
+  it('follows a fence a list item opens to its closing line, indented as the item’s content', () => {
+    const bullet = ['- ```md', '  ## Phantom', '  ```', '## Real'].join('\n');
+    expect([...headingKeys(bullet)]).toEqual(['Real']);
+    const numbered = ['1. ```md', '   ## Phantom', '', '   | Ghost |', '   ```', '## Real'].join('\n');
+    expect([...headingKeys(numbered)]).toEqual(['Real']);
+    const nested = ['- 1. ~~~', '     ## Phantom', '     ~~~', '### Real'].join('\n');
+    expect([...headingKeys(nested)]).toEqual(['Real']);
+    const table = ['* ```md', '  | Primitive |', '  | --- |', '  | Ghost |', '  ```', '| Primitive |', '| --- |', '| Real |'].join('\n');
+    expect([...docKeys(table)].sort()).toEqual(['Real']);
+  });
+
+  it('ends a list item’s fence at a line less indented than the item’s content, as the item ends', () => {
+    // CommonMark: `## Phantom` at column 0 closes the item, so it is a heading, and the
+    // ``` after it opens a fence of its own at the top level, holding `## Real`.
+    expect([...headingKeys(['- ```md', '## Phantom', '```', '## Real'].join('\n'))]).toEqual(['Phantom']);
+    expect([...headingKeys(['- ```md', '  ## Phantom', '```', '## Inside', '```', '## Real'].join('\n'))]).toEqual(['Real']);
+  });
+
   it('reads a backtick line whose info string holds a backtick as a paragraph, not a fence', () => {
     expect([...headingKeys('```inline``` text\n## Button')]).toEqual(['Button']);
   });

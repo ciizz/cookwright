@@ -7,8 +7,9 @@
 // directory and, for components, one level below: no walk, no subprocess. A
 // directory that does not exist lists nothing (the blank scaffold); one that cannot
 // be read throws, and the row says it could not count. The doc's entries are, outside
-// a fenced code block, the first cell of every body row of every table and the text
-// of every `##` or `###` heading (a doc written one section per primitive).
+// a fenced code block (one a list item opens too), the first cell of every body row
+// of every table and the text of every `##` or `###` heading (a doc written one
+// section per primitive).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -99,18 +100,38 @@ const closes = (line, run) => {
   return Boolean(m) && m[1][0] === run[0] && m[1].length >= run.length && m[2].trim() === '';
 };
 
+// A list item's marker with the spaces around it; the item's content starts after it.
+const MARKER = /^ {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]+/;
+
+/**
+ * The fence `line` opens, as `{ run, indent }`, or null: `indent` is where the
+ * content of the list items the line opens starts (`- ```md` gives 2), so a fence
+ * that opens a list item belongs to it (CommonMark 5.2).
+ */
+function opening(line) {
+  let indent = 0;
+  for (let m = MARKER.exec(line); m; m = MARKER.exec(line.slice(indent))) indent += m[0].length;
+  const run = opens(line.slice(indent));
+  return run === null ? null : { run, indent };
+}
+
+/** Whether `line` is inside the list item that holds `fence`: blank, or indented as far as its content. */
+const within = (line, fence) => line.trim() === '' || line.length - line.trimStart().length >= fence.indent;
+
 /**
  * `text`'s lines, every line of a fenced code block, its delimiters too, blanked so
- * the others keep their places.
+ * the others keep their places. A fence in a list item ends with a line less
+ * indented than the item's content, which ends the item too.
  */
 function unfenced(text) {
   let fence = null;
   return text.replace(/\r\n/g, '\n').split('\n').map((line) => {
+    if (fence !== null && !within(line, fence)) fence = null;
     if (fence !== null) {
-      if (closes(line, fence)) fence = null;
+      if (closes(line.slice(fence.indent), fence.run)) fence = null;
       return '';
     }
-    fence = opens(line);
+    fence = opening(line);
     return fence === null ? line : '';
   });
 }

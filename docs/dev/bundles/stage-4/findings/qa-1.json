@@ -1,0 +1,104 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "lines 101-113 (headingKeys)",
+      "problem": "headingKeys() records only the fence character and toggles on any later run of three matching characters. Markdown closing fences must use at least the opening fence's length and cannot have an info-string suffix.",
+      "severity": "P2",
+      "suggested_fix": "Store the opening delimiter's character and length. While fenced, close only on the same character repeated at least that many times followed solely by whitespace. Add tests for four-backtick/four-tilde outer fences containing shorter or info-string fences.",
+      "failure_scenario": "A four-backtick fence containing an inner ```tsx example prematurely closes at that inner fence. A subsequent '### Button' inside the example is counted as documentation, so pack.expo.docs can incorrectly PASS when the real Button entry is missing. A direct reproduction returned ['Phantom'] for such a fenced heading.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "entries.mjs:100-118: FENCE captures only the fence char, and headingKeys toggles on any later matching run of 3+ chars, ignoring length and info string. Ran headingKeys on a four-backtick fence with an inner tsx fence and '## Inner': it returned ['Inner','After'], so the fenced heading counts as documented."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "headingKeys / FENCE (lines ~100-118)",
+      "problem": "The fence tracker toggles on any line starting with three backticks or tildes of the same character, ignoring CommonMark's rules: a closing fence must be at least as long as the opening one and carry no info string, and a backtick fence's info string may not contain a backtick. So a heading inside a fence can count as an entry, and every heading after a misread fence line can be dropped. That makes the standards guide's new claim ('a `## <key>` or `### <key>` heading (outside a fenced code block)') broader than what the code does.",
+      "severity": "P3",
+      "suggested_fix": "Keep the opening fence's character and length. Close only on a line made of the same character, at least as long, with nothing after it but spaces. Treat a backtick line whose info string contains a backtick as a paragraph. Add the three cases below to the headingKeys test.",
+      "failure_scenario": "Measured with docKeys. (a) A design-system doc that shows a markdown example in a four-backtick fence: \"````md\\n```tsx\\n## Inner\\n```\\n````\\n## After\" gives ['Inner','After']. The fenced 'Inner' counts as documented, so a primitive named Inner reads PASS with no real entry. (b) \"```md\\n```tsx\\n## Inner\\n```\\n## After\" gives ['Inner'] only, so the real heading 'After' is lost and the primitive After is reported as having no entry. (c) A paragraph line starting with inline code, \"```inline``` text\\n## Button\", gives []. Every heading after that line is swallowed, so pack.expo.docs WARNs 'N of N primitives have no entry', which is the exact Q1 symptom this fix was meant to remove.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "Ran headingKeys on all three inputs. (a) four-backtick fence gives ['Inner','After'], so the fenced heading counts. (b) '```md' then '```tsx' then '## Inner' then '```' then '## After' gives ['Inner'] and loses the real 'After' heading. (c) '```inline``` text' then '## Button' gives [], so every later heading is swallowed. All three match CommonMark: a closing fence needs at least the opening length and no info string, and a backtick fence's info string cannot contain a backtick. The code at entries.mjs:100-118 does none of this, so the 'outside a fenced code block' claim is broader than the code."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "line 164, pack.expo.lint / pack.supabase.lint WARN '… does not name …' remedy",
+      "problem": "The new consent gate tells the agent to read only the config file for a block of the app's own that sets one of the pack's rule ids, and to spread last without asking when none is found. Blocks pulled in from a shared config (a spread company or community preset) are invisible in that file but still lose their options when the pack spreads last. The developer is never asked and nothing reports it afterwards: spread last, the engine sees the pack's own options and reads the rule as measured.",
+      "severity": "P3",
+      "suggested_fix": "Before writing, ask ESLint for the effective config of a file each pack rule covers. For example, `npx eslint --print-config src/components/<a component>.tsx` for no-restricted-syntax, i18next/no-literal-string and max-lines-per-function, and a .ts file for no-restricted-imports. Treat any options there that are not the pack's as 'a block that sets the rule', and ask. Or state in the remedy that only the file's own blocks are checked.",
+      "failure_scenario": "An app's eslint.config.js has only `...require('@acme/eslint-config')` (or similar), and that preset sets no-restricted-syntax (for example a ForInStatement or WithStatement ban) and no-restricted-imports (for example a lodash restriction). The agent reads the file, finds no block of the app's own setting those ids, and appends both pack spreads at the end without asking. ESLint flat config replaces the options, so the preset's syntax bans are gone on every components file and its import restrictions are gone on every ts/tsx/js/jsx file outside the service paths. Doctor's lint row then reads PASS, and the developer never chose this.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/skills/setup/SKILL.md:164 (the changed row). It tells the agent to read only the named config file for a block of the app's own that sets one of the pack's rule ids. With none found, it says to add the spread as the last array element with consent only. A spread preset such as `...require('@acme/eslint-config')` is one opaque line in that file, so its rule options are not visible. The row never tells the agent to resolve the effective config, for example with `npx eslint --print-config <file>`. Flat config replaces rule options from earlier blocks when a later block sets the same rule. The pack's last-spread blocks therefore silently drop the preset's `no-restricted-syntax` and `no-restricted-imports` options on the pack's files. The row's own reasoning says a spread-last pack block replaces the earlier options and reads as measured, so doctor reports PASS and nothing flags the loss. The row's own wording, 'a block of the app's own', is ambiguous about preset blocks. I did not run ESLint to confirm the replacement behaviour."
+    },
+    {
+      "file": "packages/cookwright/src/lib/messages.mjs",
+      "location": "handAdd (lines ~31-38), reused by doctor lint.unnamed and init eslint.other/otherModule",
+      "problem": "The new advice says without qualification that 'spread before such a block, that rule reads overridden and is not measured'. ESLint flat config keeps the earlier options when a later block sets only a severity, so a later severity-only 'error' for a pack rule leaves the pack's options in force. The engine then measures the rule, and the message does not match what happens. The same sentence is in docs/guides/standards.md line 23 and in the setup skill's ask-before-writing explanation.",
+      "severity": "P3",
+      "suggested_fix": "Qualify the sentence, for example 'spread before a block of yours that sets that rule's options or a different severity, that rule reads overridden…'. Or drop the absolute and say the effective config decides. Mirror the change in standards.md and SKILL.md line 164.",
+      "failure_scenario": "The app has a later block `{ files: ['**/*.tsx'], rules: { 'max-lines-per-function': 'error' } }`. The setup skill shows it and says spreading before it leaves size unmeasured. The developer spreads last to keep the rule measured, and in doing so loses their own options on other rules the pack sets, when spreading first would have kept size measured (severity matches, options inherited). The trade-off the developer is asked to make rests on a false premise.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "messages.mjs:35-38 says unconditionally that spreading before a block that sets the rule leaves it 'overridden and not measured'. The engine in packages/cookwright/src/lib/packs/standards.mjs:122-109 judges ESLint's calculateConfigForFile result. judge() returns 'overridden' only if the effective severity is not error, the tag is missing, or the effective options are not a superset of the pack's expected options. ESLint flat config merges a later severity-only entry ('error') with the earlier entry's options, so the effective entry still carries the pack's options and judge() returns MEASURED. The advice is therefore false for a severity-only later block. The same sentence is at docs/guides/standards.md:23, and the setup SKILL.md diff carries the same wording. The overridden state is real only when the later block changes the options, tag or severity. This is a message-accuracy defect, not a crash."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 5d42ecd..HEAD across 12 files (commits 60e2fde, 475a3a8)",
+    "correctness of heading-as-entry counting in entries.mjs",
+    "doc-sync",
+    "centralized user-facing messages in messages.mjs",
+    "function size under ~40 lines",
+    "git diff 5d42ecd..HEAD (60e2fde, 475a3a8), both commits read in full",
+    "QA round-1 notes (sha256 prefix f03246e39c1d9e2c matches) Q1 and Q2 fixes compared with the diff: template headers, standards guide, setup skill, messages, doctor and init all updated as promised",
+    "plan.md (sha 3f4aa96c4462829c): disposition 33 and §4.7 promised first-column cells only; the QA fix widens this on purpose (Q1)",
+    "headingKeys/docKeys probed by running node over entries.mjs: fences, inline triple backticks, HTML comments, {#id} suffix, blockquote/list headings, multiple code spans",
+    "Rule ids hardcoded in SKILL.md and standards.md checked against packs/expo/eslint.cjs and packs/supabase/eslint.cjs: they match",
+    "Init's Expo template path (exact-template match only) checked: auto-insert after expoConfig cannot land before a user block",
+    "doctor checkLint: unnamed(rel, spec, spreads, imports) with imports defaulting to [] for CJS; ESM ordering verified against the test",
+    "skills.test QUOTED fragment for the new setup-skill quote present in messages",
+    "User-facing strings stay in messages.mjs; new functions are under 40 lines; no dependency added; no secrets, local paths or private ops in the diff",
+    "Stale 'first column/no row' wording searched across the package, docs and skills: none left beyond the intended 'first column, or the heading'",
+    "Advisory check: this repo's AGENTS.md has no pack section with an ### Advisory heading, so no advisory rules apply",
+    "state.json not edited by the fix commits (only the CLI's uncommitted revision bump)"
+  ],
+  "notes": "Codex ran at high effort, completed within the ceiling, and returned one P2. It could not run Vitest because the read-only sandbox blocked Vite from creating .vite-temp, so it used static review and a direct Node reproduction. It found no other correctness, doc-sync, centralized-message or function-size problems. Its output is in <local path>\n---\nThe two fixes do what the round-1 notes asked, and I found no P1 or P2 problem. Q1 and Q2 are both addressed in code, templates, the standards guide and the setup skill, and both have tests. The three findings are P3. The first is about how far the new heading reader matches CommonMark. The other two are about how precise the new ESLint placement advice is. One more limit, inherent to the design and not filed: a generic section heading that matches a component name (for example '## Typography' over a type-scale section in an app with a Typography component) now counts as that primitive's entry. The guide already says the tripwire measures presence, not truth, and the semantic audit covers that gap. I ran no tests (read-only); the earlier fix:whole gate reported 740 tests green.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": null,
+    "partialReportPath": null
+  }
+}

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 210,
+  "revision": 219,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -452,7 +452,8 @@
           "startedAt": "2026-10-25T23:48:16.973Z",
           "stateRevision": 209,
           "planSha": "3f4aa96c4462829c",
-          "codex": true
+          "codex": true,
+          "runId": "wf_852e1d8a-e55"
         }
       ],
       "startCommit": "5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b",
@@ -650,6 +651,19 @@
           "ms": 48153
         }
       ]
+    },
+    {
+      "commit": "475a3a8736ba13c1721b243b4d243269fd2fcefe",
+      "at": "2026-10-26T00:04:55.209Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 46570
+        }
+      ]
     }
   ],
   "findings": [
@@ -778,6 +792,24 @@
       "at": "2026-10-25T23:34:04.680Z",
       "stored": true,
       "head": "065b34a5e1e121ceda34b5a055271b1dbbb2f9a0"
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/findings/qa-1.json",
+      "counts": {
+        "confirmed": 4,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 1,
+        "P3": 3
+      },
+      "at": "2026-10-26T00:03:43.159Z",
+      "stored": true,
+      "head": "475a3a8736ba13c1721b243b4d243269fd2fcefe"
     }
   ],
   "reports": [
@@ -846,9 +878,21 @@
       "path": "docs/dev/bundles/stage-4/sessions/fix-whole-1.md",
       "at": "2026-10-25T23:46:25.012Z",
       "stored": true
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/sessions/qa-1.md",
+      "at": "2026-10-26T00:03:42.873Z",
+      "stored": true
     }
   ],
-  "qaRounds": [],
+  "qaRounds": [
+    {
+      "path": "docs/dev/bundles/stage-4/qa/round-1.md",
+      "at": "2026-10-25T23:53:29.009Z",
+      "stored": true
+    }
+  ],
   "decisions": [
     {
       "at": "2026-10-25T18:12:36.778Z",
@@ -1716,6 +1760,34 @@
       "actor": "orchestrator",
       "source": "fix:whole strings batch",
       "text": "fix:whole's 6 user-facing strings (the doc-sync switched-off tails, the missing-gate and missing-skipExit WARN parts, the ignored-files tail, the ratchet's-base sentence) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at QA.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:04:06.989Z",
+      "actor": "orchestrator",
+      "source": "qa round 1 open questions",
+      "text": "The headings shape applies to both contract docs (one shared reader; the data-model template's own section headings can never match a migration file name), and a heading counts only when its whole text is the key, closing hashes and code or link markup dropped (rule 3: a looser match would count 'Button (primary)' as Button's entry).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:04:07.282Z",
+      "actor": "orchestrator",
+      "source": "qa round 1 review findings 0 and 1",
+      "text": "Fix in the next QA run (rule 3): the fence tracker keeps the opening fence's character and length and closes only on a line of that character at least as long with nothing after it, a backtick fence whose info string holds a backtick is a paragraph; tests cover a four-backtick fence with an inner tsx fence, a tilde fence, and a heading inside each.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:04:07.582Z",
+      "actor": "orchestrator",
+      "source": "qa round 1 review findings 2 and 3",
+      "text": "Fixed in the next QA run as cheap P3s: the setup skill's consent gate reads ESLint's effective config (npx eslint --print-config on a file each pack rule covers) rather than the config file's text, so a shared preset's blocks count; the advice says 'spread before a block of yours that sets that rule's options or another severity' and that the effective config decides, mirrored in the guide.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:04:07.866Z",
+      "actor": "orchestrator",
+      "source": "qa round 1 strings batch",
+      "text": "The QA fix's 5 user-facing strings (the hand-add advice in init's two rows and doctor's lint WARN, the two template headers naming both entry shapes) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at the closeout.",
       "claim": true
     }
   ],

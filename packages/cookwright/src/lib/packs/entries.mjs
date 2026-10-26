@@ -98,7 +98,22 @@ export function tableKeys(text) {
 }
 
 const HEADING = /^ {0,3}#{2,3}[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
-const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+
+/**
+ * The fence `line` opens, as its delimiter run, or null. A backtick run whose info
+ * string holds a backtick is inline code, not a fence (CommonMark 4.5).
+ */
+function opens(line) {
+  const m = FENCE.exec(line);
+  return m && !(m[1][0] === '`' && m[2].includes('`')) ? m[1] : null;
+}
+
+/** Whether `line` closes the fence `run` opened: the same character, at least as many, nothing after. */
+const closes = (line, run) => {
+  const m = FENCE.exec(line);
+  return Boolean(m) && m[1][0] === run[0] && m[1].length >= run.length && m[2].trim() === '';
+};
 
 /**
  * The text of every `##` or `###` heading in `text`, its closing hashes, code span
@@ -108,9 +123,12 @@ export function headingKeys(text) {
   const keys = new Set();
   let fence = null;
   for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
-    const open = FENCE.exec(line);
-    if (open) fence = fence === null ? open[1][0] : fence === open[1][0] ? null : fence;
-    if (open || fence !== null) continue;
+    if (fence !== null) {
+      if (closes(line, fence)) fence = null;
+      continue;
+    }
+    fence = opens(line);
+    if (fence !== null) continue;
     const key = unwrap(HEADING.exec(line)?.[1] ?? '');
     if (key) keys.add(key);
   }

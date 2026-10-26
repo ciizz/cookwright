@@ -171,6 +171,19 @@ describe('headingKeys', () => {
     ].join('\r\n');
     expect([...headingKeys(text)]).toEqual(['Primitives', 'Button', 'Card', 'Chip', 'Indented']);
   });
+
+  it('closes a fence only on its own character, at least as long, with nothing after it', () => {
+    const outer = ['````md', '```tsx', '## Inner', '```', '````', '## After'].join('\n');
+    expect([...headingKeys(outer)]).toEqual(['After']);
+    const tilde = ['~~~~', '~~~', '## Inner', '~~~~~', '## After'].join('\n');
+    expect([...headingKeys(tilde)]).toEqual(['After']);
+    const info = ['```md', '```tsx', '## Inner', '```', '## After'].join('\n');
+    expect([...headingKeys(info)]).toEqual(['After']);
+  });
+
+  it('reads a backtick line whose info string holds a backtick as a paragraph, not a fence', () => {
+    expect([...headingKeys('```inline``` text\n## Button')]).toEqual(['Button']);
+  });
 });
 
 describe('docKeys', () => {

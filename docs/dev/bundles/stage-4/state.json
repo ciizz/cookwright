@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 253,
+  "revision": 261,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -445,7 +445,7 @@
     },
     {
       "name": "qa",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -482,13 +482,24 @@
           "planSha": "3f4aa96c4462829c",
           "codex": true,
           "runId": "wf_b6adc1ec-9d0"
+        },
+        {
+          "startedAt": "2026-10-26T00:58:13.711Z",
+          "stateRevision": 253,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_96867ca0-53c",
+          "endedAt": "2026-10-26T01:07:00.657Z",
+          "turnOutputTokens": 2215628
         }
       ],
       "startCommit": "5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b",
       "range": {
         "from": "5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b",
         "to": "HEAD"
-      }
+      },
+      "endCommit": "3a07f4a1613d5fcd3e7f90d3c18620eafdc05bfe",
+      "endCode": "3a07f4a1613d5fcd3e7f90d3c18620eafdc05bfe"
     },
     {
       "name": "closeout",
@@ -744,6 +755,19 @@
           "ms": 48841
         }
       ]
+    },
+    {
+      "commit": "3a07f4a1613d5fcd3e7f90d3c18620eafdc05bfe",
+      "at": "2026-10-26T01:06:39.261Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 50917
+        }
+      ]
     }
   ],
   "findings": [
@@ -962,6 +986,24 @@
       "at": "2026-10-26T00:56:34.543Z",
       "stored": true,
       "head": "7e0634fbb901fab284c4ed2ddf444498a0a4df8b"
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/findings/qa-6.json",
+      "counts": {
+        "confirmed": 3,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 3
+      },
+      "at": "2026-10-26T01:05:09.894Z",
+      "stored": true,
+      "head": "3a07f4a1613d5fcd3e7f90d3c18620eafdc05bfe"
     }
   ],
   "reports": [
@@ -1059,6 +1101,12 @@
       "phase": "qa",
       "path": "docs/dev/bundles/stage-4/sessions/qa-5.md",
       "at": "2026-10-26T00:56:34.262Z",
+      "stored": true
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/sessions/qa-6.md",
+      "at": "2026-10-26T01:05:09.606Z",
       "stored": true
     }
   ],
@@ -2062,6 +2110,20 @@
       "actor": "orchestrator",
       "source": "qa run 5 strings batch",
       "text": "The fifth QA run's one changed string (the hand-add advice's final wording: a later block stays measured only with error alone or error with exactly the pack's options) presented to the developer in chat by the orchestrator; accepted pending the developer's ruling at the closeout.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T01:05:47.247Z",
+      "actor": "orchestrator",
+      "source": "qa run 6 review findings 0, 1, 2",
+      "text": "Residue, P3s never block (playbook): the setup skill's conflict check treats any app block setting a pack rule id as overlapping, which overstates for the tokens rule scoped to components (noted on E-053); a bare --- directly under a table's last body row makes the reader take that row as a header and drop it, a false-missing WARN the row shows (noted on E-052); a test comment describes a mechanism the code lacks (cosmetic). The QA phase closes with these on record.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T01:05:47.540Z",
+      "actor": "orchestrator",
+      "source": "qa phase close",
+      "text": "Six QA runs: round 1's two findings from QA (c) fixed, then five review rounds on the fixes, each narrower (4, 4, 5, 4, 3, 3 findings; the last three P3s only), all code reviewed and gated; QA (b), a fresh Expo app with a local Supabase stack, and the semantic-audit calibration on a kept fixture tree remain the developer's, recorded as such for the closeout (rule 3).",
       "claim": true
     }
   ],

@@ -1,0 +1,82 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "line 164 (pack.expo.lint / pack.supabase.lint remedy row)",
+      "problem": "The skill treats every scoped block defining a pack-owned ESLint rule as conflicting, claiming the pack rules reach those files and that no placement keeps both. This is false for Expo's no-restricted-syntax, which only covers **/components/**/*; a user rule scoped to scripts/**/*.js or src/features/**/*.ts can coexist without overlap.",
+      "severity": "P3",
+      "suggested_fix": "Check whether the app block's file scope overlaps the specific pack rule's coverage before declaring a conflict. Keep the 'no placement keeps both' warning only for overlapping files.",
+      "failure_scenario": "Setup finds an app-owned selector in a scripts-only block and tells the developer it must replace that selector or leave the tokens rule unmeasured, though both stay effective in their disjoint scopes.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/packs/expo/eslint.cjs:92 scopes the no-restricted-syntax block to '**/components/**/*.{ts,tsx,js,jsx}' only. SKILL.md:164 says any block counts \"whatever its files scope (a block on src/features/**/*.ts or scripts/**/*.js counts: the pack's rules reach those files too)\" and that \"no placement keeps both\". That is false for no-restricted-syntax: a block scoped to scripts/ or src/features/ (outside components) has no overlap with the pack's block, so both selectors stay effective. It does hold for Expo's i18next (eslint.cjs:84, '**/*.{tsx,jsx}') and max-lines-per-function (:108-109, all ts/js/tsx/jsx), and for supabase's no-restricted-imports (supabase/eslint.cjs:22, all ts/tsx/js/jsx), so the overstatement is limited to Expo's no-restricted-syntax. The effect is an unneeded conflict warning and a needless ask, so P3 is right."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "tableKeys, line 186 (the header test `SEPARATOR.test(lines[i + 1])`), with SEPARATOR at line 82",
+      "problem": "This round's fix covers spaced thematic breaks (`- - -`, `* * *`) but not the most common one, a bare `---`. When `---` sits directly under a table's last body row, it matches SEPARATOR, so tableKeys treats that last row as a header row and drops it. In GFM a thematic break ends the table and the row above it is a body row. The guide's new sentence about thematic breaks and the entries.mjs header both suggest breaks are handled, which is wider than the code.",
+      "severity": "P3",
+      "suggested_fix": "Treat a row as a header only when the line before it is not a table row (the table's first line) and the separator has the same number of cells as the row. Add a test: `| P |\\n| --- |\\n| Button |\\n| Card |\\n---` gives Button and Card. If that is out of scope for this round, add it to E-052 under backlog discipline.",
+      "failure_scenario": "docs/design-system.md has `| Primitive | Notes |`, `| --- | --- |`, `| Button | x |`, `| Card | y |`, then `---` on the next line with no blank line, then `## Next`. docKeys returns [\"Button\",\"Next\"] (probed), so doctor's pack.expo.docs row names Card as having no entry even though it is documented (a false WARN).",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "Reproduced: docKeys on the scenario text returns ['Button','Next'] (Card dropped). entries.mjs:186 tests SEPARATOR.test(lines[i+1]); SEPARATOR (line 82) matches a bare `---`. The thematic-break handling (BREAK, line ~112, used only in items()) only stops list-marker parsing and never ends a table. A bare `---` directly under the last body row makes that row read as a header and drop its key."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.test.mjs",
+      "location": "the thematic-break test added in f41d92b (`// Two markers are not a break: the nested item's content starts at column 4.`); MARKER at entries.mjs line 109",
+      "problem": "The new test comment describes a mechanism the code does not have. MARKER needs one or more spaces after a marker, so a marker at the end of a line (`- -`, or a bare `-` or `10.`) opens no item. `- -` opens only the outer item at column 2, and the test passes because 4 spaces is 2 columns past that. In CommonMark an empty-start item's content starts at marker width + 1, and the reader ignores this, so the guide's 'a line read from where its list item's content starts' is wider than the code for such items.",
+      "severity": "P3",
+      "suggested_fix": "Let MARKER match a marker followed by end of line, with content at marker width + 1 (CommonMark 5.2, empty-start item). Add tests `-\\n    ## Button` gives Button and `- -\\n      ## X` gives X. Otherwise fix the comment and add the empty-start item to E-052's list of what the declared grammar does not read.",
+      "failure_scenario": "A contract doc with `-` on its own line, then `    ## Button` (4 spaces). CommonMark reads that as a heading inside the item (content column 2), but docKeys returns no Button (probed), so doctor names Button missing. The same happens with `10.` then `    ## Button`, and with `- -` then `      ## X` (6 spaces).",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "entries.mjs:109 MARKER requires ( +) after the marker, so a marker at end of line opens no item. I probed docKeys: '-\\n    ## Button' -> [], '10.\\n    ## Button' -> [], '- -\\n      ## X' -> [], while '-\\n  ## Button' -> ['Button']. CommonMark puts the content of an empty-start item at marker width + 1, so those 4-space and 6-space headings are headings inside the item, but the reader drops them as code. entries.test.mjs:237-238: '- -\\n    ## Nested' passes because only the outer item opens (content column 2, so 4 spaces is 2 columns past it). The comment 'Two markers ... nested item's content starts at column 4' is wrong about the mechanism."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 5d42ecd..HEAD (27 files)",
+    "commits f41d92b, 9059454, 3a07f4a",
+    "setup SKILL.md, standards.mjs, entries.mjs and tests, per Codex's reads",
+    "f41d92b: BREAK regex and items() loop guard; probed `- - -`, `* * *`, tabbed breaks, `_ _ _`, `+ + +` (correctly not a break), `- * * *`, `1. - - -`, a break inside an item followed by 4-relative-indent code, an item marker before a break; all match CommonMark",
+    "f41d92b: the standards guide and entries.mjs header sentences on thematic breaks match the code apart from the bare `---` case reported",
+    "9059454: the E-052 backlog line, the entries.mjs header and the standards guide now agree with the code (a heading or row inside a blockquote is never an entry); probed a blockquote holding an unclosed fence followed by a real fence, consistent with CommonMark",
+    "9059454: the new blockquote test passes, `npx vitest run src/lib/packs/entries.test.mjs` 22/22",
+    "3a07f4a: the standards guide and setup SKILL.md say the array-valued rules get no subset match; checked against standards.mjs holds()/judge() (severity error plus isDeepStrictEqual on the options), so 'no placement keeps both yours and the measurement on the pack's files' holds for the same rule id; consistent with E-053",
+    "AGENTS.md rules: no local paths, secrets or .env in this round's diff; functions stay under 40 lines; the doc changes sit in the same commits as the code; the commit subjects are conventional",
+    "No `### Advisory` pack section applies: this round's diff touches no app visuals or primitives"
+  ],
+  "notes": "Codex ran in the foreground, finished without hitting the ceiling, and reported one P3. Transcribed as is. Codex session 01a175ba-524f-75d1-8823-e64d57da70d6; output at <local path>\n---\nThe review covered this round's three commits (f41d92b, 9059454, 3a07f4a) inside 5d42ecd..HEAD; the earlier QA rounds' commits in the range were read only for context. The thematic-break fix is correct for spaced breaks and the docs-only commits match the code. Both findings come from probing the contract-doc reader with throwaway scripts in <local path> (probe.mjs to probe4.mjs). Both are false 'missing' entries on doctor's pack.*.docs row, which only warns and never fails, so they are P3. Neither line of code was introduced by this round, but each is the subject this round claims to handle (thematic breaks), and one is a comment this round added. Either can go into E-052 rather than be fixed now. No security, secret or private-path problems found.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a175ba-524f-75d1-8823-e64d57da70d6",
+    "partialReportPath": null
+  }
+}

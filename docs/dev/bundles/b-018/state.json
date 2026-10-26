@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 34,
+  "revision": 40,
   "slug": "b-018",
   "branch": "bundle/b-018",
   "base": "8492811aa8317df203611a6a6d93b0546c29e560",
@@ -98,9 +98,23 @@
     },
     {
       "name": "fix:fix",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-26T11:51:15.668Z",
+          "stateRevision": 34,
+          "planSha": "2d855629732d6d80",
+          "codex": true,
+          "runId": "wf_2e80efd7-466",
+          "endedAt": "2026-10-26T11:54:25.512Z",
+          "turnOutputTokens": 1925870
+        }
+      ],
+      "startCommit": "f62cac14dac774f718f64ba982893494aeeaaf20",
+      "range": null,
+      "endCommit": "5dac823cb0226d384a87a0f5e3a0c9b8bf71d3d3",
+      "endCode": "5dac823cb0226d384a87a0f5e3a0c9b8bf71d3d3"
     },
     {
       "name": "review:whole",
@@ -151,6 +165,19 @@
           "name": "test",
           "result": "pass",
           "ms": 72535
+        }
+      ]
+    },
+    {
+      "commit": "5dac823cb0226d384a87a0f5e3a0c9b8bf71d3d3",
+      "at": "2026-10-26T11:54:24.799Z",
+      "slice": "fix",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 70021
         }
       ]
     }
@@ -216,6 +243,12 @@
       "phase": "implement:s1",
       "path": "docs/dev/bundles/b-018/sessions/implement-s1-1.md",
       "at": "2026-10-26T11:45:49.738Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:fix",
+      "path": "docs/dev/bundles/b-018/sessions/fix-fix-1.md",
+      "at": "2026-10-26T11:53:14.097Z",
       "stored": true
     }
   ],
@@ -338,6 +371,13 @@
       "actor": "orchestrator",
       "source": "review:fix run 1 notes",
       "text": "Rule 3: the reviewer's two notes are recorded, not fixed: the pointer-coverage test cannot detect a regression (the per-block IGNORES already exclude .claude/**), which the plan asked for by name and the fixture's negative control covers (disposition 4); the global ignore's behaviour on ESLint 8.57 with a name key is unverified and out of reach, since the engine requires ESLint 9 and the init-edited Expo template imports defineConfig from eslint/config. The one P3 (a crashed assertion script read as the strings-rule failure) goes to fix:fix.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T11:53:14.448Z",
+      "actor": "orchestrator",
+      "source": "fix:fix strings batch",
+      "text": "One string (the fixture's MSG_LINT_READ) presented to the developer in chat and recorded as presented pending the developer's ruling.",
       "claim": true
     }
   ],

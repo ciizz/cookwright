@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 219,
+  "revision": 228,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -454,6 +454,13 @@
           "planSha": "3f4aa96c4462829c",
           "codex": true,
           "runId": "wf_852e1d8a-e55"
+        },
+        {
+          "startedAt": "2026-10-26T00:05:08.215Z",
+          "stateRevision": 219,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_0418b5c6-cf9"
         }
       ],
       "startCommit": "5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b",
@@ -664,6 +671,19 @@
           "ms": 46570
         }
       ]
+    },
+    {
+      "commit": "85787820f6a6bb51a274f8f9272df77ec892dbaf",
+      "at": "2026-10-26T00:16:09.180Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 45367
+        }
+      ]
     }
   ],
   "findings": [
@@ -810,6 +830,24 @@
       "at": "2026-10-26T00:03:43.159Z",
       "stored": true,
       "head": "475a3a8736ba13c1721b243b4d243269fd2fcefe"
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/findings/qa-2.json",
+      "counts": {
+        "confirmed": 4,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 2,
+        "P3": 2
+      },
+      "at": "2026-10-26T00:14:51.914Z",
+      "stored": true,
+      "head": "85787820f6a6bb51a274f8f9272df77ec892dbaf"
     }
   ],
   "reports": [
@@ -883,6 +921,12 @@
       "phase": "qa",
       "path": "docs/dev/bundles/stage-4/sessions/qa-1.md",
       "at": "2026-10-26T00:03:42.873Z",
+      "stored": true
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/sessions/qa-2.md",
+      "at": "2026-10-26T00:14:51.636Z",
       "stored": true
     }
   ],
@@ -1788,6 +1832,34 @@
       "actor": "orchestrator",
       "source": "qa round 1 strings batch",
       "text": "The QA fix's 5 user-facing strings (the hand-add advice in init's two rows and doctor's lint WARN, the two template headers naming both entry shapes) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at the closeout.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:15:21.943Z",
+      "actor": "orchestrator",
+      "source": "qa run 2 review finding 0",
+      "text": "Fix in the next QA run (rule 3), bounded: the reader strips one list-marker prefix (-, *, +, or a number with . or )) and its indentation before judging a fence or a heading line, so a fence opened in a list item closes where CommonMark closes it; the guide states the reader's grammar (headings, table rows and fences at the start of a line, one list marker allowed) rather than claiming CommonMark.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:15:22.250Z",
+      "actor": "orchestrator",
+      "source": "qa run 2 review finding 2",
+      "text": "Fix in the next QA run (rule 3): the setup skill's lint remedy keeps both checks, the config file's own blocks for any of the pack's rule ids in any files scope, plus npx eslint --print-config on one sample per pack glob (.tsx, .jsx, .ts, .js) for presets; the guide's sentence matches what the skill does.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:15:22.558Z",
+      "actor": "orchestrator",
+      "source": "qa run 2 review findings 1 and 3",
+      "text": "Fixed in the next QA run as cheap P3s: the advice says a later block that sets different options or a severity other than error leaves the rule overridden, the effective config deciding; tableKeys runs the same fence tracker so a fenced table row is not an entry; tests for an identical-options later block and a fenced table.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:15:22.847Z",
+      "actor": "orchestrator",
+      "source": "qa run 2 strings batch",
+      "text": "The second QA run's one changed string (the hand-add advice's second clause, measured against ESLint 9: a later severity-only block keeps the pack's options) presented to the developer in chat by the orchestrator; accepted pending the developer's ruling at the closeout.",
       "claim": true
     }
   ],

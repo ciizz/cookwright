@@ -1,0 +1,104 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "FENCE, opens(), headingKeys(), lines 100-135",
+      "problem": "Fence recognition only accepts delimiters preceded by up to three spaces. Valid CommonMark fences starting on a list-marker line (e.g. '- ```md') are not recognized, so indented headings inside them are counted and the closing fence may be mistaken for a new opening fence.",
+      "severity": "P2",
+      "suggested_fix": "Track list-container prefixes when recognizing fenced blocks, or use a small container-aware fence scanner. Add regression tests for bullet and numbered-list fences asserting fenced headings are excluded and headings after the fence remain visible.",
+      "failure_scenario": "For '- ```md / ## Phantom / ``` / ## Real', headingKeys() returns Phantom and loses Real. A component named Phantom makes pack.expo.docs falsely PASS, while a genuinely documented Real component is reported missing.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "entries.mjs:101 FENCE=/^ {0,3}(`{3,}|~{3,})/ and opens() at :108 never see a fence after a list marker. Ran headingKeys on '- ```md\\n## Phantom\\n```\\n## Real' and got ['Phantom']: Real is lost, because the closing ``` is read as a new opening fence. The indented form '- ```md\\n  ## Phantom\\n  ```\\n## Real' gives the same result. The defect holds. One detail of the scenario is imprecise: in the column-0 form CommonMark ends the list item, so Phantom is a real heading there. The Phantom-counted-falsely claim is only true for properly indented content. Losing Real is wrong either way."
+    },
+    {
+      "file": "packages/cookwright/src/lib/messages.mjs",
+      "location": "handAdd() (line ~31); mirrored in docs/guides/standards.md:23 and packages/cookwright/skills/setup/SKILL.md:164",
+      "problem": "The advice says any later block that sets such a rule's options makes the rule overridden. The engine accepts an effective entry whose options equal the pack's options; only differing options cause rejection.",
+      "severity": "P3",
+      "suggested_fix": "Say 'sets different options' or state that the resulting effective configuration determines whether the rule is measured. Add a wording/behavior test covering an identical-options later block.",
+      "failure_scenario": "An app already configures max-lines-per-function with exactly the pack's severity and options. Spreading the pack before that block remains measured, but setup tells the developer it will be unmeasured and may prompt an unnecessary placement decision.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/packs/standards.mjs:101,107-109: judge() returns MEASURED when severity is error and subset(want, options[0]) holds, i.e. each key of the pack's options deep-equals the effective entry's. A later block with identical options (or a superset) stays measured. Only differing options give 'overridden'. messages.mjs:39-40 (and the comment at :33-35) say a block 'that sets such a rule's options' leaves it overridden. The same wording is in docs/guides/standards.md:23 and skills/setup/SKILL.md:164, with no 'differing' qualifier. So the advice overstates, and setup can prompt for a placement decision that makes no difference. Severity is P3."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "line 164, the pack.expo.lint / pack.supabase.lint '… does not name …' remedy (commit 8578782); same claim in docs/guides/standards.md line 23",
+      "problem": "The fix swapped reading the config file's own blocks for running `npx eslint --print-config` on two sample files: a .tsx under the components directory and a .ts file. The file's own blocks are now read only when ESLint does not run. --print-config only returns the blocks whose `files` match the sampled path. The pack's rules reach much further: strings covers every **/*.{tsx,jsx}, size covers **/*.{ts,js} and **/*.{tsx,jsx}, and the supabase client rule covers every **/*.{ts,tsx,js,jsx} outside the service paths. So an app block scoped to a directory or extension the samples miss is never seen. The previous wording read the file and caught it. This is a regression the fix introduced. The guide's new sentence also claims more than the skill does: it says the skill counts 'a rule a spread preset sets … as well as one your file shows', but a block the file shows is missed whenever the samples do not match it.",
+      "severity": "P2",
+      "suggested_fix": "When ESLint runs, keep both checks: read the config file's own blocks for any of the four rule ids (any `files` scope), and add the --print-config results for presets. Or sample one file per pack block glob (.tsx, .jsx, .ts, .js, and one under each directory the file's blocks scope to). Then word the guide's sentence to match what is actually checked.",
+      "failure_scenario": "An app's eslint.config.js has `{ files: ['src/features/**/*.ts'], rules: { 'no-restricted-imports': ['error', { paths: ['lodash'] }] } }` and `{ files: ['scripts/**/*.js'], rules: { 'max-lines-per-function': ['error', { max: 200 }] } }`. The skill runs --print-config on src/components/Button.tsx and src/lib.ts. Neither matches those blocks, so neither rule id is listed. The skill concludes 'None set' and appends both pack spreads at the end of the array without asking. Flat config then replaces the app's no-restricted-imports options on src/features/** (the lodash ban is gone) and its 200-line limit on scripts/** (now 40). The pack's rules read measured, so doctor and the ratchet report nothing, and the developer never chose this. It is the harm QA Q2 and review finding 2 were meant to prevent.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/skills/setup/SKILL.md:164 detects set rules only from `npx eslint --print-config` on two sample files (a .tsx under components and a .ts); the file's own blocks are read only when ESLint does not run. --print-config returns only blocks whose `files` match the sampled path. The pack rules cover wider globs (packs/expo/eslint.cjs:84,108,109 `**/*.{tsx,jsx}` and `**/*.{ts,js}`; packs/supabase/eslint.cjs:22 `**/*.{ts,tsx,js,jsx}`). A block scoped to src/features/**/*.ts or scripts/**/*.js is therefore not listed, the skill concludes 'None set', and it appends the spread last without asking, which replaces the app's options on those paths. docs/guides/standards.md:23 says a rule 'your file shows' counts, which the skill does not guarantee. The regression is real: the fix removed the file-block read from the normal path."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "tableKeys (lines ~88-98) vs headingKeys (lines ~101-139); docs/guides/standards.md line 53",
+      "problem": "Commit 348abb4 made headingKeys follow CommonMark fences, but docKeys still merges tableKeys, which ignores fences entirely. A table row inside a fenced code block still counts as an entry. The standards guide's sentence 'An entry is a table row's first cell or a `## <key>` or `### <key>` heading (outside a fenced code block)' reads naturally as excluding fenced content of both kinds. The commit message also skipped doc-sync on the grounds that the code now matches that sentence. That holds for headings only.",
+      "severity": "P3",
+      "suggested_fix": "Run the same fence tracker (opens/closes) in tableKeys so fenced table rows are skipped, and add a test. Or reword the guide so the fence exclusion clearly applies to headings only.",
+      "failure_scenario": "Measured: docKeys('```md\\n| Primitive |\\n| --- |\\n| Ghost |\\n```\\n') returns ['Ghost']. Say a design-system doc shows contributors how to add a row inside a fenced md example (`| Button | Button.tsx | … |`) and has no real Button entry. pack.expo.docs reads Button as documented and PASSes, while the same example written as a heading would rightly not count.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "entries.mjs:84-95 tableKeys has no fence tracking and docKeys (:139) unions it with headingKeys. Measured docKeys('```md\\n| Primitive |\\n| --- |\\n| Ghost |\\n```\\n') = ['Ghost']. docs/guides/standards.md:53 says an entry is a table row's first cell or a heading '(outside a fenced code block)'. That reads as excluding fenced content of both kinds, but only headings are excluded."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 5d42ecd..HEAD (15 files) via Codex high-effort read-only run",
+    "packs/entries.mjs fence scanner and tests",
+    "doctor packs and messages hand-wiring advice",
+    "docs/guides/standards.md and setup SKILL.md mirrors",
+    "doctor readout (19 PASS)",
+    "git diff 5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b..HEAD across 15 files; git show of 348abb4, d5227b3 and 8578782, messages included",
+    "Rules file, plan and playbook hashes match the prompt (AGENTS.md c5bbd2afe406e3fc, plan 3f4aa96c4462829c, playbook 2310459adb274fe2)",
+    "QA round-1 notes and session report; findings/qa-1.json (review 1: 1 P2 and 3 P3), each checked against the fix commits",
+    "348abb4: probed headingKeys with node for 4-space-indented closers (correctly not a close), trailing-space closers, a longer closer, an unclosed fence, a tilde fence whose info string holds backticks, and inline triple backticks; all match CommonMark",
+    "348abb4: tableKeys is not fence-aware (fenced table rows count), filed as P3",
+    "d5227b3: the severity-only claim checked against standards.mjs judge() (severity 2 or 'error', tag, subset of options) and against ESLint flat-config merge semantics; the new wording is consistent with the engine",
+    "d5227b3: the handAdd wording is shared by init other/otherModule and doctor lint.unnamed, and the tests in doctor.test, init.test and skills.test QUOTED match the strings",
+    "8578782: the print-config sampling compared with the pack blocks' files globs in packs/expo/eslint.cjs and packs/supabase/eslint.cjs; the regression from the previous read-the-file wording filed as P2",
+    "Checked that eslint-config-expo in the fixture sets none of the four rule ids, so Expo's own template never triggers the ask",
+    "Doc-sync: d5227b3 and 8578782 update standards.md along with the skill and messages; 348abb4's doc-sync skip reason judged only partly true (finding 2)",
+    "User-facing strings stay in messages.mjs; functions under ~40 lines; no dependency added; no secrets, local paths or private ops in the diff; state.json not edited by the fix commits",
+    "Advisory: AGENTS.md and CLAUDE.md have no pack section with an ### Advisory heading, so no advisory rules apply"
+  ],
+  "notes": "Transcribed from Codex run (session 01a1758a-cfc5-7612-8443-69354ced67c2), completed within the ceiling. Codex could not run Vitest: the read-only sandbox denied its temp-directory creation, so no tests executed. Output at <local path>\n---\nTwo of the three fix commits are sound. 348abb4 now follows CommonMark for headings: verified by direct node probes on entries.mjs, including indented and longer closing fences, an unclosed fence, and a tilde fence whose info string holds backticks. d5227b3's severity-only wording matches standards.mjs judge(), which accepts severity 2 or 'error' and options that are a superset of the pack's, and matches ESLint's merge rules. One small overstatement there was not filed: a later block whose options are a superset of the pack's also stays measured, so 'sets such a rule's options … reads overridden' is slightly too broad. 8578782 catches presets but loses coverage the previous wording had (P2 above). An empirical --print-config probe in the scratchpad was denied by the permission system, so the P2 rests on ESLint's documented per-file config semantics and the pack globs. It was not run. Not filed: a multi-line HTML comment holding '## Name' counts as an entry (headingKeys returns ['Commented','Real']); review 1 already probed HTML comments, and the case is unlikely. No tests run (read-only).",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a1758a-cfc5-7612-8443-69354ced67c2",
+    "partialReportPath": null
+  }
+}

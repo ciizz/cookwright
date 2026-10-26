@@ -13,7 +13,8 @@
 // heading in an item, on its marker line or a continuation line, nested or not, is
 // judged as at the top level; a thematic break (`- - -`, `* * *`) opens no item.
 // Indentation is read in columns, a tab to the next multiple of four. A blockquote
-// is not read as one (E-052).
+// is not read as one (E-052): a heading or row inside it, fenced or not, is never an
+// entry, so a primitive documented only there reads missing.
 
 import fs from 'node:fs';
 import path from 'node:path';

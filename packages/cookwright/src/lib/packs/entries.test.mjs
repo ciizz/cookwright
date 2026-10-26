@@ -238,6 +238,11 @@ describe('headingKeys', () => {
     expect([...docKeys('- -\n    ## Nested\n')]).toEqual(['Nested']);
   });
 
+  it('reads no heading or row inside a blockquote, fenced or not (E-052)', () => {
+    expect([...docKeys(['> ```md', '> | Ghost | x |', '> ## GhostH', '> ```', '## Real'].join('\n'))]).toEqual(['Real']);
+    expect([...docKeys(['> ## Button', '> | Card | x |', '- > ## Chip', '## Real'].join('\n'))]).toEqual(['Real']);
+  });
+
   it('reads a backtick line whose info string holds a backtick as a paragraph, not a fence', () => {
     expect([...headingKeys('```inline``` text\n## Button')]).toEqual(['Button']);
   });

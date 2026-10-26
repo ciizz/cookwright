@@ -1,0 +1,79 @@
+{
+  "phase": "closeout",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "From the bundle state / The five numbers",
+      "problem": "The header says the tables come from bundle state revision 281, and the Wall clock row reads 14.0 h. Revision 281 was never committed. The state at 8ebfd56c and at d134683 is revision 280, and the closeout run froze stateRevision 280. Rendering renderCloseoutDraft on revision 280 matches every table byte for byte except two lines: the header gives 280 and the wall clock gives 13.9 (13.946 h, the last stamp being QA run 7's end at 08:08:32Z). 14.0 only comes out if you include this closeout run's own startedAt (08:08:55Z, 13.952 h). That contradicts the header's own sentence that the closeout's own run is not in the tables.",
+      "severity": "P2",
+      "suggested_fix": "Regenerate the tables with `bundle closeout-draft` against the committed revision 280, before the closeout phase starts. The header should then read revision 280 and the wall clock 13.9.",
+      "failure_scenario": "A reader checks the five numbers against the revision the closeout run froze (280) and finds that the stated revision does not exist in git and that the wall clock differs (13.9 vs 14.0). The extra time comes from the verifier run the note says is excluded.",
+      "verdict": "rejected",
+      "evidence": "From the bundle state now reads 'generated from bundle state revision 280'. The five numbers table gives 'Wall clock (h) | 13.9'. The committed state at HEAD is revision 280. Commit 0af23ec changed only these two table lines."
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "Incidents (CI red after the closeout) and QA (Round 2)",
+      "problem": "The closeout says '21 local gates were green on a machine with gitleaks installed' and 'green on this machine through 21 gates'. The state's gate history records gates 0 and 1 as FAIL (test), for B-015. Only gates 2 to 20 were green before the push, which is 19. The pack-rows test itself was added in s3 (d85c5ba), so only gates 5 to 20 (16 gates) ever ran it. The '21' is copied from qa/round-2.md, and the recorded gates do not support it.",
+      "severity": "P3",
+      "suggested_fix": "Say 'the 16 green gates since s3 added the test (gates 5 to 20)' or 'every gate since s3'. Do not say 21.",
+      "failure_scenario": "A reader compares the incident with the Gate history table beside it and finds two red gates among the '21 green'. Of those 21, five ran before the failing test existed.",
+      "verdict": "rejected",
+      "evidence": "Incidents now reads 'every gate since s3 added the test (gates 5 to 20) was green'. QA Round 2 reads 'green on this machine at every gate since s3 added it (gates 5 to 20)'. This was checked against the state: gate 4 (3b6e498) does not contain d85c5ba, gate 5 (829aeca) does, and gates 0 and 1 are the only failed ones."
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "Incidents (B-016)",
+      "problem": "The closeout states as fact that core.hooksPath 'read `.husky/_` from 18:05 on 2026-10-25' and that no hook ran 'while the sessions reported the hooks as passing'. The B-016 entry supports neither as stated. It records only that the .git/config file was modified at 18:05. It also marks the sessions' reporting as 'an inference, not an observation'. The closeout drops that qualifier.",
+      "severity": "P3",
+      "suggested_fix": "Write that .git/config was last modified at 18:05 and carried `.husky/_` when s4 found it. Keep the backlog's qualifier on the sessions' reporting.",
+      "failure_scenario": "A reader takes 18:05 as the measured time the value was set, and takes the session reports as observed hook PASS lines. The evidence holds only a file mtime and an inference.",
+      "verdict": "rejected",
+      "evidence": "Incidents B-016 now reads: '`.git/config` carried `core.hooksPath = .husky/_` when s4 found it, the file last modified at 18:05 on 2026-10-25 ... (an inference from the commits landing, not an observed hook line)'. That matches the suggested fix and keeps the backlog's qualifier."
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "State at close (Backlog)",
+      "problem": "The closeout says B-015 was 'then reopened to watch after one uncaptured recurrence in s6', which presents reopened as its status at close. At 8ebfd56c the backlog keeps B-015 under '## Closed', headed '(closed the same day in stage-4)'. The 'Reopened to watch' sentence appears only inside that closed entry. The closeout reports a status the backlog does not hold.",
+      "severity": "P3",
+      "suggested_fix": "Either move B-015 to Open bugs in the backlog, in a separate commit, or say in the closeout that B-015 stays closed with a watch note for the s6 recurrence.",
+      "failure_scenario": "A reader looks for B-015 among the open bugs because the closeout says it was reopened, and finds it listed as closed.",
+      "verdict": "rejected",
+      "evidence": "State at close (Backlog) now reads 'B-015 opened and closed with its measurements, and stays closed with a watch note on its entry for one uncaptured recurrence in s6'. That matches docs/dev/backlog.md, where B-015 is at line 66 under '## Closed' (line 57)."
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "State at close (The developer's hands, after the merge)",
+      "problem": "This section puts 'push the branch again so CI runs on the fixed test ... then `bundle check`' under 'after the merge'. The header says the branch is merged into main only once `bundle check` passes, so those two steps come before the merge. The section also cites 'the README's release order', but the README has no release order. It only links to docs/guides/releases-and-changelog.md, which holds the order ('To release, in this order:').",
+      "severity": "P3",
+      "suggested_fix": "Split the list: before the merge (push again, then bundle check) and after the merge (QA (b), the audit calibration, the release). Cite docs/guides/releases-and-changelog.md for the release order.",
+      "failure_scenario": "A developer following the list merges first and pushes afterwards, against the header's merge condition. Or they look in README.md for a release order that is not there.",
+      "verdict": "rejected",
+      "evidence": "State at close now has two bullets. 'The developer's hands, before the merge' covers pushing again, then `bundle check`, then the fast-forward merge. 'The developer's hands, after the merge' covers QA (b), the audit calibration, and the release 'in the order `docs/guides/releases-and-changelog.md` gives'. That guide holds 'To release, in this order:' at line 27."
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "QA",
+      "problem": "The closeout says 'six Workflow runs: the round's two findings ... fixed in run 1, then six review runs on the fixes (4, 4, 5, 4, 3, 3 findings ...)'. That adds up to seven runs and contradicts the 'six Workflow runs' in the same sentence. Round 1 has exactly six runs (qa-1 to qa-6.json), and run 1 is one of the six that reviewed. The decision on record (qa phase close) says the round's findings were fixed 'then five review rounds on the fixes'.",
+      "severity": "P3",
+      "suggested_fix": "Write 'six Workflow runs, each fixing and then reviewing: run 1 fixed the round's two findings, and the six reviews found 4, 4, 5, 4, 3, 3'. Or say 'then five more runs', matching the recorded decision.",
+      "failure_scenario": "A reader counts seven runs in round 1. Added to run 7, that gives eight QA runs, which conflicts with the 'seven runs' in Reviews and with Review rounds 14.",
+      "verdict": "rejected",
+      "evidence": "QA now reads 'six Workflow runs, each a fix session then a review of what it committed: run 1 fixed the round's two findings ..., runs 2 to 6 fixed the previous review's findings, and the six reviews found 4, 4, 5, 4, 3, 3 findings'. The count is now six, which matches qa-1 to qa-6 and the suggested fix."
+    }
+  ],
+  "checked": [
+    "From the bundle state / The five numbers",
+    "Incidents (CI red after the closeout) and QA (Round 2)",
+    "Incidents (B-016)",
+    "State at close (Backlog)",
+    "State at close (The developer's hands, after the merge)",
+    "QA"
+  ],
+  "notes": "The closeout at docs/dev/closeouts/stage-4.md matches its sha (34801d54d2e13361, sha256 prefix). All six non-rejected issues from closeout-3.json are resolved by the revision in commit 0af23ec, the only change to the closeout since 8ebfd56. Spot checks: the committed state.json at HEAD is revision 280. Gate 5 (829aeca) is the first gate that contains d85c5ba, and gate 4 (3b6e498) does not. The backlog keeps B-015 under Closed. docs/guides/releases-and-changelog.md holds 'To release, in this order:'. This was a read-only check and no file was edited.",
+  "timedOut": false,
+  "incomplete": [],
+  "recheckOf": "docs/dev/bundles/stage-4/findings/closeout-3.json",
+  "closeoutSha": "34801d54d2e13361"
+}

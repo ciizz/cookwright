@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 280,
+  "revision": 289,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -512,7 +512,7 @@
     },
     {
       "name": "closeout",
-      "status": "pending",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -530,15 +530,31 @@
           "runId": "wf_e82a0762-f44",
           "endedAt": "2026-10-26T01:18:47.518Z",
           "turnOutputTokens": 199837
+        },
+        {
+          "startedAt": "2026-10-26T08:08:55.666Z",
+          "stateRevision": 280,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_d20fcb4f-368"
+        },
+        {
+          "startedAt": "2026-10-26T08:20:44.138Z",
+          "stateRevision": 283,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_7b06d95e-b1a",
+          "endedAt": "2026-10-26T08:23:23.148Z",
+          "turnOutputTokens": 1747755
         }
       ],
-      "startCommit": "c039db3fe86328a3a15d7720bd9c053b33f93338",
+      "startCommit": "8ebfd56cb9d5513a1094ed44b1a0d5bfcff2e828",
       "range": {
         "from": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
-        "to": "c039db3fe86328a3a15d7720bd9c053b33f93338"
+        "to": "8ebfd56cb9d5513a1094ed44b1a0d5bfcff2e828"
       },
-      "endCommit": "49aefb4eacad2140ee69fe0d7757a0da549f7e0c",
-      "endCode": "3a07f4a1613d5fcd3e7f90d3c18620eafdc05bfe"
+      "endCommit": "0af23ece98f4ad18b0829d64fcf29bc512e173be",
+      "endCode": "d17b55c6740e83f2016ab78c1c675c28444154a6"
     }
   ],
   "gates": [
@@ -825,6 +841,19 @@
           "name": "test",
           "result": "pass",
           "ms": 79551
+        }
+      ]
+    },
+    {
+      "commit": "0af23ece98f4ad18b0829d64fcf29bc512e173be",
+      "at": "2026-10-26T08:23:11.403Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 70112
         }
       ]
     }
@@ -1119,6 +1148,44 @@
       "at": "2026-10-26T08:06:29.467Z",
       "stored": true,
       "head": "d17b55c6740e83f2016ab78c1c675c28444154a6"
+    },
+    {
+      "phase": "closeout",
+      "path": "docs/dev/bundles/stage-4/findings/closeout-3.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 6,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 1,
+        "P3": 5
+      },
+      "at": "2026-10-26T08:20:09.116Z",
+      "stored": true,
+      "head": "d13468357c96f3e904d1fa6d1699d0ab5e1c638c",
+      "closeoutSha": "befbb11ff98d444f"
+    },
+    {
+      "phase": "closeout",
+      "path": "docs/dev/bundles/stage-4/findings/closeout-4.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 0,
+        "rejected": 6,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      },
+      "at": "2026-10-26T08:21:59.687Z",
+      "stored": true,
+      "head": "0af23ece98f4ad18b0829d64fcf29bc512e173be",
+      "closeoutSha": "34801d54d2e13361"
     }
   ],
   "reports": [
@@ -2278,6 +2345,13 @@
       "actor": "orchestrator",
       "source": "qa run 7 review note",
       "text": "Rule 6: the reviewer's hardening note (doctor.test.mjs's default probes() still asks the real PATH for tools other than gitleaks, supabase and git among them; no current test depends on it, measured with both hidden) is logged as E-054, built when a second test needs it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T08:22:00.228Z",
+      "actor": "orchestrator",
+      "source": "closeout run 3 findings 0-5",
+      "text": "Rule 3: the six verify findings (tables rendered from an uncommitted state revision, the gate count, B-016's evidence, B-015's status, the order of the developer's steps and the release guide, round 1's run count) were all corrections of the closeout's claims to what the state and the backlog hold; fixed in 0af23ec, with the tables rendered from the committed revision 280, and all resolved by re-check run 4.",
       "claim": true
     }
   ],

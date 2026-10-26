@@ -31,11 +31,13 @@ const counted = (n, kind) => `${n} ${ENTRY_NOUNS[kind][n === 1 ? 0 : 1]}`;
 /**
  * Where a pack's lines go in an ESLint config init did not write, and what the place
  * decides (stage-4 QA round 1): spread last, the pack's options win for the rules it sets.
+ * ESLint keeps an earlier block's options when a later one sets only a severity, so
+ * only a later block's options, or a severity below error, leave a rule overridden.
  */
 const handAdd = (spreads, imports = []) =>
   `add ${imports.length ? `${list(imports)} at its top and ` : ''}${list(spreads)} at the end of its config array by hand: ` +
   "spread last, the pack's options replace yours for any ESLint rule a block of yours also sets on the pack's files; " +
-  'spread before such a block, that rule reads overridden and is not measured';
+  "spread before a block of yours that sets such a rule's options or a severity other than error, that rule reads overridden and is not measured";
 
 // doctor: one note per verdict of each check (plan §4.8), then the readout's lines.
 const doctor = {

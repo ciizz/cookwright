@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 15,
+  "revision": 19,
   "slug": "b-018",
   "branch": "bundle/b-018",
   "base": "8492811aa8317df203611a6a6d93b0546c29e560",
@@ -37,6 +37,13 @@
           "planSha": "1e0a4a6f9422a9ca",
           "codex": true,
           "runId": "wf_4435b38a-6c4"
+        },
+        {
+          "startedAt": "2026-10-26T11:36:45.412Z",
+          "stateRevision": 15,
+          "planSha": "efa4d6e927f32f95",
+          "codex": true,
+          "runId": "wf_062f2730-d40"
         }
       ],
       "startCommit": "e1729e60bd22fd24b8331099be09838b853d994c",
@@ -118,6 +125,24 @@
       "at": "2026-10-26T11:35:04.409Z",
       "stored": true,
       "head": "e1729e60bd22fd24b8331099be09838b853d994c"
+    },
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/b-018/findings/plan-review-2.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 5,
+        "rejected": 8,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 1,
+        "P3": 4
+      },
+      "at": "2026-10-26T11:38:18.899Z",
+      "stored": true,
+      "head": "cbe7fa18db1e994922217f6733a9ef13004a5d24"
     }
   ],
   "reports": [],
@@ -191,6 +216,13 @@
       "actor": "orchestrator",
       "source": "plan-review round 1, finding 7, plan §2 disposition 10",
       "text": "The supabase export's header is rewritten in the same commit: two blocks, the first the global ignore.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T11:38:44.011Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 2 residue",
+      "text": "Rule 3: the re-check resolved all eight findings and noted two stale lines in §6 (the old globs); §6 now matches §4 and disposition 8, the only edit after the re-check.",
       "claim": true
     }
   ],

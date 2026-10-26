@@ -1,0 +1,215 @@
+{
+  "phase": "plan-review",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/bundles/b-018/plan.md",
+      "location": "section 4, scripts/ci/fixture.sh design (plan.md:34)",
+      "problem": "The planned `npx eslint . --format json > \"$WORK/lint.json\"` intentionally exits 1, but scripts/ci/fixture.sh runs with `set -euo pipefail` (fixture.sh:38), so the shell terminates before the Node assertions run.",
+      "severity": "P1",
+      "suggested_fix": "Capture and verify the exit explicitly: `code=0; npx eslint . --format json > \"$WORK/lint.json\" || code=$?` then assert code is exactly 1, then parse the JSON.",
+      "failure_scenario": "The fix works: workflow pointers are ignored and only App.tsx violates i18next/no-literal-string. ESLint exits 1, so the fixture and CI fail immediately.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "rejected",
+      "evidence": "Resolved. Disposition 6 (plan.md:29) and the §4 fixture bullet (plan.md:44) now specify `code=0; npx eslint . --format json > \"$WORK/lint.json\" || code=$?` followed by `[ \"$code\" -le 1 ] || fail` before the JSON is parsed. That guards the expected exit 1 under `set -euo pipefail` and fails on 2 or more."
+    },
+    {
+      "file": "docs/dev/bundles/b-018/plan.md",
+      "location": "section 4, packages/cookwright/src/lib/packs/eslint.test.mjs (plan.md:33)",
+      "problem": "The plan covers applies(), the shape test and Object.keys(b.rules), but misses three assumptions broken by prepending a block: eslint.test.mjs:114 assumes EXPORTS.expo[0] is the strings block; :136 assumes supabaseExport[0] is the client block; :162 spreads block.files, absent on the new global-ignore block.",
+      "severity": "P1",
+      "suggested_fix": "Add to the plan: find the strings block by name === 'cookwright/expo/strings'; find the client block by name === 'cookwright/supabase/client'; iterate over ...(block.files ?? []).",
+      "failure_scenario": "After the blocks are prepended, the Expo attribute test reads .rules from the ignore block, the Supabase test treats the ignore block as client, and the glob-subset test throws on undefined not iterable; npm test cannot pass.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "rejected",
+      "evidence": "Resolved. §1 (plan.md:15) now lists all three assumptions: `EXPORTS.expo[0]` as the strings block, the `const [client] = supabaseExport` destructuring, and the `block.files` spread. Disposition 9 (plan.md:32) and the §4 test bullet (plan.md:43) prescribe the fixes: look up the strings block by `name === 'cookwright/expo/strings'` and the client block by `name === 'cookwright/supabase/client'`, and iterate `block.files ?? []`."
+    },
+    {
+      "file": "docs/dev/bundles/b-018/plan.md",
+      "location": "section 8, README status wording (plan.md:55)",
+      "problem": "The README row is to say '0.2.1 fixes your own lint run' before section 9 performs the version bump and publication, so 0.2.1 does not yet exist.",
+      "severity": "P3",
+      "suggested_fix": "Before release use wording like 'fixed on main; 0.2.0 on npm remains affected; next patch will include the fix'; after publication change to 'works; 0.2.1 on npm'.",
+      "failure_scenario": "A reader takes the status table to mean 0.2.1 is published while npm serves only the affected 0.2.0.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "rejected",
+      "evidence": "Resolved. Disposition 7 (plan.md:30) and §8 (plan.md:66) have the row read `works; 0.2.0 on npm; your own lint run fails on the workflow pointers in 0.2.0, fixed on main (B-018)` until the release commit, and §9 (plan.md:70) refreshes it to `works; 0.2.1 on npm` in that commit. No line still names 0.2.1 before the publish, and the earlier inconsistency about dropping the B-018 clause is gone."
+    },
+    {
+      "file": "docs/dev/bundles/b-018/plan.md",
+      "location": "plan §2 disposition 2, §4 first bullet (POINTERS = ['.claude/**', '.agents/**', '.codex/**'] as a global ignore), §4 guide bullet",
+      "problem": "The plan says the global block ignores 'the three pointer directories only' and the guide bullet says the export leaves 'the harness's pointers' alone. The globs actually ignore the whole host directories, and those directories also hold the user's own files. Init writes pointers only at .claude/workflows/<name>.js, .claude/skills/<name> and .agents/skills/<name> (hosts.mjs). Under .codex/ it writes only hooks.json, which is not a pointer. Users keep their own Claude Code hook scripts (.claude/hooks/*.js|ts), their own skills' scripts (.claude/skills/mine/*.ts, .agents/skills/mine/*.ts) and their own workflows in these same directories. Today the pack's per-block ignores keep only the pack's rules off them, and the user's own config (Expo's) still lints them. A global ignore removes them from the user's whole lint run without saying so. That is a behaviour change to the user's config that was not measured, and the docs claim more than the code does.",
+      "severity": "P2",
+      "suggested_fix": "Make the global ignore match the pointers the package writes. One option: list them from the package's own shipped names, e.g. '.claude/workflows/{bundle-phase,docs-audit}.js', '.claude/skills/{setup,bundle,docs-audit}/**', '.agents/skills/{setup,bundle,docs-audit}/**', or derive them from hosts/ and skills/ at require time. Drop '.codex/**', where there is no pointer. If whole directories are kept on purpose, record that in a `bundle decide` and have the guide bullet and header comment say so, including how to un-ignore with a negated pattern. Add a test that a user file such as '.claude/hooks/x.js' stays linted, or that its exclusion is deliberate.",
+      "failure_scenario": "A user has .claude/hooks/format.ts (a Claude Code hook they wrote) and lint-staged runs `eslint --max-warnings=0` on staged *.ts files. After upgrading to 0.2.1, staging that file makes ESLint 9 report 'File ignored because of a matching ignore pattern' as a warning, and the commit is refused. Running `npm run lint` without that setup simply stops reporting real errors in the user's own hook scripts, and nothing says so.",
+      "reviewers": [
+        "claude"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "rejected",
+      "evidence": "Resolved. Dispositions 2 and 8 (plan.md:22, :31) and §4 (plan.md:41-45) narrow the global ignore to `['.claude/workflows/**']` and drop `.codex/**`, `.agents/**` and the rest of `.claude/`. The plan states that a user's own workflow script there is ignored too, in both the guide and the header (plan.md:22, :45), and adds a test that `.claude/hooks/x.ts`, `.claude/skills/mine/index.ts`, `.agents/skills/mine/index.ts` and `.codex/hooks.json` are not matched (plan.md:43). Residual drift: §6 (plan.md:54-55) still says \"ignores exactly the three pointer globs\" and mentions \"the pointer paths of `.agents/` and `.codex/`\". Those are stale lines contradicting the authoritative §4 and disposition 8, not a whole-directory ignore in the design."
+    },
+    {
+      "file": "docs/dev/bundles/b-018/plan.md",
+      "location": "plan §1 last paragraph and §4 third bullet (the list of test changes); §6",
+      "problem": "The plan lists the test changes as complete ('These change with the export'), but more existing tests depend on block position or on every block having `files` or `rules`, and they break once the ignores block comes first. (a) The NOT_TEXT test reads `EXPORTS.expo[0].rules['i18next/no-literal-string']`, which becomes the ignores block and throws a TypeError. (b) The supabase describe does `const [client] = supabaseExport`, so `client` becomes the ignores block: `client.rules[...]` throws, and the service-exemption assertions fail. (c) 'every glob is in the subset' spreads `...block.files`, which is undefined and throws. (d) The plan says to make `applies()` mirror blockCovers (`!block.files || ...`). With that change the ignores block 'applies' to node_modules/x/index.js, Card.test.tsx and __tests__/Card.tsx, because POINTERS leaves them out. 'reads no file of the harness, no dependency and no test' then fails. The plan's own design produces this failure: a global-ignore block sets no rules and should not count as 'applying'.",
+      "severity": "P3",
+      "suggested_fix": "In §4, add these changes. Look up the strings block and the supabase client block by name instead of by index or destructuring. Use `block.files ?? []` in the glob-subset test. In the rule-application assertions, leave the ignores block out of `applies()`: filter to blocks that have `rules`, which is what coverage() does, rather than treating an absent `files` as covering everything for that block.",
+      "failure_scenario": "The implementer applies §4 as written and `npm test` fails in four or more existing eslint.test.mjs cases that the plan does not mention. Fixing them ad hoc risks loosening the assertions (for example dropping the HARNESS or tests check) when they should be redirected to the rules blocks.",
+      "reviewers": [
+        "claude"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "rejected",
+      "evidence": "Resolved. Disposition 9 (plan.md:32) and the §4 test bullet (plan.md:43) cover all four points: (a) and (b) are handled by looking blocks up by name, (c) by `block.files ?? []`, and (d) by having `applies()` return false for a block without `rules` and filtering the rule-application and coverage assertions to blocks with `rules`, as the engine's `coverage()` does. That replaces the earlier absent-files-covers-all mirror."
+    },
+    {
+      "file": "docs/dev/bundles/b-018/plan.md",
+      "location": "plan §4 fixture bullet, §7",
+      "problem": "Nothing in the plan shows that the new lint_run assertion fails without the fix. 'no filePath contains /.claude/' passes trivially in two cases: ESLint reports the pointer under its resolved target (node_modules/cookwright/hosts/...), or it does not walk the symlink in this scaffold. In either case the step never proves the fix. Rule 3 (claim what was measured) asks for a negative control. Also, under `set -euo pipefail` the expected exit 1 has to be tolerated without hiding exit 2 (config failure); the plan only says 'exit 1 expected'.",
+      "severity": "P3",
+      "suggested_fix": "In §7, run the step once locally with the ignores block removed (or on the 0.2.0 tarball) and record that it fails naming .claude/workflows/bundle-phase.js. In the step, capture the exit code and accept only 0 or 1, failing on 2 or above, before parsing the JSON. Put the step's failure text in the fixture's MSG_ strings, as the script's other messages are.",
+      "failure_scenario": "ESLint 9.39.5 reports the parse error under a resolved path in the fixture's tarball install. The new step goes green on both the broken and the fixed export, so CI claims a real-ESLint proof of B-018 that it does not give.",
+      "reviewers": [
+        "claude"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "rejected",
+      "evidence": "Resolved. Disposition 6 (plan.md:29) and §7 (plan.md:62) add a negative control: one run with the ignores block removed from the installed tarball's copy, or on the 0.2.0 tarball, in which the step must fail naming `.claude/workflows/bundle-phase.js`, with the result recorded on the closeout. §4 (plan.md:44) captures the exit code, accepts only 0 or 1, fails on 2 or more, and puts the three failure texts in `MSG_` strings."
+    },
+    {
+      "file": "docs/dev/bundles/b-018/plan.md",
+      "location": "plan §8 (packs row reads 'works; 0.2.0 on npm' plus '0.2.1 fixes your own lint run' until the release)",
+      "problem": "Between the merge and the developer's manual publish (§9), the README on main would describe a 0.2.1 that is not on npm, while 0.2.0, the version a user installs, still has the defect. The row then promises an unreleased release, which is the pending narrative AGENTS.md forbids in an active doc.",
+      "severity": "P3",
+      "suggested_fix": "Keep the row describing what is on npm (for example 'works; 0.2.0 on npm; your own lint run fails on the workflow pointers in 0.2.0, fixed on main (B-018)'). Refresh it to name 0.2.1 in the release commit of §9.",
+      "failure_scenario": "A user reads the README after the merge but before `npm publish`, installs cookwright from npm, gets 0.2.0, and `npm run lint` still fails on the pointers, contrary to the README.",
+      "reviewers": [
+        "claude"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "rejected",
+      "evidence": "Resolved. The plan adopts the suggested wording verbatim. Disposition 7 (plan.md:30) and §8 (plan.md:66) keep the row at `works; 0.2.0 on npm; your own lint run fails on the workflow pointers in 0.2.0, fixed on main (B-018)`, and §9 (plan.md:70) moves the refresh to `works; 0.2.1 on npm` into the release commit, never ahead of the publish."
+    },
+    {
+      "file": "docs/dev/bundles/b-018/plan.md",
+      "location": "plan §4 second bullet",
+      "problem": "The plan updates only the expo header comment. The supabase export's header still says 'one flat config block' and 'The conventions are those of packs/expo/eslint.cjs: static, rules only, a named block', and both become false once a second, rules-less ignores block is added.",
+      "severity": "P3",
+      "suggested_fix": "Change the supabase header in the same commit to say there are two blocks, the first a global ignore of the pointers, and point to the expo header's new paragraph.",
+      "failure_scenario": "A later maintainer trusts the 'rules only' comment, writes code or a test that reads `b.rules` for every block (as test 55 did), and it throws on the ignores block.",
+      "reviewers": [
+        "claude"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "rejected",
+      "evidence": "Resolved. Disposition 10 (plan.md:33) and the §4 supabase bullet (plan.md:42) rewrite the supabase header in the same commit: two blocks, the first the global ignore, pointing at the expo header's paragraph."
+    },
+    {
+      "file": "packages/cookwright/packs/expo/eslint.cjs",
+      "location": "plan §2 disposition 2, §4 first bullet (POINTERS = ['.claude/**', '.agents/**', '.codex/**'] as a global ignore), §4 guide bullet",
+      "problem": "The plan says the global block ignores 'the three pointer directories only' and the guide bullet says the export leaves 'the harness's pointers' alone. The globs actually ignore the whole host directories, and those directories also hold the user's own files. Init writes pointers only at .claude/workflows/<name>.js, .claude/skills/<name> and .agents/skills/<name> (hosts.mjs). Under .codex/ it writes only hooks.json, which is not a pointer. Users keep their own Claude Code hook scripts (.claude/hooks/*.js|ts), their own skills' scripts (.claude/skills/mine/*.ts, .agents/skills/mine/*.ts) and their own workflows in these same directories. Today the pack's per-block ignores keep only the pack's rules off them, and the user's own config (Expo's) still lints them. A global ignore removes them from the user's whole lint run without saying so. That is a behaviour change to the user's config that was not measured, and the docs claim more than the code does.",
+      "severity": "P2",
+      "suggested_fix": "Make the global ignore match the pointers the package writes. One option: list them from the package's own shipped names, e.g. '.claude/workflows/{bundle-phase,docs-audit}.js', '.claude/skills/{setup,bundle,docs-audit}/**', '.agents/skills/{setup,bundle,docs-audit}/**', or derive them from hosts/ and skills/ at require time. Drop '.codex/**', where there is no pointer. If whole directories are kept on purpose, record that in a `bundle decide` and have the guide bullet and header comment say so, including how to un-ignore with a negated pattern. Add a test that a user file such as '.claude/hooks/x.js' stays linted, or that its exclusion is deliberate.",
+      "failure_scenario": "A user has .claude/hooks/format.ts (a Claude Code hook they wrote) and lint-staged runs `eslint --max-warnings=0` on staged *.ts files. After upgrading to 0.2.1, staging that file makes ESLint 9 report 'File ignored because of a matching ignore pattern' as a warning, and the commit is refused. Running `npm run lint` without that setup simply stops reporting real errors in the user's own hook scripts, and nothing says so.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "plausible",
+      "evidence": "not re-judged by the re-check"
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/eslint.test.mjs",
+      "location": "plan §1 last paragraph and §4 third bullet (the list of test changes); §6",
+      "problem": "The plan lists the test changes as complete ('These change with the export'), but more existing tests depend on block position or on every block having `files` or `rules`, and they break once the ignores block comes first. (a) The NOT_TEXT test reads `EXPORTS.expo[0].rules['i18next/no-literal-string']`, which becomes the ignores block and throws a TypeError. (b) The supabase describe does `const [client] = supabaseExport`, so `client` becomes the ignores block: `client.rules[...]` throws, and the service-exemption assertions fail. (c) 'every glob is in the subset' spreads `...block.files`, which is undefined and throws. (d) The plan says to make `applies()` mirror blockCovers (`!block.files || ...`). With that change the ignores block 'applies' to node_modules/x/index.js, Card.test.tsx and __tests__/Card.tsx, because POINTERS leaves them out. 'reads no file of the harness, no dependency and no test' then fails. The plan's own design produces this failure: a global-ignore block sets no rules and should not count as 'applying'.",
+      "severity": "P3",
+      "suggested_fix": "In §4, add these changes. Look up the strings block and the supabase client block by name instead of by index or destructuring. Use `block.files ?? []` in the glob-subset test. In the rule-application assertions, leave the ignores block out of `applies()`: filter to blocks that have `rules`, which is what coverage() does, rather than treating an absent `files` as covering everything for that block.",
+      "failure_scenario": "The implementer applies §4 as written and `npm test` fails in four or more existing eslint.test.mjs cases that the plan does not mention. Fixing them ad hoc risks loosening the assertions (for example dropping the HARNESS or tests check) when they should be redirected to the rules blocks.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "plausible",
+      "evidence": "not re-judged by the re-check"
+    },
+    {
+      "file": "scripts/ci/fixture.sh",
+      "location": "plan §4 fixture bullet, §7",
+      "problem": "Nothing in the plan shows that the new lint_run assertion fails without the fix. 'no filePath contains /.claude/' passes trivially in two cases: ESLint reports the pointer under its resolved target (node_modules/cookwright/hosts/...), or it does not walk the symlink in this scaffold. In either case the step never proves the fix. Rule 3 (claim what was measured) asks for a negative control. Also, under `set -euo pipefail` the expected exit 1 has to be tolerated without hiding exit 2 (config failure); the plan only says 'exit 1 expected'.",
+      "severity": "P3",
+      "suggested_fix": "In §7, run the step once locally with the ignores block removed (or on the 0.2.0 tarball) and record that it fails naming .claude/workflows/bundle-phase.js. In the step, capture the exit code and accept only 0 or 1, failing on 2 or above, before parsing the JSON. Put the step's failure text in the fixture's MSG_ strings, as the script's other messages are.",
+      "failure_scenario": "ESLint 9.39.5 reports the parse error under a resolved path in the fixture's tarball install. The new step goes green on both the broken and the fixed export, so CI claims a real-ESLint proof of B-018 that it does not give.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "plausible",
+      "evidence": "not re-judged by the re-check"
+    },
+    {
+      "file": "README.md",
+      "location": "plan §8 (packs row reads 'works; 0.2.0 on npm' plus '0.2.1 fixes your own lint run' until the release)",
+      "problem": "Between the merge and the developer's manual publish (§9), the README on main would describe a 0.2.1 that is not on npm, while 0.2.0, the version a user installs, still has the defect. The row then promises an unreleased release, which is the pending narrative AGENTS.md forbids in an active doc.",
+      "severity": "P3",
+      "suggested_fix": "Keep the row describing what is on npm (for example 'works; 0.2.0 on npm; your own lint run fails on the workflow pointers in 0.2.0, fixed on main (B-018)'). Refresh it to name 0.2.1 in the release commit of §9.",
+      "failure_scenario": "A user reads the README after the merge but before `npm publish`, installs cookwright from npm, gets 0.2.0, and `npm run lint` still fails on the pointers, contrary to the README.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "plausible",
+      "evidence": "not re-judged by the re-check"
+    },
+    {
+      "file": "packages/cookwright/packs/supabase/eslint.cjs",
+      "location": "plan §4 second bullet",
+      "problem": "The plan updates only the expo header comment. The supabase export's header still says 'one flat config block' and 'The conventions are those of packs/expo/eslint.cjs: static, rules only, a named block', and both become false once a second, rules-less ignores block is added.",
+      "severity": "P3",
+      "suggested_fix": "Change the supabase header in the same commit to say there are two blocks, the first a global ignore of the pointers, and point to the expo header's new paragraph.",
+      "failure_scenario": "A later maintainer trusts the 'rules only' comment, writes code or a test that reads `b.rules` for every block (as test 55 did), and it throws on the ignores block.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "plausible",
+      "evidence": "not re-judged by the re-check"
+    }
+  ],
+  "checked": [
+    "section 4, scripts/ci/fixture.sh design (plan.md:34)",
+    "section 4, packages/cookwright/src/lib/packs/eslint.test.mjs (plan.md:33)",
+    "section 8, README status wording (plan.md:55)",
+    "plan §2 disposition 2, §4 first bullet (POINTERS = ['.claude/**', '.agents/**', '.codex/**'] as a global ignore), §4 guide bullet",
+    "plan §1 last paragraph and §4 third bullet (the list of test changes); §6",
+    "plan §4 fixture bullet, §7",
+    "plan §8 (packs row reads 'works; 0.2.0 on npm' plus '0.2.1 fixes your own lint run' until the release)",
+    "plan §2 second bullet / plan §4 second bullet"
+  ],
+  "notes": "I checked the files against the hashes in the task: the sha256 prefixes match for plan.md (efa4d6e927f32f95) and plan-review-1.json (72341284713b07a2). All 8 non-rejected issues from round 1 are resolved by dispositions 6 to 10 and the revised §4, §7, §8 and §9.\n\nThe revision left one stale passage, not tracked as a finding here. §6 (plan.md:54-55) still says the ignores block holds \\\"exactly the three pointer globs\\\" and that the \\\".agents/ and .codex/\\\" pointer paths are tested \\\"likewise\\\". Both contradict §4 and disposition 8, which set the ignores to exactly ['.claude/workflows/**']. The implementer should follow §4.\n\nA second leftover is in disposition 3 (plan.md:23). The E-056 proposal for repos without a pack still suggests a whole-directory `{ ignores: ['.claude/**', '.agents/**', '.codex/**'] }` line. Finding 3's concern would come back in that future work. It is out of this bundle's scope but worth narrowing when E-056 is logged.",
+  "timedOut": false,
+  "incomplete": [],
+  "recheckOf": "docs/dev/bundles/b-018/findings/plan-review-1.json"
+}

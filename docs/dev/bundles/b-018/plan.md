@@ -51,8 +51,8 @@ Changed: `packages/cookwright/packs/expo/eslint.cjs`, `packages/cookwright/packs
 
 ## 6. Tests
 
-- Export shape: first block named `cookwright/<pack>/ignores`, keys `name` and `ignores` only, ignores exactly the three pointer globs; every other block unchanged (names, files, ignores, rules as today).
-- Coverage: `blockCovers` false for `.claude/workflows/bundle-phase.js` under every block; the pointer paths of `.agents/` and `.codex/` likewise.
+- Export shape: first block named `cookwright/<pack>/ignores`, keys `name` and `ignores` only, `ignores` exactly `['.claude/workflows/**']`; every other block unchanged (names, files, ignores, rules as today).
+- Coverage: `blockCovers` false for `.claude/workflows/bundle-phase.js` under every rules block.
 - Engine: `coverage([item])` returns the same blocks with the ignores block present as without; one existing fake-ESLint measurement repeated through the real export (its blocks already come from the `.cjs`).
 - Fixture: the lint-run step as in §4; a failing run names the first `.claude` path reported, or ESLint's exit code when it is 2 or more.
 - Ignores pattern: matches the workflow pointer paths, matches no other host-directory path (disposition 8).

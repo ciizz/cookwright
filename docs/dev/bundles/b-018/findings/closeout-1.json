@@ -1,0 +1,100 @@
+{
+  "phase": "closeout",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/closeouts/b-018.md",
+      "location": "Verified by hand, the negative control bullet",
+      "problem": "The closeout says that after the restore the step 'passed reporting only `App.tsx`'. The implement session's record (sessions/implement-s1-1.md, Notes) says the opposite: 'That run was late in the fixture, so it also reported a `src/components/Greeting.tsx import/no-unresolved` line from the fixture's own later steps.' The QA round only says 'restored, it passed'. 'Only App.tsx' is not in any record and conflicts with the one that is.",
+      "severity": "P2",
+      "suggested_fix": "Write 'restored, it passed (it also listed `src/components/Greeting.tsx import/no-unresolved`, left by the fixture's later steps in the kept tree)', or just 'restored, it passed'.",
+      "failure_scenario": "A reader takes the restored control run as a clean one that reported only the scaffold's legacy string. The recorded run listed a second file.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/b-018.md",
+      "location": "Incidents, B-020 bullet",
+      "problem": "'The six runs read 1.86M to 1.94M each' does not match state revision 52. Only five runs have a `turnOutputTokens` reading: plan-review run 2 1873996, implement 1898605, review:fix 1898605, fix:fix 1925870, review:whole 1943150. Plan-review run 1, fix:whole and qa have none. The lowest reading is 1.87M, not 1.86M. The five sum to the table's 9540226. Implement and review:fix also carry the identical reading, which the bullet does not mention.",
+      "severity": "P2",
+      "suggested_fix": "Write 'the five readings run from 1.87M to 1.94M (plan-review run 1 recorded none; implement and review:fix share one turn's reading, 1898605)'.",
+      "failure_scenario": "Someone checking the Output tokens figure against the state finds five readings, not six, and a lower bound that appears in no record.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/b-018.md",
+      "location": "Incidents, B-020 bullet (per-run subagent tokens)",
+      "problem": "The figures called 'the measured figure' (plan-review 422103, re-check 57089, implement 108637, review:fix 183147, fix:fix 63886, review:whole 134645, in all 969507) appear nowhere in the range, the state file, the findings files or the session reports. The only token count recorded is Codex's 84,546 in plan-review-1.json. The figures are not supported by the evidence the closeout lists.",
+      "severity": "P2",
+      "suggested_fix": "Name where the figures come from (the runtime readout seen in the orchestrator's session, not recorded), or record them through the bundle CLI before citing them as measured. Otherwise drop the per-run breakdown.",
+      "failure_scenario": "A verifier or a later reader cannot re-derive 969507 from any bundle record. The closeout offers it as the correct figure in place of the generated one.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/b-018.md",
+      "location": "Deviations from the plan, recorded as decisions",
+      "problem": "'§6 ... aligned after the re-check in the only edit after it' is false. The plan changed twice after the re-check, which ran against plan sha efa4d6e9. Commit 89b624a edited §6 (sha 4cb1f9be), then commit 6b1a9c7 edited disposition 3, narrowing E-056's glob (sha 2d855629, the approved plan). The same sentence goes on to describe that second edit (the E-056 narrowing) without counting it.",
+      "severity": "P3",
+      "suggested_fix": "Write: 'two edits after it: §6 aligned (89b624a), and disposition 3's E-056 proposal narrowed to `.claude/workflows/**` on the verifier's note (6b1a9c7)'.",
+      "failure_scenario": "A reader trusts that the re-checked plan differs from the implemented plan only in §6. Disposition 3 also changed without a re-check.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/b-018.md",
+      "location": "Decided during the stage",
+      "problem": "'the orchestrator's dispositions cite a Judgment rule or record a measurement' is wider than the state. Several of the 20 decisions do neither. Disposition 7 cites AGENTS.md's state-homes rule. Disposition 10 cites no rule. The --accept-open close, the doc-sync checkpoint note (implement:s1 open question 1), the kept fixture tree note (open question 2), and the two strings-batch records cite no Judgment rule and record no measurement.",
+      "severity": "P3",
+      "suggested_fix": "Write 'most of the orchestrator's dispositions cite a Judgment rule; the rest record a repo rule, a measurement or a presentation', or name the ones without a rule.",
+      "failure_scenario": "An audit of the decision log against the Judgment-rules discipline expects every entry to cite a rule. It finds six or more that cite none.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/b-018.md",
+      "location": "Verified by hand, the fixture bullet",
+      "problem": "The fixture run at fe545b0b is described as 'Node 22, gitleaks and real ESLint 9.39.5'. The QA record (qa/round-1.md) gives Node 22 only for the scratch Expo tree. For the fixture run it records neither the Node version nor gitleaks. The fix:fix session did not run the fixture. No record supports the Node version or gitleaks for this run.",
+      "severity": "P3",
+      "suggested_fix": "Drop 'Node 22, gitleaks', or record them in the QA round before citing them.",
+      "failure_scenario": "A reader assumes the secrets step ran for real under Node 22 in that fixture run. Nothing recorded shows it.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/b-018.md",
+      "location": "Verified by hand, the negative control bullet ('So the step is known to measure the fix')",
+      "problem": "The negative control ran in implement:s1 against the step as committed in 39ab8f8. fix:fix (5dac823) then rewrote the step's exit handling: a new exit-1 branch, stderr redirected, the order of the case checks changed. fix:fix checked the new step only with a stub `npx` in a throwaway script. No real-ESLint run without the ignores block was repeated on the final step, so 'the step is known to measure the fix' is wider than the evidence for the step that shipped.",
+      "severity": "P3",
+      "suggested_fix": "Qualify it: 'known for the step as first committed (39ab8f8); fix:fix's rewrite of its exit handling was checked against a stub npx, with the harness-file case among the four reports'.",
+      "failure_scenario": "A reader takes the shipped step as proven by a real negative control. The shipped version's harness-file branch was only exercised through a stub.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/b-018.md",
+      "location": "What shipped",
+      "problem": "'the engine test asserts `coverage()` over the real export equals the export minus its first block' overstates the assertion. The new test in standards.test.mjs compares each coverage item's blocks to the export minus its first block, then filtered to the blocks whose `rules` hold one of that item's ESLint ids. It also asserts the first block's exact shape and that the list is not empty.",
+      "severity": "P3",
+      "suggested_fix": "Write: 'asserts the first block's shape and that `coverage()` gives each rule the export's blocks after the first that set its ESLint ids'.",
+      "failure_scenario": "A reader takes the assertion to be whole-export equality. It is a per-rule filtered comparison.",
+      "verdict": "plausible"
+    }
+  ],
+  "checked": [
+    "Commit range 8492811a..5ea218a: 12 commits (1 fix, 2 test, 1 docs, 8 chore(bundle)), 18 files changed, 1280 insertions and 20 deletions: matches",
+    "Base 8492811a and branch, against state.json revision 52 (HEAD's committed copy; the working tree is at 54)",
+    "Code diff: both pack exports' first block, WORKFLOWS glob, IGNORES byte-identical, headers rewritten, no engine change",
+    "eslint.test.mjs: lookups by name, ruled(), files ?? [], POINTERS/NOT_POINTERS reach test, variants test",
+    "fixture.sh lint_run: exit capture, 0/1 accepted, MSG_LINT_* strings, unreadable-report case from fix:fix",
+    "standards guide bullet, README row, backlog (B-018 closed, B-019 and E-056 opened in range, B-020 in closeout commit 5bfb3d5)",
+    "Findings files: plan-review-1 counts 5/3/0 and 2 P1, 1 P2, 5 P3; plan-review-2 0/5/8 with round-1 items 3-7 re-added under code paths; review-fix-1 1 P3; review-whole-1 0",
+    "Gate history: three gates, commits and pass results match",
+    "Five numbers: wall clock about 0.5 h (11:29:14 to 11:59:37), output tokens sum 9540226 from five readings, 5 review rounds, 1 QA round, costs empty",
+    "Decisions: 20, all by the orchestrator; each one's text and rule citation checked",
+    "Session reports implement-s1-1, fix-fix-1, fix-whole-1 and QA round-1 against the Verified-by-hand bullets",
+    "Plan sha history: 1e0a4a6f, efa4d6e9 (re-check input), 4cb1f9be (89b624a), 2d855629 (6b1a9c7)",
+    "Test counts: 757 baseline matches the stage-4 closeout; 762 in implement-s1-1 = 757 + 5 new tests; fix:fix touched no tests",
+    "doctor rerun now: 19 checks, 19 PASS, level 0 complete; changelog --check up to date; 17 commits v0.2.0..5ea218a",
+    "Config version 3 and CHARTER.md unchanged in range; no private path in the bundle directory, the backlog or the closeout",
+    "Fifth bundle (stage-1 to stage-4, then b-018)"
+  ],
+  "notes": "The generated tables (five numbers, review trajectory, gate history, decided on your behalf) match state revision 52. The counts, commits, file stats, review findings and test numbers check out. What is wrong or unsupported is all in the hand-written narrative. The negative control bullet says the restored run reported only App.tsx, but the implement session recorded a Greeting.tsx line as well. The B-020 bullet says six readings, but state holds five, and its lower bound should be 1.87M. Its per-run subagent token figures appear in no bundle record. The Deviations section says one plan edit followed the re-check, but there were two (89b624a and 6b1a9c7). Smaller overstatements: Node 22 and gitleaks for the fixture run, every disposition citing a Judgment rule, and the negative control proving the step that shipped after fix:fix rewrote it.",
+  "timedOut": false,
+  "incomplete": [],
+  "closeoutSha": "5617cef84313aa1b"
+}

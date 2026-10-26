@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 52,
+  "revision": 56,
   "slug": "b-018",
   "branch": "bundle/b-018",
   "base": "8492811aa8317df203611a6a6d93b0546c29e560",
@@ -180,9 +180,22 @@
     },
     {
       "name": "closeout",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-26T11:59:38.517Z",
+          "stateRevision": 52,
+          "planSha": "2d855629732d6d80",
+          "codex": true,
+          "runId": "wf_8ee15395-115"
+        }
+      ],
+      "startCommit": "5ea218a1de39e6c5130d2e7daaa0a5d3f2c4c386",
+      "range": {
+        "from": "8492811aa8317df203611a6a6d93b0546c29e560",
+        "to": "5ea218a1de39e6c5130d2e7daaa0a5d3f2c4c386"
+      }
     }
   ],
   "gates": [
@@ -298,6 +311,25 @@
       "at": "2026-10-26T11:59:08.196Z",
       "stored": true,
       "head": "fe545b0b32215f567d08bcb49044d460ea2e0321"
+    },
+    {
+      "phase": "closeout",
+      "path": "docs/dev/bundles/b-018/findings/closeout-1.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 8,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 3,
+        "P3": 5
+      },
+      "at": "2026-10-26T12:06:08.903Z",
+      "stored": true,
+      "head": "0249941edf466d8cd79de91da11e7c8eda1f02b2",
+      "closeoutSha": "5617cef84313aa1b"
     }
   ],
   "reports": [
@@ -466,6 +498,13 @@
       "actor": "orchestrator",
       "source": "qa phase close",
       "text": "Rule 3: QA round 1 (the user's own lint run on the scratch Expo tree with the branch's tarball, the fixture at fe545b0b, the implement session's negative control) found nothing, so no fix run; the round is recorded with its measurements.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T12:06:09.458Z",
+      "actor": "orchestrator",
+      "source": "closeout run 1 finding 2, measurement",
+      "text": "Rule 3: the per-run subagent tokens come from the runtime's completion notices in the orchestrator's session, which the CLI does not record; entered here so the closeout can cite a record: plan-review run 1 422103, plan-review run 2 (re-check) 57089, implement:s1 108637, review:fix 183147, fix:fix 63886, review:whole 134645, closeout run 1 108533; the first six sum to 969507. The --usage readings on the phases are the turns' cumulative budget.spent() (B-020).",
       "claim": true
     }
   ],

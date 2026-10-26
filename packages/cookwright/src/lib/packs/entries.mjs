@@ -7,7 +7,8 @@
 // directory and, for components, one level below: no walk, no subprocess. A
 // directory that does not exist lists nothing (the blank scaffold); one that cannot
 // be read throws, and the row says it could not count. The doc's entries are, outside
-// a fenced code block (one a list item opens too), the first cell of every body row
+// a fenced code block (one opened on a list-marker line too; one on a nested item's
+// continuation line or in a blockquote is not seen, E-052), the first cell of every body row
 // of every table and the text of every `##` or `###` heading (a doc written one
 // section per primitive). Indentation is read in columns, a tab to the next multiple
 // of four.

@@ -57,9 +57,9 @@ No script is copied into your repo: it holds `cookwright.json`, thin git shims a
 
 | Piece | State |
 |---|---|
-| Level 0: hooks, state homes, backlog, changelog, doctor, setup | works; 0.1.0 on npm |
-| Stack packs: `expo`, `supabase` | works; not in 0.1.0 |
-| Level 2: docs-audit skill | experimental; not in 0.1.0 |
+| Level 0: hooks, state homes, backlog, changelog, doctor, setup | works; 0.2.0 on npm |
+| Stack packs: `expo`, `supabase` | works; 0.2.0 on npm; your own lint run fails on the workflow pointers until B-018 ships |
+| Level 2: docs-audit skill | experimental; 0.2.0 on npm |
 | Level 1: screenshot atlas, SQL test suites | not available yet |
 | Level 2: bundle runner | experimental |
 | Level 2: secrets backends, Supabase ops, OTA preflight | not available yet |

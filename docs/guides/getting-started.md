@@ -1,6 +1,6 @@
 # Getting started
 
-From an app repo with nothing installed to a Level 0 the agent checks at every session start. The output below is real: cookwright 0.1.0 installed from its tarball into a fresh git repo on 2026-10-22, with Claude Code 2.1.308 and gitleaks 8.30.1 on PATH. Your paths and versions will differ.
+From an app repo with nothing installed to a Level 0 the agent checks at every session start. The output below is real: cookwright 0.2.0 installed from npm into a fresh git repo on 2026-10-26, with Claude Code 2.1.310 and gitleaks 8.30.1 on PATH. Your paths and versions will differ.
 
 ## 1. Install
 
@@ -25,13 +25,13 @@ wrote    docs/backlog.md                    from the template
 wrote    docs/closeouts/                    created, with a .gitkeep so a clone keeps it
 wrote    CHANGELOG.md                       from the template
 wrote    AGENTS.md                          written with the managed rules block
-skipped  CLAUDE.md                          not needed: claude 2.1.308 reads AGENTS.md natively and nothing shadows it
+skipped  CLAUDE.md                          not needed: claude 2.1.310 reads AGENTS.md natively and nothing shadows it
 wrote    .claude/settings.json              SessionStart hook runs doctor
 wrote    .claude/skills/bundle              links to ../../node_modules/cookwright/skills/bundle
 wrote    .claude/skills/setup               links to ../../node_modules/cookwright/skills/setup
 wrote    .claude/workflows/bundle-phase.js  links to ../../node_modules/cookwright/hosts/claude/workflows/bundle-phase.js
 wrote    .claude/workflows/docs-audit.js    links to ../../node_modules/cookwright/hosts/claude/workflows/docs-audit.js
-wrote    .gitignore                         ignores .env, .env.*, !.env.example
+wrote    .gitignore                         ignores node_modules/, .env, .env.*, !.env.example
 wrote    hooks.path                         core.hooksPath set to .githooks in the local git config
 wrote    .githooks/pre-commit               the managed shim, executable; it calls the hook in the package
 wrote    .githooks/pre-push                 the managed shim, executable; it calls the hook in the package
@@ -55,8 +55,9 @@ git commit -m 'chore: set up cookwright'
 ```
 pre-commit  PASS  secrets  staged diff clean (gitleaks 8.30.1)
 pre-commit  SKIP  doc-sync  no doc-sync rules configured (hooks.docSync in cookwright.json)
-[main 6bbd444] chore: set up cookwright
- 15 files changed, 161 insertions(+), 1 deletion(-)
+pre-commit  SKIP  standards  no packs declared
+[main 234b9e7] chore: set up cookwright
+ 16 files changed, 166 insertions(+), 1 deletion(-)
 ```
 
 (gitleaks prints its own `INF` lines above these.) What the hooks check and how to escape one is in [Hooks and escapes](hooks-and-escapes.md).
@@ -78,25 +79,27 @@ npx cookwright doctor
 ```
 
 ```
-PASS  config            valid, level 0
-PASS  git               work tree, baseBranch main
-PASS  homes.backlog     docs/backlog.md, with its three sections
-PASS  homes.closeouts   docs/closeouts/
-PASS  homes.changelog   CHANGELOG.md
-PASS  backlog.ids       0 id(s), each once
-PASS  rules.block       AGENTS.md: the managed block is current
-PASS  rules.size        AGENTS.md: under 60 KB, no line over 3000 chars
-PASS  host.rules        claude 2.1.308 reads AGENTS.md natively; nothing shadows it
-PASS  host.hook         .claude/settings.json runs doctor at session start
-PASS  host.pointers     claude: 2 skills, 2 workflows
-PASS  hooks.path        core.hooksPath is .githooks (local)
-PASS  hooks.pre-commit  .githooks/pre-commit: the managed shim
-PASS  hooks.pre-push    .githooks/pre-push: the managed shim
-PASS  tools.gitleaks    the pre-commit secret scan runs (gitleaks 8.30.1)
-PASS  gate.scripts      1 gate check(s); every npm script they run is in package.json
-PASS  secrets.env       no .env file tracked or at the root; .env and .env.local ignored
+PASS  config             valid, level 0
+PASS  git                work tree, baseBranch main
+PASS  homes.backlog      docs/backlog.md, with its three sections
+PASS  homes.closeouts    docs/closeouts/
+PASS  homes.changelog    CHANGELOG.md
+PASS  backlog.ids        0 id(s), each once
+PASS  rules.block        AGENTS.md: the managed block is current
+PASS  rules.size         AGENTS.md: under 60 KB, no line over 3000 chars
+PASS  host.rules         claude 2.1.310 reads AGENTS.md natively; nothing shadows it
+PASS  host.hook          .claude/settings.json runs doctor at session start
+PASS  host.pointers      claude: 3 skills, 2 workflows
+PASS  hooks.path         core.hooksPath is .githooks (local)
+PASS  hooks.pre-commit   .githooks/pre-commit: the managed shim
+PASS  hooks.pre-push     .githooks/pre-push: the managed shim
+PASS  tools.gitleaks     the pre-commit secret scan runs (gitleaks 8.30.1)
+PASS  gate.scripts       1 gate check(s); every npm script they run is in package.json
+PASS  secrets.env        no .env file tracked or at the root; .env and .env.local ignored
+PASS  repo.node_modules  node_modules is not tracked
+PASS  packs              no packs declared, none detected
 
-17 checks — 17 PASS, 0 FAIL, 0 WARN, 0 SKIP
+19 checks — 19 PASS, 0 FAIL, 0 WARN, 0 SKIP
 level 0 declared: complete
 next: Level 1 is not available in this version of cookwright
 ```
@@ -104,14 +107,14 @@ next: Level 1 is not available in this version of cookwright
 A missing tool is a SKIP, never a FAIL. The same repo with neither gitleaks nor `claude` on PATH:
 
 ```
-SKIP  host.rules        skipped, needs claude, run setup (AGENTS.md support unverified)
-SKIP  tools.gitleaks    skipped, needs gitleaks, run setup (brew install gitleaks): the pre-commit secret scan does not run
+SKIP  host.rules         skipped, needs claude, run setup (AGENTS.md support unverified)
+SKIP  tools.gitleaks     skipped, needs gitleaks, run setup (brew install gitleaks): the pre-commit secret scan does not run
 
-17 checks — 15 PASS, 0 FAIL, 0 WARN, 2 SKIP
-level 0 declared: complete; unverified: host.rules, tools.gitleaks
+19 checks — 17 PASS, 0 FAIL, 0 WARN, 2 SKIP
+level 0 declared: not verified: host.rules, tools.gitleaks (see their lines)
 ```
 
-`npx cookwright doctor` checks that Level 0 is still in place and names anything missing: 19 checks, the git hooks, gitleaks, the gate's npm scripts, the skill and workflow pointers and a tracked `node_modules` (`repo.node_modules`, a FAIL naming `git rm -r --cached node_modules`) among them. Its `packs` row names the stack packs `cookwright.json` declares, or WARNs the ones the tree shows when none is declared, which the setup skill then offers; each declared pack adds four rows of its own, `pack.<name>.declared`, `pack.<name>.rules` (its section of `AGENTS.md` is current; a rule switched off reads WARN), `pack.<name>.docs` (its contract doc is there, its doc-sync rule is configured as the pack ships it, a rule of your own going under another name, and every primitive or migration has an entry) and `pack.<name>.lint` (ESLint is installed, `eslint.config.js` names the pack's export and the gate runs the ratchet), and the supabase pack a fifth, `pack.supabase.types`; no level requires them (see [Standards](standards.md)). A hooks setup managed elsewhere (husky, lefthook) reads as weak, not missing: `hooks.path` and the two hook rows WARN. A required check that could not measure (gitleaks or `claude` not installed) keeps the level from complete: the level line reads `level 0 declared: not verified: host.rules, tools.gitleaks (see their lines)` until those lines measure, where the 0.1.0 output above still read complete. With no gate check (an app without a test script, which init then gives none), `gate.scripts` reads WARN `no gate checks configured; pre-push runs nothing (add a check to gate.checks)`: add one to `gate.checks` in `cookwright.json` by hand, for instance `{ "name": "types", "run": "npx tsc --noEmit" }`, or let the setup skill offer one. The hook runs it as `doctor --hook` at every session start, and that form never fails a session. Its git calls share a two-second budget, so a stalled git yields a one-line diagnosis, not a killed hook.
+`npx cookwright doctor` checks that Level 0 is still in place and names anything missing: 19 checks, the git hooks, gitleaks, the gate's npm scripts, the skill and workflow pointers and a tracked `node_modules` (`repo.node_modules`, a FAIL naming `git rm -r --cached node_modules`) among them. Its `packs` row names the stack packs `cookwright.json` declares, or WARNs the ones the tree shows when none is declared, which the setup skill then offers; each declared pack adds four rows of its own, `pack.<name>.declared`, `pack.<name>.rules` (its section of `AGENTS.md` is current; a rule switched off reads WARN), `pack.<name>.docs` (its contract doc is there, its doc-sync rule is configured as the pack ships it, a rule of your own going under another name, and every primitive or migration has an entry) and `pack.<name>.lint` (ESLint is installed, `eslint.config.js` names the pack's export and the gate runs the ratchet), and the supabase pack a fifth, `pack.supabase.types`; no level requires them (see [Standards](standards.md)). A hooks setup managed elsewhere (husky, lefthook) reads as weak, not missing: `hooks.path` and the two hook rows WARN. A required check that could not measure (gitleaks or `claude` not installed) keeps the level from complete: the level line reads `level 0 declared: not verified: host.rules, tools.gitleaks (see their lines)` until those lines measure. With no gate check (an app without a test script, which init then gives none), `gate.scripts` reads WARN `no gate checks configured; pre-push runs nothing (add a check to gate.checks)`: add one to `gate.checks` in `cookwright.json` by hand, for instance `{ "name": "types", "run": "npx tsc --noEmit" }`, or let the setup skill offer one. The hook runs it as `doctor --hook` at every session start, and that form never fails a session. Its git calls share a two-second budget, so a stalled git yields a one-line diagnosis, not a killed hook.
 
 ## 5. Anything not PASS: the setup skill
 

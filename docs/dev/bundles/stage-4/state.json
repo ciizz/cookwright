@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 261,
+  "revision": 262,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -503,9 +503,21 @@
     },
     {
       "name": "closeout",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-26T01:07:01.269Z",
+          "stateRevision": 261,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true
+        }
+      ],
+      "startCommit": "c039db3fe86328a3a15d7720bd9c053b33f93338",
+      "range": {
+        "from": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
+        "to": "c039db3fe86328a3a15d7720bd9c053b33f93338"
+      }
     }
   ],
   "gates": [

@@ -211,8 +211,21 @@ describe('headingKeys', () => {
     expect([...headingKeys(['1.\t```md', '\t## Phantom', '\t```', '## Real'].join('\n'))]).toEqual(['Real']);
     // `-\t` puts the item's content at column 4, so a line at column 2 ends the item and its fence.
     expect([...tableKeys(['-\t```md', '  | Primitive |', '  | --- |', '  | Real |'].join('\n'))]).toEqual(['Real']);
-    // At the top level, a tab is four columns: an indented code line, not a heading.
+    // At the top level, a tab is four columns: an indented code line, not a heading or a row.
     expect([...headingKeys('\t## Indented\n## Real\n')]).toEqual(['Real']);
+    expect([...docKeys('\t| Ghost | x |\n## Real\n')]).toEqual(['Real']);
+    expect([...docKeys('    | Ghost | x |\n## Real\n')]).toEqual(['Real']);
+  });
+
+  it('follows a fence on a list item’s continuation line, nested or not, from where the item’s content starts', () => {
+    const fenced = (marker, indent) => [`${marker}Add a row like:`, `${indent}\`\`\`md`, `${indent}| Ghost | x |`, `${indent}\`\`\``, '', '## Real'].join('\n');
+    expect([...docKeys(fenced('- ', '\t'))]).toEqual(['Real']);
+    expect([...docKeys(fenced('10. ', '    '))]).toEqual(['Real']);
+    expect([...docKeys(fenced('-   ', '    '))]).toEqual(['Real']);
+    expect([...docKeys(fenced('- Example:\n  - ', '    '))]).toEqual(['Real']);
+    // Four columns past the item's content is an indented code line; less is the item's own row.
+    expect([...docKeys(['- Item', '', '      | Ghost | x |', '## Real'].join('\n'))]).toEqual(['Real']);
+    expect([...tableKeys(['1. Primitives', '', '    | Primitive |', '    | --- |', '    | Real |'].join('\n'))]).toEqual(['Real']);
   });
 
   it('reads a backtick line whose info string holds a backtick as a paragraph, not a fence', () => {

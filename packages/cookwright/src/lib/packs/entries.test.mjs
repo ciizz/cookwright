@@ -228,6 +228,16 @@ describe('headingKeys', () => {
     expect([...tableKeys(['1. Primitives', '', '    | Primitive |', '    | --- |', '    | Real |'].join('\n'))]).toEqual(['Real']);
   });
 
+  it('reads a thematic break as no list item, so an indented line after it is code', () => {
+    expect([...docKeys('- - -\n    | Ghost | x |\n## Real\n')]).toEqual(['Real']);
+    expect([...docKeys('* * *\n    ## Ghost\n## Real\n')]).toEqual(['Real']);
+    expect([...docKeys(' -  -  -\t\n    ## Ghost\n## Real\n')]).toEqual(['Real']);
+    // An item whose content is a break stays an item: its content starts at column 2.
+    expect([...docKeys('- * * *\n  ## Inside\n')]).toEqual(['Inside']);
+    // Two markers are not a break: the nested item's content starts at column 4.
+    expect([...docKeys('- -\n    ## Nested\n')]).toEqual(['Nested']);
+  });
+
   it('reads a backtick line whose info string holds a backtick as a paragraph, not a fence', () => {
     expect([...headingKeys('```inline``` text\n## Button')]).toEqual(['Button']);
   });

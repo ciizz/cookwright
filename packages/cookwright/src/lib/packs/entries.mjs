@@ -11,8 +11,9 @@
 // the text of every `##` or `###` heading (a doc written one section per primitive).
 // A line is read from where its list item's content starts, so a fence, row or
 // heading in an item, on its marker line or a continuation line, nested or not, is
-// judged as at the top level. Indentation is read in columns, a tab to the next
-// multiple of four. A blockquote is not read as one (E-052).
+// judged as at the top level; a thematic break (`- - -`, `* * *`) opens no item.
+// Indentation is read in columns, a tab to the next multiple of four. A blockquote
+// is not read as one (E-052).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -105,6 +106,8 @@ const closes = (line, run) => {
 
 // A list item's marker after up to three spaces, and the spaces after it (CommonMark 5.2).
 const MARKER = /^( {0,3}(?:[-*+]|\d{1,9}[.)]))( +)/;
+// A thematic break, `- - -` or `* * *`: it wins over a list marker (CommonMark 4.1).
+const BREAK = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
 // A line's indentation and the list markers it opens, with the whitespace after each.
 const PREFIX = /^(?:[ \t]*(?:[-*+]|\d{1,9}[.)])(?=[ \t]))*[ \t]*/;
 
@@ -126,11 +129,11 @@ const indentOf = (line) => line.length - line.trimStart().length;
  * The list items `rest`, a line from column `base` on, opens: `{ opened, rest }`,
  * `opened` the column each item's content starts at, `rest` what follows the last
  * marker. Five or more spaces after a marker put the content one column after it,
- * the rest an indented code line (CommonMark 5.2).
+ * the rest an indented code line (CommonMark 5.2). A thematic break opens no item.
  */
 function items(rest, base) {
   const opened = [];
-  for (let m = MARKER.exec(rest); m; m = MARKER.exec(rest)) {
+  for (let m = MARKER.exec(rest); m && !BREAK.test(rest); m = MARKER.exec(rest)) {
     const width = m[1].length + (m[2].length > 4 ? 1 : m[2].length);
     opened.push((base += width));
     rest = rest.slice(width);

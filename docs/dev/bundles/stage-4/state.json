@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 265,
+  "revision": 270,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -503,7 +503,7 @@
     },
     {
       "name": "closeout",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -512,13 +512,24 @@
           "planSha": "3f4aa96c4462829c",
           "codex": true,
           "runId": "wf_bc782d43-ad9"
+        },
+        {
+          "startedAt": "2026-10-26T01:15:45.079Z",
+          "stateRevision": 265,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_e82a0762-f44",
+          "endedAt": "2026-10-26T01:18:47.518Z",
+          "turnOutputTokens": 199837
         }
       ],
       "startCommit": "c039db3fe86328a3a15d7720bd9c053b33f93338",
       "range": {
         "from": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
         "to": "c039db3fe86328a3a15d7720bd9c053b33f93338"
-      }
+      },
+      "endCommit": "49aefb4eacad2140ee69fe0d7757a0da549f7e0c",
+      "endCode": "3a07f4a1613d5fcd3e7f90d3c18620eafdc05bfe"
     }
   ],
   "gates": [
@@ -781,6 +792,19 @@
           "ms": 50917
         }
       ]
+    },
+    {
+      "commit": "49aefb4eacad2140ee69fe0d7757a0da549f7e0c",
+      "at": "2026-10-26T01:18:35.979Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 49158
+        }
+      ]
     }
   ],
   "findings": [
@@ -1036,6 +1060,25 @@
       "stored": true,
       "head": "26ac42461fa07c588cbbf955ad2467029eb5ffd7",
       "closeoutSha": "ce6020c4175692a5"
+    },
+    {
+      "phase": "closeout",
+      "path": "docs/dev/bundles/stage-4/findings/closeout-2.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 0,
+        "rejected": 8,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      },
+      "at": "2026-10-26T01:17:34.312Z",
+      "stored": true,
+      "head": "49aefb4eacad2140ee69fe0d7757a0da549f7e0c",
+      "closeoutSha": "20e2d86699f11419"
     }
   ],
   "reports": [

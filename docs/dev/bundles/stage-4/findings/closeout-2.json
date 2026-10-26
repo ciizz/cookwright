@@ -1,0 +1,101 @@
+{
+  "phase": "closeout",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "Decided during the stage",
+      "problem": "The closeout says every session's strings batch was presented to the developer and recorded as presented. QA run 6's session report (sessions/qa-6.md, 'User-facing strings') lists three changed strings: two standards-guide sentences and the setup skill's pack.*.lint remedy. The state has no 'qa run 6 strings batch' decision. Recorded batches stop at 'qa run 5 strings batch' (2026-10-26T00:57:12.698Z), and the 01:05:47 qa-6 decisions cover only the findings residue and the phase close.",
+      "severity": "P2",
+      "suggested_fix": "Either record qa run 6's strings batch through `bundle decide` before the closeout regenerates, or narrow the sentence to name qa run 6's three strings as not recorded as presented.",
+      "failure_scenario": "The developer reads that every user-facing string change reached them for a ruling. Three guide and skill strings changed in the last QA run never did, so they ship unreviewed under a closeout that says otherwise.",
+      "verdict": "rejected",
+      "evidence": "The state now holds decision 2026-10-26T01:15:44.503Z (source 'qa run 6 strings batch'): the sixth QA run's three strings, presented in chat and accepted pending the developer's ruling at the closeout. That makes the sentence at line 68 ('every session's strings batch was presented ... and recorded as presented') true. The generated list is labelled revision 262 and leaves out later decisions, so the batch's absence from that list is expected."
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "State at close (Backlog)",
+      "problem": "'B-015 and B-016 opened and closed with their measurements' goes further than the backlog shows. B-016 sits under Closed, but its entry has no closing note. It says 'Cause unknown' and ends with a 'Proposed:' fix (run in test-helpers.mjs refusing a cwd outside the scratch root), and that fix was not implemented: `run` is still a bare execFileSync. B-015's entry says 'Reopened to watch 2026-10-25 (stage-4 s6)' after its 'Closed:' note.",
+      "severity": "P2",
+      "suggested_fix": "Say B-016 was opened with its re-measurement and its cause left unknown, the proposed guard not built. Either move it to Open bugs or give it a dated closing note. Say B-015 is closed but reopened to watch after the s6 recurrence.",
+      "failure_scenario": "A reader takes the hooksPath incident as resolved. The writer of core.hooksPath was never found and the guard was never built, so a recurrence would again silently disable the hooks while sessions report them passing.",
+      "verdict": "rejected",
+      "evidence": "State at close, Backlog (line 60) now reads: 'B-015 opened and closed with its measurements, then reopened to watch after one uncaptured recurrence in s6; B-016 opened with its re-measurement and left open, its cause unknown and the proposed guard (a test helper refusing a cwd outside the scratch root) not built'. Commit 49aefb4 moved B-016 to Open bugs in docs/dev/backlog.md (line 12: 'open: cause unknown, the proposed guard not built'). The Incidents B-016 bullet also says 'Cause unknown'."
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "What shipped (Init and the fixture)",
+      "problem": "'doctor's `packs` row WARNs when the tree shows a stack no pack declares' is wider than the code. src/lib/doctor/packs.mjs:31-33 returns PASS as soon as any pack is declared and WARNs only when `packs` is empty. Backlog E-042, opened in this stage, records exactly the case the sentence claims is covered: expo declared and supabase/config.toml present still reads PASS.",
+      "severity": "P3",
+      "suggested_fix": "Change it to 'WARNs when no pack is declared and the tree shows a stack (a partly declared tree is E-042)'.",
+      "failure_scenario": "A developer with expo declared adds Supabase and trusts the PASS packs row to flag the undeclared supabase pack. It never does.",
+      "verdict": "rejected",
+      "evidence": "Line 13 now reads 'doctor's `packs` row WARNs when no pack is declared and the tree shows a stack (a partly declared tree is E-042)', the suggested wording word for word."
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "What shipped (Init and the fixture)",
+      "problem": "The closeout says AGENTS.md is composed in one pass 'after review:model showed that two steps writing one file clobber each other through init's preflight'. That clobbering was plan-review round 1 finding 1 (P1), handled by disposition 27 (rulesFileStep composing AGENTS.md in one pass) before any code existed. review:model finding 0 was a different collision: a pack contract-doc path equal to a configured state home (paths.backlog). That finding produced the preflight refusal of duplicate targets.",
+      "severity": "P3",
+      "suggested_fix": "Credit the one-pass composition to plan-review round 1 (disposition 27), and the preflight refusal of two writes to one path to review:model finding 0.",
+      "failure_scenario": "The review trajectory is misread: review:model gets credit for a P1 the plan review caught, and the state-home path collision it actually found goes unmentioned.",
+      "verdict": "rejected",
+      "evidence": "Line 13 now says the one-pass composition came 'after plan-review round 1 showed that two steps writing one file clobber each other through init's preflight (disposition 27); review:model found the other collision, a pack's contract doc path equal to a configured state home, and preflight now refuses two writes to one path.'"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "QA",
+      "problem": "The closeout says 'then five review rounds on the fixes, each narrower (4, 4, 5, 4, 3, 3 findings ...)'. That lists six review counts (qa-1 to qa-6, one per Workflow run), not five. They are not each narrower either: run 3 (5 findings) is wider than run 2 (4). The same wording is copied from the 01:05:47 phase-close decision.",
+      "severity": "P3",
+      "suggested_fix": "Change it to 'six review runs (4, 4, 5, 4, 3, 3 findings; the last three P3 only)' and drop 'each narrower'.",
+      "failure_scenario": "A reader takes the QA trajectory as converging steadily over five rounds. The recorded findings show six reviews and a rise at run 3.",
+      "verdict": "rejected",
+      "evidence": "The QA section (line 56) now reads 'six Workflow runs: ... then six review runs on the fixes (4, 4, 5, 4, 3, 3 findings; the last run's three P3 only)', and 'each narrower' is gone. The old wording survives only in the generated decision list (2026-10-26T01:05:47.540Z), which is copied word for word from the state and is not the closeout's own claim."
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "Deviations from the plan, recorded as decisions",
+      "problem": "'after three QA rounds of Markdown cases' does not match the record. The state has one QA round (qaRounds length 1; the closeout itself says 'One recorded round'). Contract-doc reader cases came up in five or six runs: run 1 fences, run 2 list items, run 3 tabs and trailing blank line, run 4 indented table rows, run 5 thematic breaks and blockquotes, run 6 a bare --- under a table.",
+      "severity": "P3",
+      "suggested_fix": "Change it to 'after five QA runs of Markdown cases (runs 1 to 5, a sixth noted on E-052)'.",
+      "failure_scenario": "The sentence contradicts the QA section's one-round count and understates how many fix-and-review cycles the reader's grammar took.",
+      "verdict": "rejected",
+      "evidence": "Line 46 now reads 'after five QA runs of Markdown cases (runs 1 to 5, a sixth noted on E-052)', the suggested wording."
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "Decided during the stage",
+      "problem": "'the rest the orchestrator's dispositions ..., each citing a Judgment rule or recording a measurement' is too wide. Leaving out strings batches, about 29 orchestrator decisions in the state cite no rule number and record no measurement. Examples: 18:47:41.168Z (finding 5, the SKILLS entry), 18:47:44.823Z (finding 8, pushContext), 19:43:41.435Z (the docs-audit SKILLS move), 23:12:38.666Z (the fix:surface fill branch), 23:46:26.206Z (pack versions stay at 1).",
+      "severity": "P3",
+      "suggested_fix": "Change it to 'most citing a Judgment rule or recording a measurement; scheduling and wording dispositions cite the plan section instead', or cite the rules in those decisions.",
+      "failure_scenario": "An auditor relying on the memory rule that every disposition cites a Judgment rule trusts this sentence and skips checking. Dozens of decisions lack the citation.",
+      "verdict": "rejected",
+      "evidence": "Line 68 now reads 'most citing a Judgment rule or recording a measurement, the scheduling and wording dispositions citing the plan section instead', as the fix suggested."
+    },
+    {
+      "file": "docs/dev/closeouts/stage-4.md",
+      "location": "What shipped (This repo eats its own cooking)",
+      "problem": "The paragraph is labelled (s7), but the 'two new rules tying the audit, standards and pack modules to the standards guide' came later: fix:surface (5a3a587, decision 23:12:39.527Z) and fix:whole (71b1ef6, decision 23:34:34.067Z). s7's own dogfood commit c5de2b3 only moved the repo to version 3 and widened the setup rule.",
+      "severity": "P3",
+      "suggested_fix": "Label the paragraph (s7, fix:surface, fix:whole), or attribute the two rules to their fix phases.",
+      "failure_scenario": "Someone tracing why the standards doc-sync rules exist looks in s7's session report and finds neither one.",
+      "verdict": "rejected",
+      "evidence": "Line 21 is now labelled '**This repo eats its own cooking** (s7, fix:surface, fix:whole)', the suggested label."
+    }
+  ],
+  "checked": [
+    "Decided during the stage",
+    "State at close (Backlog)",
+    "What shipped (Init and the fixture)",
+    "What shipped (Init and the fixture)",
+    "QA",
+    "Deviations from the plan, recorded as decisions",
+    "Decided during the stage",
+    "What shipped (This repo eats its own cooking)"
+  ],
+  "notes": "I re-checked the closeout at sha256 20e2d86699f11419 against all 8 non-rejected issues in closeout-1.json (sha256 3e95357f7ddb04e6). The revision resolves all 8, so every verdict is now rejected. Issue 0 was resolved through the state, not the closeout text: the 'qa run 6 strings batch' decision (2026-10-26T01:15:44.503Z) is in committed state revision 265. The working copy's state.json has one uncommitted change, a new qa run entry at revision 267 written by the CLI, which bears on none of these issues. The generated decision list still repeats the old 'five review rounds, each narrower' text from the 01:05:47.540Z decision, because that list is copied from the state as it was recorded.",
+  "timedOut": false,
+  "incomplete": [],
+  "recheckOf": "docs/dev/bundles/stage-4/findings/closeout-1.json",
+  "closeoutSha": "20e2d86699f11419"
+}

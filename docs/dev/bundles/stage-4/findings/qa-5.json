@@ -1,0 +1,84 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "items(), line ~162",
+      "problem": "Thematic breaks (`- - -`, `* * *`) are parsed as nested list markers; their content columns stay open, so a following four-space-indented code line is stripped to column four and parsed as a real table row or heading.",
+      "severity": "P2",
+      "suggested_fix": "Detect Markdown thematic breaks before consuming list markers and leave the list stack unchanged. Add regression tests for hyphen and asterisk breaks followed by indented rows and headings.",
+      "failure_scenario": "docKeys('- - -\\n    | Ghost | x |\\n') returns [\"Ghost\"], so doctor reports an undocumented Ghost primitive as documented.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "Reproduced: docKeys('- - -\\n    | Ghost | x |\\n') returns ['Ghost'], and docKeys('* * *\\n    ## Ghost\\n') also returns ['Ghost']. In entries.mjs, items() (line 131) matches MARKER on '- ' twice for '- - -', so open=[2,4]. The next line has indent 4, which is not less than open.at(-1) (line ~158), so it is read from column 4 (line 160-162) and the indented-code check at line 164 never fires. CommonMark treats '- - -' as a thematic break, so the following line is indented code and should be blanked. The control '---\\n    | Ghost | x |' correctly returns []."
+    },
+    {
+      "file": "docs/dev/backlog.md",
+      "location": "E-052 line (rewritten in 7e0634f); same claim in packages/cookwright/src/lib/packs/entries.mjs header comment ('A blockquote is not read as one (E-052)') and docs/guides/standards.md line 53 ('a blockquote not read as one')",
+      "problem": "The rewritten E-052 says a fence inside a blockquote is not seen, \"so a heading or row inside it counts as an entry\". The code does the opposite. unfenced() returns a blockquote line with its `>` still on it, so tableKeys (`line.trim().startsWith('|')`) and HEADING (`^ {0,3}#{2,3}`) never match anything inside a blockquote, fenced or not. The real gap is that an entry written in a blockquote is never counted, so the backlog item states a phantom-entry risk that does not exist and leaves out the false-missing one that does.",
+      "severity": "P3",
+      "suggested_fix": "Reword E-052 to say what the reader does: a heading or table row inside a blockquote is never an entry (fenced or not), so a primitive documented as `> ## Button` or `> | Button |` reads missing. Make the entries.mjs comment and the guide's wording say the same.",
+      "failure_scenario": "I ran docKeys on ['> ```md','> | Ghost | x |','> ## GhostH','> ```','## Real'] and got [\"Real\"]: nothing inside the blockquote counted. I ran it on ['> ## Button','> | Card | x |','## Real'] and also got [\"Real\"]: a doc that documents Button and Card in a blockquote has doctor's pack.expo.docs row name both as having no entry. A later reader trusts E-052 and goes looking for phantom entries (a gap that does not exist) instead of the false-missing one that does.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "Ran docKeys from packages/cookwright/src/lib/packs/entries.mjs: ['> ```md','> | Ghost | x |','> ## GhostH','> ```','## Real'] gives ['Real']; ['> ## Button','> | Card | x |','## Real'] gives ['Real']. unfenced() (entries.mjs:149-170) returns a blockquote line with its '>' (line 166), so the tableKeys startsWith('|') test (line 181) and the HEADING test never match it. docs/dev/backlog.md:51 (E-052) says a heading or row inside a blockquote counts as an entry, which is the opposite of what the code does. The real gap is that an entry written in a blockquote is never counted (false-missing). The entries.mjs header comment ('A blockquote is not read as one') and docs/guides/standards.md:53 are accurate but incomplete, since they do not say the consequence. The finding's scope is E-052 plus those two places, and only E-052 is actually wrong."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/standards.mjs",
+      "location": "holds() (b369259), isDeepStrictEqual(options, want)",
+      "problem": "The exact-equality comparison is justified, in the commit and in the recorded decision, by the i18next rule: an extra key such as jsx-components or words can switch detection off. It is applied to every rule, though. For `no-restricted-syntax`, extra trailing selectors cannot narrow what the pack's tagged selectors flag, and countBy already attributes findings by tag. For `no-restricted-imports`, a sibling `patterns` key cannot narrow the pack's `paths` restriction. Plan disposition 29 promised \"the tagged message present in the no-restricted-syntax and no-restricted-imports options\". The previous subset reading allowed appended selectors; now an app that keeps its own restrictions beside the pack's on the same files has no configuration in which the rule is measured. Spread last and the app loses its own selectors on the pack's files; keep them in a later block and the rule reads overridden. The tag mechanism the pack comments describe (\"a user's own selector on the same ESLint id is never counted as the pack's\") can no longer arise on a measured file. This goes past the recorded decision's own rationale, which names only i18next keys, so it is low severity.",
+      "severity": "P3",
+      "suggested_fix": "Keep exact equality for object options (the i18next and max-lines cases). For no-restricted-syntax, require the pack's selector entries as a prefix, or as a subset in any position, and allow extra entries beside them. For no-restricted-imports, require `paths` to contain the pack's entry. Alternatively record a `bundle decide` that accepts the loss for these two rules and say in the guide and the setup skill that a user's own selectors or import restrictions on the pack's files leave tokens/client unmeasured.",
+      "failure_scenario": "An app's eslint.config.js has, after the spread, `{ files: ['**/*.tsx'], rules: { 'no-restricted-syntax': ['error', ...packTokensSelectors, { selector: \"CallExpression[callee.name='alert']\", message: 'no alert' }] } }`. Before b369259, `expo tokens` read measured. Now `expo tokens` reads `overridden by a later block in the ESLint config` at the sample and on every component file, so the ratchet and the hook stop counting colour or spacing literals. The setup skill's ask-before-writing step offers no placement that keeps both the app's selector and the measurement. The supabase client rule behaves the same with a later `{ paths: [packPath], patterns: ['../*'] }`.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/packs/standards.mjs:104-108: holds() applies isDeepStrictEqual(options, want) to every rule id, with no per-rule distinction. A later block with ['error', ...packTokensSelectors, {extra selector}] therefore has options longer than want, so holds() is false. judge() (line 113) then returns 'overridden' at the samples, and changedAt() (line 183) leaves each file unmeasured. Before b369259 the check was want.every((w,i)=>holdsOption(w,options[i])), which let appended entries pass (see the diff: the old test 'or with more beside them'). The commit's own rationale (holds() docstring, lines ~96-103, and the commit message) names only the i18next jsx-components and words keys. Appended no-restricted-syntax selectors or a sibling patterns key cannot narrow the pack's tagged selectors or paths. The behaviour change is real and wider than the stated reason, and it is low severity."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 5d42ecd..HEAD (commits b369259, 7e0634f)",
+    "entries.mjs list-item content-start reading and its tests",
+    "pack rule exact-options counting",
+    "doctor passed all 19 checks (per Codex)",
+    "private paths/secrets scan of the diff",
+    "git diff 5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b..HEAD: stat; full read of b369259 and 7e0634f (standards.mjs holds, messages.mjs handAdd, standards.md, setup SKILL.md, pack.mjs comment, entries.mjs unfenced/items, tests, backlog E-052)",
+    "Ran real ESLint 9.39.5 with eslint-plugin-i18next from a leftover local fixture install against the current expo export: calculateConfigForFile returns options deep-equal to the pack's blocks, with no schema defaults injected. Exact equality does not misread the pack's own wiring as overridden",
+    "Ran vitest on entries.test.mjs and standards.test.mjs: 41 passed",
+    "Ran probes of the contract-doc reader: item then table at the content column, empty `-` item opening a fence, 5+ spaces after a marker, `10.` with a tab, nested items with a sibling less indented, CRLF, lazy lines, blockquote fences and blockquote headings. All match CommonMark except the declared E-052 shapes, and the blockquote behaviour is the reverse of what E-052 states",
+    "Checked the plan's disposition 29 and the state.json decisions: an exact-options decision is recorded, with a rationale limited to i18next keys",
+    "Checked the messages, guide and setup-skill wording against holds(): consistent",
+    "AGENTS.md / CLAUDE.md: no pack section or `### Advisory` heading (packs: []), so no advisory-rule check applies; no secrets, local paths or .env in the diff"
+  ],
+  "notes": "Codex run completed within the ceiling (session 01a175af-e92d-7411-ae33-9b947d3cc4a8). Targeted Vitest could not run in the read-only sandbox (could not create node_modules/.vite-temp); the finding was confirmed by Codex with a side-effect-free module probe. Output at <local path>\n---\nI found no P1 or P2 in the two fix commits. I checked the main risk of b369259, exact deep equality, against real ESLint 9.39.5 and eslint-plugin-i18next: the effective options equal the pack's blocks exactly at both the components and the .ts samples, so the pack's own wiring still reads measured. The gate runs only `npm test` with the fake ESLint; this was an ad hoc local run with scratch scripts under <local path>, not the CI fixture. The rewritten unfenced() in 7e0634f follows CommonMark list content columns, indented code, and fences on marker and continuation lines correctly on every case I probed. Two P3s: the E-052 and comment wording about blockquotes is inverted, and exact equality is wider than its i18next-only rationale for no-restricted-syntax and no-restricted-imports.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a175af-e92d-7411-ae33-9b947d3cc4a8",
+    "partialReportPath": null
+  }
+}

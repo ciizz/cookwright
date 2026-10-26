@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 244,
+  "revision": 253,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -475,6 +475,13 @@
           "planSha": "3f4aa96c4462829c",
           "codex": true,
           "runId": "wf_5e2ba3cf-91a"
+        },
+        {
+          "startedAt": "2026-10-26T00:43:29.279Z",
+          "stateRevision": 244,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_b6adc1ec-9d0"
         }
       ],
       "startCommit": "5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b",
@@ -724,6 +731,19 @@
           "ms": 46253
         }
       ]
+    },
+    {
+      "commit": "7c4d9d7b617350bb7415c10bb32798d1e4787cc1",
+      "at": "2026-10-26T00:58:02.551Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 48841
+        }
+      ]
     }
   ],
   "findings": [
@@ -924,6 +944,24 @@
       "at": "2026-10-26T00:42:06.337Z",
       "stored": true,
       "head": "9ffba20c3bfceedbf5ffa69a628f85b3d7be18d4"
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/findings/qa-5.json",
+      "counts": {
+        "confirmed": 3,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 1,
+        "P3": 2
+      },
+      "at": "2026-10-26T00:56:34.543Z",
+      "stored": true,
+      "head": "7e0634fbb901fab284c4ed2ddf444498a0a4df8b"
     }
   ],
   "reports": [
@@ -1015,6 +1053,12 @@
       "phase": "qa",
       "path": "docs/dev/bundles/stage-4/sessions/qa-4.md",
       "at": "2026-10-26T00:42:05.982Z",
+      "stored": true
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/sessions/qa-5.md",
+      "at": "2026-10-26T00:56:34.262Z",
       "stored": true
     }
   ],
@@ -1990,6 +2034,34 @@
       "actor": "orchestrator",
       "source": "qa run 4 strings batch",
       "text": "The fourth QA run's one changed string (the hand-add advice's third clause) presented to the developer in chat by the orchestrator; it changes once more in the next run to the exact-options wording.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:57:11.891Z",
+      "actor": "orchestrator",
+      "source": "qa run 5 review finding 0",
+      "text": "Fix in the next QA run (rule 3, the phantom-entry direction is the one that makes a docs row lie): a thematic break line (three or more of -, * or _ with spaces) is recognised before list markers and leaves the list stack unchanged; tests for hyphen and asterisk breaks followed by an indented row and heading.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:57:12.155Z",
+      "actor": "orchestrator",
+      "source": "qa run 5 review finding 1",
+      "text": "Fixed in the next QA run as a P3: E-052, the entries.mjs header and the guide say what the reader does with a blockquote: a heading or row inside one is never an entry, fenced or not, so a primitive documented there reads missing (the false-missing direction, visible on the row), not the phantom direction the text claimed.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:57:12.429Z",
+      "actor": "orchestrator",
+      "source": "qa run 5 review finding 2",
+      "text": "Residue, E-053 (rule 6: wanted once): exact options for no-restricted-syntax and no-restricted-imports mean a user's own selectors or paths beside the pack's on the pack's files read the pack's rule as overridden; the documented placement caveat covers it today, a subset match for array options is the fix if a second app needs it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:57:12.698Z",
+      "actor": "orchestrator",
+      "source": "qa run 5 strings batch",
+      "text": "The fifth QA run's one changed string (the hand-add advice's final wording: a later block stays measured only with error alone or error with exactly the pack's options) presented to the developer in chat by the orchestrator; accepted pending the developer's ruling at the closeout.",
       "claim": true
     }
   ],

@@ -1,0 +1,9 @@
+QA round 2, 2026-10-26, the developer's hands: the first push of bundle/stage-4 (`git push -u origin bundle/stage-4`, through pre-push: gate test PASS in 51.8 s, changelog in step). CI run 40288091880 on 06850e3a: the fixture job passed; all four test jobs (ubuntu and macOS, Node 20 and 22) failed on one test, 756 of 757 passing.
+
+Measured by the orchestrator:
+- The failing test is `packs and the pack rows > appends each declared pack's rows after the static ones, in packs order, every one PASS on a fresh repo` (packages/cookwright/src/doctor.test.mjs, the loop near line 917): `expected [ 'tools.gitleaks', 'SKIP' ] to deeply equal [ 'tools.gitleaks', 'PASS' ]`.
+- Reproduced locally by hiding gitleaks from PATH: the same assertion fails; with gitleaks on PATH it passes, which is why 21 local gates read green.
+- Cause: `withSupabase` (doctor.test.mjs:898) is `probes({ hasTool: (bin) => bin === 'supabase' || PROBES.hasTool(bin) })`. The override replaces the `gitleaks()` fake's `hasTool` (line 61, which puts gitleaks on PATH) with one that falls through to the real `PROBES.hasTool`, so the `tools.gitleaks` row reads the machine, not the fake. `noSupabase` (line 1001) has the same shape but that test reads only the `pack.supabase.types` row, so it does not fail; it is still machine-dependent.
+
+Findings:
+- Q3 (P1, CI red): the pack-rows test reads the machine's PATH for gitleaks. Fix: the `supabase` fakes compose with the probes fake instead of the raw `PROBES` (`bin === 'supabase' || probes().hasTool(bin)`, or a `hasTool` built on `gitleaks().hasTool`), at both line 898 and line 1001; sweep the test files for any other `PROBES.hasTool` fallthrough or real-PATH read that a fake should cover; run the doctor tests once with gitleaks hidden from PATH (`PATH` without its directory) to confirm. A doc implication, if any, is the testing note in the closeout or the guide, not a user-facing string.

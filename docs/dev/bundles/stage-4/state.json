@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 270,
+  "revision": 280,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -491,19 +491,28 @@
           "runId": "wf_96867ca0-53c",
           "endedAt": "2026-10-26T01:07:00.657Z",
           "turnOutputTokens": 2215628
+        },
+        {
+          "startedAt": "2026-10-26T08:06:02.047Z",
+          "stateRevision": 270,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_0212fe49-7b1",
+          "endedAt": "2026-10-26T08:08:32.888Z",
+          "turnOutputTokens": 1689664
         }
       ],
-      "startCommit": "5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b",
+      "startCommit": "d17b55c6740e83f2016ab78c1c675c28444154a6",
       "range": {
-        "from": "5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b",
+        "from": "d17b55c6740e83f2016ab78c1c675c28444154a6",
         "to": "HEAD"
       },
-      "endCommit": "3a07f4a1613d5fcd3e7f90d3c18620eafdc05bfe",
-      "endCode": "3a07f4a1613d5fcd3e7f90d3c18620eafdc05bfe"
+      "endCommit": "d17b55c6740e83f2016ab78c1c675c28444154a6",
+      "endCode": "d17b55c6740e83f2016ab78c1c675c28444154a6"
     },
     {
       "name": "closeout",
-      "status": "done",
+      "status": "pending",
       "claim": true,
       "runs": [
         {
@@ -805,6 +814,19 @@
           "ms": 49158
         }
       ]
+    },
+    {
+      "commit": "d17b55c6740e83f2016ab78c1c675c28444154a6",
+      "at": "2026-10-26T08:07:50.513Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 79551
+        }
+      ]
     }
   ],
   "findings": [
@@ -1079,6 +1101,24 @@
       "stored": true,
       "head": "49aefb4eacad2140ee69fe0d7757a0da549f7e0c",
       "closeoutSha": "20e2d86699f11419"
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/findings/qa-7.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      },
+      "at": "2026-10-26T08:06:29.467Z",
+      "stored": true,
+      "head": "d17b55c6740e83f2016ab78c1c675c28444154a6"
     }
   ],
   "reports": [
@@ -1183,12 +1223,23 @@
       "path": "docs/dev/bundles/stage-4/sessions/qa-6.md",
       "at": "2026-10-26T01:05:09.606Z",
       "stored": true
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/sessions/qa-7.md",
+      "at": "2026-10-26T08:06:30.145Z",
+      "stored": true
     }
   ],
   "qaRounds": [
     {
       "path": "docs/dev/bundles/stage-4/qa/round-1.md",
       "at": "2026-10-25T23:53:29.009Z",
+      "stored": true
+    },
+    {
+      "path": "docs/dev/bundles/stage-4/qa/round-2.md",
+      "at": "2026-10-26T08:06:02.386Z",
       "stored": true
     }
   ],
@@ -2206,6 +2257,27 @@
       "actor": "orchestrator",
       "source": "qa run 6 strings batch",
       "text": "The sixth QA run's three user-facing strings (two standards-guide sentences on the array-valued rules and the reader's grammar, the setup skill's pack lint remedy) presented to the developer in chat by the orchestrator; accepted pending the developer's ruling at the closeout. Recorded after the closeout verify found the batch missing (finding 0).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T08:08:31.540Z",
+      "actor": "orchestrator",
+      "source": "qa run 7 state entry",
+      "text": "Rule 3: run 7 (wf_0212fe49-7b1) was launched from a 'phase start qa' whose frozen range was 06850e3a..HEAD; an accidental 'bundle record stage-4 qa --help' then stored an empty round-3, the CLI has no retract, so the uncommitted state was discarded with git and the start, the round-2 record and the run id were redone by the CLI after the fix commit. The redone run entry therefore freezes d17b55c6..HEAD; what the run measured is 06850e3a..d17b55c6 (one commit, two lines of doctor.test.mjs), as its review's checked lines say. The empty-round defect is B-017.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T08:08:31.979Z",
+      "actor": "orchestrator",
+      "source": "qa run 7 strings batch",
+      "text": "Rule 3: the fix session reported no user-facing strings (a test-only change), so there is no batch for the developer's ruling.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T08:08:32.423Z",
+      "actor": "orchestrator",
+      "source": "qa run 7 review note",
+      "text": "Rule 6: the reviewer's hardening note (doctor.test.mjs's default probes() still asks the real PATH for tools other than gitleaks, supabase and git among them; no current test depends on it, measured with both hidden) is logged as E-054, built when a second test needs it.",
       "claim": true
     }
   ],

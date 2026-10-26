@@ -1,0 +1,37 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [],
+  "incomplete": [],
+  "checked": [
+    "git diff 06850e3a..HEAD (packages/cookwright/src/doctor.test.mjs, 2 lines changed)",
+    "fake gitleaks result preserved while only supabase availability is overridden",
+    "npx cookwright doctor: 19 PASS",
+    "AGENTS.md rules",
+    "git diff 06850e3a..HEAD: one commit d17b55c, two lines in packages/cookwright/src/doctor.test.mjs (898 withSupabase, 1001 noSupabase)",
+    "QA round-2 notes (Q3): the cause and the fix match. withSupabase/noSupabase now fall through to probes().hasTool, which is the gitleaks() fake (gitleaks present), so tools.gitleaks no longer reads the machine's PATH",
+    "Composition semantics: withSupabase = supabase || gitleaks || PROBES.hasTool; noSupabase = !supabase && (gitleaks || PROBES.hasTool). Both are correct for the rows the tests assert",
+    "Sweep for other real-PATH fallthroughs in the test files. doctor.test.mjs:61 (the gitleaks fake itself, intended). hook.test.mjs:391 (pre-push probes, gitleaks absent, real PATH only for gate commands such as node). init.test.mjs:106 (GITLEAKS fake, same shape as the doctor fake, gitleaks forced present). doctor.test.mjs:215/430/862/1252 are pure predicates. standards.test.mjs --types uses an explicit env.PATH (a fake dir or an empty dir). None of these leave a CI-visible machine dependence",
+    "Ran the full suite (26 files, 757 tests) with PATH limited to the node dir plus /usr/bin:/bin:/usr/sbin:/sbin, so gitleaks and supabase are both hidden (CI's shape): all 757 pass. The local gate already passes with both on PATH",
+    "Rules: no secrets, no local paths, no plaintext env files in the diff. The change is test-only, so it has no doc-sync implication. The conventional `test(doctor):` subject correctly marks it as not user-visible",
+    "Commit-subject claim vs. code: accurate for the two supabase fakes it names"
+  ],
+  "notes": "Codex (high effort) reported no findings. Its focused Vitest run could not start because the read-only sandbox blocked Vite's temp config file (EPERM), so the review was static only. Codex output is at <local path>\n---\nI found no issues. The fix does what QA round 2 (Q3) asked: both supabase fakes now build on the probes fake, which reports gitleaks as present. The pack-rows test therefore no longer depends on whether gitleaks is on the machine. I checked this directly: with gitleaks and supabase both removed from PATH, as on CI's ubuntu runners, the full package suite passes (757/757). Before the fix, that same test failed on CI with tools.gitleaks reading SKIP.\n\nOne limit remains, and nothing fails because of it today. In doctor.test.mjs, the default probes() fake still asks the real PATH for any tool other than gitleaks, through PROBES.hasTool. Supabase and git are the tools this affects. No current test reads a row that depends on that answer: the suite is green with supabase on PATH and with it hidden. A future test that declares the supabase pack, uses the default probes() and checks every row would depend on the machine again, so this could go in the backlog as a hardening item.\n\nThis commit does not clear the user's `bundle.ci` FAIL. That failure was on 06850e3a, and the fix is at d17b55c, which only clears the check once it is pushed and CI is green. The closeout phase was set back to pending, so it still has to record the CI failure and its fix.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": null,
+    "partialReportPath": null
+  }
+}

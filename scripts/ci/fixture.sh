@@ -58,6 +58,7 @@ MSG_OK="fixture: PASS, every step as expected"
 MSG_LINT_RAN="the user's own lint run (npx eslint .) exited %s, ESLint failing to run: %s"
 MSG_LINT_HARNESS="the user's own lint run reported a harness file: %s"
 MSG_LINT_APP="the user's own lint run did not report App.tsx under i18next/no-literal-string"
+MSG_LINT_READ="could not read the lint report %s: %s"
 
 fail() { printf "$MSG_FAIL" "$1" >&2; exit 1; }
 step() { printf "$MSG_STEP" "$1"; }
@@ -229,7 +230,9 @@ doctor() {
 # for App.tsx's literal string, the scaffold's own legacy violation, which also
 # shows the pack's rules reach the user's run; 2 or more is ESLint failing to
 # run. No reported file may lie under .claude/: the exports' first block ignores
-# the workflow pointers, whose top-level `return` ESLint cannot parse.
+# the workflow pointers, whose top-level `return` ESLint cannot parse. The
+# assertion script exits 2 for a harness file, 3 for App.tsx missing; 1 is the
+# script itself failing on the report (not JSON, a result without messages).
 lint_run() {
   step "npx eslint . --format json"
   local code=0
@@ -244,7 +247,8 @@ lint_run() {
     if (harness) { console.log(rel(harness)); process.exit(2); }
     const app = results.find((r) => rel(r) === "App.tsx");
     process.exit(app && app.messages.some((x) => x.ruleId === "i18next/no-literal-string") ? 0 : 3)' "$WORK/lint.json" \
-    | tee "$WORK/lint.out" || code=$?
+    2> "$WORK/lint-read.err" | tee "$WORK/lint.out" || code=$?
+  [ "$code" != 1 ] || fail "$(printf "$MSG_LINT_READ" "$WORK/lint.json" "$(grep -m 1 -E '^[A-Za-z]*Error' "$WORK/lint-read.err" || tail -n 1 "$WORK/lint-read.err")")"
   [ "$code" != 2 ] || fail "$(printf "$MSG_LINT_HARNESS" "$(tail -n 1 "$WORK/lint.out")")"
   [ "$code" = 0 ] || fail "$MSG_LINT_APP"
 }

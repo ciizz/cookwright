@@ -1,6 +1,6 @@
 # Stage 4 — The first stack packs: standards with their measurements
 
-Closed 2026-10-26. The fourth bundle through cookwright's own runner. Branch `bundle/stage-4` on base `e966c45c`; the range `e966c45c..c039db3f` holds 109 commits, 81 of them code or docs (19 `feat`, 41 `fix`, 1 `refactor`, 2 `test`, 15 `docs`, 3 `chore(config)`) and 28 the runner's `chore(bundle)` state commits; the closeout's own commits follow it. 128 files changed, 13476 lines added, 274 removed. To be merged into `main` by fast-forward once `bundle check` passes. No history rewrite; a grep over the bundle directory and the backlog at close finds no home, scratch or checkout path.
+Closed 2026-10-26. The fourth bundle through cookwright's own runner. Branch `bundle/stage-4` on base `e966c45c`; the range `e966c45c..8ebfd56c` holds 114 commits, 84 of them code or docs (19 `feat`, 41 `fix`, 1 `refactor`, 3 `test`, 17 `docs`, 3 `chore(config)`) and 30 the runner's `chore(bundle)` state commits, the first closeout's two docs commits and QA round 2's one test commit among them; this closeout's own commits follow it. 134 files changed, 14180 lines added, 274 removed. To be merged into `main` by fast-forward once `bundle check` passes. No history rewrite; a grep over the bundle directory and the backlog at close finds no home, scratch or checkout path.
 
 ## What stage 4 was for
 
@@ -26,15 +26,15 @@ Measured, never carried: 478 tests in 17 files at the baseline; 528 after s1; 55
 
 ## Verified by hand
 
-- `npx cookwright doctor` on this repo at close: `19 checks — 19 PASS, 0 FAIL, 0 WARN, 0 SKIP`, `level 0 declared: complete`. `npx cookwright changelog --check`: up to date; `--unreleased` lists 120 commits since v0.1.0.
+- `npx cookwright doctor` on this repo at close: `19 checks — 19 PASS, 0 FAIL, 0 WARN, 0 SKIP`, `level 0 declared: complete`. `npx cookwright changelog --check`: up to date; `--unreleased` lists 125 commits since v0.1.0.
 - `npm pack --dry-run`: `packs/expo` and `packs/supabase` (manifest, export, template) and `src/lib/packs/*` in the tarball; `src/test-fixtures/` out.
-- `bash scripts/ci/fixture.sh` locally, Node 20, gitleaks and real ESLint 9.39.5: `fixture: PASS, every step as expected` after s2, s3, s4, s5, s6, s7, fix:surface and fix:whole; with the Supabase CLI on PATH `28 checks — 27 PASS, 0 FAIL, 1 WARN` (`pack.supabase.types`, no `db:types` script), without it 1 SKIP; `level 0 declared: complete` with gitleaks on PATH. The GitHub run is unverified: the branch was not pushed (the developer's hands).
+- `bash scripts/ci/fixture.sh` locally, Node 20, gitleaks and real ESLint 9.39.5: `fixture: PASS, every step as expected` after s2, s3, s4, s5, s6, s7, fix:surface and fix:whole; with the Supabase CLI on PATH `28 checks — 27 PASS, 0 FAIL, 1 WARN` (`pack.supabase.types`, no `db:types` script), without it 1 SKIP; `level 0 declared: complete` with gitleaks on PATH. The first push, by the developer on 2026-10-26 through pre-push (gate `test` 51.8 s, changelog in step): GitHub run 40288091880 on `06850e3a`, the fixture job PASS (the first run of the fixture with the packs, real ESLint and gitleaks on a runner), the four test jobs (ubuntu and macOS, Node 20 and 22) FAIL on one test of 757, fixed in QA round 2 (below); the run on `8ebfd56c` or later is the developer's next push, which `bundle check` reads.
 - **QA (c), the existing-app proof**, on a local clone of the origin repo in the scratchpad, the origin checkout verified untouched: init with `--packs expo,supabase` wrote both sections and kept the existing contract docs; doctor `28 checks — 22 PASS, 6 WARN` before wiring (`pack.expo.docs` read 40 of 40 primitives undocumented against a doc written one heading per primitive, fixed in the QA round); with the two exports spread first, the repo's own later blocks left strings, tokens and client overridden and size measured 110; spread last, `expo strings 50, expo tokens 0, expo size 110, supabase client 0` over 557 files in 13.1 s; a legacy component touched without a new violation: `1 staged file(s), no rise`; one violation per rule: refused naming both files and the four rules, the ratchet exit 10 with the five findings and no literal echoed; a fall: `expo strings 1 → 0, expo tokens 2 → 0`, exit 0.
 - Not done, the developer's hands: QA (b), a fresh Expo app with `npx expo lint`, `supabase init` and a local stack through init, doctor, `db:types` and a first push; the semantic-audit calibration, `/docs-audit` in a kept fixture tree with an expected zero findings; the dated 0.1.0 transcripts in getting-started and README's status rows, refreshed at release.
 
 ## Reviews
 
-**Plan review**, three runs: 28 findings (6 P1, 12 P2, 10 P3) in round 1, among them the synchronous hook pipeline against ESLint's async API, init steps clobbering one file, the git path bases of a nested config root, wiring judged by presence rather than options, and a skipped measurement folded into a pass; dispositions 26 to 44 revised the plan, re-check 1 resolved 24 and left 4, dispositions 45 to 48 revised it again, re-check 2 resolved all. **review:model**: 9 findings (3 P2), fix:model 9 commits. **review:measure**: 9 (4 P1, the uncounted client rule among them), fix:measure 7 commits. **review:surface**: 9 (5 P2), fix:surface 6 commits. **review:whole**: 6 (3 P2), fix:whole 5 commits. **QA**: one recorded round, six runs (below).
+**Plan review**, three runs: 28 findings (6 P1, 12 P2, 10 P3) in round 1, among them the synchronous hook pipeline against ESLint's async API, init steps clobbering one file, the git path bases of a nested config root, wiring judged by presence rather than options, and a skipped measurement folded into a pass; dispositions 26 to 44 revised the plan, re-check 1 resolved 24 and left 4, dispositions 45 to 48 revised it again, re-check 2 resolved all. **review:model**: 9 findings (3 P2), fix:model 9 commits. **review:measure**: 9 (4 P1, the uncounted client rule among them), fix:measure 7 commits. **review:surface**: 9 (5 P2), fix:surface 6 commits. **review:whole**: 6 (3 P2), fix:whole 5 commits. **QA**: two recorded rounds, seven runs (below).
 
 ## Deviations from the plan, recorded as decisions
 
@@ -50,36 +50,37 @@ Measured, never carried: 478 tests in 17 files at the baseline; 528 after s1; 55
 
 - **B-015**: vitest exited 1 on a green suite under load (baseline gates 0 and 1 red). The mechanism, read in vitest 3.2.7: a worker reports each test over birpc with a 60 s timer the forks pool does not expose; the tests are synchronous and the runner awaits only microtasks between them, so a file never reaches the event loop's poll phase until it ends, and past 60 s under load Node fires the due timer before reading the reply. A first attempt capping workers was measured green once and red once and reverted; one `setImmediate` yield per test in `vitest.setup.mjs` held through every later gate. One uncaptured recurrence in s6 is noted on the entry.
 - **B-016**: this checkout's `core.hooksPath` read `.husky/_` from 18:05 on 2026-10-25, before the session, with no such directory, so no cookwright hook ran on the bundle's first 41 commits while the sessions reported the hooks as passing. Restored to `.githooks` after s4; the secrets scan and both doc-sync rules re-measured over the range by hand: clean. Cause unknown; the entry names the one mechanism found.
+- **CI red after the closeout**: the pack-rows doctor test read the machine's PATH for gitleaks through a probes override that bypassed the fake, so 21 local gates were green on a machine with gitleaks installed and the first CI run failed all four test jobs on it. A test that asserts every doctor row must fake every tool a row reads; the fixture, which installs gitleaks, was the only CI job that passed. Fixed in QA round 2 (run 7). The recovery from an empty QA round the CLI stored on an ignored `--help` is B-017.
 
 ## QA
 
-One recorded round (the orchestrator's measurements from QA (c) and the fixture, above), six Workflow runs: the round's two findings (a headings-shaped contract doc read as undocumented; where the two config lines go and what each place means) fixed in run 1, then six review runs on the fixes (4, 4, 5, 4, 3, 3 findings; the last run's three P3 only), covering the fence grammar, tab columns, list items and thematic breaks of the contract-doc reader, the option comparison of the two measurement phases, and the setup skill's conflict check. Gates 14 to 19 green. QA (b) and the audit calibration are the developer's, after the merge.
+One recorded round (the orchestrator's measurements from QA (c) and the fixture, above), six Workflow runs: the round's two findings (a headings-shaped contract doc read as undocumented; where the two config lines go and what each place means) fixed in run 1, then six review runs on the fixes (4, 4, 5, 4, 3, 3 findings; the last run's three P3 only), covering the fence grammar, tab columns, list items and thematic breaks of the contract-doc reader, the option comparison of the two measurement phases, and the setup skill's conflict check. Gates 14 to 19 green. **Round 2**, the developer's first push: CI red on one test (the pack-rows test faked `supabase` on PATH through the raw probes and dropped the fake that put `gitleaks` there, so it read the machine; green on this machine through 21 gates, red on every runner, reproduced here with gitleaks hidden from PATH). Run 7 fixed it in two lines of `doctor.test.mjs` (`d17b55c6`, the two supabase fakes composing with the probes fake), ran the suite with gitleaks and supabase both hidden (757 of 757) and reviewed its own commit: no findings, one hardening note logged as E-054. Gate 21 green; the wall-clock number in the table includes the seven hours between the first closeout and the push. Run 7's state entry was redone by the CLI after an accidental empty round was discarded (B-017), so its frozen range reads `d17b55c6..HEAD` while what it measured is `06850e3a..d17b55c6`; the decision on record says so. QA (b) and the audit calibration are the developer's, after the merge.
 
 ## State at close
 
-- **Backlog:** E-039, E-003 (narrowed to the skill and the pack-derived list), B-011, B-012, B-013 and E-043 closed; B-014 untouched; B-015 opened and closed with its measurements, then reopened to watch after one uncaptured recurrence in s6; B-016 opened with its re-measurement and left open, its cause unknown and the proposed guard (a test helper refusing a cwd outside the scratch root) not built; E-040 (a removed pack's leftovers), E-041 (a config-declared audit doc list), E-042 (the packs row on a partly declared tree), E-044 to E-050 (the whole-repo ratchet, the pattern-promotion loop, per-rule limits, an audit scheduler, Windows paths, a count row, a generate mode), E-052 (the reader's grammar) and E-053 (array-valued rule options) opened.
+- **Backlog:** E-039, E-003 (narrowed to the skill and the pack-derived list), B-011, B-012, B-013 and E-043 closed; B-014 untouched; B-015 opened and closed with its measurements, then reopened to watch after one uncaptured recurrence in s6; B-016 opened with its re-measurement and left open, its cause unknown and the proposed guard (a test helper refusing a cwd outside the scratch root) not built; E-040 (a removed pack's leftovers), E-041 (a config-declared audit doc list), E-042 (the packs row on a partly declared tree), E-044 to E-050 (the whole-repo ratchet, the pattern-promotion loop, per-rule limits, an audit scheduler, Windows paths, a count row, a generate mode), E-052 (the reader's grammar) and E-053 (array-valued rule options) opened; after the first push, B-017 (`bundle record` stores an empty stdin and has no retract) and E-054 (a probes fake that never reads PATH) opened.
 - **Charter:** unchanged; the 2026-10-23 amendment is what this stage built.
 - **Config:** version 3; schema `version` enum `[1, 2, 3]`, `packs`, `gate.checks[].skipExit`.
 - **Plan:** `docs/dev/bundles/stage-4/plan.md` as the re-checks judged it, with the two later sentence amendments (§5's bundle files, §4.5's tag matching) recorded in the state commits.
-- **The developer's hands, after the merge, in the README's release order:** push the branch for CI's first fixture run with the packs; QA (b) and the audit calibration; the release (version bump in `packages/cookwright`, the changelog, the tag, `npm publish`), with the status rows and the dated transcripts refreshed from that run.
+- **The developer's hands, after the merge, in the README's release order:** push the branch again so CI runs on the fixed test (the first push's fixture job passed, its test jobs failed on the test QA round 2 fixed), then `bundle check` for the `bundle.ci` row; QA (b) and the audit calibration; the release (version bump in `packages/cookwright`, the changelog, the tag, `npm publish`), with the status rows and the dated transcripts refreshed from that run.
 
 ## Decided during the stage
 
-The list below is generated from the state: 144 decisions at the draft, 9 of them the developer's (the three kickoff decisions and the plan approval with its amendments), the rest the orchestrator's dispositions of the plan review's findings, the sessions' open questions and the reviews' findings, most citing a Judgment rule or recording a measurement, the scheduling and wording dispositions citing the plan section instead; every session's strings batch was presented to the developer in chat by the orchestrator and recorded as presented pending the developer's ruling.
+The list below is generated from the state: 148 decisions at the draft, 9 of them the developer's (the three kickoff decisions and the plan approval with its amendments), the rest the orchestrator's dispositions of the plan review's findings, the sessions' open questions and the reviews' findings, most citing a Judgment rule or recording a measurement, the scheduling and wording dispositions citing the plan section instead; every session's strings batch was presented to the developer in chat by the orchestrator and recorded as presented pending the developer's ruling.
 
 ## From the bundle state
 
-_The tables below are generated from bundle state revision 262; later phases (the closeout's own run and gate) are not in them._
+_The tables below are generated from bundle state revision 281; later phases (the closeout's own run and gate) are not in them._
 
 ## The five numbers
 
 | Measure | Value | Source |
 |---|---|---|
-| Wall clock (h) | 6.9 | state timestamps |
+| Wall clock (h) | 14.0 | state timestamps |
 | USD | not recorded | ENTERED by the orchestrator from the harness cost readout |
-| Output tokens | 7075529 | sum of per-turn `budget.spent()` readings; turns that ran two workflows count once per run |
-| Review rounds | 13 | review, plan-review and QA-round runs (each rerun is a run) |
-| QA rounds | 1 | recorded QA rounds |
+| Output tokens | 8965030 | sum of per-turn `budget.spent()` readings; turns that ran two workflows count once per run |
+| Review rounds | 14 | review, plan-review and QA-round runs (each rerun is a run) |
+| QA rounds | 2 | recorded QA rounds |
 
 ## Review trajectory
 
@@ -98,6 +99,9 @@ _The tables below are generated from bundle state revision 262; later phases (th
 | qa | 4 | 0 | 0 | `docs/dev/bundles/stage-4/findings/qa-4.json` |
 | qa | 3 | 0 | 0 | `docs/dev/bundles/stage-4/findings/qa-5.json` |
 | qa | 3 | 0 | 0 | `docs/dev/bundles/stage-4/findings/qa-6.json` |
+| closeout | 0 | 8 | 0 | `docs/dev/bundles/stage-4/findings/closeout-1.json` |
+| closeout | 0 | 0 | 8 | `docs/dev/bundles/stage-4/findings/closeout-2.json` |
+| qa | 0 | 0 | 0 | `docs/dev/bundles/stage-4/findings/qa-7.json` |
 
 ## Gate history
 
@@ -123,6 +127,8 @@ _The tables below are generated from bundle state revision 262; later phases (th
 | 17 | `9ffba20c` | — | pass | — | — |
 | 18 | `7c4d9d7b` | — | pass | — | — |
 | 19 | `3a07f4a1` | — | pass | — | — |
+| 20 | `49aefb4e` | — | pass | — | — |
+| 21 | `d17b55c6` | — | pass | — | — |
 
 ## Decided on your behalf
 
@@ -270,4 +276,7 @@ _The tables below are generated from bundle state revision 262; later phases (th
 - 2026-10-26T00:57:12.698Z — The fifth QA run's one changed string (the hand-add advice's final wording: a later block stays measured only with error alone or error with exactly the pack's options) presented to the developer in chat by the orchestrator; accepted pending the developer's ruling at the closeout. (orchestrator; source: qa run 5 strings batch)
 - 2026-10-26T01:05:47.247Z — Residue, P3s never block (playbook): the setup skill's conflict check treats any app block setting a pack rule id as overlapping, which overstates for the tokens rule scoped to components (noted on E-053); a bare --- directly under a table's last body row makes the reader take that row as a header and drop it, a false-missing WARN the row shows (noted on E-052); a test comment describes a mechanism the code lacks (cosmetic). The QA phase closes with these on record. (orchestrator; source: qa run 6 review findings 0, 1, 2)
 - 2026-10-26T01:05:47.540Z — Six QA runs: round 1's two findings from QA (c) fixed, then five review rounds on the fixes, each narrower (4, 4, 5, 4, 3, 3 findings; the last three P3s only), all code reviewed and gated; QA (b), a fresh Expo app with a local Supabase stack, and the semantic-audit calibration on a kept fixture tree remain the developer's, recorded as such for the closeout (rule 3). (orchestrator; source: qa phase close)
-
+- 2026-10-26T01:15:44.503Z — The sixth QA run's three user-facing strings (two standards-guide sentences on the array-valued rules and the reader's grammar, the setup skill's pack lint remedy) presented to the developer in chat by the orchestrator; accepted pending the developer's ruling at the closeout. Recorded after the closeout verify found the batch missing (finding 0). (orchestrator; source: qa run 6 strings batch)
+- 2026-10-26T08:08:31.540Z — Rule 3: run 7 (wf_0212fe49-7b1) was launched from a 'phase start qa' whose frozen range was 06850e3a..HEAD; an accidental 'bundle record stage-4 qa --help' then stored an empty round-3, the CLI has no retract, so the uncommitted state was discarded with git and the start, the round-2 record and the run id were redone by the CLI after the fix commit. The redone run entry therefore freezes d17b55c6..HEAD; what the run measured is 06850e3a..d17b55c6 (one commit, two lines of doctor.test.mjs), as its review's checked lines say. The empty-round defect is B-017. (orchestrator; source: qa run 7 state entry)
+- 2026-10-26T08:08:31.979Z — Rule 3: the fix session reported no user-facing strings (a test-only change), so there is no batch for the developer's ruling. (orchestrator; source: qa run 7 strings batch)
+- 2026-10-26T08:08:32.423Z — Rule 6: the reviewer's hardening note (doctor.test.mjs's default probes() still asks the real PATH for tools other than gitleaks, supabase and git among them; no current test depends on it, measured with both hidden) is logged as E-054, built when a second test needs it. (orchestrator; source: qa run 7 review note)

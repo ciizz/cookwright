@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 19,
+  "revision": 21,
   "slug": "b-018",
   "branch": "bundle/b-018",
   "base": "8492811aa8317df203611a6a6d93b0546c29e560",
@@ -28,7 +28,7 @@
   "phases": [
     {
       "name": "plan-review",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -43,11 +43,15 @@
           "stateRevision": 15,
           "planSha": "efa4d6e927f32f95",
           "codex": true,
-          "runId": "wf_062f2730-d40"
+          "runId": "wf_062f2730-d40",
+          "endedAt": "2026-10-26T11:39:47.066Z",
+          "turnOutputTokens": 1873996
         }
       ],
       "startCommit": "e1729e60bd22fd24b8331099be09838b853d994c",
-      "range": null
+      "range": null,
+      "endCommit": "89b624a3ce6c22cde5b8fb5264050fa38853645b",
+      "endCode": "8492811aa8317df203611a6a6d93b0546c29e560"
     },
     {
       "name": "implement:s1",
@@ -223,6 +227,20 @@
       "actor": "orchestrator",
       "source": "plan-review round 2 residue",
       "text": "Rule 3: the re-check resolved all eight findings and noted two stale lines in §6 (the old globs); §6 now matches §4 and disposition 8, the only edit after the re-check.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T11:39:46.724Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 2, phase close",
+      "text": "Rules 1 and 3: the re-check judged all eight findings resolved (verdict rejected on each, evidence quoted); the record also carries round 1's findings 3 to 7 as open because the verifier filed them under the plan's path and carryForward keys on the file (B-019). The phase is closed with --accept-open naming that; nothing in the plan is open. The verifier's second note, the E-056 proposal's whole-directory glob, is narrowed in disposition 3 to .claude/workflows/**.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T11:39:47.065Z",
+      "actor": "orchestrator",
+      "source": "phase done plan-review --accept-open",
+      "text": "closed plan-review with findings open: every finding is resolved in the same record; the five open entries are round-1 originals re-added by carryForward because the re-check filed them under the plan's path (B-019)",
       "claim": true
     }
   ],

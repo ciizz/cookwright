@@ -10,9 +10,11 @@
 // A rule's `measure` is one of:
 //   eslint    — `eslint.ruleIds`, counted by the standards engine. `tag` starts the
 //               message of a pack-owned selector, so a user's own selector on the
-//               same ESLint id is never counted as the pack's. `options` is what
-//               `wired` compares in the effective config: per sample path, a subset
-//               of the rule's options object (empty: the severity and the tag only).
+//               same ESLint id is never counted as the pack's. `options` names the
+//               sample paths at which `wired` compares the effective config with
+//               the export's own block there: severity error, every option it sets
+//               deep-equal. `expect` is a subset of the export's options at the
+//               sample, which eslint.test.mjs pins (the size limit per file kind).
 //   doc-sync  — the doc-sync rule `docSync`, written into `hooks.docSync`.
 //   gate      — the gate check `gate`, written into `gate.checks`.
 //   advisory  — no measurement: listed under the section's Advisory heading.

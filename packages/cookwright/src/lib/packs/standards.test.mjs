@@ -27,16 +27,18 @@ const byKey = (key, list = rules()) => list.filter((r) => r.key === key);
 /** A fake ESLint instance whose effective config is `rulesFor(path)`. */
 const configured = (rulesFor) => ({ calculateConfigForFile: async (p) => ({ rules: rulesFor(p) }) });
 
-/** The effective config the packs' exports give a component and a .ts file, as ESLint reports it. */
-function packConfig(p) {
-  const component = /\.(tsx|jsx)$/.test(p);
-  return {
-    'i18next/no-literal-string': [2, { mode: 'jsx-only', 'jsx-attributes': { exclude: [] } }],
-    'no-restricted-syntax': [2, { selector: 'Literal', message: '[cookwright expo tokens] use a token' }],
-    'max-lines-per-function': [2, { max: component ? 150 : 40, skipBlankLines: true }],
-    'no-restricted-imports': [2, { paths: [{ name: '@supabase/supabase-js', message: '[cookwright supabase client] no' }] }],
-  };
-}
+/** The effective config the packs' exports give the root-relative `rel`, as ESLint 9.39.5 reports it: severity 2, the block's options. */
+const asExported = (rel, cover = engine.coverage(rules())) =>
+  Object.fromEntries(
+    cover.flatMap(({ blocks }) => blocks.filter((b) => globCovers(b, rel)).flatMap((b) => Object.entries(b.rules).map(([id, v]) => [id, [2, ...v.slice(1)]]))),
+  );
+
+/** `asExported` at the absolute path `wired` asks about, under the root `/repo`. */
+const packConfig = (p) => asExported(p.slice('/repo/'.length));
+
+/** `rules`' entry for `id`, where it has one, with `over` merged into its first options object. */
+const withOptions = (rules, id, over) =>
+  rules[id] ? { ...rules, [id]: [rules[id][0], { ...rules[id][1], ...over }, ...rules[id].slice(2)] } : rules;
 
 describe('eslintRules', () => {
   it('lists the declared packs’ ESLint rules that are on, keyed `<pack> <rule>`', () => {
@@ -92,14 +94,31 @@ describe('wired', () => {
   });
 
   it('measures a rule a later block set to error with the pack’s own options, or with more beside them', async () => {
-    const later = (p) => ({
-      ...packConfig(p),
-      'max-lines-per-function': [2, { max: /\.(tsx|jsx)$/.test(p) ? 150 : 40, skipBlankLines: true }],
-      'i18next/no-literal-string': ['error', { mode: 'jsx-only', 'jsx-attributes': { exclude: [] }, 'should-validate-template': true }],
-    });
+    const later = (p) => {
+      const pack = packConfig(p);
+      const more = withOptions(pack, 'i18next/no-literal-string', { 'should-validate-template': true });
+      return { ...more, 'max-lines-per-function': ['error', ...pack['max-lines-per-function'].slice(1)] };
+    };
     const out = await engine.wired(configured(later), root, rules());
     expect(out.measured.map((r) => r.key)).toEqual(['expo strings', 'expo tokens', 'expo size', 'supabase client']);
     expect(out.skipped).toEqual([]);
+  });
+
+  it('reads a later block that changes or leaves out an option the pack sets as overridden', async () => {
+    /** `packConfig(p)` with `id`'s entry, where it has one, replaced by `fn` of it. */
+    const altered = (id, fn) => (p) => {
+      const pack = packConfig(p);
+      return pack[id] ? { ...pack, [id]: fn(pack[id]) } : pack;
+    };
+    const cases = {
+      'expo strings': altered('i18next/no-literal-string', ([sev, opts]) => [sev, { ...opts, 'jsx-attributes': { exclude: [] } }]),
+      'expo size': altered('max-lines-per-function', ([sev, { max }]) => [sev, { max, skipBlankLines: true }]),
+      'expo tokens': altered('no-restricted-syntax', (entry) => entry.slice(0, 2)),
+    };
+    for (const [key, config] of Object.entries(cases)) {
+      const out = await engine.wired(configured(config), root, rules());
+      expect([key, out.skipped]).toEqual([key, [m.ruleSkipped(key, m.overridden)]]);
+    }
   });
 
   it('checks the size limit at both samples: a component at 150, a .ts file at 40', async () => {
@@ -133,11 +152,6 @@ describe('wired', () => {
 describe('scopeAt', () => {
   const measured = rules();
   const cover = engine.coverage(measured);
-  /** The effective config the packs' exports give `rel`, as ESLint 9.39.5 reports it: severity 2, the block's options. */
-  const asExported = (rel) =>
-    Object.fromEntries(
-      cover.flatMap(({ blocks }) => blocks.filter((b) => globCovers(b, rel)).flatMap((b) => Object.entries(b.rules).map(([id, v]) => [id, [2, ...v.slice(1)]]))),
-    );
   const at = (rulesFor) => ({ calculateConfigForFile: async (p) => (rulesFor === undefined ? undefined : { rules: rulesFor(p.slice('/top/'.length)) }) });
 
   it('covers a file by its packs’ own blocks: a component by every rule, a .ts file by size and client, a test by none', async () => {
@@ -156,6 +170,19 @@ describe('scopeAt', () => {
     const throws = { calculateConfigForFile: async () => Promise.reject(new Error('boom /Users/someone/app')) };
     expect(await engine.scopeAt(throws, '/top', '/top', 'src/lib/a.ts', cover)).toEqual({ unmeasured: m.configAtFile, detail: 'boom /Users/someone/app' });
     expect(await engine.scopeAt(at(undefined), '/top', '/top', 'README.ts.md', cover)).toEqual({ rules: [] });
+  });
+
+  it('judges a later block as wired does: options beside the pack’s keep the file measured, a changed one leaves it unmeasured', async () => {
+    const rel = 'src/components/Card.tsx';
+    const more = at((r) => withOptions(asExported(r), 'i18next/no-literal-string', { 'should-validate-template': true }));
+    const changed = at((r) => withOptions(asExported(r), 'i18next/no-literal-string', { 'jsx-attributes': { exclude: [] } }));
+    expect((await engine.scopeAt(more, '/top', '/top', rel, cover)).rules.map((r) => r.key)).toContain('expo strings');
+    expect(await engine.scopeAt(changed, '/top', '/top', rel, cover)).toEqual({ unmeasured: m.changedHere(['expo strings']) });
+    const sample = (config) => configured((p) => config(p.slice('/repo/'.length)));
+    expect((await engine.wired(sample((r) => withOptions(asExported(r), 'i18next/no-literal-string', { 'should-validate-template': true })), '/repo', byKey('expo strings'))).skipped).toEqual([]);
+    expect((await engine.wired(sample((r) => withOptions(asExported(r), 'i18next/no-literal-string', { 'jsx-attributes': { exclude: [] } })), '/repo', byKey('expo strings'))).skipped).toEqual([
+      m.ruleSkipped('expo strings', m.overridden),
+    ]);
   });
 });
 

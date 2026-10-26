@@ -15,8 +15,9 @@
 // written. A symbolic link or a submodule is never linted (disposition 19).
 //
 // A rule counts only when `wired` finds it in the effective config as the pack set
-// it (disposition 29): severity error, the pack's tag in a shared id's options, the
-// manifest's options. A rule switched off, overridden, not wired or missing its
+// it (disposition 29): at each of the manifest's sample paths, severity error and
+// every option the pack's own block sets there deep-equal (`holds`), the reading
+// `scopeAt` makes per file. A rule switched off, overridden, not wired or missing its
 // plugin counts nothing and is named on the line (disposition 37). Then per file
 // (`scopeAt`): a file counts only by the rules whose pack blocks cover it, and a
 // covered file the repo's config ignores, or where a later block changed a covering
@@ -91,22 +92,30 @@ export async function loadESLint(root, setup) {
 
 // ── wired: the effective config against what the pack set (disposition 29) ──
 
-/** Whether any string under `value` starts with `tag`. */
-const tagged = (value, tag) =>
-  typeof value === 'string'
-    ? value.startsWith(tag)
-    : Boolean(value) && typeof value === 'object' && Object.values(value).some((v) => tagged(v, tag));
+const plain = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 
-const subset = (want, have) =>
-  Object.entries(want).every(([k, v]) => Boolean(have) && typeof have === 'object' && isDeepStrictEqual(have[k], v));
+/** Whether the effective option `have` holds the pack's `want`: an object's every key deep-equal, else the value itself. */
+const holdsOption = (want, have) =>
+  plain(want) ? plain(have) && Object.entries(want).every(([k, v]) => isDeepStrictEqual(have[k], v)) : isDeepStrictEqual(have, want);
 
-/** One ESLint id's effective entry against `rule` at a sample: MEASURED, ABSENT or overridden. */
-function judge(entry, rule, want) {
+/**
+ * Whether the effective `entry` is the pack's `block`'s rule for `id`: severity
+ * error, and every option the block sets, at its place, deep-equal. A later block's
+ * options replace the pack's whole (flat config does not merge them), so one that
+ * changes or leaves out an option the pack sets is not the pack's rule; options set
+ * beside the pack's keep it. Both phases judge by this: `wired` at the manifest's
+ * samples, `scopeAt` at each file.
+ */
+function holds(entry, block, id) {
+  const [severity, ...options] = [].concat(entry ?? []);
+  const [, ...want] = [].concat(block.rules[id]);
+  return (severity === 2 || severity === 'error') && want.every((w, i) => holdsOption(w, options[i]));
+}
+
+/** One ESLint id's effective entry against the pack's `block` that sets it at a sample: MEASURED, ABSENT or overridden. */
+function judge(entry, block, id) {
   if (entry === undefined) return ABSENT;
-  const [severity, ...options] = [].concat(entry);
-  if (severity !== 2 && severity !== 'error') return 'overridden';
-  if (rule.eslint.tag && !tagged(options, rule.eslint.tag)) return 'overridden';
-  return subset(want, options[0]) ? MEASURED : 'overridden';
+  return block && holds(entry, block, id) ? MEASURED : 'overridden';
 }
 
 /** Why a rule absent from the effective config is not measured: its missing plugin, or the export not spread. */
@@ -118,10 +127,12 @@ function absent(root, { pack, rule }) {
 
 /** How one rule is measured: `{ state, why? }`, `state` MEASURED, `needs`, `unwired` or `overridden`. */
 async function wiring(eslint, root, item) {
-  for (const { sample, expect: want } of item.rule.eslint.options) {
+  const [{ blocks }] = coverage([item]);
+  for (const { sample } of item.rule.eslint.options) {
     const config = await eslint.calculateConfigForFile(path.join(root, sample));
+    const own = blocks.filter((b) => blockCovers(b, sample));
     for (const id of item.rule.eslint.ruleIds) {
-      const state = judge(config?.rules?.[id], item.rule, want);
+      const state = judge(config?.rules?.[id], own.findLast((b) => id in b.rules), id);
       if (state === ABSENT) return absent(root, item);
       if (state !== MEASURED) return { state, why: m.overridden };
     }
@@ -169,19 +180,12 @@ export function coverage(measured) {
   }));
 }
 
-/** Whether the effective `entry` is what the pack's `block` set for `id`: severity error and the same options. */
-function asSet(entry, block, id) {
-  const [severity, ...options] = [].concat(entry ?? []);
-  const [, ...want] = [].concat(block.rules[id]);
-  return (severity === 2 || severity === 'error') && isDeepStrictEqual(options, want);
-}
-
 /** The keys of the covering rules whose effective entry at the file is not the pack's last covering block's. */
 const changedAt = (config, covering) =>
   covering
     .filter(({ item, blocks }) => item.rule.eslint.ruleIds.some((id) => {
       const last = blocks.findLast((b) => id in b.rules);
-      return last && !asSet(config.rules?.[id], last, id);
+      return last && !holds(config.rules?.[id], last, id);
     }))
     .map(({ item }) => item.key);
 

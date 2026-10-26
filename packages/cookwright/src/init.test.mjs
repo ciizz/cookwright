@@ -749,7 +749,7 @@ module.exports = defineConfig([
     expect(m.pack.eslint.other(['x'])).toBe(
       "not Expo's template, left alone; add x at the end of its config array by hand: spread last, the pack's options replace yours " +
         "for any ESLint rule a block of yours also sets on the pack's files; spread before a block of yours that sets a severity other " +
-        "than error for such a rule, or options that change or leave out one of the pack's, that rule reads overridden and is not " +
+        "than error for such a rule, or changes or leaves out any option the pack sets for it, that rule reads overridden and is not " +
         'measured (the setup skill does it with consent)',
     );
     expect(read(a, 'eslint.config.js')).toBe(mine);

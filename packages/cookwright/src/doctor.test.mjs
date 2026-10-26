@@ -895,7 +895,7 @@ describe('packs and the pack rows', () => {
 
   const TYPES_SCRIPT = 'supabase gen types --local > src/types/db.ts';
   const withTypes = { 'package.json': JSON.stringify({ scripts: { test: 'vitest run', 'db:types': TYPES_SCRIPT } }) };
-  const withSupabase = probes({ hasTool: (bin) => bin === 'supabase' || PROBES.hasTool(bin) });
+  const withSupabase = probes({ hasTool: (bin) => bin === 'supabase' || probes().hasTool(bin) });
 
   /** `packed` with the gate entries a fresh config gets for `packs`, the types check among them. */
   const packedWithGate = (packs, files) =>
@@ -998,7 +998,7 @@ describe('packs and the pack rows', () => {
   it('reads pack.supabase.types: SKIP without the CLI, WARN with no script, another shape or no gate entry, absent with the rule off', () => {
     const t = m.pack.types;
     const types = (files, p = withSupabase, packs = ['supabase']) => doctor(packed(packs, files), { probes: p })['pack.supabase.types'];
-    const noSupabase = probes({ hasTool: (bin) => bin !== 'supabase' && PROBES.hasTool(bin) });
+    const noSupabase = probes({ hasTool: (bin) => bin !== 'supabase' && probes().hasTool(bin) });
     expect(types(withTypes, noSupabase)).toEqual({ status: 'SKIP', note: t.needsCli });
     expect(t.needsCli).toBe('skipped, needs supabase (brew install supabase/tap/supabase)');
     expect(types({})).toEqual({ status: 'WARN', note: t.noScript('db:types') });

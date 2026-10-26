@@ -91,6 +91,17 @@ describe('wired', () => {
     }
   });
 
+  it('measures a rule a later block set to error with the pack’s own options, or with more beside them', async () => {
+    const later = (p) => ({
+      ...packConfig(p),
+      'max-lines-per-function': [2, { max: /\.(tsx|jsx)$/.test(p) ? 150 : 40, skipBlankLines: true }],
+      'i18next/no-literal-string': ['error', { mode: 'jsx-only', 'jsx-attributes': { exclude: [] }, 'should-validate-template': true }],
+    });
+    const out = await engine.wired(configured(later), root, rules());
+    expect(out.measured.map((r) => r.key)).toEqual(['expo strings', 'expo tokens', 'expo size', 'supabase client']);
+    expect(out.skipped).toEqual([]);
+  });
+
   it('checks the size limit at both samples: a component at 150, a .ts file at 40', async () => {
     const swapped = (p) => ({ ...packConfig(p), 'max-lines-per-function': [2, { max: /\.tsx$/.test(p) ? 40 : 150 }] });
     expect((await engine.wired(configured(swapped), root, byKey('expo size'))).measured).toEqual([]);

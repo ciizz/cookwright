@@ -950,7 +950,8 @@ describe('packs and the pack rows', () => {
     expect(l.unnamed('eslint.config.js', 'cookwright/packs/expo/eslint.cjs', [spread])).toBe(
       `eslint.config.js does not name cookwright/packs/expo/eslint.cjs; add ${spread} at the end of its config array by hand: ` +
         "spread last, the pack's options replace yours for any ESLint rule a block of yours also sets on the pack's files; " +
-        "spread before a block of yours that sets such a rule's options or a severity other than error, that rule reads overridden and is not measured (the setup skill does it with consent)",
+        "spread before a block of yours that sets a severity other than error for such a rule, or options that change or leave out " +
+        "one of the pack's, that rule reads overridden and is not measured (the setup skill does it with consent)",
     );
     const esm = lint({ config: null }, ['expo'], { 'eslint.config.mjs': 'export default [];\n' })['pack.expo.lint'];
     const esmImport = "import cookwrightExpo from 'cookwright/packs/expo/eslint.cjs';";

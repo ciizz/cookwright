@@ -748,8 +748,9 @@ module.exports = defineConfig([
     // where the lines go, and what spreading them last replaces (QA round 1)
     expect(m.pack.eslint.other(['x'])).toBe(
       "not Expo's template, left alone; add x at the end of its config array by hand: spread last, the pack's options replace yours " +
-        "for any ESLint rule a block of yours also sets on the pack's files; spread before a block of yours that sets such a rule's " +
-        'options or a severity other than error, that rule reads overridden and is not measured (the setup skill does it with consent)',
+        "for any ESLint rule a block of yours also sets on the pack's files; spread before a block of yours that sets a severity other " +
+        "than error for such a rule, or options that change or leave out one of the pack's, that rule reads overridden and is not " +
+        'measured (the setup skill does it with consent)',
     );
     expect(read(a, 'eslint.config.js')).toBe(mine);
     const handWired = `${mine}// mine\nmodule.exports.push(...require('cookwright/packs/expo/eslint.cjs'));\n`;

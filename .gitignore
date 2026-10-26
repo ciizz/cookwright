@@ -5,3 +5,6 @@ CLAUDE.local.md
 .env
 .env.*
 !.env.example
+
+# npm pack output
+*.tgz

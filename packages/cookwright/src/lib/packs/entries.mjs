@@ -9,7 +9,8 @@
 // be read throws, and the row says it could not count. The doc's entries are, outside
 // a fenced code block (one a list item opens too), the first cell of every body row
 // of every table and the text of every `##` or `###` heading (a doc written one
-// section per primitive).
+// section per primitive). Indentation is read in columns, a tab to the next multiple
+// of four.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -102,6 +103,20 @@ const closes = (line, run) => {
 
 // A list item's marker with the spaces around it; the item's content starts after it.
 const MARKER = /^ {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]+/;
+// A line's indentation and the list markers it opens, with the whitespace after each.
+const PREFIX = /^(?:[ \t]*(?:[-*+]|\d{1,9}[.)])(?=[ \t]))*[ \t]*/;
+
+/**
+ * `line` with the tabs of its indentation and list-marker prefix expanded to spaces,
+ * a tab reaching the next multiple of four columns (CommonMark 2.2), so a length is
+ * a column count. The rest of the line is kept as it is.
+ */
+function expanded(line) {
+  const prefix = PREFIX.exec(line)[0];
+  let out = '';
+  for (const c of prefix) out += c === '\t' ? ' '.repeat(4 - (out.length % 4)) : c;
+  return out + line.slice(prefix.length);
+}
 
 /**
  * The fence `line` opens, as `{ run, indent }`, or null: `indent` is where the
@@ -115,17 +130,17 @@ function opening(line) {
   return run === null ? null : { run, indent };
 }
 
-/** Whether `line` is inside the list item that holds `fence`: blank, or indented as far as its content. */
+/** Whether the tab-expanded `line` is inside the list item that holds `fence`: blank, or indented as far as its content. */
 const within = (line, fence) => line.trim() === '' || line.length - line.trimStart().length >= fence.indent;
 
 /**
- * `text`'s lines, every line of a fenced code block, its delimiters too, blanked so
- * the others keep their places. A fence in a list item ends with a line less
- * indented than the item's content, which ends the item too.
+ * `text`'s lines, their indentation tab-expanded, every line of a fenced code block,
+ * its delimiters too, blanked so the others keep their places. A fence in a list
+ * item ends with a line less indented than the item's content, which ends the item too.
  */
 function unfenced(text) {
   let fence = null;
-  return text.replace(/\r\n/g, '\n').split('\n').map((line) => {
+  return text.replace(/\r\n/g, '\n').split('\n').map(expanded).map((line) => {
     if (fence !== null && !within(line, fence)) fence = null;
     if (fence !== null) {
       if (closes(line.slice(fence.indent), fence.run)) fence = null;

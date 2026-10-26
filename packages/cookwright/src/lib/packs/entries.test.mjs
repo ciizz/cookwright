@@ -205,6 +205,16 @@ describe('headingKeys', () => {
     expect([...headingKeys(['- ```md', '  ## Phantom', '```', '## Inside', '```', '## Real'].join('\n'))]).toEqual(['Real']);
   });
 
+  it('reads indentation in columns, a tab reaching the next multiple of four', () => {
+    // A tab-indented line sits at column 4, inside an item whose content starts at 2.
+    expect([...docKeys('- ```md\n\t| Ghost | x |\n\t```\n\n## Real\n')]).toEqual(['Real']);
+    expect([...headingKeys(['1.\t```md', '\t## Phantom', '\t```', '## Real'].join('\n'))]).toEqual(['Real']);
+    // `-\t` puts the item's content at column 4, so a line at column 2 ends the item and its fence.
+    expect([...tableKeys(['-\t```md', '  | Primitive |', '  | --- |', '  | Real |'].join('\n'))]).toEqual(['Real']);
+    // At the top level, a tab is four columns: an indented code line, not a heading.
+    expect([...headingKeys('\t## Indented\n## Real\n')]).toEqual(['Real']);
+  });
+
   it('reads a backtick line whose info string holds a backtick as a paragraph, not a fence', () => {
     expect([...headingKeys('```inline``` text\n## Button')]).toEqual(['Button']);
   });
@@ -224,4 +234,3 @@ describe('docKeys', () => {
     expect([...docKeys(read('supabase/templates/data-model.md'))].filter((k) => MIGRATION.test(k))).toEqual([]);
   });
 });
-

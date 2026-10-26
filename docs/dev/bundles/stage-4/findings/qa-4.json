@@ -1,0 +1,103 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "lines 160-166 (tableKeys)",
+      "problem": "tableKeys() uses line.trim().startsWith('|'), so it treats four-space- or tab-indented code as a Markdown table row. The new expanded() logic turns a leading tab into four columns, but only headingKeys() respects the resulting code-block indentation.",
+      "severity": "P2",
+      "suggested_fix": "Make table-row recognition indentation-aware: reject top-level rows indented four or more columns, while preserving any explicitly supported list-contained tables. Add regression tests for both a leading tab and four spaces.",
+      "failure_scenario": "A contract doc contains an indented example such as a tab followed by '| Button | example |' while the real Button entry is absent. docKeys() returns Button, so pack.expo.docs incorrectly PASSes. A direct probe returned ['Ghost','Real'] for a tab-indented '| Ghost |' followed by a real heading.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "entries.mjs:160-166 tableKeys uses line.trim().startsWith('|') with no indent check, while HEADING (line 87) requires ` {0,3}`. Probe: docKeys('\\t| Ghost | x |\\n## Real\\n') and the 4-space variant both return ['Ghost','Real']."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/standards.mjs",
+      "location": "holdsOption()/holds(), lines ~95-113 (and the advice in messages.mjs handAdd, docs/guides/standards.md:23 and :39, skills/setup/SKILL.md:164)",
+      "problem": "To fix QA-3 finding 1, scopeAt's exact comparison (the old asSet, isDeepStrictEqual on the whole options) was loosened to holds(), which accepts any extra top-level key next to the pack's options. For i18next/no-literal-string, extra keys can switch detection off: `jsx-components: { exclude: [...] }`, `words: { exclude: ['.*'] }`, `callees`, `object-properties`. A later block that keeps `mode` and `jsx-attributes` but adds one of these now reads measured, both at the samples (wired) and per file (scopeAt). The init and doctor advice, the guide and the setup skill now tell the developer outright that such a block 'keeps every option the pack sets and adds its own beside them, leaves the rule measured'. Before this commit, scopeAt read every such file as unmeasured. That contradicts disposition 29, which counts a rule only when wired finds it 'as the pack set it'.",
+      "severity": "P2",
+      "suggested_fix": "Allow extra keys only where they cannot narrow detection, or not at all. One option: compare every option exactly (the old asSet) in both phases, and change the advice to say a later block must set exactly the pack's options or only a severity. The other: keep the subset rule but give the manifest a per-rule list of extra keys that read overridden (for strings: jsx-components, words, callees, object-properties, class-properties). Add a test where a later block adds `'jsx-components': { exclude: ['Trans', 'Text'] }` next to the pack's options and expect expo strings to read overridden.",
+      "failure_scenario": "An app spreads the pack's lines first, then adds `{ files: ['**/*.tsx'], rules: { 'i18next/no-literal-string': ['error', { ...packStrings.rules['i18next/no-literal-string'][1], 'jsx-components': { exclude: ['Trans', 'Text'] } }] } }`. The developer believed the advice that options added beside the pack's keep the rule measured. Every `<Text>Hello</Text>` literal now goes unflagged. Doctor's lint row reads PASS, the hook's standards line counts the rule as measured, and the ratchet reports 'expo strings 50 → 0', a fall, on a branch that fixed nothing. At 5d42ecd the per-file check would have read each component unmeasured (exit 11).",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "standards.mjs:95-113 holdsOption() requires only that every key the pack sets be deep-equal. It ignores extra keys in the effective option object, so `jsx-components`, `words` and `callees` pass. scopeAt (line 188) now calls the same holds(). At 5d42ecd, asSet (lines 173-176) used isDeepStrictEqual over the whole options, so a file with extra keys read unmeasured. Before this range, wired (line 101) already took a per-key subset, so the sample check already accepted extras. This range extends that to the per-file check. docs/guides/standards.md:23 and :39 say a block that 'keeps every option the pack sets and adds its own beside them, leaves the rule measured'. That conflicts with disposition 29 in plan.md, which counts a rule only when it is as the pack set it. I did not run ESLint. That extra i18next/no-literal-string options such as `jsx-components.exclude` and `words.exclude` can disable detection comes from my knowledge of eslint-plugin-i18next, not from the repo."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "opening()/unfenced(), lines ~120-150; E-052 in docs/dev/backlog.md; docs/guides/standards.md:53",
+      "problem": "c70d2fc says tab-indented lines inside a fence that a list item opened are now handled. It covers only a fence on the marker line itself. The most common tab-editor shape is a plain single-level bullet with a tab-indented fence on its continuation line. Expanded to column 4, FENCE (` {0,3}`) rejects that fence, so it is never seen. The same happens for any single-level item whose content starts at column 4 or later (`10. `, `-   `). E-052 and the module header name only 'a nested list item's continuation line' and blockquotes, so the declared grammar is narrower in fact than the logged gap suggests. QA-3 finding 0's failure class (a tab-indented phantom row counts as an entry) is still there.",
+      "severity": "P3",
+      "suggested_fix": "Track the content indent of the current list item from its last marker line, and detect a fence at 0-3 columns relative to that indent, which also closes E-052's nested case. Or widen E-052 and the guide sentence to 'a fence on any list item's continuation line indented four or more columns (a tab, or an item like `10. `)', and add a pinning test.",
+      "failure_scenario": "Measured on HEAD: docKeys('- item\\n\\t```md\\n\\t| Ghost | x |\\n\\t```\\n## Real\\n') returns ['Ghost','Real']. docKeys('10. Add a row like:\\n    ```md\\n    | Fake | x |\\n    ```\\n\\n## Real\\n') and the same doc with '-   ' as the marker return ['Fake','Real']. In docs/design-system.md, an example row for an undocumented Ghost primitive under such a bullet makes pack.expo.docs count Ghost as documented.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "entries.mjs:~120-150 opening() only sets fence.indent from a marker on the fence line, and FENCE (line 88) allows at most 3 leading spaces. Probes: '- item\\n\\t```md\\n\\t| Ghost | x |\\n\\t```\\n## Real' gives ['Ghost','Real']; '10. ...\\n    ```md\\n    | Fake |...' and '-   Add\\n    ```md...' give ['Fake','Real']. E-052 (backlog.md:51) names only nested-item continuation lines and blockquotes, so the logged gap is narrower than the actual one."
+    },
+    {
+      "file": "packages/cookwright/src/lib/packs/entries.mjs",
+      "location": "tableKeys(), line ~160 (commit c70d2fc message; the 'Indentation is read in columns' header line)",
+      "problem": "The commit says the reader expands tabs 'before judging a fence, a heading or a row'. tableKeys ignores indentation: it uses line.trim().startsWith('|'). A tab-indented or 4-space-indented row at the top level is an indented code block, not a table, and still counts as an entry. The new test pins the heading half of this, `\\t## Indented` is not an entry, so a row and a heading at the same indent are judged differently.",
+      "severity": "P3",
+      "suggested_fix": "Reject a row whose expanded indentation outside a list item is four columns or more, as HEADING does with ` {0,3}`, and add the row case beside the heading test. Or narrow the commit claim and the header to fences and headings.",
+      "failure_scenario": "Measured: docKeys('\\t| Ghost | x |\\n## Real\\n') returns ['Ghost','Real'], while headingKeys('\\t## Ghost\\n') returns []. A design-system doc that shows an example row as an indented code block counts that primitive as documented.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "Probe: docKeys('\\t| Ghost | x |\\n## Real\\n') returns ['Ghost','Real'], while headingKeys('\\t## Ghost\\n') returns []. The header at entries.mjs:13 says indentation is read in columns, but tableKeys (line ~160) never checks indentation, so rows and headings are judged differently. This is the same root cause as finding 0."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 5d42ecd..HEAD across commits 6e901eb, c70d2fc, 9ffba20",
+    "ESLint holds() unification for wired and per-file scope",
+    "expanded() tab-to-multiple-of-four indentation in the contract doc reader",
+    "fence detection (tab before marker, nested list markers, tab closer, space-indented fence) probed directly and correct",
+    "AGENTS.md rules",
+    "git log and git diff --stat 5d42ecd..HEAD; the three target commits 6e901eb, c70d2fc, 9ffba20 read in full (code, tests, guide, skill, messages)",
+    "docs/dev/bundles/stage-4/findings/qa-3.json: what this round was meant to fix (findings 0-4), and each fix checked against it",
+    "standards.mjs holds()/judge()/wiring()/changedAt()/coverage() against packs/expo/eslint.cjs and packs/supabase/eslint.cjs block options; plan disposition 29",
+    "wired and scopeAt now agree for the QA-3 finding 1 case (more options beside the pack's) and the finding 3 case (changed jsx-attributes, dropped skipComments): consistent and tested",
+    "holds() is positional for no-restricted-syntax and needs paths deep-equal for no-restricted-imports; stricter than disposition 29's tag presence but conservative (reads overridden), so not reported",
+    "entries.mjs expanded()/PREFIX/opening()/within(): probed tab after a marker, a tab in a top-level fence, a tab-indented continuation fence, items whose content starts at column 4 (`10. `, `-   `), a tab-indented top-level row",
+    "git diff --check on packages and docs/guides: clean (QA-3 finding 2 fixed)",
+    "vitest on standards.test.mjs and entries.test.mjs: 40 passed",
+    "handAdd string still in messages.mjs; the init and doctor tests that quote it updated",
+    "AGENTS.md and CLAUDE.md: no '### Advisory' heading under a pack section, so no advisory rules to check",
+    "No secrets, local paths or .env files in the diff"
+  ],
+  "notes": "Codex ran once to completion (session 01a175a4-4701-72f1-adee-5c0e8cd3d9c1), no timeout. Output at <local path> Codex reported no P1 findings, and said the ESLint holds() unification and the fence-description changes otherwise look internally consistent.\n---\nI reviewed the three fix commits of QA run 3 (6e901eb, c70d2fc, 9ffba20) in 5d42ecd..HEAD. They fix what QA-3 found: wired and scopeAt now judge by the same holds(), tabs expand to tab stops, the trailing blank line is gone, and E-052 plus the guide text narrow the declared fence grammar.\n\nThere is one P2. Making scopeAt accept extra options, instead of tightening wired, opened a hole: an extra i18next option such as jsx-components or words can switch detection off, and the rule still reads measured. The advice now tells developers explicitly that this setup is safe.\n\nThere are two P3s. A tab-indented fence on a plain bullet's continuation line, or under an item whose content starts at column 4 (`10. `, `-   `), is still not seen, and E-052 does not name these shapes. Table rows ignore indentation, although the commit claims they are judged in columns.\n\nI probed the reader with node against src/lib/packs/entries.mjs; the probe script is at <local path> ESLint is not installed in the repo, so I did not check the real calculateConfigForFile shape. I made no edits and no git writes.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a175a4-4701-72f1-adee-5c0e8cd3d9c1",
+    "partialReportPath": null
+  }
+}

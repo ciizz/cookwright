@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 236,
+  "revision": 244,
   "slug": "stage-4",
   "branch": "bundle/stage-4",
   "base": "e966c45c1a0a311020f1d1271d1db7721c028ef1",
@@ -468,6 +468,13 @@
           "planSha": "3f4aa96c4462829c",
           "codex": true,
           "runId": "wf_fbcc5729-228"
+        },
+        {
+          "startedAt": "2026-10-26T00:28:03.627Z",
+          "stateRevision": 236,
+          "planSha": "3f4aa96c4462829c",
+          "codex": true,
+          "runId": "wf_5e2ba3cf-91a"
         }
       ],
       "startCommit": "5d42ecd9e69a8ff66b4531fc58727a3f8a7be33b",
@@ -704,6 +711,19 @@
           "ms": 50572
         }
       ]
+    },
+    {
+      "commit": "9ffba20c3bfceedbf5ffa69a628f85b3d7be18d4",
+      "at": "2026-10-26T00:43:17.186Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 46253
+        }
+      ]
     }
   ],
   "findings": [
@@ -886,6 +906,24 @@
       "at": "2026-10-26T00:26:10.668Z",
       "stored": true,
       "head": "4725503c38b02ce89f9c3819d1b3f8fd0bf8a442"
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/findings/qa-4.json",
+      "counts": {
+        "confirmed": 4,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 2,
+        "P3": 2
+      },
+      "at": "2026-10-26T00:42:06.337Z",
+      "stored": true,
+      "head": "9ffba20c3bfceedbf5ffa69a628f85b3d7be18d4"
     }
   ],
   "reports": [
@@ -971,6 +1009,12 @@
       "phase": "qa",
       "path": "docs/dev/bundles/stage-4/sessions/qa-3.md",
       "at": "2026-10-26T00:26:10.380Z",
+      "stored": true
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-4/sessions/qa-4.md",
+      "at": "2026-10-26T00:42:05.982Z",
       "stored": true
     }
   ],
@@ -1925,6 +1969,27 @@
       "actor": "orchestrator",
       "source": "qa run 3 strings batch",
       "text": "The third QA run's one changed string (the hand-add advice's third clause) presented to the developer in chat by the orchestrator; it changes again in the next run with the one-comparison rule.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:42:29.787Z",
+      "actor": "orchestrator",
+      "source": "qa run 4 review finding 1",
+      "text": "Fix in the next QA run (rule 3, and disposition 29's 'as the pack set it'): both phases compare a pack rule's effective options exactly (deep equality on the whole options object) with severity error; an extra option reads overridden, since an extra i18next key (jsx-components, words, callees, object-properties) can switch detection off; the advice, the guide and the setup skill say 'a later block must set exactly the pack's options, or only a severity of error'; the 'adds its own beside them' sentence goes. The orchestrator's qa-3 wording left extras open; this closes it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:42:30.054Z",
+      "actor": "orchestrator",
+      "source": "qa run 4 review findings 0, 2 and 3",
+      "text": "Fixed in the next QA run: a table row indented four or more columns outside a list item is an indented code block, not an entry, the same rule the headings follow (findings 0 and 3, one check and two tests); finding 2 stays E-052, whose text and the guide's sentence widen to 'a fence on a list item's continuation line' (rule 6).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T00:42:30.327Z",
+      "actor": "orchestrator",
+      "source": "qa run 4 strings batch",
+      "text": "The fourth QA run's one changed string (the hand-add advice's third clause) presented to the developer in chat by the orchestrator; it changes once more in the next run to the exact-options wording.",
       "claim": true
     }
   ],

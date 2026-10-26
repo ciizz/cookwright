@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 29,
+  "revision": 34,
   "slug": "b-018",
   "branch": "bundle/b-018",
   "base": "8492811aa8317df203611a6a6d93b0546c29e560",
@@ -75,9 +75,26 @@
     },
     {
       "name": "review:fix",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-26T11:47:05.549Z",
+          "stateRevision": 29,
+          "planSha": "2d855629732d6d80",
+          "codex": true,
+          "runId": "wf_e51306e9-7ec",
+          "endedAt": "2026-10-26T11:51:15.144Z",
+          "turnOutputTokens": 1898605
+        }
+      ],
+      "startCommit": "e6fcbc7dc0f30c13b749de1c2de9c977c5008e34",
+      "range": {
+        "from": "6b1a9c7e85e8533cc0d6628c6ac1a0640e7239d4",
+        "to": "e6fcbc7dc0f30c13b749de1c2de9c977c5008e34"
+      },
+      "endCommit": "e6fcbc7dc0f30c13b749de1c2de9c977c5008e34",
+      "endCode": "6f845b27c4dcc190b583541e9c11e6f012ac853a"
     },
     {
       "name": "fix:fix",
@@ -174,6 +191,24 @@
       "at": "2026-10-26T11:38:18.899Z",
       "stored": true,
       "head": "cbe7fa18db1e994922217f6733a9ef13004a5d24"
+    },
+    {
+      "phase": "review:fix",
+      "path": "docs/dev/bundles/b-018/findings/review-fix-1.json",
+      "counts": {
+        "confirmed": 1,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 1
+      },
+      "at": "2026-10-26T11:51:14.463Z",
+      "stored": true,
+      "head": "e6fcbc7dc0f30c13b749de1c2de9c977c5008e34"
     }
   ],
   "reports": [
@@ -296,6 +331,13 @@
       "actor": "orchestrator",
       "source": "implement:s1 strings batch",
       "text": "The five strings (three fixture failure texts, the guide bullet, the README row) presented to the developer in chat and recorded as presented pending the developer's ruling.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-26T11:51:14.798Z",
+      "actor": "orchestrator",
+      "source": "review:fix run 1 notes",
+      "text": "Rule 3: the reviewer's two notes are recorded, not fixed: the pointer-coverage test cannot detect a regression (the per-block IGNORES already exclude .claude/**), which the plan asked for by name and the fixture's negative control covers (disposition 4); the global ignore's behaviour on ESLint 8.57 with a name key is unverified and out of reach, since the engine requires ESLint 9 and the init-edited Expo template imports defineConfig from eslint/config. The one P3 (a crashed assertion script read as the strings-rule failure) goes to fix:fix.",
       "claim": true
     }
   ],

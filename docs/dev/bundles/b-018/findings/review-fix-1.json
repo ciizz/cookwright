@@ -1,0 +1,65 @@
+{
+  "phase": "review:fix",
+  "stored": true,
+  "issues": [
+    {
+      "file": "scripts/ci/fixture.sh",
+      "location": "lint_run(), the node -e assertion and the two exit-code checks after it",
+      "problem": "The node script uses exit 2 for 'a harness file was reported' and exit 3 for 'App.tsx not reported', but any crash of the script itself exits 1 (a JSON.parse error on lint.json, or a result without `messages`). Exit 1 falls through to `[ \"$code\" = 0 ] || fail \"$MSG_LINT_APP\"`, so the step blames the pack's strings rule for what is really an unreadable lint report. The fixture still fails, so this is never a false pass, only a misleading failure text.",
+      "severity": "P3",
+      "suggested_fix": "Make 1 its own case: `[ \"$code\" != 1 ] || fail \"<MSG_LINT_READ: could not read the lint report>\"`. Or have the script exit 3 explicitly only when App.tsx is missing and treat every other non-zero code as an unreadable report, naming the stderr tail.",
+      "failure_scenario": "In some environment ESLint exits 1 but stdout is not pure JSON. For example, a plugin or the npx wrapper prints a deprecation line to stdout before the JSON. JSON.parse throws, node exits 1, and the fixture prints 'the user's own lint run did not report App.tsx under i18next/no-literal-string'. The maintainer then goes looking at the strings rule instead of the report format.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "scripts/ci/fixture.sh:239-249. The node script exits 2 (harness file) or 3 (App.tsx missing) deliberately. An uncaught throw, such as a JSON.parse error on lint.json or r.messages being undefined, exits 1. `set -euo pipefail` (line 39) means `code` takes node's status, not tee's. Line 248 only handles code 2. Line 249 `[ \"$code\" = 0 ] || fail \"$MSG_LINT_APP\"` (MSG_LINT_APP at line 60) then reports the App.tsx/strings-rule message for exit 1 and 3 alike. It only misleads and never gives a false pass. The node stack trace goes to the console on stderr, which is not redirected, so the real cause is partly visible."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "Full range diff and per-commit git show",
+    "Both pack ESLint exports place the rules-less global-ignore block first (incl. missing-plugin and coverage variants)",
+    "Standards engine filters rules-less blocks",
+    "Fixture ESLint exit-code handling, JSON assertions, negative control",
+    "Tests cover narrow ignore boundary and keep linting other host-directory files",
+    "ESLint global-ignores semantics (name allowed with ignores)",
+    "Docs, backlog transitions, bundle state, private path/secret exposure",
+    "git diff --check passed",
+    "cookwright doctor: 19 PASS",
+    "Plan sections 2, 4, 5, 6, 7 and 8 against the diff 6b1a9c7..e6fcbc7: the two exports, the tests, the engine case, the fixture step, the guide bullet, the backlog and the README row are all present, and nothing extra was changed.",
+    "packs/expo/eslint.cjs: the ignores block comes first in blocks(), so withResolver, coverage and module.exports all carry it. The per-block IGNORES are byte-identical to before. The header claim (only `name` plus `ignores` makes a global ignore in flat config) holds for ESLint 9, which the init-edited Expo template needs anyway because it imports defineConfig from eslint/config.",
+    "packs/supabase/eslint.cjs: the same WORKFLOWS block comes first and the header is rewritten as two blocks (disposition 10).",
+    "Engine safety (src/lib/packs/standards.mjs): coverage() filters on `b.rules && id in b.rules`, so the rules-less block is dropped before wiring(), scopeAt() and changedAt(). Those later `id in b.rules` reads only see blocks that have rules, so nothing throws.",
+    "Fake ESLint (src/test-fixtures/fake-eslint/index.cjs): it already treats a block with ignores and no files, rules or plugins as a global ignore. So the existing measurements through test-helpers' real-export config exercise the new block (plan section 6, engine item).",
+    "Nothing else in the source reads the exports' blocks by index or reads `.files` on them. Doctor's lint row and init's eslintConfigStep are text-based, and no setup code reads blocks.",
+    "Pointer location: workflowsDir `.claude/workflows` and the edited eslint.config.* both resolve from repo.root, so the relative global-ignore pattern lines up with the pointers.",
+    "eslint.test.mjs: the strings and client blocks are now found by name, `files ?? []` is used, applies() is false for a block without rules, coverage and fake-matcher comparisons are filtered to blocks with rules, the block's exact shape is asserted, and paths that must not match (hooks, own skills, .agents, .codex, src/workflows) are checked by both matchers (dispositions 8 and 9).",
+    "standards.test.mjs coverage case: engine.coverage equals the export minus its first block, for both packs.",
+    "fixture.sh: it runs under set -euo pipefail. The `|| code=$?` capture is correct for both eslint and the node | tee pipeline (pipefail reports node's exit). `node -e` correctly gets the file path as argv[1]. Exit 2 or more from eslint fails with the stderr tail. The MSG_ strings are defined with the script's other messages, the header lists the new step, and main() orders it after doctor.",
+    "Negative control (disposition 6) is reported in the implement session file: with the block removed from the installed copy, the step failed naming .claude/workflows/bundle-phase.js.",
+    "State homes: B-018 moved to Closed with a one-line note, and E-056 opened with the next free id and dated. The README row matches disposition 7 word for word. The guide bullet is in commit c6da82c with the export change, which satisfies the 'setup' doc-sync rule.",
+    "Nothing private: the session file writes the kept temp directory as `<local path>`. No credentials or secrets appear in the range.",
+    "Advisory: AGENTS.md has no `### Advisory` heading under a pack section, so there was nothing to check."
+  ],
+  "notes": "Codex found no actionable P1-P3 issues. It could not rerun Vitest because its read-only sandbox blocked Vite's .vite-temp; the committed session records 762 tests passing. Codex output: <local path>\n---\nI found no P1 or P2 issues in 6b1a9c7..e6fcbc7, and the plan's dispositions 1 to 10 are all carried out.\n\nThe one finding is a P3 in the fixture. If the node assertion script itself crashes (exit 1), the fixture reports it as the App.tsx/strings-rule failure. The fixture still fails, so this is never a false pass.\n\nTwo things I left out of the issues:\n- **The test 'puts no rule block on a workflow pointer' cannot detect a regression.** It passed against the 0.2.0 export too, because the per-block IGNORES already exclude `.claude/**`. The plan asked for this test by name, so it is not a defect. The real-ESLint proof is the fixture, as disposition 4 decided.\n- **The global ignore may not take effect on ESLint 8.57.** I believe ESLint 8's config-array counts a block as a global ignore only when `ignores` is its only key, so the `name` key would stop it. I did not verify this. It is out of reach in practice: the engine requires ESLint 9 or later, and the Expo template that init edits imports defineConfig from eslint/config, which ESLint 8 does not have.\n\nFiles reviewed: packages/cookwright/packs/expo/eslint.cjs, packages/cookwright/packs/supabase/eslint.cjs, packages/cookwright/src/lib/packs/eslint.test.mjs, packages/cookwright/src/lib/packs/standards.test.mjs, packages/cookwright/src/lib/packs/standards.mjs, scripts/ci/fixture.sh, docs/guides/standards.md, docs/dev/backlog.md, README.md",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": null,
+    "partialReportPath": null
+  }
+}

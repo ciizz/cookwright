@@ -222,6 +222,19 @@ describe('the argv check', () => {
     expect(isLoopback('127.0.0.1.evil.example')).toBe(false);
     expect(isLoopback('localhost.evil.example')).toBe(false);
   });
+
+  it('reads the whole authority: a suffixed bracket, a bad octet or a non-numeric port is not loopback', () => {
+    for (const host of ['localhost', 'LOCALHOST:5432', '127.255.0.1', '[::1]', '[::1]:6379', 'host.docker.internal:8080']) {
+      expect([host, isLoopback(host)]).toEqual([host, true]);
+    }
+    for (const host of ['[::1].evil.example', '[::1]evil', '127.999.999.999', '127.0.0.256', '[::1]:x', 'localhost:x', '[::1']) {
+      expect([host, isLoopback(host)]).toEqual([host, false]);
+    }
+    for (const url of ['postgres://u:secret@[::1].evil.example/db', 'postgres://u:secret@[::1]evil/db', 'postgres://u:secret@127.999.999.999/db']) {
+      expect(refusal(() => argvCheck(['psql', url], []))).toBe(messages.run.argUrl(2));
+      expect(publicLocal('SUPABASE_DB_URL', url.replace('secret', 'postgres'))).toBe(false);
+    }
+  });
 });
 
 describe('banner', () => {

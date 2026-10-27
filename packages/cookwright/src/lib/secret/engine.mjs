@@ -150,12 +150,17 @@ function urlPasswordOf(value) {
   }
 }
 
-/** True for a loopback host (`host[:port]` or `[v6][:port]`): its password is public (disposition 43). */
+const OCTET = '(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)';
+const LOOPBACK = new RegExp(`^(?:localhost|host\\.docker\\.internal|\\[::1\\]|127(?:\\.${OCTET}){3})(?::\\d+)?$`, 'i');
+
+/**
+ * True for a loopback authority, read whole (disposition 43; stage-5 review:whole
+ * finding 1): exactly `localhost`, `host.docker.internal`, a valid 127/8 address
+ * or `[::1]`, optionally followed by a numeric port. Anything else, a suffix after
+ * `]` or an octet above 255 among it, is not loopback.
+ */
 export function isLoopback(hostport) {
-  const host = hostport.startsWith('[')
-    ? hostport.slice(1, hostport.indexOf(']')).toLowerCase()
-    : hostport.replace(/:\d*$/, '').toLowerCase();
-  return ['localhost', 'host.docker.internal', '::1'].includes(host) || /^127(\.\d{1,3}){3}$/.test(host);
+  return LOOPBACK.test(hostport);
 }
 
 /** True when `arg` holds `<scheme>://<user>:<password>@<host>` with a non-loopback host. */

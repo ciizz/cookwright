@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 80,
+  "revision": 84,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -87,6 +87,13 @@
           "planSha": "dbc4b8f50628dc78",
           "codex": true,
           "runId": "wf_5556c20f-4c4"
+        },
+        {
+          "startedAt": "2026-10-27T13:53:44.928Z",
+          "stateRevision": 80,
+          "planSha": "c6dffc7eb579f87b",
+          "codex": true,
+          "runId": "wf_38461815-3bb"
         }
       ],
       "startCommit": "fd2f9ddcc29bfcadec2c9f383ecfffdca58f0fbb",
@@ -216,6 +223,24 @@
       "at": "2026-10-27T13:46:38.259Z",
       "stored": true,
       "head": "fd2f9ddcc29bfcadec2c9f383ecfffdca58f0fbb"
+    },
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-5/findings/plan-review-2.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 2,
+        "rejected": 29,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 1,
+        "P2": 1,
+        "P3": 0
+      },
+      "at": "2026-10-27T13:57:58.877Z",
+      "stored": true,
+      "head": "cbc5f5e4b4a6defe4e88710f825bc006cac22907"
     }
   ],
   "reports": [],
@@ -744,6 +769,13 @@
       "actor": "orchestrator",
       "source": "plan-review round 1, findings 14, 15, 28, 30 (P3), plan §2 disposition 70",
       "text": "Folded: the migration returns secretsKept when a secrets key is already present (disposition 16); the JSON schema is structural and the guide says so (disposition 18); SCANNED gains src/run.mjs and src/secrets.mjs (disposition 35); the guide says a change to secrets/*.env.age not made by the developer's own secrets set is unreviewable (age ciphertext has no sender authentication) and is re-set rather than merged, unproved names being the exposure; a signed-ciphertext enhancement is a backlog entry.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:58:25.324Z",
+      "actor": "orchestrator",
+      "source": "plan-review re-check 1, findings 2 and 22 left plausible, plan §2 disposition 71",
+      "text": "Rule 7: on a first init the identity's directory does not exist yet, so enclosingWorkTree judges the realpath of the nearest existing ancestor of the identity path (walking up until a directory exists) and runs before mkdir -p; only exit 128 (not inside a work tree) passes, any other failure refuses naming the probe. Tested: an absent cookwright/ under a ~/.config symlinked into a second scratch repo is refused and nothing is written; the same under a plain scratch home passes.",
       "claim": true
     }
   ],

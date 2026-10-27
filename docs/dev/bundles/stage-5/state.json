@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 104,
+  "revision": 115,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -132,9 +132,26 @@
     },
     {
       "name": "review:model",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-27T14:27:56.438Z",
+          "stateRevision": 104,
+          "planSha": "13da5997463ed143",
+          "codex": true,
+          "runId": "wf_a3a8331f-ddd",
+          "endedAt": "2026-10-27T14:35:52.377Z",
+          "turnOutputTokens": 403868
+        }
+      ],
+      "startCommit": "7abf9709ba607e892a7f108175a9dbd22154f2e5",
+      "range": {
+        "from": "bb19f3238cf72e5740da0057ca0802cf357e0afc",
+        "to": "7abf9709ba607e892a7f108175a9dbd22154f2e5"
+      },
+      "endCommit": "7abf9709ba607e892a7f108175a9dbd22154f2e5",
+      "endCode": "f5839640a753846450e3408f22e5caa724f04e97"
     },
     {
       "name": "fix:model",
@@ -297,6 +314,24 @@
       "at": "2026-10-27T13:59:32.971Z",
       "stored": true,
       "head": "721377d3e81f1d13c5724fa3c1bf816de07a77f8"
+    },
+    {
+      "phase": "review:model",
+      "path": "docs/dev/bundles/stage-5/findings/review-model-1.json",
+      "counts": {
+        "confirmed": 3,
+        "plausible": 5,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 1,
+        "P2": 4,
+        "P3": 3
+      },
+      "at": "2026-10-27T14:34:57.698Z",
+      "stored": true,
+      "head": "7abf9709ba607e892a7f108175a9dbd22154f2e5"
     }
   ],
   "reports": [
@@ -923,6 +958,55 @@
       "actor": "orchestrator",
       "source": "implement:s1 strings batch",
       "text": "s1's 13 user-facing strings (the two migrate outcomes, the config loader's secrets, target and proof problems and the host hint, the supabase ref hint, the proof refusal line and its anchor texts, the envfile and recipients lines, the schema descriptions, the secrets guide's first version) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:model.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:35:50.504Z",
+      "actor": "orchestrator",
+      "source": "review:model finding 4 (P1 confirmed)",
+      "text": "Fix in fix:model (rule 3): libpq's multi-host syntax is refused. A postgres-scheme value whose host part, percent-decoded as libpq decodes it, holds a comma is a mismatch with the anchor 'host list' (core, pgHostProblem beside pgQueryProblem, so both kinds refuse it), and the pooler anchor matches one comma-free decoded host (^[a-z0-9-]+(\\.[a-z0-9-]+)*\\.pooler\\.supabase\\.com$). The near-miss table gains a matching user on evil.example,<pooler>, the same with ports on both hosts, the comma as %2C, and db.<other>.supabase.co,<pooler>.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:35:50.760Z",
+      "actor": "orchestrator",
+      "source": "review:model finding 0 (P2 confirmed)",
+      "text": "Fix in fix:model (rule 3): the host kind compares new URL(value).host as parsed for the value's own scheme (the port kept as the parser normalised it for that scheme) with the canonical declared host; only the hostname is normalised (case, IDN, trailing dot), never re-parsed as https. Tests: api.example.com refuses http://api.example.com:443 and ftp://api.example.com:443, accepts https://api.example.com:443 and https://api.example.com.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:35:51.011Z",
+      "actor": "orchestrator",
+      "source": "review:model finding 1 (P2 plausible)",
+      "text": "Fix in fix:model (rule 3, disposition 23's 'tracked'): requireCommittedRecipients requires the file tracked in the index (git ls-files --error-unmatch), the index equal to HEAD (git diff --cached --quiet -- <topRel>) and the working tree equal to HEAD, refusing each state by name; tests for a staged deletion (git rm --cached) and a staged version differing from both HEAD and the working copy.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:35:51.263Z",
+      "actor": "orchestrator",
+      "source": "review:model finding 5 (P2 plausible)",
+      "text": "Fix in fix:model (rule 3): the supabase manifest's ambient list gains libpq's routing names PGHOSTADDR, PGHOST, PGPORT, PGUSER, PGDATABASE and PGOPTIONS, all of them pointers (dropped, never needles); and the core gains LIBPQ_NAMES in secret/config.mjs (the same names plus PGPASSWORD, PGPASSFILE, PGSERVICE, PGSERVICEFILE) that s2's engine drops whenever an injected value is a postgres-scheme URL, whatever the declared packs; a registry test pins the manifest's list to the core's. The guide's query-string section says the environment's PG* routing names are dropped for the same reason.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:35:51.519Z",
+      "actor": "orchestrator",
+      "source": "review:model finding 6 (P3 plausible), folded",
+      "text": "Fix in fix:model as a cheap P3 (rule 3): prove takes the target's declared names and computes the covered set from them, so a default-covered name absent from the values is judged as empty and fails; a test with SUPABASE_URL absent.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:35:51.796Z",
+      "actor": "orchestrator",
+      "source": "review:model findings 3 and 7 (P3 plausible), folded",
+      "text": "Fix in fix:model as a cheap P3 (the rules file's doc-sync sentence): docs/guides/updating.md's example reads 'already at version 4' and gains a two-line 'Version 4: secrets' pointer to the secrets guide now; the full updating text stays s5's.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:35:52.049Z",
+      "actor": "orchestrator",
+      "source": "review:model finding 2 (P2 confirmed)",
+      "text": "Orchestrator's own fix, a state-home commit before fix:model (the rules file's backlog discipline: ids are stable, a closed item moves to Closed with a note): B-021 is restored under Closed as 'folded into B-019, a duplicate', the expanded B-019 entry kept.",
       "claim": true
     }
   ],

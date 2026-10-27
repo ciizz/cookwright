@@ -1,0 +1,173 @@
+{
+  "phase": "review:model",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/secret/proofs.mjs",
+      "location": "line 97, host.check",
+      "problem": "host.check passes url.host back through canonicalHost(), which reparses it as HTTPS and drops port 443. The plan specifies comparing new URL(value).host with the canonical declared host.",
+      "severity": "P2",
+      "suggested_fix": "Normalize url.hostname for case, IDN and trailing dot while preserving url.port, which is already normalized for the value's actual scheme. Add cross-scheme port tests.",
+      "failure_scenario": "A proof for api.example.com accepts http://api.example.com:443 or ftp://api.example.com:443, though their parsed host is api.example.com:443. This weakens the target-proof boundary and contradicts the guide's statement that other ports remain part of the host.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "proofs.mjs:97 passes url.host through canonicalHost(), which reparses it as https:// and drops :443. I ran host.check against a proof for api.example.com. It returned null (accepted) for http://api.example.com:443 and ftp://api.example.com:443, and { anchor: 'host' } for :8443. The plan (disposition 19, plan.md:50) says to compare new URL(value).host with the canonical declared host, so :443 on a non-https scheme should be a mismatch."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/recipients.mjs",
+      "location": "line 49, requireCommittedRecipients",
+      "problem": "It checks only that the path exists in HEAD and that the working-tree bytes match it. It never verifies the file is still tracked in the index or that the index matches HEAD, contrary to plan disposition 23.",
+      "severity": "P2",
+      "suggested_fix": "Require index membership and equality across HEAD, index and working tree, or use an equivalent status check. Add tests for staged deletion and an index version differing from both HEAD and the working copy.",
+      "failure_scenario": "After git rm --cached secrets/recipients.txt with the working copy left intact, the function still succeeds because git show HEAD:... matches the file. Encryption proceeds although the next commit removes the recipients file. A separately staged recipients version is also invisible to the check.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "plausible",
+      "evidence": "packages/cookwright/src/lib/secret/recipients.mjs:45-53: requireCommittedRecipients reads the working file and compares it to `git show HEAD:<topRel>`. It never consults the index (no `ls-files` or `diff --cached`). So after `git rm --cached` with the working copy intact, or with a different version staged, the HEAD-versus-working-tree comparison can still pass. Plan disposition 23 (plan.md:57) says only 'untracked or differs from HEAD:<path>', and the plan's `set` entry (plan.md:148) calls the same function. Neither says explicitly that the index must match. Disposition 45 puts the 'tracked' check in `inspect`, not here. Impact is low, because encryption still targets recipients that are already committed and reviewed in HEAD. I could not refute the gap, and I could not confirm that the plan requires an index check in this function."
+    },
+    {
+      "file": "docs/dev/backlog.md",
+      "location": "line 14; commit eff650b, deletion of the former B-021 entry after B-020",
+      "problem": "B-021 was folded into B-019 by deleting its line. AGENTS.md says IDs are stable and never reused, and a closed item moves to Closed with a one-line note.",
+      "severity": "P2",
+      "suggested_fix": "Restore B-021 under Closed with a note that it was folded into B-019 as a duplicate, keeping the expanded B-019 entry.",
+      "failure_scenario": "Bundle state and historical reports that refer to B-021 no longer resolve in the backlog, and a next-ID calculation may reuse B-021.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "Commit eff650b deleted the B-021 line from docs/dev/backlog.md (diff hunk at line ~14, after B-020) and folded its text into B-019. B-021 had been added in bb19f32 and is now absent from the whole file: grep finds no B-021 and no 'folded' note, and no Closed entry. AGENTS.md says ids are stable and never reused and that a closed item moves to Closed with a one-line note. The highest listed bug id is now B-020, so a next-id calculation from the file yields B-021 again. Mitigation: docs/dev/bundles/stage-5/state.json:875 records 'Read B-021 as B-019', so the stage-5 state references do resolve, but the backlog itself does not. This is a documentation-rule violation of low severity."
+    },
+    {
+      "file": "docs/guides/updating.md",
+      "location": "line 15",
+      "problem": "The range makes config version 4 current, but the updating guide's current-version example still says 'already at version 3'. The plan defers this guide to s5, but AGENTS.md requires doc implications to be updated in the same commit.",
+      "severity": "P3",
+      "suggested_fix": "Update the current example to version 4 and document the 3 to 4 step now, linking to the secrets guide as appropriate.",
+      "failure_scenario": "Users following the update procedure see different output from the guide and may wrongly conclude that migration misbehaved.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "plausible",
+      "evidence": "docs/guides/updating.md:19 still shows 'already at version 3' and line 24 documents only version 3. The range bb19f32..7abf970 does not touch updating.md. Commit b552198 moved the config to version 4, so the guide is stale on this branch. Plan docs/dev/bundles/stage-5/plan.md:178 deliberately defers updating.md ('version 4') to s5. I could not refute the staleness, but it is a planned deferral inside one bundle, not an oversight. Whether it breaks the doc-sync rule depends on whether a bundle-level deferral counts."
+    },
+    {
+      "file": "packages/cookwright/packs/supabase/pack.mjs",
+      "location": "dbUrlAnchors / checkDbUrl, lines 36-64 (hostport split, `pooler: host.endsWith('.pooler.supabase.com')`)",
+      "problem": "The supabase proof does not handle libpq's multi-host URI syntax. The host part is cut at the first /, ? or #, only the last :port is stripped, and the pooler anchor is a plain `endsWith('.pooler.supabase.com')` on the whole remaining string. A comma-separated host list therefore passes whenever its LAST host is a pooler host, but libpq tries the hosts in order and connects to the first. Measured with node against this commit: `prove(new Map([['DB_URL', 'postgresql://postgres.<ref>:longpassword@evil.example,aws-0-eu-west-1.pooler.supabase.com:6543/postgres']]), {kind:'supabase', ref}, kinds)` returns `{ok:true, proved:['DB_URL']}`. The same holds with ports on both hosts (`evil.example:5432,aws-0….pooler.supabase.com:6543`) and with the comma percent-encoded (`evil.example%2Caws-0….pooler.supabase.com`). Without the comma, the case 'a matching user on evil.example' is refused and is in the near-miss table. Decision 'implement:s1 open question 4' claims pgUserinfoProblem makes the last-@ reading and libpq agree, but they still disagree on where the host list ends. The `host` kind is not affected: it compares the whole host exactly, so `db.example.com,evil.example` is a mismatch.",
+      "severity": "P1",
+      "suggested_fix": "In dbUrlAnchors, refuse any postgres value whose host part (after percent-decoding, as libpq decodes it) contains a comma, or split the host list and require every host to satisfy the anchor. Anchor the pooler test on a single, comma-free, decoded host, for example `/^[a-z0-9-]+(\\.[a-z0-9-]+)*\\.pooler\\.supabase\\.com$/`. Add these cases to the near-miss table in proofs.test.mjs: a matching user on `evil.example,<pooler>`, the same with ports, `%2C`, and `db.<other>.supabase.co,<pooler>`.",
+      "failure_scenario": "A ciphertext or 1Password item for `dev` holds `postgresql://postgres.<devref>:<pw>@db.attacker-or-prod.example,aws-0-eu-west-1.pooler.supabase.com:6543/postgres`, from a bad copy-paste or a tampered ciphertext (age has no sender authentication, per disposition 70). `run dev -- <tool reading DB_URL>` prints `proved DB_URL against <devref> (supabase)`, while libpq connects to the first host and sends the dev credentials to it. This is the exact wrong-target class the proof exists to stop.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "Reproduced against the current tree: check('postgresql://postgres.<ref>:pw@evil.example,aws-0-eu-west-1.pooler.supabase.com:6543/postgres', {ref}) returns null, which is a pass. packs/supabase/pack.mjs:36-47 cuts the host at [/?#], strips only the last :port, and tests endsWith('.pooler.supabase.com') on the whole string with no comma handling. Line 59 passes whenever pooled===ref and pooler is true."
+    },
+    {
+      "file": "packages/cookwright/packs/supabase/pack.mjs",
+      "location": "manifest.ambient, line 131",
+      "problem": "The ambient list, which `run` drops from the child's environment (dispositions 14 and 29), leaves out PGHOSTADDR. libpq takes hostaddr from PGHOSTADDR whenever the URI does not set it, and hostaddr decides the IP it connects to, ahead of the host name the proof anchored. The query-string rule (pgQueryProblem) refuses `?hostaddr=` precisely because it overrides the URL's host, but the same override is left open through the inherited environment. The proof and its near-miss tests judge only the value's text, so nothing covers this.",
+      "severity": "P2",
+      "suggested_fix": "Add PGHOSTADDR to the supabase manifest's ambient list (and to pointers if it should not become a needle; an IP is not a secret). Also consider PGHOST, PGPORT, PGUSER and PGDATABASE, which fill in whatever a URI omits. Note it in the guide's query-string section. Since the core `host` kind judges postgres URLs too, consider having the core drop the libpq routing variables whenever a postgres-scheme value is injected, not only when the supabase pack is declared. Add a registry test pinning the list.",
+      "failure_scenario": "The developer's shell keeps `export PGHOSTADDR=<prod pooler IP>` from earlier prod work. `npx cookwright run dev -- sh -c 'psql \"$DB_URL\"'` resolves dev's URL, the supabase proof passes on the dev ref, and the banner says proved. PGHOSTADDR is neither declared nor ambient, so it is neither dropped nor named, and psql connects to the prod IP. This is the origin incident's shape: a stale export aiming a dev run at production.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "plausible",
+      "evidence": "packs/supabase/pack.mjs:131 lists ambient as SUPABASE_DB_URL, SUPABASE_ACCESS_TOKEN, PGPASSWORD, PGPASSFILE, PGSERVICE and PGSERVICEFILE. PGHOSTADDR is not in it, and neither is PGHOST. src/lib/secret/config.mjs:27 builds the drop list only from this manifest field, and grep finds no PGHOST* handling in src, packs or docs. I could not find the code that builds the child environment for run in this range, so I could not confirm that nothing else filters the environment. Whether libpq lets PGHOSTADDR override a URI host is from my knowledge of libpq, not reproduced here."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/proofs.mjs",
+      "location": "prove(), lines 118-135 (`coveredNames(proof, kind, [...values.keys()])`)",
+      "problem": "The doc comment says 'A covered value is never skipped: an absent one is judged as empty', but when a proof omits `names`, the covered set is computed from the keys of the `values` Map, not from the target's declared names. A default-covered name missing from `values` is silently left out, and when none is present prove returns `{ok:true, proved:[]}` for a declared proof. Measured: `prove(new Map([['SERVICE_ROLE_KEY','x']]), {kind:'supabase', ref}, kinds)` returns ok:true. The claim is wider than the code, and the guarantee depends on every s2/s3 caller having already refused missing names.",
+      "severity": "P3",
+      "suggested_fix": "Pass the target's declared names into prove (for example `prove(values, proof, kinds, target.names)`) and compute coveredNames from them, so an absent covered name is judged as empty and fails. Add a test with a default-covered name absent from `values`.",
+      "failure_scenario": "An s2/s3 path that calls prove on a partial Map (for example age's partial parse used by `secrets set`, or a backend that drops an empty value before the missing-name check) proves a supabase target whose DB_URL was never judged, and the banner reports `proved` with nothing behind it.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "plausible",
+      "evidence": "proofs.mjs:121 computes coveredNames(proof, kind, [...values.keys()]) from the Map's keys, not from the target's declared names. A default-covered name missing from the Map is therefore never judged, and prove returns ok:true with proved:[]. That contradicts the doc comment at about line 113 ('an absent one is judged as empty'). I did not reproduce the supabase call. Whether this is exploitable depends on s2/s3 callers refusing missing names before they call prove, and I could not confirm that either way."
+    },
+    {
+      "file": "docs/guides/updating.md",
+      "location": "line 19 (`cookwright.json: already at version 3`) and the migrate section",
+      "problem": "Commit b552198 moved CONFIG_VERSION to 4 and changed the fixture's `already at version 3` assertion to version 4, but the user guide still shows `already at version 3` as the output on a current file and has no version-4 section. AGENTS.md's doc-sync rule ('A change with doc implications updates the doc in the same commit') is not met. The plan defers updating.md to s5, and the orchestrator accepted that deferral (open question 7), so the guide stays wrong for three sessions of commits on the branch.",
+      "severity": "P3",
+      "suggested_fix": "Update the example output to version 4 and add a 'Version 4: secrets' pointer to docs/guides/secrets.md now (two lines), or record the deferral as a backlog entry so the stale line is tracked rather than carried in narrative.",
+      "failure_scenario": "A user on a build cut from this branch, or reading the docs at any commit before s5, runs `npx cookwright migrate`, sees `already at version 4` where the guide shows version 3, and cannot find what version 4 changed from the updating guide.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "plausible",
+      "evidence": "Same facts as [3]: docs/guides/updating.md:19 and :29 show version 3 and the guide has no version-4 section, while the range makes 4 current. plan.md:178 schedules the updating.md edit for s5. This finding duplicates [3]. The 'three sessions of commits' claim and the open-question-7 acceptance are not verified here. The user-visible mismatch only reaches a build cut mid-bundle, since s5 is expected to fix the guide before merge."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "Read CHARTER.md, AGENTS.md instructions, the Stage 5 plan, committed bundle state and the s1 session report",
+    "Ran doctor: 19 PASS, no FAIL/WARN/SKIP",
+    "Reviewed the complete range's file list, commit history, messages and diffs, with relevant base-version context via git diff and git show",
+    "Examined config/schema parity, migrations, proof kinds, Supabase parsing, redaction, env-file parsing, recipients handling, messages, tests, fixture changes, docs, backlog changes and package inclusion",
+    "Ran git diff --check: no whitespace errors",
+    "Searched the range for private local paths and credential-like literals: none found",
+    "Exhaustively compared streaming and whole-buffer redaction for small overlapping inputs and chunk boundaries: no discrepancy",
+    "Attempted npm test: the read-only sandbox blocked Vitest from creating .vite-temp, so the suite could not start",
+    "Existing uncommitted state.json and swap-file changes were left untouched",
+    "git diff bb19f32..7abf970: config.mjs validateSecrets/validateTarget/validateProof/unknownKind (own-property lookups, empty targets, id required with keychain, names subset)",
+    "migrations.mjs 3->4 addSecretsVersion (version only, secretsNone/secretsKept)",
+    "schema/cookwright.schema.json secrets block vs the validator",
+    "src/lib/secret/proofs.mjs: canonicalHost, pgQueryProblem, pgUserinfoProblem, host kind, prove (probed with node)",
+    "packs/supabase/pack.mjs: supabase kind anchors, found-ref printing, ambient/pointers (probed with node: multi-host bypass confirmed)",
+    "src/lib/secret/redact.mjs: needles, spans, prefix hold-back, Redactor; fuzzed 20000 random chunkings of overlapping needles against redactBytes: 0 mismatches",
+    "src/lib/secret/envfile.mjs parseAgainst (ordered/partial, NUL, duplicate, unknown, empty) and replaceLine",
+    "src/lib/secret/recipients.mjs parseRecipients and requireCommittedRecipients (top-relative git show, byte equality)",
+    "src/lib/secret/config.mjs declaredNames/ambientNames/pointerNames/topRel",
+    "cli.mjs splitArgv",
+    "messages.mjs secrets group: no value, host-from-value or password interpolated",
+    "messages.test SCANNED, registry.test proofs/ambient tests",
+    "fixture.sh version lines, cookwright.json version 4",
+    "docs/guides/secrets.md claims vs code; docs/guides/updating.md staleness",
+    "session report and orchestrator decisions in state.json (src/lib/secret singular path, pointers, pgUserinfoProblem)",
+    "AGENTS.md rules: no secrets or local paths in the diff, no new dependency, strings in messages.mjs except the inline config strings that follow the existing cycle-rule precedent",
+    "No `### Advisory` heading under a pack section in AGENTS.md, so there was nothing to check"
+  ],
+  "notes": "Codex session 01a17dc3-0a1a-7403-a513-6d73fb18db8e, model gpt-5.6-sol, high effort, read-only sandbox. It finished within the ceiling, so no resume was needed. Full output: <local path> Findings are transcribed as Codex reported them, with none added.\n---\nI read the plan, the rules files, the s1 session report and the orchestrator's dispositions. The deviation of src/lib/secret/ (singular) from the plan's src/lib/secrets/ was disposed by the orchestrator and I did not re-raise it. Neither did I re-raise controlNames, the messages.run group or SCANNED's later entries, which are deferred to s2/s3 by recorded decision.\n\nThe redactor held up: the byte, overlap and chunk-split claims match the code, and an independent fuzz found no streaming/whole mismatch.\n\nThe main defect is in the supabase proof. libpq's comma-separated multi-host URI passes the pooler anchor when the last host is a pooler host, while libpq connects to the first host. I reproduced this with node on three encodings; scratch scripts are under <local path>\n\nSecond, PGHOSTADDR is missing from the ambient drop list even though `?hostaddr=` is refused in the URL. The ambient list is s1's data, but the drop itself is s2's childEnv, so the fix lands in the manifest now and in s2's tests.\n\nI did not re-run npm test or the fixture; the gate's 861 tests come from the session report.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a17dc3-0a1a-7403-a513-6d73fb18db8e",
+    "partialReportPath": null
+  }
+}

@@ -253,6 +253,11 @@ describe('the setup skill', () => {
     expect(text).toContain('**The secrets pass**');
   });
 
+  it('says the supabase proof needs the supabase pack declared (review:surface finding 7)', () => {
+    const pass = text.slice(text.indexOf('**The secrets pass**'));
+    expect(pass).toContain('the `supabase` kind exists only with `supabase` in `packs`');
+  });
+
   it("closes the secrets pass with a key left unproved, never proving it (review:surface findings 0 and 4)", () => {
     const pass = text.slice(text.indexOf('**The secrets pass**'));
     expect(pass).toContain('Exit 0 with every name a proof kind can cover proved closes the pass.');

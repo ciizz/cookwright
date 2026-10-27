@@ -81,6 +81,20 @@ export function pgUserinfoProblem(value) {
   return at >= 0 && /[/?#@]/.test(rest.slice(0, at)) ? { anchor: 'userinfo' } : null;
 }
 
+/**
+ * For a postgres-scheme value whose host part (after the last `@`, up to `/`, `?`
+ * or `#`) lists more than one host: `{ anchor: 'hostList' }`. libpq splits the
+ * host part on commas after percent-decoding it, so `,` and `%2C` both count, and
+ * tries the hosts in order: an anchor on one of them would not say where it
+ * connects. Null otherwise.
+ */
+export function pgHostProblem(value) {
+  if (!isPostgresUrl(value)) return null;
+  const rest = value.replace(PG_SCHEME, '');
+  const hostPart = rest.slice(rest.lastIndexOf('@') + 1).split(/[/?#]/)[0];
+  return /,|%2c/i.test(hostPart) ? { anchor: 'hostList' } : null;
+}
+
 /** The core `host` kind: each covered value is a URL whose host is the declared one. */
 const host = {
   fields: ['host'],
@@ -119,7 +133,7 @@ export function coveredNames(proof, kind, targetNames) {
  * `{ ok, proved, against, kind }`, and `reason: { name, anchor, … }` when a covered
  * value fails. No proof → ok, nothing proved. A covered value is never skipped: an
  * absent one is judged as empty, a mismatch. A postgres-scheme value must first
- * pass the query and user-part rules, whatever the kind.
+ * pass the query, user-part and host-list rules, whatever the kind.
  */
 export function prove(values, proof, kinds) {
   if (proof === undefined) return { ok: true, proved: [], against: null, kind: null };
@@ -128,7 +142,7 @@ export function prove(values, proof, kinds) {
   const names = coveredNames(proof, kind, [...values.keys()]);
   for (const name of names) {
     const value = values.get(name) ?? '';
-    const problem = pgQueryProblem(value) ?? pgUserinfoProblem(value) ?? kind.check(value, proof);
+    const problem = pgQueryProblem(value) ?? pgUserinfoProblem(value) ?? pgHostProblem(value) ?? kind.check(value, proof);
     if (problem) return { ok: false, proved: [], against, kind: proof.kind, reason: { name, ...problem } };
   }
   return { ok: true, proved: [...names], against, kind: proof.kind };

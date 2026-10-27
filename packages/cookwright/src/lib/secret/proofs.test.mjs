@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { messages } from '../messages.mjs';
 import { PACKS } from '../packs/registry.mjs';
-import { KINDS, canonicalHost, coveredNames, pgQueryProblem, proofKinds, prove } from './proofs.mjs';
+import { KINDS, canonicalHost, coveredNames, pgHostProblem, pgQueryProblem, proofKinds, prove } from './proofs.mjs';
 
 const REF = 'abcdefghijklmnopqrst';
 const OTHER = 'tsrqponmlkjihgfedcba';
@@ -74,6 +74,12 @@ describe('the host kind', () => {
     }
   });
 
+  it('refuses a postgres value that lists more than one host, the declared one among them', () => {
+    for (const hosts of ['db.example.com:5432,evil.example:5432', 'evil.example:5432,db.example.com:5432', 'db.example.com%2Cevil.example:5432']) {
+      expect([hosts, host(`postgresql://u:${PW}@${hosts}/app`, 'db.example.com:5432').reason]).toEqual([hosts, { name: 'API_URL', anchor: 'hostList' }]);
+    }
+  });
+
   it('refuses a postgres value whose query string moves the host (disposition 65)', () => {
     const value = `postgresql://u:${PW}@db.example.com:5432/app?host=evil.example`;
     expect(host(value, 'db.example.com:5432').reason).toEqual({ name: 'API_URL', anchor: 'param', param: 'host' });
@@ -111,6 +117,10 @@ describe('the supabase kind', () => {
     ['the ref as a prefix of the user', pooler(`${REF}.postgres`), 'dbUrl', null],
     ['a matching user on evil.example', pooler(`postgres.${REF}`, 'evil.example'), 'dbUrl', null],
     ['a matching user on a host merely holding pooler', pooler(`postgres.${REF}`, 'pooler.supabase.com.evil.example'), 'dbUrl', null],
+    ['a matching user on evil.example,<pooler>', pooler(`postgres.${REF}`, 'evil.example,aws-0-eu-west-1.pooler.supabase.com'), 'hostList', undefined],
+    ['the same, a port on both hosts', `postgresql://postgres.${REF}:${PW}@evil.example:5432,aws-0-eu-west-1.pooler.supabase.com:6543/postgres`, 'hostList', undefined],
+    ['the same, the comma as %2C', pooler(`postgres.${REF}`, 'evil.example%2Caws-0-eu-west-1.pooler.supabase.com'), 'hostList', undefined],
+    ['db.<other>.supabase.co,<pooler>', pooler(`postgres.${REF}`, `db.${OTHER}.supabase.co,aws-0-eu-west-1.pooler.supabase.com`), 'hostList', undefined],
     ['a user and a host that disagree', direct(`postgres.${OTHER}`), 'disagree', undefined],
     ['a user and a host that disagree, the other way', direct(`postgres.${REF}`, OTHER), 'dbUrl', OTHER],
     ['another project, pooled', pooler(`postgres.${OTHER}`), 'dbUrl', null],
@@ -132,6 +142,14 @@ describe('the supabase kind', () => {
     expect(r.ok).toBe(false);
     expect(r.reason.anchor).toBe(anchor);
     if (found !== undefined) expect(r.reason.found).toBe(found);
+  });
+
+  it('anchors the pooler on one host, even when the host-list rule is not run first', () => {
+    const check = (value) => kinds.supabase.check(value, { ref: REF });
+    expect(check(pooler(`postgres.${REF}`, 'evil.example,aws-0-eu-west-1.pooler.supabase.com'))).toEqual({ anchor: 'dbUrl', found: null });
+    expect(check(pooler(`postgres.${REF}`, 'AWS-0-eu-west-1.pooler.supabase.com'))).toBeNull();
+    expect(pgHostProblem(`postgresql://u:${PW}@db.example.com:5432/app,b`)).toBeNull(); // a comma in the path is not the host part
+    expect(pgHostProblem('https://a.example,b.example/')).toBeNull(); // the rule is libpq's: postgres schemes only
   });
 
   it('names the query parameter, decoded, and never its value', () => {
@@ -205,4 +223,4 @@ describe('the refusal line', () => {
   });
 });
 
-const NEAR_ANCHORS = ['notUrl', 'host', 'param', 'paramName', 'userinfo', 'projectUrl', 'dbUrl', 'disagree'];
+const NEAR_ANCHORS = ['notUrl', 'host', 'param', 'paramName', 'userinfo', 'hostList', 'projectUrl', 'dbUrl', 'disagree'];

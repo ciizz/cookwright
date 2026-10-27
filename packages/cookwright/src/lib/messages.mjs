@@ -652,6 +652,7 @@ const proofAnchors = {
   param: (_, { param }) => `its query string sets ${param}, which libpq lets override the URL's host, user or credentials`,
   paramName: () => 'its query string has a parameter name that does not decode',
   userinfo: () => 'the part before its host holds an unencoded /, ?, # or @ (percent-encode it)',
+  hostList: () => 'it lists more than one host (a comma, or %2C, in its host part), and libpq connects to the first that answers',
   projectUrl: (ref, { found }) =>
     `expected https://${ref}.supabase.co, ${found ? `found ref ${found}` : 'not a supabase.co URL'}`,
   dbUrl: (ref, { found }) =>

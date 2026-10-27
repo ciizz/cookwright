@@ -13,8 +13,9 @@
 // `db.<ref>.supabase.co`, and when both a `<role>.<x>` user and a `db.<y>` host
 // appear, x and y are both the ref. The user part ends at the last `@`, read by hand,
 // never by `new URL`. A found ref is reported only from a `*.supabase.co` host and
-// only when it has a ref's shape. The core judges a postgres URL's query string and
-// user part before this check runs (pgQueryProblem, pgUserinfoProblem).
+// only when it has a ref's shape. The core judges a postgres URL's query string,
+// user part and host list before this check runs (pgQueryProblem,
+// pgUserinfoProblem, pgHostProblem).
 //
 // `ambient` lists the names the pack's tools read from the environment on their
 // own: `run` drops them from the child's environment, and doctor names them where it
@@ -22,6 +23,8 @@
 // rather than holding a secret: dropped all the same, never redacted (disposition 22).
 
 const REF = /^[a-z]{20}$/;
+/** One pooler host, nothing before or after it (a host list never matches: no comma, no `%`). */
+const POOLER_HOST = /^[a-z0-9-]+(\.[a-z0-9-]+)*\.pooler\.supabase\.com$/;
 
 /** The ref of `https://<ref>.supabase.co` (a path allowed), or null for any other value. */
 function refOfProjectUrl(value) {
@@ -30,8 +33,8 @@ function refOfProjectUrl(value) {
 
 /**
  * A postgres URL's anchors: `pooled`, the x of a `<role>.<x>` user (percent-decoded);
- * `direct`, the y of a `db.<y>.supabase.co` host; `pooler`, whether the host ends in
- * `.pooler.supabase.com`. Null for a user that does not decode.
+ * `direct`, the y of a `db.<y>.supabase.co` host; `pooler`, whether the host is one
+ * `*.pooler.supabase.com` host. Null for a user that does not decode.
  */
 function dbUrlAnchors(value) {
   const rest = value.replace(/^postgres(?:ql)?:\/\//i, '');
@@ -47,7 +50,7 @@ function dbUrlAnchors(value) {
   return {
     pooled: /^[a-z_][a-z0-9_]*\.([a-z0-9]+)$/.exec(user)?.[1] ?? null,
     direct: /^db\.([a-z0-9-]+)\.supabase\.co$/.exec(host)?.[1] ?? null,
-    pooler: host.endsWith('.pooler.supabase.com'),
+    pooler: POOLER_HOST.test(host),
   };
 }
 

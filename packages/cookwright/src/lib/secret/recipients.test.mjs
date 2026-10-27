@@ -98,6 +98,20 @@ describe('requireCommittedRecipients', () => {
     expect(requireCommittedRecipients(top, rel)).toEqual({ problem: { why: 'staged' } });
   });
 
+  it('reads a config root named with pathspec magic literally, a staged sibling it would match left alone', () => {
+    const top = gitInit(path.join(TMP, 'magic'));
+    const rel = 'a[1]/secrets/recipients.txt';
+    const sibling = 'a1/secrets/recipients.txt';
+    for (const f of [rel, sibling]) {
+      fs.mkdirSync(path.dirname(path.join(top, f)), { recursive: true });
+      fs.writeFileSync(path.join(top, f), `${K1}\n`);
+    }
+    commit(top, rel, sibling);
+    fs.writeFileSync(path.join(top, sibling), `${K2}\n`);
+    run(top, 'git', ['add', '--', sibling]);
+    expect(requireCommittedRecipients(top, rel)).toEqual({ keys: [K1] });
+  });
+
   it('words each refusal naming the file, and the diff to review', () => {
     const rel = 'secrets/recipients.txt';
     const line = (problem) => messages.secrets.recipients(problem, rel);

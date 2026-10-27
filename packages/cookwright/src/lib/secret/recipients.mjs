@@ -40,7 +40,8 @@ export const tails = (keys) => keys.map((k) => k.slice(-8));
  * and in the work tree: `{ keys }`, or `{ problem: { why } }` with why `missing`,
  * `uncommitted` (not in HEAD), `removed` (a staged deletion), `staged` (the index
  * differs from HEAD), `differs` (the work tree does), or a parseRecipients problem.
- * `cap` bounds each git call (ms).
+ * `cap` bounds each git call (ms). The path is a literal pathspec, so a config
+ * root named with `[`, `*` or `?` matches no sibling (disposition 54).
  */
 export function requireCommittedRecipients(top, topRel, { cap } = {}) {
   let text;
@@ -52,8 +53,9 @@ export function requireCommittedRecipients(top, topRel, { cap } = {}) {
   const git = (args) => gitRun(top, args, cap === undefined ? {} : { cap });
   const head = git(['show', `HEAD:${topRel}`]);
   if (head.status !== 0) return { problem: { why: 'uncommitted' } };
-  if (git(['ls-files', '--error-unmatch', '--', topRel]).status !== 0) return { problem: { why: 'removed' } };
-  if (git(['diff', '--cached', '--quiet', '--', topRel]).status !== 0) return { problem: { why: 'staged' } };
+  const literal = (args) => git(['--literal-pathspecs', ...args, '--', topRel]);
+  if (literal(['ls-files', '--error-unmatch']).status !== 0) return { problem: { why: 'removed' } };
+  if (literal(['diff', '--cached', '--quiet']).status !== 0) return { problem: { why: 'staged' } };
   if (head.stdout !== text) return { problem: { why: 'differs' } };
   return parseRecipients(text);
 }

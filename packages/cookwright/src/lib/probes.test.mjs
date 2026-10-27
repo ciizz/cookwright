@@ -6,16 +6,21 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { gitInit, run, scratchRoot, stageOnly } from '../test-helpers.mjs';
+import { TimedOut, withBudget } from './budget.mjs';
 import {
   SCAN_ARGS,
   atLeast,
+  capture,
   claudeVersion,
   gitleaksVersion,
   hasTool,
   ignored,
+  ignoredBy,
   parseVersion,
   rootFiles,
   scanStaged,
+  spawnChild,
+  terminal,
 } from './probes.mjs';
 
 const TMP = scratchRoot('cookwright-probes-');
@@ -79,6 +84,53 @@ describe('ignored', () => {
     const outside = path.join(TMP, 'not-a-repo');
     fs.mkdirSync(outside);
     expect(() => ignored(outside, '.env')).toThrow(/git check-ignore \.env failed: .+/);
+  });
+});
+
+describe('ignoredBy', () => {
+  it('names the rule that ignores a path, a directory asked with its slash, and null for a negation', () => {
+    const root = gitInit(path.join(TMP, 'by'));
+    fs.writeFileSync(path.join(root, '.gitignore'), '# keys\nsecrets/\n*.age\n!keep/*.age\n');
+    expect(ignoredBy(root, 'secrets/')).toEqual({ source: '.gitignore', line: 2, pattern: 'secrets/' });
+    expect(ignoredBy(root, 'secrets/recipients.txt')).toEqual({ source: '.gitignore', line: 2, pattern: 'secrets/' });
+    expect(ignoredBy(root, 'x.age')).toEqual({ source: '.gitignore', line: 3, pattern: '*.age' });
+    expect(ignoredBy(root, 'keep/x.age')).toBeNull();
+    expect(ignoredBy(root, 'other.txt')).toBeNull();
+    const outside = path.join(TMP, 'not-a-repo-by');
+    fs.mkdirSync(outside);
+    expect(() => ignoredBy(outside, 'x')).toThrow(/git check-ignore x failed: .+/);
+  });
+});
+
+describe('capture, spawnChild, terminal', () => {
+  const node = process.execPath;
+
+  it('captures both outputs of a call fed on stdin, with the env and cwd it is given', () => {
+    const code = 'let s="";process.stdin.on("data",(d)=>s+=d).on("end",()=>{console.log(s.length, process.env.ONLY, process.cwd());console.error("e");process.exit(4)})';
+    const r = capture(node, ['-e', code], { input: 'abc', env: { ONLY: 'x' }, cwd: TMP });
+    expect(r.status).toBe(4);
+    expect(r.stdout.trim().split(' ').slice(0, 2)).toEqual(['3', 'x']);
+    expect(fs.realpathSync(r.stdout.trim().split(' ')[2])).toBe(fs.realpathSync(TMP));
+    expect(r.stderr).toBe('e\n');
+    expect(capture(path.join(TMP, 'no-such-tool'), []).status).toBeNull();
+  });
+
+  it('is bounded by its cap and by a spent budget, and uncapped with cap null', () => {
+    expect(() => capture(node, ['-e', 'setTimeout(()=>{},5000)'], { cap: 200 })).toThrow(TimedOut);
+    expect(() => withBudget(() => capture(node, ['-e', '1']), 0)).toThrow(TimedOut);
+    expect(capture(node, ['-e', 'setTimeout(()=>{},300)'], { cap: null }).status).toBe(0);
+  });
+
+  it('spawns the one child without a shell', async () => {
+    const child = spawnChild('echo', ['$HOME', '|', 'x'], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let out = '';
+    child.stdout.on('data', (d) => (out += d));
+    await new Promise((resolve) => child.on('close', resolve));
+    expect(out).toBe('$HOME | x\n');
+  });
+
+  it('reads no terminal where /dev/tty does not open (an agent shell, the test runner)', () => {
+    expect(typeof terminal()).toBe('boolean');
   });
 });
 

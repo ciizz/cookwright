@@ -36,7 +36,7 @@ describe('dispatch', () => {
 
   it('prints the usage and exits 2 on an unknown or missing command', async () => {
     expect(await dispatch(['bogus'])).toBe(2);
-    expect(errors.at(-1)).toBe(`usage: ${CLI} <init|doctor|changelog|hook|migrate|bundle|standards|audit|packs> …`);
+    expect(errors.at(-1)).toBe(`usage: ${CLI} <init|doctor|changelog|hook|migrate|bundle|standards|audit|packs|run> …`);
     expect(await dispatch([])).toBe(2);
     expect(await dispatch(['toString'])).toBe(2); // not an inherited property
   });

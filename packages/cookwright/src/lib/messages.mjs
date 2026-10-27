@@ -632,6 +632,30 @@ const audit = {
   nothing: `nothing to audit: no pack is declared in ${CONFIG_FILE} and no --doc was given`,
 };
 
+// run: `npx cookwright run <target> -- <command…>` (stage-5 plan §4.2). The banner
+// goes to stderr; a refusal before the spawn exits 125, a command that cannot be
+// started 127.
+const run = {
+  usage: `usage: ${CLI} run <target> -- <command> [argument…]`,
+  refused: (detail) => `run: ${detail}`,
+  noConfig: (cwd) => `no ${CONFIG_FILE} at or above ${cwd}; ${RUN_INIT}`,
+  configInvalid: (detail) => `${CONFIG_FILE} invalid: ${detail}; run ${CLI} doctor`,
+  banner: (parts) => parts.join(' · '),
+  head: (target) => `run: ${target}`,
+  injected: (names) => `injected ${list(names)}`,
+  proved: (names, against, kind) => `proved ${list(names)} against ${against} (${kind})`,
+  unproved: (names) => `unproved ${list(names)}`,
+  dropped: (names) => `dropped from the environment: ${list(names)}`,
+  uncommitted: (files) => `uncommitted: ${list(files)}`,
+  uncommittedUnknown: 'uncommitted: not measured (git status failed)',
+  piped: 'child output piped through the redactor (no terminal on stdout/stderr)',
+  // the child's own command line (dispositions 21, 22, 43): a position, never the argument
+  argValue: (i, name) => `argument ${i} holds the value of ${name}; read it from the environment inside the command instead`,
+  argUrl: (i) =>
+    `argument ${i} is a URL with a password; declare it as a secret and read it from the environment inside the command instead`,
+  notStarted: (cmd, code) => `${cmd} could not be started (${code})`,
+};
+
 // packs: `npx cookwright packs rules`, the declared packs' doc-sync rules and gate checks (disposition 35).
 const packs = {
   usage: `usage: ${CLI} packs rules`,
@@ -679,7 +703,83 @@ const recipientsWhy = {
   empty: ({ rel }) => `${rel} holds no recipient`,
 };
 
+/** The name of a secret a `secrets set` line fixes. */
+const setLine = (target, name) => `${CLI} secrets set ${target} ${name}`;
+const tailed = (keys) => keys.map((t) => `…${t}`).join(', ');
+const NOT_WORK_TREE = `the directory holding ${CONFIG_FILE} is not inside a git work tree (the recipients file is reviewed in a commit)`;
+
 const secrets = {
+  usage: `usage: ${CLI} secrets init [--no-passphrase] [--yes] | secrets set <target> <NAME> [--stdin]`,
+  refused: (detail) => `secrets: ${detail}`,
+  noConfig: (cwd) => `no ${CONFIG_FILE} at or above ${cwd}; ${RUN_INIT}`,
+  configInvalid: (detail) => `${CONFIG_FILE} invalid: ${detail}; run ${CLI} doctor`,
+  // the engine's refusals before anything runs (lib/secret/engine.mjs), each exit 125
+  none: `no secrets backend declared in ${CONFIG_FILE} (Level 2 off; the secrets guide shows the key)`,
+  unknownTarget: (name, known) =>
+    `no target ${name} in ${CONFIG_FILE} (${known.length ? `declared: ${list(known)}` : 'none declared'})`,
+  noBackend: (name) => `the ${name} backend is not available in this version of cookwright`,
+  needsTool: (tool, install) => `needs ${tool}: ${install}`,
+  platform: (backend, platforms) => `the ${backend} backend runs on ${list(platforms)} only`,
+  missingName: (name, target) => `${name} is missing or empty for ${target}: ${setLine(target, name)}`,
+  resolved: (target, detail) => `${target}: ${detail}; re-set the values with ${CLI} secrets set`,
+  timedOut: (tool) => `${tool} did not answer in time`,
+  undeclared: (name, target) =>
+    `${name} is not one of ${target}'s names (secrets.targets.${target}.names in ${CONFIG_FILE}): declare it first`,
+  notWorkTree: NOT_WORK_TREE,
+  // secrets set's lines: never a value or its length
+  set: (name, target, backend) => `secrets: set ${name} for ${target} (${backend})`,
+  encryptedTo: (keys) => `secrets: encrypted to ${keys.length} recipient(s): ${tailed(keys)}`,
+  // readValue (lib/secret/prompt.mjs)
+  prompt: {
+    value: (name, target) => `${name} for ${target} (input hidden): `,
+    noTerminal: 'no terminal to read the value from: run this in your terminal, or pipe one line with --stdin',
+    cancelled: 'cancelled; nothing written',
+    eof: 'the input ended before a line was entered; nothing written',
+    empty: 'the value is empty; nothing written',
+    oneLine: 'a value is one line, and the input holds more than one; nothing written',
+    nul: 'the value holds a NUL byte; nothing written',
+    tooLong: (max) => `the input is longer than ${max} bytes; nothing written`,
+    proceed: 'proceed? [y/N] ',
+  },
+  // the age backend (lib/secret/backends/age.mjs)
+  age: {
+    install: 'brew install age (or the age package of your system)',
+    noIdentity: (p) =>
+      `no age identity at ${p}: ${CLI} secrets init writes one (on another machine, copy the identity you already have there)`,
+    protectedNoTerminal: 'the identity is passphrase-protected; hand this command to the developer',
+    failed: (what, line) => `${what} failed${line ? `: ${line}` : ''}`,
+    multiLine: (name) => `${name}: a value is one line, with no NUL byte; nothing written`,
+    identityExists: (p) =>
+      `an age identity already exists at ${p}; one identity per developer, so init writes none (a second machine copies it, the secrets guide says how)`,
+    inWorkTree: (dir, top) =>
+      `${dir} is inside the git work tree ${top}, and an identity never lives in a repo: set COOKWRIGHT_AGE_IDENTITY to a path outside every work tree`,
+    gitProbe: (detail) => `could not tell whether the identity's directory is inside a git work tree: ${detail}`,
+    ignored: (rel, rule) =>
+      `${rel} is ignored by git (${rule.source}:${rule.line}: ${rule.pattern}); remove that line, so the ciphertext and recipients can be committed; nothing written`,
+    notWritable: (dir) => `${dir} is not writable; nothing written`,
+    passphraseTerminal: 'secrets init asks for the passphrase on a terminal; hand this command to the developer',
+    consentTerminal: 'secrets init asks for consent on a terminal; hand this command to the developer, or pass --yes',
+    declined: 'not confirmed; nothing written',
+    noPublicKey: 'age-keygen printed no public key; nothing written',
+    autogenerated: 'age generated the passphrase because an empty one was typed; nothing kept: run init again and type a passphrase',
+    notProtected: 'age did not write a passphrase-protected identity; nothing kept',
+    removed: (p) => `secrets: removed ${p}`,
+    willWrite: 'secrets: init will write',
+    willIdentity: (p, protect) =>
+      protect
+        ? `  ${p}, the age identity, passphrase-protected (age asks for the passphrase next, on this terminal; an empty one makes age generate one and print it here once)`
+        : `  ${p}, the age identity, with no passphrase (weaker: whoever reads the file opens every secret)`,
+    willRecipients: (rel, exists) =>
+      exists ? `  its public key, appended to ${rel}` : `  ${rel}, holding its public key`,
+    held: (rel, keys) =>
+      `${rel} already holds ${keys.length} recipient(s) (${tailed(keys)}): one identity per developer, so on a second machine copy your identity instead of running init; a new recipient cannot read what is already encrypted until each value is set again`,
+    wroteIdentity: (p, protect) =>
+      protect
+        ? `secrets: wrote ${p} (passphrase-protected, mode 600)`
+        : `secrets: wrote ${p} (no passphrase, mode 600: weaker; the secrets guide shows how to add one)`,
+    wroteRecipients: (rel, keys) => `secrets: ${rel} holds ${keys.length} recipient(s): ${tailed(keys)}`,
+    commitFirst: (rel) => `secrets: commit ${rel} before the first secrets set (git add ${rel} && git commit)`,
+  },
   proof: {
     // prove()'s result when ok is false: the name, the expected identifier, the kind, the anchor
     failed: ({ against, kind, reason }) =>
@@ -742,5 +842,6 @@ export const messages = {
   standards,
   audit,
   packs,
+  run,
   secrets,
 };

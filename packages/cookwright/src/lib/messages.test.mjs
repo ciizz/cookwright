@@ -28,6 +28,8 @@ const SCANNED = [
   'src/audit.mjs',
   'src/packs.mjs',
   'src/migrate.mjs',
+  'src/run.mjs',
+  'src/secrets.mjs',
   'src/lib/cli.mjs',
   'src/lib/init',
   'src/lib/doctor',
@@ -39,6 +41,7 @@ const SCANNED = [
   'src/lib/hooks',
   'src/lib/packs',
   'src/lib/secret',
+  'src/lib/secret/backends',
 ];
 
 /** Modules whose literals are content written into the user's repo, not messages. */
@@ -59,6 +62,7 @@ const ALLOWED = {
   'src/lib/probes.mjs': ['`git check-ignore ${rel}`', "'git check-ignore'"], // the command a probe failure names
   'src/lib/hooks/push.mjs': ["'git status'"], // the command a failure names
   'src/lib/packs/registry.mjs': ["'npx cookwright standards --ratchet'"], // the gate command written into the config
+  'src/lib/secret/backends/age.mjs': ["'-----BEGIN AGE ENCRYPTED FILE-----'"], // age's armor line, a file format
 };
 
 const sources = () =>

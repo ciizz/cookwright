@@ -64,3 +64,14 @@ export function topRel(root, top, rel) {
   if (out === '' || out === '..' || out.startsWith(`..${path.sep}`) || path.isAbsolute(out)) return null;
   return out.split(path.sep).join('/');
 }
+
+/**
+ * The names in `env` that steer `backend`'s own tool (disposition 50): its
+ * `control` list, where an entry ending in `*` is a prefix (`OP_SESSION_*`). The
+ * helpers keep them; the child never receives them.
+ */
+export function controlNames(backend, env) {
+  const control = backend.control ?? [];
+  const matches = (name) => control.some((c) => (c.endsWith('*') ? name.startsWith(c.slice(0, -1)) : name === c));
+  return Object.keys(env).filter(matches);
+}

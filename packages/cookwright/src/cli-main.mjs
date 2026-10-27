@@ -16,6 +16,7 @@ const COMMANDS = {
   standards: () => import('./standards.mjs'),
   audit: () => import('./audit.mjs'),
   packs: () => import('./packs.mjs'),
+  run: () => import('./run.mjs'),
 };
 
 /** Run `cookwright <command> …`; an unknown or missing command → the usage, exit 2. */

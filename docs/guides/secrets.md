@@ -228,6 +228,7 @@ The managed block that `npx cookwright init` writes into `AGENTS.md` (version 4 
 - a command that needs a credential runs through `npx cookwright run <target> -- <command…>`, and only with a target you named in the session;
 - with a passphrase-protected age identity, the agent hands you the `run` command instead of running it, since age asks you for the passphrase;
 - never `export` a secret, never pass one as an argument, never print a process's command line or environment;
+- never read a value from the backend itself (`age -d`, `op read`, `op inject`, `security find-generic-password -w`) and never open the identity file: a refusal's own line names the fix;
 - `secrets init` and `secrets set` are yours: the agent hands them over, never runs them, and never asks you for a value in the transcript.
 
 An older block reads stale in doctor's `rules.block` until `npx cookwright init` refreshes it.

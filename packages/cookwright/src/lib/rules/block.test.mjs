@@ -49,6 +49,9 @@ describe('renderBlock', () => {
     expect(secrets).toContain('With a passphrase-protected age identity, hand the `run` command to the developer');
     expect(secrets).toContain('Never `export` a secret, never pass one as an argument');
     expect(secrets).toContain("never print a process's command line or environment");
+    expect(secrets).toContain(
+      'Never read a value from the backend yourself (`age -d`, `op read`, `op inject`, `security find-generic-password -w`) and never open the identity file',
+    );
     expect(secrets).toContain(`\`${CLI} secrets init\` and \`${CLI} secrets set\` are the developer's commands`);
   });
 

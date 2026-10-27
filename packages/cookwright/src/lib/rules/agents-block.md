@@ -36,6 +36,7 @@ When `{{cli}} init` has installed the hooks (`.githooks/`): pre-commit scans the
 - When `cookwright.json` declares `secrets`, a command that needs a credential runs through `{{cli}} run <target> -- <command…>`, which injects the target's secrets into that one process after checking its proof. Run it only with a target the developer named in this session.
 - With a passphrase-protected age identity, hand the `run` command to the developer: age asks for the passphrase on their terminal.
 - Never `export` a secret, never pass one as an argument (the command reads it from its environment), never print a process's command line or environment.
+- Never read a value from the backend yourself (`age -d`, `op read`, `op inject`, `security find-generic-password -w`) and never open the identity file; a refusal's own line names the fix.
 - `{{cli}} secrets init` and `{{cli}} secrets set` are the developer's commands: hand them over, never run them, and never ask for a value in the transcript.
 
 ## Conventions

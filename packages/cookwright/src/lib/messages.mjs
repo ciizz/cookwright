@@ -841,10 +841,8 @@ const secrets = {
       protect
         ? `  ${p}, the age identity, passphrase-protected (age asks for the passphrase next, on this terminal; an empty one makes age generate one and print it here once)`
         : `  ${p}, the age identity, with no passphrase (weaker: whoever reads the file opens every secret)`,
-    willUse: (p, protect) =>
-      protect
-        ? `  no identity: the one at ${p} is yours already (one per developer), and its public key is read from it (age asks for its passphrase next, on this terminal)`
-        : `  no identity: the one at ${p} is yours already (one per developer), and its public key is read from it`,
+    readingIdentity: (p) => `secrets: reading the public key of ${p}; age asks for its passphrase next, on this terminal`,
+    willUse: (p) => `  no identity: the one at ${p} is yours already (one per developer), and its public key was read from it`,
     willRecipients: (rel, exists) =>
       exists ? `  its public key, appended to ${rel}` : `  ${rel}, holding its public key`,
     held: (rel, keys) =>

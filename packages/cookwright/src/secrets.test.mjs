@@ -323,7 +323,7 @@ describe.skipIf(!HAS_AGE)('the age backend for real (skipped without age and age
     run(second.root, 'git', ['add', 'secrets/recipients.txt']);
     run(second.root, 'git', ['commit', '-qm', 'recipients']);
     const again = await secrets(second, ['init', '--yes']);
-    expect(again.out.trim().split('\n').at(-1)).toBe(m.age.alreadyHeld('secrets/recipients.txt'));
+    expect(again.out).toBe(`${m.age.alreadyHeld('secrets/recipients.txt')}\n`);
     for (const name of NAMES) await secrets(second, ['set', 'dev', name, '--stdin'], { stdin: line(VALUES[name]) });
     const out = await runDev(second, [process.execPath, '-e', `console.log(${JSON.stringify(NAMES)}.map((n) => process.env[n].length).join(' '))`]);
     expect(out.stdout.text()).toBe(`${NAMES.map((n) => VALUES[n].length).join(' ')}\n`);

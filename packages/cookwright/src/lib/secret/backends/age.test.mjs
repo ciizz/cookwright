@@ -387,7 +387,7 @@ describe('init', () => {
     expect(fs.readFileSync(path.join(s.root, 'secrets/recipients.txt'), 'utf8')).toBe(`${NEW_KEY}\n`);
     expect(s.lines).toEqual([
       a.willWrite,
-      a.willUse(id, false),
+      a.willUse(id),
       a.willRecipients('secrets/recipients.txt', false),
       a.usedIdentity(id),
       a.wroteRecipients('secrets/recipients.txt', ['zzzzzzzz']),
@@ -404,6 +404,7 @@ describe('init', () => {
     expect(s.calls[1].input).toBe('AGE-SECRET-KEY-1FAKE\n');
     expect(fs.readFileSync(path.join(s.root, 'secrets/recipients.txt'), 'utf8')).toBe(`${KEY}\n${NEW_KEY}\n`);
     expect(s.lines.join('\n')).not.toContain('AGE-SECRET-KEY');
+    expect(s.lines.slice(0, 2)).toEqual([a.readingIdentity(id), a.willWrite]);
     const noTty = setup({ terminal: false });
     plainIdentity(noTty.home, `${HEADER}-> scrypt x\n`);
     expect(await refused(initAge(noTty.ctx, { noPassphrase: false, yes: true }))).toBe(a.protectedNoTerminal);
@@ -411,11 +412,13 @@ describe('init', () => {
   });
 
   it('writes nothing when the recipients file already holds the key, or when no key can be derived', async () => {
-    const s = setup({ recipients: `${NEW_KEY}\n` });
+    const s = setup({ recipients: `${KEY}\n${NEW_KEY}\n` });
     plainIdentity(s.home, 'AGE-SECRET-KEY-1FAKE\n');
-    await initAge(s.ctx, { noPassphrase: false, yes: true });
-    expect(s.lines.at(-1)).toBe(a.alreadyHeld('secrets/recipients.txt'));
-    expect(fs.readFileSync(path.join(s.root, 'secrets/recipients.txt'), 'utf8')).toBe(`${NEW_KEY}\n`);
+    let asked = false;
+    await initAge({ ...s.ctx, confirm: async () => (asked = true) }, { noPassphrase: false, yes: false });
+    expect(s.lines).toEqual([a.alreadyHeld('secrets/recipients.txt')]);
+    expect(asked).toBe(false);
+    expect(fs.readFileSync(path.join(s.root, 'secrets/recipients.txt'), 'utf8')).toBe(`${KEY}\n${NEW_KEY}\n`);
     const bad = setup();
     const id = plainIdentity(bad.home, 'AGE-SECRET-KEY-1MANGLED\n');
     expect(await refused(initAge(bad.ctx, { noPassphrase: false, yes: true }))).toBe(a.noDerivedKey(id));
@@ -423,7 +426,8 @@ describe('init', () => {
     const declined = setup();
     plainIdentity(declined.home, 'AGE-SECRET-KEY-1FAKE\n');
     expect(await refused(initAge({ ...declined.ctx, confirm: async () => false }, { noPassphrase: false, yes: false }))).toBe(a.declined);
-    expect(declined.calls).toEqual([]);
+    expect(declined.lines).toContain(a.held('secrets/recipients.txt', ['qqqqqqqq']));
+    expect(fs.readFileSync(path.join(declined.root, 'secrets/recipients.txt'), 'utf8')).toBe(`${KEY}\n`);
   });
 
   it("refuses an identity whose directory's nearest existing ancestor is inside another work tree, writing nothing", async () => {

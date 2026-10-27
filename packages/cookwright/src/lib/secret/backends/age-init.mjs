@@ -6,9 +6,10 @@
 // init writes no identity and enrols this repo instead (stage-5 review:engine
 // finding 4). Its public key is derived, by `age-keygen -y <identity>` for an
 // unprotected identity, or for a passphrase-protected one by `age -d <identity>`
-// (age prompting on its terminal) into memory and `age-keygen -y` on stdin, and
-// appended to the recipients file after the same preflight and consent. Nothing
-// else is written, and nothing at all when the file already holds that key.
+// (age prompting on its terminal) into memory and `age-keygen -y` on stdin, after
+// the preflight and before consent, so a recipients file that already holds that
+// key ends the run there, nothing asked and nothing written (stage-5 QA round 1).
+// Otherwise the key is appended after the same consent, and nothing else is written.
 //
 // Everything is checked before anything is written (disposition 57): no identity
 // yet, its nearest existing directory (and an existing identity's own realpath)
@@ -99,11 +100,14 @@ export function preflight(ctx, { noPassphrase }) {
   return { identity, existing, held, recipients };
 }
 
-/** Consent, or `--yes`: what init will write, said first. */
+/**
+ * Consent, or `--yes`: what init will write, said first. It is reached only when a
+ * new key will be appended, so the `held` warning names the keys already there.
+ */
 async function consent(plan, ctx, { noPassphrase, yes }) {
   const lines = [
     a.willWrite,
-    plan.existing ? a.willUse(plan.identity, plan.existing.protect) : a.willIdentity(plan.identity, !noPassphrase),
+    plan.existing ? a.willUse(plan.identity) : a.willIdentity(plan.identity, !noPassphrase),
     a.willRecipients(RECIPIENTS, fs.existsSync(plan.recipients)),
   ];
   if (plan.held.length) lines.push(a.held(RECIPIENTS, tails(plan.held)));
@@ -132,6 +136,7 @@ function generate(ctx) {
 function derive(file, protect, ctx) {
   let res;
   if (protect) {
+    ctx.say(a.readingIdentity(file));
     const dec = ctx.probes.capture('age', ['-d', file], { env: ctx.env, cap: null });
     if (dec.status !== 0) throw new Refused(a.failed('age -d', firstLine(dec.stderr || dec.error?.message)));
     res = ctx.probes.capture('age-keygen', ['-y'], { input: dec.stdout, env: ctx.env });
@@ -143,13 +148,8 @@ function derive(file, protect, ctx) {
   return keys[0];
 }
 
-/** The repo enrolled with the existing identity: its public key appended unless already held. */
-function enrol(plan, ctx) {
-  const publicKey = derive(plan.identity, plan.existing.protect, ctx);
-  if (plan.held.includes(publicKey)) {
-    ctx.say(a.alreadyHeld(RECIPIENTS));
-    return;
-  }
+/** The repo enrolled with the existing identity: its public key, derived before consent and not yet held, appended. */
+function enrol(plan, ctx, publicKey) {
   appendRecipient(plan.recipients, publicKey);
   ctx.say(a.usedIdentity(plan.identity));
   ctx.say(a.wroteRecipients(RECIPIENTS, tails([...plan.held, publicKey])));
@@ -208,8 +208,10 @@ function appendRecipient(file, publicKey) {
  */
 export async function initAge(ctx, flags) {
   const plan = preflight(ctx, flags);
+  const enrolled = plan.existing && derive(plan.identity, plan.existing.protect, ctx);
+  if (enrolled && plan.held.includes(enrolled)) return ctx.say(a.alreadyHeld(RECIPIENTS));
   await consent(plan, ctx, flags);
-  if (plan.existing) return enrol(plan, ctx);
+  if (enrolled) return enrol(plan, ctx, enrolled);
   const { key, publicKey } = generate(ctx);
   const created = missingDirs(path.dirname(plan.identity));
   fs.mkdirSync(path.dirname(plan.identity), { recursive: true, mode: 0o700 });

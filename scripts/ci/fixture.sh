@@ -5,7 +5,10 @@
 # under .claude/ reported, B-018), the hooks (a violating component refused by the
 # standards check, then landed corrected), the gate's standards checks (the
 # ratchet with no base on main and a rise on a branch, the types measure), the
-# docs-audit's arguments, changelog and migrate run against it.
+# docs-audit's arguments, the secrets step (the age backend: secrets init and
+# set, the ciphertext committed through the hooks, run's banner, redaction,
+# argv and proof refusals; skipped without age unless FIXTURE_STRICT=1),
+# changelog and migrate run against it.
 # Runs locally and in CI: bash scripts/ci/fixture.sh. KEEP=1 keeps the temp dir;
 # FIXTURE_STRICT=1 turns a missing tool from a skip into a failure.
 #
@@ -59,6 +62,7 @@ MSG_LINT_RAN="the user's own lint run (npx eslint .) exited %s, ESLint failing t
 MSG_LINT_HARNESS="the user's own lint run reported a harness file: %s"
 MSG_LINT_APP="the user's own lint run did not report App.tsx under i18next/no-literal-string"
 MSG_LINT_READ="could not read the lint report %s: %s"
+MSG_SECRETS_SKIP="secrets: skipped, needs %s\n"
 
 fail() { printf "$MSG_FAIL" "$1" >&2; exit 1; }
 step() { printf "$MSG_STEP" "$1"; }
@@ -215,9 +219,20 @@ expect_types_row() {
   done
 }
 
+# Doctor runs as a fresh user would see it (stage-5 disposition 63): an empty
+# HOME, and none of the names the secrets step declares (or the supabase pack's
+# tools read on their own) inherited from the machine running the fixture.
+SECRET_NAMES="SUPABASE_URL DB_URL SERVICE_ROLE_KEY SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN PGPASSWORD PGPASSFILE PGSERVICE PGSERVICEFILE PGHOSTADDR PGHOST PGPORT PGUSER PGDATABASE PGOPTIONS"
+isolated() {
+  local unset=() name
+  for name in $SECRET_NAMES; do unset+=(-u "$name"); done
+  mkdir -p "$WORK/home"
+  env "${unset[@]}" HOME="$WORK/home" "$@"
+}
+
 doctor() {
   step "npx cookwright doctor"
-  npx cookwright doctor | tee "$WORK/doctor.out" || fail "doctor exited non-zero"
+  isolated npx cookwright doctor | tee "$WORK/doctor.out" || fail "doctor exited non-zero"
   expect_level
   expect_types_row
   if command -v gitleaks >/dev/null 2>&1; then
@@ -363,6 +378,112 @@ branch_measures() {
     "the pre-push gate line does not carry both checks' skip lines"
 }
 
+# The secrets step (stage-5 disposition 37): the age backend end to end through
+# the installed package. The two refs are synthetic (20 lowercase letters); the
+# values are built here, live in the script's memory only, and are asserted by
+# length or as their redaction through the child, never printed. It skips, step
+# local, without age and age-keygen; FIXTURE_STRICT=1 (CI installs both) makes
+# that a failure.
+SECRETS_REF="fixturefixturefixtur"
+SECRETS_OTHER="otherprojectotherpro"
+
+secrets_config() {
+  node -e 'const fs = require("fs");
+    const c = JSON.parse(fs.readFileSync("cookwright.json", "utf8"));
+    const names = ["SUPABASE_URL", "DB_URL", "SERVICE_ROLE_KEY"];
+    const target = (ref) => ({ names, proof: { kind: "supabase", ref } });
+    c.secrets = { backend: "age", targets: { dev: target(process.argv[1]), prod: target(process.argv[2]) } };
+    fs.writeFileSync("cookwright.json", JSON.stringify(c, null, 2) + "\n");' "$SECRETS_REF" "$SECRETS_OTHER"
+}
+
+# refused_run <the refusal's text> <run's arguments…>: run exits 125 with that line.
+refused_run() {
+  local want="$1" code=0
+  shift
+  npx cookwright run "$@" > "$WORK/refused.out" 2> "$WORK/refused.err" || code=$?
+  [ "$code" = 125 ] || fail "run $1 exited $code, not 125, expected: $want"
+  grep -qF "run: $want" "$WORK/refused.err" || fail "run $1 did not refuse with: $want"
+}
+
+secrets_init() {
+  secrets_config
+  npx cookwright init > /dev/null || fail "init after adding secrets exited non-zero"
+  [ "$(git status --porcelain)" = " M cookwright.json" ] || fail "init changed more than the config's secrets key"
+  npx cookwright secrets init --no-passphrase --yes | tee "$WORK/secrets-init.out" || fail "secrets init exited non-zero"
+  [ -f "$COOKWRIGHT_AGE_IDENTITY" ] || fail "secrets init wrote no identity"
+  grep -q "AGE-SECRET-KEY" "$WORK/secrets-init.out" && fail "secrets init printed the key"
+  expect "$WORK/secrets-init.out" "^secrets: commit secrets/recipients\.txt before the first secrets set" \
+    "secrets init did not say to commit the recipients file"
+  git add cookwright.json secrets/recipients.txt
+  git commit -m "chore: age secrets backend and its recipients" 2>&1 | tee "$WORK/secrets-commit.out" \
+    || fail "the recipients commit was refused"
+}
+
+secrets_set() {
+  local name value
+  for name in SUPABASE_URL DB_URL SERVICE_ROLE_KEY; do
+    value="V_$name"
+    printf '%s\n' "${!value}" | npx cookwright secrets set dev "$name" --stdin | tee "$WORK/set.out" \
+      || fail "secrets set dev $name exited non-zero"
+    expect "$WORK/set.out" "^secrets: set $name for dev \(age\)$" "secrets set did not name $name"
+  done
+  [ "$(head -n 1 secrets/dev.env.age)" = "-----BEGIN AGE ENCRYPTED FILE-----" ] || fail "the ciphertext is not armored"
+  git add secrets/dev.env.age
+  git commit -m "chore: dev secrets" 2>&1 | tee "$WORK/cipher-commit.out" || fail "the ciphertext commit was refused"
+  if command -v gitleaks >/dev/null 2>&1; then
+    expect "$WORK/cipher-commit.out" "^pre-commit +PASS +secrets " "the pre-commit scan did not pass the armored ciphertext"
+  fi
+}
+
+secrets_runs() {
+  npx cookwright run dev -- true 2> "$WORK/run.err" || fail "run dev -- true exited non-zero"
+  cat "$WORK/run.err"
+  expect "$WORK/run.err" "^run: dev · injected SUPABASE_URL, DB_URL, SERVICE_ROLE_KEY · proved SUPABASE_URL, DB_URL against $SECRETS_REF \(supabase\) · unproved SERVICE_ROLE_KEY · " \
+    "the banner does not name the three names and the two proved against the ref"
+  npx cookwright run dev -- sh -c "test \"\${#DB_URL}\" = ${#V_DB_URL}" 2> /dev/null || fail "the child did not receive DB_URL whole"
+  [ "$(npx cookwright run dev -- sh -c 'echo "$DB_URL"' 2> /dev/null)" = "<DB_URL>" ] || fail "the child's output was not redacted"
+  head -c 4096 /dev/urandom > "$WORK/blob.bin"
+  npx cookwright run dev -- cat "$WORK/blob.bin" > "$WORK/blob.out" 2> /dev/null || fail "run dev -- cat exited non-zero"
+  cmp -s "$WORK/blob.bin" "$WORK/blob.out" || fail "binary output did not come through byte-identical"
+  DB_URL=stale npx cookwright run dev -- true 2> "$WORK/stale.err" || fail "run dev with a stale DB_URL exited non-zero"
+  expect "$WORK/stale.err" " · dropped from the environment: ([A-Z_]+, )*DB_URL( ·|,)" "the banner does not name the stale DB_URL as dropped"
+  refused_run "argument 2 holds the value of DB_URL" dev -- echo "$V_DB_URL"
+  (export DB_URL="$V_DB_URL"; refused_run "argument 2 holds the value of DB_URL" dev -- echo "$DB_URL")
+  npx cookwright run dev -- echo "postgresql://postgres:postgres@127.0.0.1:54322/postgres" > /dev/null 2>&1 \
+    || fail "a loopback URL with its public password was refused"
+  refused_run "argument 2 is a URL with a password" dev -- echo "postgresql://postgres:hunter22@db.example.com/postgres"
+  cp secrets/dev.env.age secrets/prod.env.age
+  refused_run "SUPABASE_URL is not proved against $SECRETS_OTHER (supabase)" prod -- sh -c 'touch ran'
+  [ ! -e ran ] || fail "the refused run started its command"
+  rm secrets/prod.env.age
+}
+
+secrets_step() {
+  step "npx cookwright secrets init, secrets set, run (age)"
+  local tool
+  for tool in age age-keygen; do
+    command -v "$tool" >/dev/null 2>&1 && continue
+    [ "${FIXTURE_STRICT:-}" = 1 ] && fail "needs $tool"
+    printf "$MSG_SECRETS_SKIP" "$tool"
+    return 0
+  done
+  # As doctor runs (disposition 63): no declared or ambient name inherited from
+  # the machine running the fixture; the stale export below is set on purpose.
+  local name
+  for name in $SECRET_NAMES; do unset "$name"; done
+  export COOKWRIGHT_AGE_IDENTITY="$WORK/keys/identity.age"
+  # Unexported, under names of their own: a declared name exported by the shell
+  # running the fixture would make a `local DB_URL` exported too.
+  V_SUPABASE_URL="https://$SECRETS_REF.supabase.co"
+  V_DB_URL="postgresql://postgres.$SECRETS_REF:fixture-pw-$RANDOM$RANDOM@aws-0-eu-west-1.pooler.supabase.com:6543/postgres"
+  V_SERVICE_ROLE_KEY="fixture-service-role-$RANDOM$RANDOM$RANDOM"
+  secrets_init
+  secrets_set
+  secrets_runs
+  unset COOKWRIGHT_AGE_IDENTITY
+  [ -z "$(git status --porcelain)" ] || fail "the tree is dirty after the secrets step"
+}
+
 rerun() {
   step "npx cookwright changelog --check, migrate, init again"
   npx cookwright changelog --check || fail "changelog --check exited non-zero"
@@ -402,7 +523,7 @@ main() {
   [ -n "${KEEP:-}" ] || trap 'rm -rf "$WORK"' EXIT
   printf "$MSG_DIR" "$WORK"
   pack; scaffold; overlay; install_package
-  init; doctor; lint_run; commit_through_hooks; standards_commit; branch_measures; audit_args; rerun; links
+  init; doctor; lint_run; commit_through_hooks; standards_commit; branch_measures; audit_args; secrets_step; rerun; links
   echo; echo "$MSG_OK"
 }
 

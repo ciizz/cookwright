@@ -1,0 +1,207 @@
+{
+  "phase": "review:whole",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/secret/backends/age-init.mjs (also age.mjs)",
+      "location": "age-init.mjs:79 existingIdentity(); age.mjs:49 preflight(), nearestExistingAncestor()",
+      "problem": "For an existing identity, the work-tree check resolves only the identity's containing directory. isFile() and later reads follow the final symlink, but its target directory is never checked.",
+      "severity": "P1",
+      "suggested_fix": "Reject identity symlinks, or resolve an existing identity with fs.realpathSync(identity) and check the resolved file's parent for an enclosing work tree. Keep the nearest-existing-ancestor check for a not-yet-created identity. Add init and doctor tests for a final-component symlink into another repository.",
+      "failure_scenario": "~/.config/cookwright/identity.age is a symlink to an identity inside a dotfiles repository. Both secrets init and doctor accept it, allowing the private key to be committed and pushed.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "age.mjs:49-51 nearestExistingAncestor returns path.dirname(identity), the containing directory. enclosingWorkTree (age.mjs:60-61) realpaths only that directory. age-init.mjs:79-82 existingIdentity uses present() (lstat) and isFile() (doctor/repo.mjs:36, statSync, follows the symlink). It then reads the file through isPassphraseProtected. age-init.mjs:92-94 (preflight) and age.mjs:178-181 (health) never realpath the identity file. A symlink whose own directory is outside any work tree but whose target is inside a repo therefore passes both checks. The tests at age.test.mjs:132 and :388 cover only a symlinked directory, not a symlinked identity file. The impact is that the key sits in a work tree and could be committed; the harness itself does not commit or push it."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/engine.mjs",
+      "location": "engine.mjs:153 isLoopback(), used by passwordUrl() and publicLocal()",
+      "problem": "Bracketed hosts are truncated at the first ] without validating the suffix, and IPv4 octets are not validated, so [::1].evil.example, [::1]evil and 127.999.999.999 are classified as loopback.",
+      "severity": "P2",
+      "suggested_fix": "Parse and validate the complete host/port. Treat any malformed authority as non-loopback; require exact localhost, host.docker.internal, valid 127/8, or [::1], optionally followed by a numeric port. Add suffix and invalid-octet regression tests.",
+      "failure_scenario": "passwordUrl('postgres://u:secret@[::1].evil.example/db') returns false, so a password-bearing URL is allowed onto the child's command line, exposing the password to process listings instead of being refused before spawn.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "engine.mjs:154-158 isLoopback(): for a '[' host it takes slice(1, indexOf(']')) and ignores everything after the ']'. '[::1].evil.example' gives '::1' and is classified loopback. The IPv4 test /^127(\\.\\d{1,3}){3}$/ at :157 accepts 127.999.999.999. passwordUrl (:162-170) therefore does not flag a password URL with such a host, and the same classification feeds loopbackUrl/publicLocal (:125-138). Only the classification was checked, not what a real client would do with such a host. A strict URL parser would reject these hosts, so the practical impact may be lower."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/backends/keychain.mjs",
+      "location": "keychain.mjs:114 set() read-back mismatch branch",
+      "problem": "The result of `security delete-generic-password` is discarded, after which the refusal claims the bad item \"is removed, nothing kept.\"",
+      "severity": "P2",
+      "suggested_fix": "Check the deletion status and verify the item is absent. If cleanup fails, report that the mismatched item remains and name the service/account remediation without claiming removal. Add a deletion-failure test.",
+      "failure_scenario": "security -i stores a truncated or altered value, read-back detects it, but deletion fails (keychain locked or access denied). The corrupt item remains and may later be injected while cookwright says nothing was kept.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "keychain.mjs:114-117 calls ctx.probes.capture('security', delete-generic-password ...) and discards the result (no status check), then always throws k.readBack. messages.mjs:882-883 says 'the item under ${service} is removed, nothing kept'. If delete fails (locked keychain, access denied, or item not found), the claim is false and the mismatched item stays; resolve() (keychain.mjs:~88) would later read and inject it. The mismatch itself is an unlikely precondition, but the unchecked delete and the unconditional 'removed' claim hold."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/recipients.mjs",
+      "location": "recipients.mjs:55 requireCommittedRecipients()",
+      "problem": "git ls-files and git diff receive topRel as a normal Git pathspec, despite the plan requiring literal top-relative paths; [], * and ? are interpreted as patterns.",
+      "severity": "P3",
+      "suggested_fix": "Place --literal-pathspecs before the git subcommand for both calls, and test a nested config root containing pathspec metacharacters.",
+      "failure_scenario": "With a config root such as apps/mobile[1], a tracked secrets/recipients.txt is reported as removed because [1] is treated as a character class; a coincidentally matching sibling path can also affect the index check.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/secret/recipients.mjs:55-56 passes topRel to `git ls-files --error-unmatch -- <topRel>` and `git diff --cached --quiet -- <topRel>` as a plain pathspec. Other modules use `:(literal)` (packs/standards.mjs:230, doctor/secrets.mjs:235), so this is an inconsistency with plan disposition 54, which requires a literal path. Reproduced in a scratch repo. The sibling-path claim holds: with a tracked `a[1]/r.txt` and a staged `a1/r.txt`, `git diff --cached --quiet -- 'a[1]/r.txt'` exits 1, which gives a false `staged`. The `removed` scenario as stated does not reproduce when the file is still tracked: git tries an exact literal match first, so `ls-files --error-unmatch -- 'a[1]/r.txt'` succeeds. The glob only matters when the literal is absent or a sibling matches, so the impact is narrower than stated."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/sessions/implement-s2-1.md",
+      "location": "line 122, session report cleanup note",
+      "problem": "The report commits a machine-local temp path fragment (/var/folders ... /cookwright-fixture.ayxN6s), violating the 'never commit a local path' rule. B-022 records the scrubber defect but does not remove the violating text.",
+      "severity": "P3",
+      "suggested_fix": "Rewrite the offending record with a neutral placeholder such as <temporary fixture directory>, then fix B-022's scrubber before relying on it again.",
+      "failure_scenario": "Bundle records continue publishing machine-local filesystem fragments; future reports can leak more identifying paths through the same scrubber gap.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "implement-s2-1.md:122 at e233aaf commits '/var/folders (…/cookwright-fixture.ayxN6s ...)', a machine-local temp path fragment. This goes against AGENTS.md 'Nothing private' / no local paths. docs/dev/backlog.md:16 (B-022) logs the scrubber gap but the report text was not redacted. The fragment has no user segment, so the severity is low. The 'future reports' part of the scenario is speculative, and B-022 already tracks it."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/backends/age.mjs",
+      "location": "set() (parseAgainst(text, target.names, { partial: true })) and resolve(); refusal text messages.secrets.resolved",
+      "problem": "Once an age ciphertext holds a name the target no longer declares, the target cannot be used again, and the fix the refusal names does not work. `run` refuses with `dev: line N of the resolved text sets a name the target does not declare; re-set the values with npx cookwright secrets set`. `secrets set` reads the existing plaintext through the same parseAgainst, where `partial` allows absent names but still refuses unknown ones, so it refuses with the same line. Doctor meanwhile reads PASS `dev: ciphertext and recipients tracked`. Disposition 53's premise ('secrets set refuses an undeclared name, so the ciphertext never holds one') fails as soon as the config changes. The guide does not cover this case.",
+      "severity": "P2",
+      "suggested_fix": "In set(), accept lines for names that are no longer declared: drop them from the re-encrypted text and name them in set's output ('removed SERVICE_ROLE_KEY, no longer declared'). Or make the refusal name a fix that works (git rm the ciphertext, then set each name again). Add a test that removes a name from the config after a set, then runs set and run.",
+      "failure_scenario": "The dev target declares SUPABASE_URL, DB_URL and SERVICE_ROLE_KEY, all three set and committed. The developer drops SERVICE_ROLE_KEY from secrets.targets.dev.names. `npx cookwright run dev -- true` exits 125 with 'line 3 of the resolved text sets a name the target does not declare; re-set the values with npx cookwright secrets set'. `npx cookwright secrets set dev DB_URL` exits 125 with the same line before it asks for a value. Verified: parseAgainst('A=1\\nC=3\\n', ['A','B'], {partial:true}) returns {problem:{why:'unknown',line:2}}. The only way out is to delete the ciphertext by hand, and nothing says so. Renaming a declared name hits the same dead end.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "age.mjs:160 set() calls parseAgainst(text, target.names, {partial:true}); envfile.mjs:39 returns problem('unknown') for any name not in expected, and partial (envfile.mjs:44) only relaxes absent names. age.mjs:118 resolve() uses the same check, and resolvedProblem (age.mjs:106-109) turns it into a Refused. The undeclared-name check on the secret being set (age.mjs:152) is separate. Nothing in set() or resolve() tolerates, prunes or reports a stale name already in the ciphertext, so both refuse and the refusal's advice to re-run `secrets set` loops back to the same refusal."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/backends/age.mjs",
+      "location": "health() and enclosingWorkTree(nearestExistingAncestor(identity)); also age-init.mjs preflight()",
+      "problem": "The check that the identity lives outside every git work tree looks at the real path of the identity's directory only, never the identity file's own real path. When identity.age is a symlink to a file inside a git work tree, both doctor and `secrets init`'s enrol path accept it. GNU stow and similar dotfiles managers do exactly this, linking single files. The guide and disposition 51 promise 'never inside any git work tree', and the doctor FAIL exists to keep the identity out of a repo that gets pushed. A bare-repo dotfiles setup (`git --git-dir=~/.dotfiles --work-tree=~`) and an inherited GIT_CEILING_DIRECTORIES=$HOME also make rev-parse say 'not a git repository' for a ~/.config that is tracked.",
+      "severity": "P2",
+      "suggested_fix": "When the identity exists, judge `path.dirname(fs.realpathSync(identity))` as well as the directory, in health() and in preflight(). Remove GIT_CEILING_DIRECTORIES from the cleaned environment in enclosingWorkTree. Add a test with a file-level symlink into a second scratch repo.",
+      "failure_scenario": "The developer keeps dotfiles in ~/dotfiles (a git repo) and stows them, so ~/.config/cookwright/identity.age is a symlink to ~/dotfiles/cookwright/.config/cookwright/identity.age. ~/.config/cookwright is a real directory outside any repo, so `secrets.backend` reads PASS (or WARN 'no passphrase' for a --no-passphrase identity), and `secrets init` enrols repos with it. The identity sits in a repo that gets committed and pushed. With --no-passphrase that is the plaintext AGE-SECRET-KEY that opens every ciphertext.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "confirmed",
+      "evidence": "age.mjs:179-180 health() and age-init.mjs:92-93 preflight() pass nearestExistingAncestor(identity) to enclosingWorkTree. nearestExistingAncestor (age.mjs:50-54) takes path.dirname(path.resolve(file)), which resolves lexically only. enclosingWorkTree (age.mjs:61) realpaths that directory, never the identity file. A symlinked identity.age in a real directory outside any repo passes both checks. The later statSync and read at age.mjs:187 follow the link, so nothing refuses a target inside a work tree."
+    },
+    {
+      "file": "packages/cookwright/src/lib/doctor/secrets.mjs",
+      "location": "checkSecretsCarriers (names = scrubNames(repo.config)); messages.doctor.secretsCarriers.exported / rcLine",
+      "problem": "secrets.carriers treats every ambient name as a secret carrier, the supabase pack's pointer names included (PGHOST, PGPORT, PGUSER, PGDATABASE, PGOPTIONS, PGHOSTADDR, PGPASSFILE, PGSERVICE, PGSERVICEFILE), which fix:model added. The row WARNs 'exported in this environment: PGHOST, PGUSER (unset them; run injects each into one child)'. These hold no secret, and `run` never injects them, so the note is wrong on both counts. The WARN also fires with no secrets backend declared (getting-started says so), so every Supabase-pack user who exports PGHOST/PGUSER for local Postgres gets a permanent WARN whose remedy is unwarranted.",
+      "severity": "P3",
+      "suggested_fix": "Leave pointerNames(config) out of the names checkCarriers reports (keep PGPASSWORD, SUPABASE_DB_URL and SUPABASE_ACCESS_TOKEN). Or give pointers a separate note that does not claim they carry a secret or that run injects them.",
+      "failure_scenario": "A developer with the supabase pack declared and `export PGHOST=localhost PGUSER=postgres` in ~/.zshrc for a local Postgres runs doctor. secrets.carriers WARNs both the export and the rc lines, telling them to unset non-secret settings. The WARN never clears unless they give up a legitimate local setup.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "confirmed",
+      "evidence": "doctor/secrets.mjs:266-271 uses scrubNames(repo.config) with no pointer filtering (no 'pointer' reference in the file); secret/engine.mjs:75 scrubNames includes ambientNames(config), and packs/supabase/pack.mjs:139-152 lists PGHOST, PGPORT, PGUSER, PGDATABASE, PGOPTIONS, PGHOSTADDR, PGPASSFILE, PGSERVICE, PGSERVICEFILE as ambient pointers (non-secret). rcHits (secrets.mjs:203-213) matches them in ~/.zshrc-style files. messages.mjs:248-250 says 'unset them; run injects each into one child', but run only drops these names. The WARN depends only on config packs, not on a declared backend, so a local PGHOST/PGUSER export produces a permanent WARN."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/engine.mjs",
+      "location": "runChild(): handlers SIGTERM/SIGHUP forward to child.kill and stay installed until both pipes close",
+      "problem": "After the child has exited, the SIGTERM/SIGHUP handlers stay installed for as long as a descendant keeps the output pipes open (the guide documents that `run` waits for it). A forwarded signal then reaches only the dead child, and cookwright's own default termination has been replaced, so `run` can no longer be ended except by SIGKILL. SIGINT is ignored as well.",
+      "severity": "P3",
+      "suggested_fix": "Once the child has emitted 'exit', make SIGTERM/SIGHUP destroy both pipes (or end the wait) and return 128+n, rather than forwarding to a process that no longer exists.",
+      "failure_scenario": "`npx cookwright run dev -- sh -c 'long-task &'`: sh exits at once, the background task holds stdout, and `run` keeps waiting. A CI timeout or supervisor sends SIGTERM to `run`. The handler calls child.kill on the exited sh, nothing happens, and `run` keeps running until the task ends or SIGKILL arrives.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "confirmed",
+      "evidence": "engine.mjs:283-300 runChild(): SIGINT/SIGTERM/SIGHUP handlers are installed at :285-286 and removed only in the Promise.all .then at :293, after both pipes close. After the child has exited, forward() calls child.kill on a dead process, which does nothing. The installed listeners replace Node's default termination, so SIGTERM and SIGHUP no longer end the process and SIGINT is a no-op. While a descendant holds the pipes open, only SIGKILL stops `run`. The behaviour may be partly intended (disposition 66, header comment :17-18), but the post-exit window is real."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/redact.mjs",
+      "location": "forms() / needles(): a resolved URL password of 8+ characters; engine.argvCheck",
+      "problem": "The local stack's public password is exempted only for inherited values (publicLocal). For a resolved value it is not: a target whose DB_URL is `postgresql://postgres:postgres@127.0.0.1:54322/postgres` makes the 8-character password `postgres` a needle. Every 'postgres' in the child's output is then redacted to <DB_URL>, and any argument containing 'postgres' is refused as holding DB_URL's value.",
+      "severity": "P3",
+      "suggested_fix": "Apply the same publicLocal exemption to the URL-password form of a resolved value (keep the whole value as a needle). Or have the guide name this cost next to the public-value cost (E-060).",
+      "failure_scenario": "A `local` target declares DB_URL with the local Supabase stack URL. `npx cookwright run local -- psql -U postgres -c 'select 1'` exits 125 with 'argument 3 holds the value of DB_URL', and output naming the postgres database or role reads <DB_URL>.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 9,
+      "verdict": "confirmed",
+      "evidence": "redact.mjs:44-48 forms() adds the URL password whenever decoded length >= MIN_PASSWORD (8), with no public-default exemption for resolved values. The exemption (publicLocal, engine.mjs:114,125) applies only in inheritedValues (engine.mjs:112-116). Reproduced: needles([['DB_URL','postgresql://postgres:postgres@127.0.0.1:54322/postgres']]) returns a bare 'postgres' needle. engine.mjs:178-182 argvCheck refuses any argv containing a needle, so `-U postgres` is refused (argValue for DB_URL), and output containing 'postgres' is redacted to <DB_URL>."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/backends/age-init.mjs",
+      "location": "initAge(): the catch block's `if (present(plan.identity)) fs.rmSync(plan.identity)`",
+      "problem": "The failure cleanup deletes whatever is at the identity path, even when this run did not create it. writeIdentity opens with flag 'wx', so if another `secrets init` wrote the identity between preflight and write, the EEXIST lands in the catch, which removes the other run's identity and prints 'removed'. That identity's public key may already be in the other repo's recipients file.",
+      "severity": "P3",
+      "suggested_fix": "Record that this call created the file (set a flag once writeFileSync with 'wx' succeeds), and remove the identity in the catch only when that flag is set.",
+      "failure_scenario": "Two `secrets init` runs in two repos, or two terminals, start together on a machine with no identity. Both pass preflight. A writes the identity and appends its key. B's writeFileSync(..., {flag:'wx'}) throws EEXIST, and B's catch deletes A's identity. A's repo now has a recipient whose identity is gone, so nothing set later can be decrypted.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 10,
+      "verdict": "confirmed",
+      "evidence": "age-init.mjs:168-169 writeIdentity opens with flag 'wx', so a file created by another run after preflight throws EEXIST inside the try (217-219). The catch at 221-223 only checks present(plan.identity) (61-68), not whether this run created the file, then calls fs.rmSync(plan.identity, {force:true}) and prints a.removed. Nothing tracks ownership and there is no lock. Preflight (89-104) and writeIdentity are separated by consent() (107-119), which can wait on an interactive prompt, plus generate() and mkdir, so the race window is wide. Two runs that both saw no identity therefore end with B deleting A's identity. A's appendRecipient (199-204) may already have put the matching key in A's repo recipients file, which orphans that recipient. The same happens with --no-passphrase, and also while A's passphrase-mode file is still empty or being written by age."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 9bf467b..e233aaf across secret engine, backends (age, age-init, keychain), recipients, bundle session records",
+    "cookwright doctor reported 22 PASS",
+    "git diff --check clean",
+    "npm test could not run (read-only sandbox blocked Vitest temp dir)",
+    "git diff 9bf467b..e233aaf: stat and every code file under packages/cookwright/src/lib/secret/ (engine, config, envfile, recipients, redact, proofs, prompt, backends/age, age-init, keychain, onepassword, index)",
+    "src/run.mjs, src/secrets.mjs, src/lib/cli.mjs splitArgv, src/lib/probes.mjs (capture, spawnChild, terminal, ignoredBy)",
+    "src/lib/doctor/secrets.mjs (the three rows), registry order, repo.mjs env/platform, doctor.mjs seams",
+    "src/lib/config.mjs validateSecrets/validateProof, migrations, packs/supabase/pack.mjs proofs/ambient/pointers",
+    "messages.mjs additions (no value, host or password interpolated in any refusal)",
+    "scripts/ci/fixture.sh secrets step and isolated doctor; .github/workflows/ci.yml age pin",
+    "AGENTS.md Layout, managed block v4, agents-block.md, cookwright.json docSync secrets rule",
+    "docs/guides/secrets.md, getting-started.md, updating.md, hooks-and-escapes.md, README, setup SKILL.md recipes, backlog entries",
+    "bundle state.json developer decisions and recorded deviations (src/lib/secret singular, autogenerated-passphrase amendment, disposition 60 still provisional)",
+    "ran npx cookwright doctor on e233aaf: 22 checks, 22 PASS, level 0 complete (plan section 7 dogfood holds)",
+    "probed parseAgainst partial/unknown, passwordUrl and canonicalHost in node"
+  ],
+  "notes": "Codex (high effort) completed within the ceiling; session 01a17e74-c63a-79e2-ade7-9c512437f81f. Findings transcribed faithfully. Full output at <local path>\n---\nRead-only review of 9bf467b..e233aaf: no file edits and no git writes. Running doctor and probing a few pure helpers in node were the only commands with side effects. The core holds against the plan: the --split, the two environments, the argv needles and the URL-with-password shape check with the loopback exemption, the byte redactor with prefix hold-back, exits 125/127/128+n, the recipients rule (committed, equal to HEAD in the index and work tree), top-relative git paths, ignore probes, init preflight and cleanup, the 1Password grammar with ordered parseAgainst, keychain via security -i with sha256 read-back, the doctor rows registered last, and the fixture's isolated doctor. Recorded deviations I did not re-raise: src/lib/secret is singular (developer settings deny secrets/ paths), the empty-passphrase refusal amended by measurement, keychain reads with -g instead of -w (measured), and disposition 60 still awaiting the developer's ruling. Minor things below a finding: helperEnv cannot drop names whose value equals a resolved one (the values are unknown before resolve), so that part of disposition 50 is moot; uncommittedFiles and requireCommittedRecipients use gitRun's 1.5 s default cap outside doctor, so a slow git status refuses a run (125, timed out); the secrets.targets row re-runs the backend health (a second git call for age). The QA measurements the plan defers (locked-keychain attribute lookup, 1Password by hand, age -p on a real terminal) have not run yet; this phase precedes QA.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a17e74-c63a-79e2-ade7-9c512437f81f",
+    "partialReportPath": null
+  }
+}

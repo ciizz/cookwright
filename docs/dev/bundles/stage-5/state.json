@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 215,
+  "revision": 225,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -341,9 +341,26 @@
     },
     {
       "name": "review:whole",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-27T17:42:00.586Z",
+          "stateRevision": 215,
+          "planSha": "13da5997463ed143",
+          "codex": true,
+          "runId": "wf_9623fc1d-f4b",
+          "endedAt": "2026-10-27T17:51:12.594Z",
+          "turnOutputTokens": 675018
+        }
+      ],
+      "startCommit": "e233aaf15cb9643d0d3607be05cca2de1d5b36c9",
+      "range": {
+        "from": "9bf467b0e10fa16caf5b078c637da39803a78eea",
+        "to": "e233aaf15cb9643d0d3607be05cca2de1d5b36c9"
+      },
+      "endCommit": "e233aaf15cb9643d0d3607be05cca2de1d5b36c9",
+      "endCode": "f92ea5e310cd1f20d28ef095ed59757a66bdd3e3"
     },
     {
       "name": "fix:whole",
@@ -591,6 +608,24 @@
       "at": "2026-10-27T17:32:05.305Z",
       "stored": true,
       "head": "e4d9f71f9ba847aebac4e17da6f80af514254cd3"
+    },
+    {
+      "phase": "review:whole",
+      "path": "docs/dev/bundles/stage-5/findings/review-whole-1.json",
+      "counts": {
+        "confirmed": 11,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 1,
+        "P2": 4,
+        "P3": 6
+      },
+      "at": "2026-10-27T17:50:39.103Z",
+      "stored": true,
+      "head": "e233aaf15cb9643d0d3607be05cca2de1d5b36c9"
     }
   ],
   "reports": [
@@ -1707,6 +1742,48 @@
       "actor": "orchestrator",
       "source": "fix:surface measurements, orchestrator",
       "text": "The orchestrator ran the fixture after fix:surface's commits: fixture PASS, every step as expected (rule 3).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:51:10.800Z",
+      "actor": "orchestrator",
+      "source": "review:whole findings 0 and 6 (P1, P2 confirmed)",
+      "text": "Fix in fix:whole (rule 7, disposition 51's promise): when the identity exists, health() and init's preflight judge the real path of the identity file itself (path.dirname(fs.realpathSync(identity))) as well as its directory, so a file-level symlink into a dotfiles repo (stow) is refused by init and FAILs in doctor naming that repo's top; the nearest-existing-ancestor check stays for an identity not yet created; enclosingWorkTree runs the probe with GIT_CEILING_DIRECTORIES removed from its environment. Tests: a file-level symlink into a second scratch repo for init and doctor.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:51:11.074Z",
+      "actor": "orchestrator",
+      "source": "review:whole finding 1 (P2 confirmed)",
+      "text": "Fix in fix:whole (rule 3): isLoopback parses the whole authority: exactly localhost, host.docker.internal, a valid 127/8 address (each octet 0 to 255) or [::1], optionally followed by a numeric port, nothing else; a malformed or suffixed authority ([::1].evil.example, [::1]evil, 127.999.999.999) is not loopback, so passwordUrl refuses it and publicLocal does not exempt it. Regression tests for each.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:51:11.363Z",
+      "actor": "orchestrator",
+      "source": "review:whole finding 2 (P2 confirmed)",
+      "text": "Fix in fix:whole (rule 3): keychain set checks delete-generic-password's status after a read-back mismatch and verifies the item is absent; when the deletion fails the refusal says the mismatched item remains under the service and account and names the remedy, never 'removed, nothing kept'. A deletion-failure test.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:51:11.663Z",
+      "actor": "orchestrator",
+      "source": "review:whole finding 5 (P2 confirmed)",
+      "text": "Fix in fix:whole (rule 2: a config change must stay clearable): age set accepts lines for names the target no longer declares, drops them from the re-encrypted text and names them on its line ('removed SERVICE_ROLE_KEY, no longer declared'); run keeps refusing an undeclared line (disposition 53) with a refusal that names the working fix (secrets set any declared name, which drops the stale lines). Test: a name removed from the config after a set, then set and run.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:51:11.950Z",
+      "actor": "orchestrator",
+      "source": "review:whole findings 3, 7, 8, 9, 10 (P3), folded",
+      "text": "Fix in fix:whole as cheap P3s: --literal-pathspecs on the recipients file's ls-files and diff --cached (finding 3, disposition 54's letter; a test with a metacharacter in the config root's path); secrets.carriers leaves the pointer names out of what it reports as exported or set in an rc file, keeping PGPASSWORD, SUPABASE_DB_URL and SUPABASE_ACCESS_TOKEN (finding 7, rule 3: a pointer holds no secret and run never injects it); once the child has exited, SIGTERM and SIGHUP end the wait by destroying both pipes and return 128+n instead of forwarding to a dead process (finding 8); the publicLocal exemption applies to the URL-password form of a resolved value too, the whole value staying a needle (finding 9); init's catch removes the identity only when this run created it, a flag set once the 'wx' write succeeded (finding 10).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:51:12.224Z",
+      "actor": "orchestrator",
+      "source": "review:whole finding 4 (P3 confirmed)",
+      "text": "No edit, as at review:engine finding 9: the record names the system temp folder and the fixture's own suffix, no user or random segment; the bundle directory is never edited by hand; B-022 holds the scrubber's gap and the closeout's residue names the fragment.",
       "claim": true
     }
   ],

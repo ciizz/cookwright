@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 115,
+  "revision": 125,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -155,9 +155,23 @@
     },
     {
       "name": "fix:model",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-27T14:35:52.877Z",
+          "stateRevision": 115,
+          "planSha": "13da5997463ed143",
+          "codex": true,
+          "runId": "wf_02c4c761-61c",
+          "endedAt": "2026-10-27T14:43:34.925Z",
+          "turnOutputTokens": 116305
+        }
+      ],
+      "startCommit": "121cc49dae8c4af1e75d8e75cb41a0cb477f0985",
+      "range": null,
+      "endCommit": "6408cd9c4c71d84882cf3c9c515471b86dce3ed4",
+      "endCode": "6408cd9c4c71d84882cf3c9c515471b86dce3ed4"
     },
     {
       "name": "implement:s2",
@@ -258,6 +272,19 @@
           "ms": 42292
         }
       ]
+    },
+    {
+      "commit": "6408cd9c4c71d84882cf3c9c515471b86dce3ed4",
+      "at": "2026-10-27T14:43:12.812Z",
+      "slice": "model",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 47331
+        }
+      ]
     }
   ],
   "findings": [
@@ -339,6 +366,12 @@
       "phase": "implement:s1",
       "path": "docs/dev/bundles/stage-5/sessions/implement-s1-1.md",
       "at": "2026-10-27T14:26:30.527Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:model",
+      "path": "docs/dev/bundles/stage-5/sessions/fix-model-1.md",
+      "at": "2026-10-27T14:42:17.734Z",
       "stored": true
     }
   ],
@@ -1007,6 +1040,41 @@
       "actor": "orchestrator",
       "source": "review:model finding 2 (P2 confirmed)",
       "text": "Orchestrator's own fix, a state-home commit before fix:model (the rules file's backlog discipline: ids are stable, a closed item moves to Closed with a note): B-021 is restored under Closed as 'folded into B-019, a duplicate', the expanded B-019 entry kept.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:43:33.487Z",
+      "actor": "orchestrator",
+      "source": "fix:model measurements",
+      "text": "The fix session did not run the fixture; the orchestrator ran it after the commits: fixture PASS, every step as expected (local, without FIXTURE_STRICT, gitleaks on PATH); gate #2 green, 870 tests (rule 3).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:43:33.750Z",
+      "actor": "orchestrator",
+      "source": "fix:model notes for s2 and s3",
+      "text": "Two signatures changed in fix:model that the plan's §4.2 and §4.4 still show in their earlier form: prove(values, proof, kinds, targetNames) takes the target's declared names (finding 6), and LIBPQ_NAMES in secret/config.mjs is the list s2's engine drops from the child whenever an injected value is a postgres-scheme URL, whatever the declared packs (finding 5); s2 implements that drop and names the dropped names on the banner, and s2 and s3 pass target.names to prove. The plan text is not re-edited mid-bundle; the state carries the amendment.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:43:34.000Z",
+      "actor": "orchestrator",
+      "source": "fix:model, finding 0 reading",
+      "text": "The host kind compares hosts, not schemes: http://api.example.com (port 80 dropped as http's default) matches a declared api.example.com, as the disposition specified; the guide says so. Accepted.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:43:34.288Z",
+      "actor": "orchestrator",
+      "source": "fix:model, finding 4 reading",
+      "text": "pgHostProblem tests the raw host part for a comma or %2C in any case rather than percent-decoding it: libpq decodes once, so the outcome is the same and nothing can fail to decode. Accepted (rule 3: the refusal names the host list, never the hosts).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:43:34.588Z",
+      "actor": "orchestrator",
+      "source": "fix:model strings batch",
+      "text": "fix:model's 6 user-facing strings (the hostList anchor, the recipients 'staged for deletion' and 'has a staged change' refusals, the guide's host-list and libpq-names paragraph, the host kind's port sentence, the updating guide's version-4 pointer and its re-captioned example) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:engine.",
       "claim": true
     }
   ],

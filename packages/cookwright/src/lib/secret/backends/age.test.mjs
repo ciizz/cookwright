@@ -15,7 +15,16 @@ import { messages } from '../../messages.mjs';
 import { PROBES } from '../../probes.mjs';
 import { commit, gitInit, run, scratchRoot } from '../../../test-helpers.mjs';
 import { Refused } from '../engine.mjs';
-import { HEADER, enclosingWorkTree, identityPath, isPassphraseProtected, nearestExistingAncestor, resolve, set } from './age.mjs';
+import {
+  HEADER,
+  enclosingWorkTree,
+  identityPath,
+  identityWorkTree,
+  isPassphraseProtected,
+  nearestExistingAncestor,
+  resolve,
+  set,
+} from './age.mjs';
 import { initAge } from './age-init.mjs';
 
 const TMP = scratchRoot('cookwright-age-');
@@ -136,6 +145,27 @@ describe('the identity', () => {
     const plain = path.join(TMP, 'plain-home');
     fs.mkdirSync(plain);
     expect(enclosingWorkTree(nearestExistingAncestor(identityPath({}, plain)), process.env)).toBeNull();
+  });
+
+  it('is judged by its own realpath once it exists, so a file-level link into a repo is caught', () => {
+    const second = gitInit(path.join(TMP, 'stowed'));
+    fs.mkdirSync(path.join(second, 'cookwright'));
+    const target = path.join(second, 'cookwright', 'identity.age');
+    fs.writeFileSync(target, 'AGE-SECRET-KEY-1FAKE\n', { mode: 0o600 });
+    const home = path.join(TMP, 'stow-home');
+    const file = identityPath({}, home);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.symlinkSync(target, file);
+    expect(enclosingWorkTree(nearestExistingAncestor(file), process.env)).toBeNull();
+    const real = fs.realpathSync(second);
+    expect(identityWorkTree(file, process.env)).toEqual({ dir: path.join(real, 'cookwright'), top: real });
+  });
+
+  it('ignores an inherited GIT_CEILING_DIRECTORIES that would stop the probe short of the repo', () => {
+    const second = gitInit(path.join(TMP, 'ceiling'));
+    fs.mkdirSync(path.join(second, 'config'));
+    const env = { ...process.env, GIT_CEILING_DIRECTORIES: second };
+    expect(enclosingWorkTree(path.join(second, 'config'), env)).toBe(fs.realpathSync(second));
   });
 });
 
@@ -394,6 +424,20 @@ describe('init', () => {
     expect(await refused(initAge(inRepo.ctx, { noPassphrase: true, yes: true }))).toBe(
       a.inWorkTree(inRepo.top, inRepo.top),
     );
+  });
+
+  it('refuses an existing identity that is a link to a file inside another work tree, writing nothing', async () => {
+    const s = setup();
+    const second = gitInit(path.join(TMP, `stow-${count}`));
+    const target = path.join(second, 'identity.age');
+    fs.writeFileSync(target, 'AGE-SECRET-KEY-1FAKE\n', { mode: 0o600 });
+    const id = identityPath({}, s.home);
+    fs.mkdirSync(path.dirname(id), { recursive: true });
+    fs.symlinkSync(target, id);
+    const real = fs.realpathSync(second);
+    expect(await refused(initAge(s.ctx, { noPassphrase: false, yes: true }))).toBe(a.inWorkTree(real, real));
+    expect(s.calls).toEqual([]);
+    expect(fs.readFileSync(path.join(s.root, 'secrets/recipients.txt'), 'utf8')).toBe(`${KEY}\n`);
   });
 
   it('removes the identity it wrote when a later step fails, so a retry starts clean', async () => {

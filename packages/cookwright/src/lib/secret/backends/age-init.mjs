@@ -11,13 +11,15 @@
 // else is written, and nothing at all when the file already holds that key.
 //
 // Everything is checked before anything is written (disposition 57): no identity
-// yet, its nearest existing directory inside no work tree by realpath, the
-// recipients file committed and well formed when present, the secrets paths not
-// ignored by git, both places writable, a terminal for age's passphrase prompt, and
-// consent (or `--yes`). A failure after the identity was written removes it, and
-// the directories init created while they are empty, so a retry starts clean. The identity is written binary (`age -p -o`, never `-a`), mode
-// 600 in a directory created 700, so its header says it is passphrase-protected
-// (disposition 24); `--no-passphrase` writes age-keygen's key as it is.
+// yet, its nearest existing directory (and an existing identity's own realpath)
+// inside no work tree, the recipients file committed and well formed when present,
+// the secrets paths not ignored by git, both places writable, a terminal for age's
+// passphrase prompt, and consent (or `--yes`). A failure after the identity was
+// written removes it, and the directories init created while they are empty, so a
+// retry starts clean. The identity is written binary (`age -p -o`, never `-a`),
+// mode 600 in a directory created 700, so its header says it is
+// passphrase-protected (disposition 24); `--no-passphrase` writes age-keygen's key
+// as it is.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -27,13 +29,7 @@ import { messages } from '../../messages.mjs';
 import { RECIPIENTS, SECRETS_DIR, ciphertextOf, topRel } from '../config.mjs';
 import { Refused } from '../engine.mjs';
 import { RECIPIENT, requireCommittedRecipients, tails } from '../recipients.mjs';
-import {
-  enclosingWorkTree,
-  firstLine,
-  identityPath,
-  isPassphraseProtected,
-  nearestExistingAncestor,
-} from './age.mjs';
+import { firstLine, identityPath, identityWorkTree, isPassphraseProtected, nearestExistingAncestor } from './age.mjs';
 
 const a = messages.secrets.age;
 const PUBLIC_KEY = /^# public key: (age1[a-z0-9]{58})$/m;
@@ -89,9 +85,9 @@ function existingIdentity(identity) {
 export function preflight(ctx, { noPassphrase }) {
   const identity = identityPath(ctx.env, ctx.home);
   const existing = existingIdentity(identity);
+  const inside = identityWorkTree(identity, ctx.env);
+  if (inside) throw new Refused(a.inWorkTree(inside.dir, inside.top));
   const ancestor = nearestExistingAncestor(identity);
-  const top = enclosingWorkTree(ancestor, ctx.env);
-  if (top !== null) throw new Refused(a.inWorkTree(ancestor, top));
   if (!ctx.top || topRel(ctx.root, ctx.top, RECIPIENTS) === null) throw new Refused(messages.secrets.notWorkTree);
   refuseIgnored(ctx);
   const held = heldKeys(ctx);

@@ -732,6 +732,16 @@ describe('secrets.backend, secrets.targets and secrets.carriers (stage-5 plan §
     expect(r['secrets.targets']).toEqual({ status: 'SKIP', note: st.follows('FAIL', sb.age.inWorkTree(id, real)) });
   });
 
+  it('age: an identity that is a link to a file inside a git work tree FAILs naming that repo (stow)', () => {
+    const other = gitInit(path.join(TMP, 'stowed-dotfiles'));
+    fs.writeFileSync(path.join(other, 'identity.age'), `${HEADER}-> scrypt fake\n`, { mode: 0o600 });
+    const id = path.join(TMP, 'ids', 'stowed', 'identity.age');
+    fs.mkdirSync(path.dirname(id), { recursive: true, mode: 0o700 });
+    fs.symlinkSync(path.join(other, 'identity.age'), id);
+    const r = rows(level0(AGE_FILES, ageConfig()), { id });
+    expect(r['secrets.backend']).toEqual({ status: 'FAIL', note: sb.age.inWorkTree(id, fs.realpathSync(other)) });
+  });
+
   it('SKIPs the backend row, never FAILs it, on a machine without git (rule 1)', () => {
     const r = rows(level0(AGE_FILES, ageConfig()), { probes: tools(['git']) });
     expect(r['secrets.backend']).toEqual({ status: 'SKIP', note: messages.doctor.needsGit });

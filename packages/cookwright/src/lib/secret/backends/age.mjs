@@ -56,15 +56,34 @@ export function nearestExistingAncestor(file) {
 /**
  * The top of the git work tree holding `dir`, judged by its realpath, or null
  * (disposition 51). Only "not a git repository" passes; any other failure refuses.
+ * An inherited GIT_CEILING_DIRECTORIES would stop the probe short of a tracked
+ * ~/.config, so it goes with the variables that point git elsewhere.
  */
 export function enclosingWorkTree(dir, env) {
   const real = fs.realpathSync(dir);
   const clean = { ...env, LC_ALL: 'C' };
-  for (const name of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR']) delete clean[name];
+  const pointers = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'GIT_CEILING_DIRECTORIES'];
+  for (const name of pointers) delete clean[name];
   const res = gitRun(real, ['rev-parse', '--show-toplevel'], { env: clean });
   if (res.status === 0) return res.stdout.trim();
   if (res.status === 128 && /not a git repository/i.test(res.stderr)) return null;
   throw new Refused(a.gitProbe(firstLine(res.stderr) || `exit ${res.status}`));
+}
+
+/**
+ * The work tree the identity would sit in, `{ dir, top }`, or null: its nearest
+ * existing directory by realpath (disposition 71), and once it exists the
+ * directory of its own realpath too, so a file-level link into a dotfiles repo
+ * (GNU stow's way) is caught (stage-5 review:whole findings 0 and 6).
+ */
+export function identityWorkTree(identity, env) {
+  const dirs = [nearestExistingAncestor(identity)];
+  if (fs.existsSync(identity)) dirs.push(path.dirname(fs.realpathSync(identity)));
+  for (const dir of dirs) {
+    const top = enclosingWorkTree(dir, env);
+    if (top !== null) return { dir, top };
+  }
+  return null;
 }
 
 /** True when the identity is age-encrypted (a passphrase-protected identity), binary or armored. */
@@ -177,8 +196,8 @@ export async function set(name, secret, ctx) {
  */
 export function health(ctx) {
   const identity = identityPath(ctx.env, ctx.home);
-  const top = enclosingWorkTree(nearestExistingAncestor(identity), ctx.env);
-  if (top !== null) return fail(b.age.inWorkTree(identity, top));
+  const inside = identityWorkTree(identity, ctx.env);
+  if (inside) return fail(b.age.inWorkTree(identity, inside.top));
   if (!fs.existsSync(identity)) {
     const tool = AGE.tools.init.find((name) => !ctx.probes.hasTool(name, { PATH: ctx.env.PATH ?? '' }));
     return tool ? skip(b.needsTool(tool, b.ops.init, a.install)) : warn(b.age.missing(identity));

@@ -802,6 +802,8 @@ const secrets = {
     empty: 'the value is empty; nothing written',
     oneLine: 'a value is one line, and the input holds more than one; nothing written',
     nul: 'the value holds a NUL byte; nothing written',
+    control:
+      'the value holds a tab or another control character (an arrow key sends one), which the hidden prompt cannot take as typed; pipe it as one line with --stdin; nothing written',
     tooLong: (max) => `the input is longer than ${max} bytes; nothing written`,
     proceed: 'proceed? [y/N] ',
   },

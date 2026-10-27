@@ -1,6 +1,7 @@
 // src/lib/secret/prompt.test.mjs — readValue and confirm (stage-5 plan dispositions
-// 10, 61): one line with --stdin, echo-off typing through a fake terminal, the
-// terminal restored on every outcome, no terminal refused.
+// 10, 61): one line with --stdin, echo-off typing through a fake terminal, a
+// control character refused at the hidden prompt, the terminal restored on every
+// outcome, no terminal refused.
 
 import { PassThrough, Readable, Writable } from 'node:stream';
 
@@ -8,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import { messages } from '../messages.mjs';
 import { Refused } from './engine.mjs';
-import { MAX_STDIN, confirm, readValue } from './prompt.mjs';
+import { MAX_STDIN, confirm, readValue, typed } from './prompt.mjs';
 
 const p = messages.secrets.prompt;
 
@@ -59,6 +60,7 @@ describe('readValue --stdin', () => {
     expect(await read('v4lue with spaces\n')).toBe('v4lue with spaces');
     expect(await read('no-newline')).toBe('no-newline');
     expect(await read('crlf\r\n')).toBe('crlf');
+    expect(await read('tab\there\n')).toBe('tab\there');
   });
 
   it('refuses an empty value, two lines, a NUL and an input past the limit', async () => {
@@ -99,13 +101,16 @@ describe('readValue on a terminal', () => {
     expect(stderr.text()).toBe('TOKEN for dev (input hidden): \n');
   });
 
-  it('refuses Ctrl-C, Ctrl-D, the end of input, an empty line and a second line, the terminal restored each time', async () => {
+  it('refuses Ctrl-C, Ctrl-D, the end of input, an empty line, a second line and a control character, the terminal restored each time', async () => {
     const cases = [
       [['ab\u0003'], p.cancelled],
       [['ab\u0004'], p.eof],
       [['ab', null], p.eof],
       [['\r'], p.empty],
       [['ab\rcd\r'], p.oneLine],
+      [['ab\tcd\r'], p.control],
+      [['ab', '\u001b[A', 'cd\r'], p.control],
+      [['a\u0001b\r'], p.control],
     ];
     for (const [chunks, line] of cases) {
       const { outcome, stdin } = await typing(chunks);
@@ -119,6 +124,16 @@ describe('readValue on a terminal', () => {
     const err = await readValue({ stdin, stderr: sink({ throwOn: 'hidden' }), fromStdin: false, prompt: 'X (input hidden): ' }).catch((e) => e);
     expect(err.message).toBe('write failed');
     expect(stdin.modes).toEqual([true, false]);
+  });
+});
+
+describe('typed', () => {
+  it('reads a line holding a tab or an escape sequence to its end, then refuses it, never storing it altered', () => {
+    const state = { value: '', control: false };
+    expect(typed(state, 'pass\tword')).toBeNull();
+    expect(typed(state, '\u001b[Arest')).toBeNull();
+    expect(typed(state, '\r')).toEqual({ refused: p.control });
+    expect(typed({ value: '', control: false }, 'a\u0003')).toEqual({ refused: p.cancelled });
   });
 });
 

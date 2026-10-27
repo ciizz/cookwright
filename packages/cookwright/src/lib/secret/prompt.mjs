@@ -5,7 +5,8 @@
 // or with `--stdin` as exactly one line of standard input, so an agent's
 // `echo … | secrets set` is a visible choice. Never from an argument. The terminal
 // is restored whatever happens (raw mode off, a newline after the hidden input);
-// Ctrl-C and end of input are refusals. Nothing here prints a value or its length.
+// Ctrl-C, end of input and a control character typed at the hidden prompt are
+// refusals. Nothing here prints a value or its length.
 
 import { StringDecoder } from 'node:string_decoder';
 
@@ -42,23 +43,30 @@ export function readStdinLine(stdin) {
   });
 }
 
+/** The outcome of the line `state` holds once Enter is pressed and `rest` follows it. */
+function entered(state, rest) {
+  if (/[^\r\n]/.test(rest)) return { refused: p.oneLine };
+  if (state.control) return { refused: p.control };
+  return state.value === '' ? { refused: p.empty } : { done: state.value };
+}
+
 /**
- * Apply the characters of `text` to `state` (`{ value }`): a value grows, a
- * backspace removes its last character, other control characters are dropped.
+ * Apply the characters of `text` to `state` (`{ value, control }`): a value grows,
+ * a backspace removes its last character. Any other control character (a tab, the
+ * ESC of an arrow key) marks the line refused at Enter, never dropped silently, so
+ * a value is stored as typed or not at all (stage-5 review:engine finding 5); the
+ * line is still read to its end, so nothing typed after it reaches the shell.
  * Returns null to go on, or `{ done: value }` / `{ refused: text }` once settled.
  */
 export function typed(state, text) {
   const chars = [...text];
   for (const [i, ch] of chars.entries()) {
-    if (ch === '\r' || ch === '\n') {
-      const rest = chars.slice(i + 1).join('');
-      if (/[^\r\n]/.test(rest)) return { refused: p.oneLine };
-      return state.value === '' ? { refused: p.empty } : { done: state.value };
-    }
+    if (ch === '\r' || ch === '\n') return entered(state, chars.slice(i + 1).join(''));
     if (ch === CTRL_C) return { refused: p.cancelled };
     if (ch === CTRL_D) return { refused: p.eof };
     if (BACKSPACES.includes(ch)) state.value = [...state.value].slice(0, -1).join('');
-    else if (ch >= ' ') state.value += ch;
+    else if (ch < ' ') state.control = true;
+    else state.value += ch;
   }
   return null;
 }
@@ -67,7 +75,7 @@ export function typed(state, text) {
 export function readHidden(stdin, stderr, prompt) {
   return new Promise((resolve, reject) => {
     const decoder = new StringDecoder('utf8');
-    const state = { value: '' };
+    const state = { value: '', control: false };
     const settle = (outcome) => {
       stdin.off('data', onData);
       stdin.off('end', onEnd);

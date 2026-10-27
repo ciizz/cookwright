@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 91,
+  "revision": 104,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -112,18 +112,23 @@
     },
     {
       "name": "implement:s1",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
           "startedAt": "2026-10-27T14:01:02.664Z",
           "stateRevision": 88,
           "planSha": "13da5997463ed143",
-          "codex": true
+          "codex": true,
+          "runId": "wf_7b6d0ba6-919",
+          "endedAt": "2026-10-27T14:27:55.881Z",
+          "turnOutputTokens": 273682
         }
       ],
       "startCommit": "bb19f3238cf72e5740da0057ca0802cf357e0afc",
-      "range": null
+      "range": null,
+      "endCommit": "f5839640a753846450e3408f22e5caa724f04e97",
+      "endCode": "f5839640a753846450e3408f22e5caa724f04e97"
     },
     {
       "name": "review:model",
@@ -223,6 +228,19 @@
           "ms": 46263
         }
       ]
+    },
+    {
+      "commit": "f5839640a753846450e3408f22e5caa724f04e97",
+      "at": "2026-10-27T14:27:22.536Z",
+      "slice": "model",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 42292
+        }
+      ]
     }
   ],
   "findings": [
@@ -281,7 +299,14 @@
       "head": "721377d3e81f1d13c5724fa3c1bf816de07a77f8"
     }
   ],
-  "reports": [],
+  "reports": [
+    {
+      "phase": "implement:s1",
+      "path": "docs/dev/bundles/stage-5/sessions/implement-s1-1.md",
+      "at": "2026-10-27T14:26:30.527Z",
+      "stored": true
+    }
+  ],
   "qaRounds": [],
   "decisions": [
     {
@@ -835,6 +860,69 @@
       "actor": "orchestrator",
       "source": "orchestrator after plan-review done",
       "text": "The accept-open reason on plan-review names B-021; that entry duplicated B-019 (the carry-forward key's fragility, seen on b-018 with a re-filed file path) and is folded into B-019's line with the paraphrase case. Read B-021 in that reason as B-019.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:27:53.524Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 1",
+      "text": "The secrets modules live in src/lib/secret/ (singular), not the plan's src/lib/secrets/: the developer's global settings deny Read(**/secrets/**), so every tool session on this machine (implementers, reviewers, fix sessions) would be refused the plan's path. Kept singular; s2 and s3 put the backends in src/lib/secret/backends/ and SCANNED points at the singular path. The user-facing surface (the secrets command, the secrets/ directory in a user repo, the secrets.* rows) is unchanged. Presented to the developer with the strings batch (plan §5, a file-layout deviation).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:27:53.801Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 2",
+      "text": "SCANNED gains src/run.mjs, src/secrets.mjs and src/lib/secret/backends when each is created (messages.test.mjs stats every entry), so s2 and s3 add theirs; disposition 35's intent holds.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:27:54.057Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 3",
+      "text": "The supabase manifest's pointers list (PGPASSFILE, PGSERVICE, PGSERVICEFILE) is disposition 22's rule as data: dropped from the child, never a needle; registry.test.mjs requires it to be a subset of ambient. Accepted as a manifest key beside ambient (rule 4: data in the manifest, the engine reads it).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:27:54.310Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 4",
+      "text": "pgUserinfoProblem (both kinds refuse a postgres value whose user part up to the last @ holds an unencoded /, ?, # or @) is accepted: it makes the last-@ reading and libpq agree, closing postgresql://postgres.<ref>:pw@evil.example/x@aws-0.pooler.supabase.com/… (rule 3); the guide says to percent-encode such characters, an unencoded @ in a query value included.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:27:54.556Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 5",
+      "text": "controlNames(backend, env) lands in s2 with the backends' control lists (disposition 50); nothing in s1 needed it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:27:54.811Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 6",
+      "text": "op inject copies a template's comment and blank lines into its output, so s3 feeds op inject only the reference lines on stdin (-f, no -i), one NAME=op://… line per declared reference, so parseAgainst's ordered mode sees exactly one line per reference (rule 3). The template file on disk keeps its comments; doctor parses the file, run parses op's output.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:27:55.060Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 7",
+      "text": "init.test.mjs's one literal version-3 config now loads migrated and reads 4 (one line, within s1's scope); docs/guides/updating.md's 'already at version 3' line is s5's, as the plan schedules.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:27:55.311Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 open question 8",
+      "text": "No messages.run group in s1: the groups land with the code that prints them (s2 for run), rule 5.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:27:55.574Z",
+      "actor": "orchestrator",
+      "source": "implement:s1 strings batch",
+      "text": "s1's 13 user-facing strings (the two migrate outcomes, the config loader's secrets, target and proof problems and the host hint, the supabase ref hint, the proof refusal line and its anchor texts, the envfile and recipients lines, the schema descriptions, the secrets guide's first version) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:model.",
       "claim": true
     }
   ],

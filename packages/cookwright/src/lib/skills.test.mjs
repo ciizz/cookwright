@@ -246,6 +246,13 @@ describe('the setup skill', () => {
     expect(text).toContain(fragment);
   });
 
+  it("closes the secrets pass with a key left unproved, never proving it (review:surface findings 0 and 4)", () => {
+    const pass = text.slice(text.indexOf('**The secrets pass**'));
+    expect(pass).toContain('Exit 0 with every name a proof kind can cover proved closes the pass.');
+    expect(pass).toContain("never add it to the proof's `names`, never drop it from the target");
+    expect(pass).not.toContain('nothing `unproved`');
+  });
+
   it('acts on every PASS row of its recipe at the end, since the loop skips PASS lines', () => {
     const end = text.slice(text.indexOf('## At the end'));
     const notes = [...text.matchAll(/^\|.*\| PASS \| `(?:… )?([^`]+)`/gm)].map((m) => m[1]);

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 88,
+  "revision": 91,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -112,9 +112,18 @@
     },
     {
       "name": "implement:s1",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-27T14:01:02.664Z",
+          "stateRevision": 88,
+          "planSha": "13da5997463ed143",
+          "codex": true
+        }
+      ],
+      "startCommit": "bb19f3238cf72e5740da0057ca0802cf357e0afc",
+      "range": null
     },
     {
       "name": "review:model",
@@ -812,6 +821,20 @@
       "actor": "orchestrator",
       "source": "phase done plan-review --accept-open",
       "text": "closed plan-review with findings open: re-check 2 rejected finding 22 (its evidence reads: both are now rejected, no issues remain open) but returned its problem text with repo for repository, so carryForward stored it as not re-judged; a runner defect, B-021, not an open finding",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:01:20.671Z",
+      "actor": "orchestrator",
+      "source": "orchestrator before implement:s1",
+      "text": "The split's session scopes were written before plan-review round 1; the plan's §10 as revised is each session's scope. For s1 that adds dispositions 53 (parseAgainst), 54 (top-relative git paths), 55 (the first version of docs/guides/secrets.md and this repo's migrate to version 4, no doc-sync escape), 59 (the redactor on bytes, a Transform), 65 (pgQueryProblem) and 68 (needle lengths), and the two checkpoints 'this repo at version 4' and 'the guide's first version'. The messages groups land with the code that prints them.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:01:48.546Z",
+      "actor": "orchestrator",
+      "source": "orchestrator after plan-review done",
+      "text": "The accept-open reason on plan-review names B-021; that entry duplicated B-019 (the carry-forward key's fragility, seen on b-018 with a re-filed file path) and is folded into B-019's line with the paraphrase case. Read B-021 in that reason as B-019.",
       "claim": true
     }
   ],

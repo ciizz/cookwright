@@ -2,8 +2,9 @@
 // arguments, the value read through readValue and never printed, the refusals
 // (exit 125, nothing written), and the age backend for real in a scratch repo:
 // init --no-passphrase, set --stdin, then run through the engine with the real
-// spawnChild, binary output byte-identical. The real part skips when age or
-// age-keygen is not on PATH. Values are synthetic and asserted by length.
+// spawnChild, binary output byte-identical; a second repo enrolled with the same
+// identity. The real part skips when age or age-keygen is not on PATH. Values are
+// synthetic and asserted by length.
 
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
@@ -297,6 +298,26 @@ describe.skipIf(!HAS_AGE)('the age backend for real (skipped without age and age
     fs.writeFileSync(path.join(TMP, 'real.bin'), blob);
     const cat = await runDev(r, [process.execPath, '-e', `require('fs').createReadStream(${JSON.stringify(path.join(TMP, 'real.bin'))}).pipe(process.stdout)`]);
     expect(cat.stdout.bytes().equals(blob)).toBe(true);
+  });
+
+  it('enrols a second repo with the same identity, so a value set there runs', async () => {
+    const first = repo();
+    await secrets(first, ['init', '--no-passphrase', '--yes']);
+    const identity = fs.readFileSync(first.identity);
+    const second = { ...repo(), env: first.env, identity: first.identity };
+    const init = await secrets(second, ['init', '--yes']);
+    expect(init.code).toBe(0);
+    expect(init.out).not.toMatch(/AGE-SECRET-KEY/);
+    expect(fs.readFileSync(first.identity).equals(identity)).toBe(true);
+    const key = (r) => fs.readFileSync(path.join(r.root, 'secrets/recipients.txt'), 'utf8');
+    expect(key(second)).toBe(key(first));
+    run(second.root, 'git', ['add', 'secrets/recipients.txt']);
+    run(second.root, 'git', ['commit', '-qm', 'recipients']);
+    const again = await secrets(second, ['init', '--yes']);
+    expect(again.out.trim().split('\n').at(-1)).toBe(m.age.alreadyHeld('secrets/recipients.txt'));
+    for (const name of NAMES) await secrets(second, ['set', 'dev', name, '--stdin'], { stdin: line(VALUES[name]) });
+    const out = await runDev(second, [process.execPath, '-e', `console.log(${JSON.stringify(NAMES)}.map((n) => process.env[n].length).join(' '))`]);
+    expect(out.stdout.text()).toBe(`${NAMES.map((n) => VALUES[n].length).join(' ')}\n`);
   });
 
   it('replaces a value in place, the others kept', async () => {

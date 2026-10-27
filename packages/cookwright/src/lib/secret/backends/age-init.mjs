@@ -2,6 +2,14 @@
 // plan §4.3, dispositions 10, 23, 24, 42, 46, 51, 57, 71): a new identity outside
 // every git work tree, its public key appended to `secrets/recipients.txt`.
 //
+// One identity per developer (disposition 46): when the identity already exists,
+// init writes no identity and enrols this repo instead (stage-5 review:engine
+// finding 4). Its public key is derived, by `age-keygen -y <identity>` for an
+// unprotected identity, or for a passphrase-protected one by `age -d <identity>`
+// (age prompting on its terminal) into memory and `age-keygen -y` on stdin, and
+// appended to the recipients file after the same preflight and consent. Nothing
+// else is written, and nothing at all when the file already holds that key.
+//
 // Everything is checked before anything is written (disposition 57): no identity
 // yet, its nearest existing directory inside no work tree by realpath, the
 // recipients file committed and well formed when present, the secrets paths not
@@ -14,10 +22,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { isFile } from '../../doctor/repo.mjs';
 import { messages } from '../../messages.mjs';
 import { RECIPIENTS, SECRETS_DIR, ciphertextOf, topRel } from '../config.mjs';
 import { Refused } from '../engine.mjs';
-import { requireCommittedRecipients, tails } from '../recipients.mjs';
+import { RECIPIENT, requireCommittedRecipients, tails } from '../recipients.mjs';
 import {
   enclosingWorkTree,
   firstLine,
@@ -66,10 +75,20 @@ function refuseUnwritable(dir) {
   }
 }
 
-/** Every check before anything is written: `{ identity, held, recipients }`. */
+/** The existing identity's state: null when there is none, else whether it is passphrase-protected. */
+function existingIdentity(identity) {
+  if (!present(identity)) return null;
+  if (!isFile(identity)) throw new Refused(a.identityNotFile(identity));
+  return { protect: isPassphraseProtected(identity) };
+}
+
+/**
+ * Every check before anything is written: `{ identity, existing, held, recipients }`.
+ * `existing` is null for a new identity, else `{ protect }` (the repo is enrolled).
+ */
 export function preflight(ctx, { noPassphrase }) {
   const identity = identityPath(ctx.env, ctx.home);
-  if (present(identity)) throw new Refused(a.identityExists(identity));
+  const existing = existingIdentity(identity);
   const ancestor = nearestExistingAncestor(identity);
   const top = enclosingWorkTree(ancestor, ctx.env);
   if (top !== null) throw new Refused(a.inWorkTree(ancestor, top));
@@ -77,17 +96,18 @@ export function preflight(ctx, { noPassphrase }) {
   refuseIgnored(ctx);
   const held = heldKeys(ctx);
   const recipients = path.join(ctx.root, RECIPIENTS);
-  refuseUnwritable(ancestor);
+  if (!existing) refuseUnwritable(ancestor);
   refuseUnwritable(nearestExistingAncestor(recipients));
-  if (!noPassphrase && !ctx.probes.terminal()) throw new Refused(a.passphraseTerminal);
-  return { identity, held, recipients };
+  if (existing?.protect && !ctx.probes.terminal()) throw new Refused(a.protectedNoTerminal);
+  if (!existing && !noPassphrase && !ctx.probes.terminal()) throw new Refused(a.passphraseTerminal);
+  return { identity, existing, held, recipients };
 }
 
 /** Consent, or `--yes`: what init will write, said first. */
 async function consent(plan, ctx, { noPassphrase, yes }) {
   const lines = [
     a.willWrite,
-    a.willIdentity(plan.identity, !noPassphrase),
+    plan.existing ? a.willUse(plan.identity, plan.existing.protect) : a.willIdentity(plan.identity, !noPassphrase),
     a.willRecipients(RECIPIENTS, fs.existsSync(plan.recipients)),
   ];
   if (plan.held.length) lines.push(a.held(RECIPIENTS, tails(plan.held)));
@@ -105,6 +125,39 @@ function generate(ctx) {
   const publicKey = PUBLIC_KEY.exec(res.stdout)?.[1];
   if (!publicKey) throw new Refused(a.noPublicKey);
   return { key: res.stdout, publicKey };
+}
+
+/**
+ * The public key of the existing identity at `file`: `age-keygen -y` on the file,
+ * or on what `age -d` decrypts into memory when it is passphrase-protected (age
+ * prompting on its terminal, uncapped). age-keygen's error is never printed, since
+ * it may quote the identity.
+ */
+function derive(file, protect, ctx) {
+  let res;
+  if (protect) {
+    const dec = ctx.probes.capture('age', ['-d', file], { env: ctx.env, cap: null });
+    if (dec.status !== 0) throw new Refused(a.failed('age -d', firstLine(dec.stderr || dec.error?.message)));
+    res = ctx.probes.capture('age-keygen', ['-y'], { input: dec.stdout, env: ctx.env });
+  } else {
+    res = ctx.probes.capture('age-keygen', ['-y', file], { env: ctx.env });
+  }
+  const keys = res.status === 0 ? res.stdout.split('\n').filter(Boolean) : [];
+  if (keys.length !== 1 || !RECIPIENT.test(keys[0])) throw new Refused(a.noDerivedKey(file));
+  return keys[0];
+}
+
+/** The repo enrolled with the existing identity: its public key appended unless already held. */
+function enrol(plan, ctx) {
+  const publicKey = derive(plan.identity, plan.existing.protect, ctx);
+  if (plan.held.includes(publicKey)) {
+    ctx.say(a.alreadyHeld(RECIPIENTS));
+    return;
+  }
+  appendRecipient(plan.recipients, publicKey);
+  ctx.say(a.usedIdentity(plan.identity));
+  ctx.say(a.wroteRecipients(RECIPIENTS, tails([...plan.held, publicKey])));
+  ctx.say(a.commitFirst(RECIPIENTS));
 }
 
 /**
@@ -157,6 +210,7 @@ function appendRecipient(file, publicKey) {
 export async function initAge(ctx, flags) {
   const plan = preflight(ctx, flags);
   await consent(plan, ctx, flags);
+  if (plan.existing) return enrol(plan, ctx);
   const { key, publicKey } = generate(ctx);
   const created = missingDirs(path.dirname(plan.identity));
   fs.mkdirSync(path.dirname(plan.identity), { recursive: true, mode: 0o700 });

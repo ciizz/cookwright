@@ -815,8 +815,9 @@ const secrets = {
     protectedNoTerminal: 'the identity is passphrase-protected; hand this command to the developer',
     failed: (what, line) => `${what} failed${line ? `: ${line}` : ''}`,
     multiLine: (name) => `${name}: a value is one line, with no NUL byte; nothing written`,
-    identityExists: (p) =>
-      `an age identity already exists at ${p}; one identity per developer, so init writes none (a second machine copies it, the secrets guide says how)`,
+    identityNotFile: (p) => `${p} exists and is not a file, so it is no age identity; nothing written`,
+    noDerivedKey: (p) =>
+      `age-keygen -y read no single age1… public key from the identity at ${p} (its output is not shown, since it may quote the key); nothing written`,
     inWorkTree: (dir, top) =>
       `${dir} is inside the git work tree ${top}, and an identity never lives in a repo: set COOKWRIGHT_AGE_IDENTITY to a path outside every work tree`,
     gitProbe: (detail) => `could not tell whether the identity's directory is inside a git work tree: ${detail}`,
@@ -835,14 +836,20 @@ const secrets = {
       protect
         ? `  ${p}, the age identity, passphrase-protected (age asks for the passphrase next, on this terminal; an empty one makes age generate one and print it here once)`
         : `  ${p}, the age identity, with no passphrase (weaker: whoever reads the file opens every secret)`,
+    willUse: (p, protect) =>
+      protect
+        ? `  no identity: the one at ${p} is yours already (one per developer), and its public key is read from it (age asks for its passphrase next, on this terminal)`
+        : `  no identity: the one at ${p} is yours already (one per developer), and its public key is read from it`,
     willRecipients: (rel, exists) =>
       exists ? `  its public key, appended to ${rel}` : `  ${rel}, holding its public key`,
     held: (rel, keys) =>
-      `${rel} already holds ${keys.length} recipient(s) (${tailed(keys)}): one identity per developer, so on a second machine copy your identity instead of running init; a new recipient cannot read what is already encrypted until each value is set again`,
+      `${rel} already holds ${keys.length} recipient(s) (${tailed(keys)}): one identity per developer, so on a second machine copy your identity there rather than make a new one; a new recipient cannot read what is already encrypted until each value is set again`,
     wroteIdentity: (p, protect) =>
       protect
         ? `secrets: wrote ${p} (passphrase-protected, mode 600)`
         : `secrets: wrote ${p} (no passphrase, mode 600: weaker; the secrets guide shows how to add one)`,
+    usedIdentity: (p) => `secrets: read the public key of ${p}; the identity is unchanged`,
+    alreadyHeld: (rel) => `secrets: ${rel} already holds this identity's public key; nothing written`,
     wroteRecipients: (rel, keys) => `secrets: ${rel} holds ${keys.length} recipient(s): ${tailed(keys)}`,
     commitFirst: (rel) => `secrets: commit ${rel} before the first secrets set (git add ${rel} && git commit)`,
   },

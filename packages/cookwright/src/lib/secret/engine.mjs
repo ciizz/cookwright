@@ -104,22 +104,50 @@ export function childEnv(env, drop, values) {
  * The inherited values that are needles beside the resolved ones (dispositions 22,
  * 68): those of every declared and ambient name (and libpq's, when dropped), as
  * `[name, value]`, minus the names whose value is a file, a service or a host, and
- * minus a URL on a loopback host, the local stack's public URL (stage-5 s2's open
- * question 4, disposition 43).
+ * minus the local Supabase stack's public default (publicLocal). Any other
+ * loopback URL, a tunnel to production on localhost among them, stays a needle
+ * (disposition 43; stage-5 review:engine findings 3 and 6).
  */
 export function inheritedValues(env, config, libpq) {
   const pointers = new Set([...pointerNames(config), ...libpq.filter((n) => !LIBPQ_SECRETS.includes(n))]);
   const names = new Set([...declaredNames(config), ...ambientNames(config), ...libpq]);
-  const needle = (n) => !pointers.has(n) && typeof env[n] === 'string' && !loopbackUrl(env[n]);
+  const needle = (n) => !pointers.has(n) && typeof env[n] === 'string' && !publicLocal(n, env[n]);
   return [...names].filter(needle).map((n) => [n, env[n]]);
 }
 
+/** The local Supabase stack's password, public in every copy of the stack (disposition 43). */
+export const LOCAL_STACK_PASSWORD = 'postgres';
+
+/**
+ * True when the inherited `value` of `name` is the local stack's public default:
+ * a URL on a loopback host whose password is `postgres`, or `PGPASSWORD=postgres`.
+ */
+export function publicLocal(name, value) {
+  if (LIBPQ_SECRETS.includes(name)) return value === LOCAL_STACK_PASSWORD;
+  return loopbackUrl(value) && urlPasswordOf(value) === LOCAL_STACK_PASSWORD;
+}
+
+const AUTHORITY = /^[a-z][a-z0-9+.-]*:\/\/([^/?#\s]*)/i;
+
 /** True when `value` is a `<scheme>://…` URL whose host, after the last `@`, is a loopback host. */
 export function loopbackUrl(value) {
-  const authority = /^[a-z][a-z0-9+.-]*:\/\/([^/?#\s]*)/i.exec(value)?.[1];
+  const authority = AUTHORITY.exec(value)?.[1];
   if (!authority) return false;
   const host = authority.slice(authority.lastIndexOf('@') + 1);
   return host !== '' && isLoopback(host);
+}
+
+/** The percent-decoded password of a `<scheme>://user:password@host` value, or null. */
+function urlPasswordOf(value) {
+  const authority = AUTHORITY.exec(value)?.[1] ?? '';
+  const userinfo = authority.slice(0, Math.max(authority.lastIndexOf('@'), 0));
+  const colon = userinfo.indexOf(':');
+  if (colon < 0) return null;
+  try {
+    return decodeURIComponent(userinfo.slice(colon + 1));
+  } catch {
+    return null;
+  }
 }
 
 /** True for a loopback host (`host[:port]` or `[v6][:port]`): its password is public (disposition 43). */

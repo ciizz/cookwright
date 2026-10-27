@@ -229,13 +229,15 @@ describe('run: the two environments', () => {
 
 describe('run: the argv check', () => {
   const stale = { ...BASE_ENV, DB_URL: 'postgresql://postgres.stale:stale-password@prod.example/postgres', SUPABASE_ACCESS_TOKEN: 'abc' };
+  const tunnel = { ...BASE_ENV, DB_URL: 'postgresql://postgres.prodref:real-prod-pw@localhost:5433/postgres' };
 
-  it("refuses a resolved value, a stale inherited one and a URL with a password on the child's command line", async () => {
+  it("refuses a resolved value, a stale inherited one (a loopback tunnel included) and a URL with a password on the child's command line", async () => {
     const root = repo();
     const cases = [
       [['dev', '--', 'echo', VALUES.SERVICE_ROLE_KEY], {}, messages.run.argValue(2, 'SERVICE_ROLE_KEY')],
       [['dev', '--', 'echo', `x=${encodeURIComponent(VALUES.DB_URL)}`], {}, messages.run.argValue(2, 'DB_URL')],
       [['dev', '--', 'psql', stale.DB_URL], { env: stale }, messages.run.argValue(2, 'DB_URL')],
+      [['dev', '--', 'psql', tunnel.DB_URL], { env: tunnel }, messages.run.argValue(2, 'DB_URL')],
       [['dev', '--', 'psql', 'postgres://u:hunter22@db.example.com/x'], {}, messages.run.argUrl(2)],
     ];
     for (const [argv, opts, line] of cases) {

@@ -1,7 +1,7 @@
 // src/lib/secret/engine.test.mjs — the engine's pure steps (stage-5 plan §4.2): the
 // backend and target lookups, the two environments, the needles of inherited
-// values, the argv check with its loopback exemption, the banner. `run` end to end
-// is in src/run.test.mjs. Values are synthetic; nothing prints one.
+// values and the local stack's public default, the argv check with its loopback
+// exemption, the banner. `run` end to end is in src/run.test.mjs. Values are synthetic; nothing prints one.
 
 import { describe, expect, it } from 'vitest';
 
@@ -19,6 +19,7 @@ import {
   openBackend,
   openTarget,
   passwordUrl,
+  publicLocal,
   scrubNames,
 } from './engine.mjs';
 import { needles } from './redact.mjs';
@@ -123,14 +124,50 @@ describe('inheritedValues', () => {
     expect(inheritedValues({ PGHOST: 'h', PGPASSWORD: 'pw' }, bare, libpq).map(([n]) => n)).toEqual(['PGPASSWORD']);
   });
 
-  it("never makes the local stack's loopback URL a needle, so passing it on the command line runs (s2's open question 4)", () => {
+  it("never makes the local stack's public default a needle, so passing it on the command line runs (disposition 43)", () => {
     const local = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
-    const env = { SUPABASE_DB_URL: local, DB_URL: 'postgresql://postgres:postgres@localhost/postgres', SUPABASE_ACCESS_TOKEN: 'sbp_old-token' };
+    const env = {
+      SUPABASE_DB_URL: local,
+      DB_URL: 'postgresql://postgres:postgres@localhost/postgres',
+      PGPASSWORD: 'postgres',
+      SUPABASE_ACCESS_TOKEN: 'sbp_old-token',
+    };
     expect(inheritedValues(env, config, []).map(([n]) => n)).toEqual(['SUPABASE_ACCESS_TOKEN']);
     const list = needles(new Map([['SUPABASE_URL', 'https://abcdefghijklmnopqrst.supabase.co']]), inheritedValues(env, config, []));
     expect(() => argvCheck(['psql', local], list)).not.toThrow();
+    expect(() => argvCheck(['psql', '-U', 'postgres', '-c', 'select 1'], list)).not.toThrow();
     const remote = { SUPABASE_DB_URL: 'postgresql://postgres:postgres@db.example.com/postgres' };
     expect(inheritedValues(remote, config, []).map(([n]) => n)).toEqual(['SUPABASE_DB_URL']);
+  });
+
+  it('keeps any other loopback URL and any other PGPASSWORD a needle: a tunnel to production on localhost is refused', () => {
+    const tunnel = 'postgresql://postgres.prodrefprodrefprodre:real-prod-pw@localhost:5433/postgres';
+    const env = {
+      DB_URL: tunnel,
+      SUPABASE_DB_URL: 'postgresql://postgres:postgres%21@127.0.0.1:54322/postgres',
+      PGPASSWORD: 'other-prod-pw',
+    };
+    expect(inheritedValues(env, config, []).map(([n]) => n).sort()).toEqual(['DB_URL', 'PGPASSWORD', 'SUPABASE_DB_URL']);
+    const list = needles(new Map(), inheritedValues(env, config, []));
+    expect(refusal(() => argvCheck(['psql', tunnel], list))).toBe(messages.run.argValue(2, 'DB_URL'));
+    expect(refusal(() => argvCheck(['psql', 'postgresql://x:other-prod-pw@localhost/x'], list))).toBe(
+      messages.run.argValue(2, 'PGPASSWORD'),
+    );
+  });
+
+  it.each([
+    ['SUPABASE_DB_URL', 'postgresql://postgres:postgres@127.0.0.1:54322/postgres', true],
+    ['SUPABASE_DB_URL', 'postgresql://postgres.ref:postgres@[::1]:5432/postgres', true],
+    ['SUPABASE_DB_URL', 'postgresql://u:pg%73tres@localhost/d', false],
+    ['SUPABASE_DB_URL', 'postgresql://u:postgre%73@localhost/d', true],
+    ['SUPABASE_DB_URL', 'postgresql://postgres:postgres@db.example.com/postgres', false],
+    ['SUPABASE_DB_URL', 'postgresql://postgres@localhost/postgres', false],
+    ['SUPABASE_DB_URL', 'http://localhost:54321', false],
+    ['PGPASSWORD', 'postgres', true],
+    ['PGPASSWORD', 'postgres1', false],
+    ['SUPABASE_ACCESS_TOKEN', 'postgres', false],
+  ])('publicLocal(%s, %j) is %s', (name, value, want) => {
+    expect(publicLocal(name, value)).toBe(want);
   });
 
   it.each([

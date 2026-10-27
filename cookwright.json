@@ -74,6 +74,19 @@
         "docs": [
           "docs/guides/standards.md"
         ]
+      },
+      {
+        "name": "secrets",
+        "code": [
+          "packages/cookwright/src/run.mjs",
+          "packages/cookwright/src/secrets.mjs",
+          "packages/cookwright/src/lib/secret/**",
+          "packages/cookwright/src/lib/doctor/secrets.mjs",
+          ":!*.test.mjs"
+        ],
+        "docs": [
+          "docs/guides/secrets.md"
+        ]
       }
     ]
   }

@@ -28,7 +28,7 @@ Stage 0 excepted, work ships as bundles through the repo's own runner: plan mode
 
 ## Developing
 
-init has been run on this repo, so its git hooks are live: every commit runs the secret scan and two doc-sync rules (the bundle CLI and workflow need `packages/cookwright/docs/playbook.md` or the bundle skill staged; the setup skill and the managed rules block need a guide under `docs/guides/` staged), and every push runs `npm test` and the changelog check.
+init has been run on this repo, so its git hooks are live: every commit runs the secret scan and five doc-sync rules (the bundle CLI and workflow need `packages/cookwright/docs/playbook.md` or the bundle skill staged; the setup skill, the managed rules block and the packs need a guide under `docs/guides/` staged; the audit and standards code need `docs/guides/standards.md`; `run`, `secrets` and their modules, doctor's secrets rows included, need `docs/guides/secrets.md`), and every push runs `npm test` and the changelog check.
 
 ```bash
 npm ci && npm test

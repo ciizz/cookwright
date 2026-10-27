@@ -193,7 +193,7 @@ Doctor looks each declared name up by its service and account (`find-generic-pas
 
 ## What doctor checks
 
-Three rows, last in the readout, after every row a level requires, so a slow keychain never costs another row its time. No level requires them: they sit beside the levels until Level 2 opens. Doctor never prompts, never decrypts, never resolves a reference and never reads a value; each line names secrets, files and line numbers, and claims only what it measured.
+Three rows, after every row a level requires (after `packs`, before a declared pack's own rows), so a slow keychain never costs a required row its time. No level requires them: they sit beside the levels until Level 2 opens. Doctor never prompts, never decrypts, never resolves a reference and never reads a value; each line names secrets, files and line numbers, and claims only what it measured.
 
 **`secrets.backend`**: the backend can run here.
 

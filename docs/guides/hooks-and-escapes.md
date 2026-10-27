@@ -50,6 +50,10 @@ pre-commit  SKIP  doc-sync  skipped by COOKWRIGHT_SKIP; say why in the commit me
 
 `git commit --no-verify` skips everything and is the last resort.
 
+## No escape for `run`
+
+`COOKWRIGHT_SKIP` and `--no-verify` reach the git hooks only. `npx cookwright run <target> -- <command>` (see [Secrets](secrets.md)) has no escape: it takes no flag of its own and reads no skip variable, so a refusal (a declared name the backend lacks, a proof that fails, a value on the command line) always exits 125 with one line naming the fix, and the command does not start. The fix is in the config, the backend or the command; the alternative a skip would offer, the value in your shell or on a command line, is what `run` exists to prevent.
+
 ## Merge commits
 
 A clean `git merge` runs no pre-commit. A `--no-commit` merge or a conflict resolution does, and its staged diff is the whole merged side, so a doc-sync rule can fail for commits that each passed on their own; the escape with the reason is the answer.

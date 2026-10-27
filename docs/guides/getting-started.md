@@ -1,6 +1,6 @@
 # Getting started
 
-From an app repo with nothing installed to a Level 0 the agent checks at every session start. The output below is real: cookwright 0.2.0 installed from npm into a fresh git repo on 2026-10-26, with Claude Code 2.1.310 and gitleaks 8.30.1 on PATH. Your paths and versions will differ.
+From an app repo with nothing installed to a Level 0 the agent checks at every session start. The output below is real: cookwright at the version that adds secrets, installed from its `npm pack` tarball into a fresh git repo whose `package.json` has a test script, on 2026-10-27, with Claude Code 2.1.311 and gitleaks 8.30.1 on PATH. Your paths and versions will differ.
 
 ## 1. Install
 
@@ -25,9 +25,10 @@ wrote    docs/backlog.md                    from the template
 wrote    docs/closeouts/                    created, with a .gitkeep so a clone keeps it
 wrote    CHANGELOG.md                       from the template
 wrote    AGENTS.md                          written with the managed rules block
-skipped  CLAUDE.md                          not needed: claude 2.1.310 reads AGENTS.md natively and nothing shadows it
+skipped  CLAUDE.md                          not needed: claude 2.1.311 reads AGENTS.md natively and nothing shadows it
 wrote    .claude/settings.json              SessionStart hook runs doctor
 wrote    .claude/skills/bundle              links to ../../node_modules/cookwright/skills/bundle
+wrote    .claude/skills/docs-audit          links to ../../node_modules/cookwright/skills/docs-audit
 wrote    .claude/skills/setup               links to ../../node_modules/cookwright/skills/setup
 wrote    .claude/workflows/bundle-phase.js  links to ../../node_modules/cookwright/hosts/claude/workflows/bundle-phase.js
 wrote    .claude/workflows/docs-audit.js    links to ../../node_modules/cookwright/hosts/claude/workflows/docs-audit.js
@@ -56,8 +57,8 @@ git commit -m 'chore: set up cookwright'
 pre-commit  PASS  secrets  staged diff clean (gitleaks 8.30.1)
 pre-commit  SKIP  doc-sync  no doc-sync rules configured (hooks.docSync in cookwright.json)
 pre-commit  SKIP  standards  no packs declared
-[main 234b9e7] chore: set up cookwright
- 16 files changed, 166 insertions(+), 1 deletion(-)
+[main (root-commit) 5753e43] chore: set up cookwright
+ 16 files changed, 180 insertions(+)
 ```
 
 (gitleaks prints its own `INF` lines above these.) What the hooks check and how to escape one is in [Hooks and escapes](hooks-and-escapes.md).
@@ -87,7 +88,7 @@ PASS  homes.changelog    CHANGELOG.md
 PASS  backlog.ids        0 id(s), each once
 PASS  rules.block        AGENTS.md: the managed block is current
 PASS  rules.size         AGENTS.md: under 60 KB, no line over 3000 chars
-PASS  host.rules         claude 2.1.310 reads AGENTS.md natively; nothing shadows it
+PASS  host.rules         claude 2.1.311 reads AGENTS.md natively; nothing shadows it
 PASS  host.hook          .claude/settings.json runs doctor at session start
 PASS  host.pointers      claude: 3 skills, 2 workflows
 PASS  hooks.path         core.hooksPath is .githooks (local)
@@ -98,8 +99,11 @@ PASS  gate.scripts       1 gate check(s); every npm script they run is in packag
 PASS  secrets.env        no .env file tracked or at the root; .env and .env.local ignored
 PASS  repo.node_modules  node_modules is not tracked
 PASS  packs              no packs declared, none detected
+PASS  secrets.backend    no backend (Level 2 off)
+PASS  secrets.targets    no targets declared
+PASS  secrets.carriers   no .envrc, and no secret name exported here or set in a shell rc file
 
-19 checks — 19 PASS, 0 FAIL, 0 WARN, 0 SKIP
+22 checks — 22 PASS, 0 FAIL, 0 WARN, 0 SKIP
 level 0 declared: complete
 next: Level 1 is not available in this version of cookwright
 ```
@@ -110,11 +114,11 @@ A missing tool is a SKIP, never a FAIL. The same repo with neither gitleaks nor 
 SKIP  host.rules         skipped, needs claude, run setup (AGENTS.md support unverified)
 SKIP  tools.gitleaks     skipped, needs gitleaks, run setup (brew install gitleaks): the pre-commit secret scan does not run
 
-19 checks — 17 PASS, 0 FAIL, 0 WARN, 2 SKIP
+22 checks — 20 PASS, 0 FAIL, 0 WARN, 2 SKIP
 level 0 declared: not verified: host.rules, tools.gitleaks (see their lines)
 ```
 
-`npx cookwright doctor` checks that Level 0 is still in place and names anything missing: 19 checks, the git hooks, gitleaks, the gate's npm scripts, the skill and workflow pointers and a tracked `node_modules` (`repo.node_modules`, a FAIL naming `git rm -r --cached node_modules`) among them. Its `packs` row names the stack packs `cookwright.json` declares, or WARNs the ones the tree shows when none is declared, which the setup skill then offers; each declared pack adds four rows of its own, `pack.<name>.declared`, `pack.<name>.rules` (its section of `AGENTS.md` is current; a rule switched off reads WARN), `pack.<name>.docs` (its contract doc is there, its doc-sync rule is configured as the pack ships it, a rule of your own going under another name, and every primitive or migration has an entry) and `pack.<name>.lint` (ESLint is installed, `eslint.config.js` names the pack's export and the gate runs the ratchet), and the supabase pack a fifth, `pack.supabase.types`; no level requires them (see [Standards](standards.md)). A hooks setup managed elsewhere (husky, lefthook) reads as weak, not missing: `hooks.path` and the two hook rows WARN. A required check that could not measure (gitleaks or `claude` not installed) keeps the level from complete: the level line reads `level 0 declared: not verified: host.rules, tools.gitleaks (see their lines)` until those lines measure. With no gate check (an app without a test script, which init then gives none), `gate.scripts` reads WARN `no gate checks configured; pre-push runs nothing (add a check to gate.checks)`: add one to `gate.checks` in `cookwright.json` by hand, for instance `{ "name": "types", "run": "npx tsc --noEmit" }`, or let the setup skill offer one. The hook runs it as `doctor --hook` at every session start, and that form never fails a session. Its git calls share a two-second budget, so a stalled git yields a one-line diagnosis, not a killed hook.
+`npx cookwright doctor` checks that Level 0 is still in place and names anything missing: 22 checks, the git hooks, gitleaks, the gate's npm scripts, the skill and workflow pointers and a tracked `node_modules` (`repo.node_modules`, a FAIL naming `git rm -r --cached node_modules`) among them. Its `packs` row names the stack packs `cookwright.json` declares, or WARNs the ones the tree shows when none is declared, which the setup skill then offers; each declared pack adds four rows of its own, `pack.<name>.declared`, `pack.<name>.rules` (its section of `AGENTS.md` is current; a rule switched off reads WARN), `pack.<name>.docs` (its contract doc is there, its doc-sync rule is configured as the pack ships it, a rule of your own going under another name, and every primitive or migration has an entry) and `pack.<name>.lint` (ESLint is installed, `eslint.config.js` names the pack's export and the gate runs the ratchet), and the supabase pack a fifth, `pack.supabase.types`; no level requires them (see [Standards](standards.md)). The last three of the 22, `secrets.backend`, `secrets.targets` and `secrets.carriers`, read PASS while no secrets backend is declared, except that `secrets.carriers` WARNs, even then, an `.envrc` or a name a declared pack's tools read on their own (`SUPABASE_DB_URL`) exported in your shell or set in its rc files; once you declare a backend they check its setup, its files and your shell by name, and no level requires them either (see [Secrets](#secrets-level-2-off-until-you-declare-a-backend)). A hooks setup managed elsewhere (husky, lefthook) reads as weak, not missing: `hooks.path` and the two hook rows WARN. A required check that could not measure (gitleaks or `claude` not installed) keeps the level from complete: the level line reads `level 0 declared: not verified: host.rules, tools.gitleaks (see their lines)` until those lines measure. With no gate check (an app without a test script, which init then gives none), `gate.scripts` reads WARN `no gate checks configured; pre-push runs nothing (add a check to gate.checks)`: add one to `gate.checks` in `cookwright.json` by hand, for instance `{ "name": "types", "run": "npx tsc --noEmit" }`, or let the setup skill offer one. The hook runs it as `doctor --hook` at every session start, and that form never fails a session. Its git calls share a two-second budget, so a stalled git yields a one-line diagnosis, not a killed hook.
 
 ## 5. Anything not PASS: the setup skill
 
@@ -131,7 +135,7 @@ npm install --save-dev cookwright eslint-plugin-i18next
 npx cookwright init
 ```
 
-init then declares the packs the tree shows, on the `packs` line of the `cookwright.json` row, and writes each pack's section of `AGENTS.md`, its contract doc and its line in `eslint.config.js`. The pack rows of init's report, from the harness fixture on 2026-10-25 (a blank TypeScript Expo scaffold, `eslint` 9.39.5, `eslint-plugin-i18next` 6.1.5; Supabase's files supplied as `supabase init` writes them):
+init then declares the packs the tree shows, on the `packs` line of the `cookwright.json` row, and writes each pack's section of `AGENTS.md`, its contract doc and its line in `eslint.config.js`. The pack rows of init's report, from the harness fixture on 2026-10-27 (a blank TypeScript Expo scaffold, `eslint` 9.39.5, `eslint-plugin-i18next` 6.1.5; Supabase's files supplied as `supabase init` writes them):
 
 ```
 wrote    cookwright.json                    baseBranch main; packs: expo (package.json depends on expo), supabase (supabase/config.toml exists); gate: npx cookwright standards --ratchet, npx cookwright standards --types; no npm test (package.json has no test script)
@@ -148,6 +152,9 @@ and doctor's rows for them:
 ```
 PASS  repo.node_modules       node_modules is not tracked
 PASS  packs                   declared: expo, supabase
+PASS  secrets.backend         no backend (Level 2 off)
+PASS  secrets.targets         no targets declared
+PASS  secrets.carriers        no .envrc, and no secret name exported here or set in a shell rc file
 PASS  pack.expo.declared      expo pack v1: strings, tokens, size, design-doc; advisory: 3
 PASS  pack.expo.rules         AGENTS.md: the expo pack's section is current
 PASS  pack.expo.docs          0 primitives, 0 documented in docs/design-system.md
@@ -158,11 +165,22 @@ PASS  pack.supabase.docs      0 migrations, 0 documented in docs/data-model.md
 PASS  pack.supabase.lint      eslint 9.39.5; eslint.config.js names cookwright/packs/supabase/eslint.cjs
 WARN  pack.supabase.types     no db:types script in package.json; add "db:types": "supabase gen types --local > <path>", the shape the gate's types check reads
 
-28 checks — 27 PASS, 0 FAIL, 1 WARN, 0 SKIP
+31 checks — 30 PASS, 0 FAIL, 1 WARN, 0 SKIP
 level 0 declared: complete
 ```
 
 Without the plugin, init reports `skipped  eslint-plugin-i18next  needs npm install --save-dev eslint-plugin-i18next (the strings rule)`, `pack.expo.lint` WARNs with the same line, and the strings rule reads skipped on the hook's line until it is installed. An `eslint.config.js` that is not Expo's template is left alone and the row names the lines to add. A fresh `cookwright.json` with a pack declared gets the pack's doc-sync rules and gate checks; an existing one never gets a pack from init, and the `packs` row WARNs a stack the tree shows, which the setup skill offers. What each rule measures, and where, is in [Standards](standards.md).
+
+## Secrets (Level 2): off until you declare a backend
+
+cookwright never writes a secret to a plaintext file. A command that needs one (a seed script, a migration against a hosted database) runs through `npx cookwright run <target> -- <command>`, which reads the target's values from a backend (`age`, the macOS keychain or 1Password), checks that they point at the project the target names, and injects them into that one command. Until `cookwright.json` declares a backend, `run` refuses and starts nothing, exit 125 (2026-10-27, the repo above):
+
+```
+$ npx cookwright run dev -- true
+run: no secrets backend declared in cookwright.json (Level 2 off; the secrets guide shows the key)
+```
+
+Setting one up, the backends, the proofs and what is not covered: [Secrets](secrets.md). Ask your agent to set up secrets and the setup skill walks it with you; the commands that read a value or a passphrase are yours to type.
 
 ## Trying an unpublished change
 

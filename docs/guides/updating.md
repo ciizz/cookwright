@@ -23,6 +23,8 @@ cookwright.json: already at version 4
 
 Format version 4 adds the optional `secrets` key; migrating only bumps the version and never writes one. See [Secrets](secrets.md#updating-to-version-4).
 
+The version that brings it also ships version 4 of the managed rules block, whose Secrets section gains the agent's rules for `npx cookwright run`, so doctor FAILs `rules.block` (`AGENTS.md: the managed block is stale (run npx cookwright init)`) until `npx cookwright init` refreshes it; commit `AGENTS.md`. Doctor also gains three rows, after `packs` and before any pack's own rows: `secrets.backend`, `secrets.targets` and `secrets.carriers`. With no `secrets` key they read PASS (`no backend (Level 2 off)`, `no targets declared`), except that `secrets.carriers` WARNs an `.envrc`, or a name the declared packs' tools read (`SUPABASE_DB_URL`) exported in your shell or set in its rc files; no level requires them. Nothing else changes until you declare a backend.
+
 ## Version 3: the stack packs
 
 Format version 3 adds `packs`, the stack packs the repo declares. Migrating a version 2 file writes `packs: []` and declares no pack (cookwright's own repo, 2026-10-25):

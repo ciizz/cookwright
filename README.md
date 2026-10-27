@@ -1,13 +1,14 @@
 # cookwright
 
-cookwright is an open-source harness that keeps AI-assisted development disciplined and verifiable. It installs the safeguards (git hooks, a session-start doctor, generated state) and tells you the moment your process drifts. Built for solo developers, with stack packs for Expo and Supabase; secure credential handling is on the way.
+cookwright is an open-source harness that keeps AI-assisted development disciplined and verifiable. It installs the safeguards (git hooks, a session-start doctor, generated state) and tells you the moment your process drifts. Built for solo developers, with stack packs for Expo and Supabase, and a way to run a command with its credentials that never writes one to a plaintext file.
 
 ## What you get
 
-- **A doctor at every session start.** A session-start hook runs 19 checks, plus four for each stack pack you declare (five for Supabase), and puts the readout in your agent's context; each line that is not PASS names its next step.
+- **A doctor at every session start.** A session-start hook runs 22 checks, plus four for each stack pack you declare (five for Supabase), and puts the readout in your agent's context; each line that is not PASS names its next step.
 - **Git hooks that catch mistakes.** Before each commit, they stop a secret from going in, and stop a code change that leaves out the doc you tied it to. Before each push, they run your tests. If a tool they need isn't installed, they say so and let you through.
 - **Standards for your stack, each one measured.** The `expo` and `supabase` packs put each engineering rule in your `AGENTS.md` beside the check that measures it: no literal UI string, no raw colour or spacing in a component, short functions, the Supabase client from one place, the contract docs moved with the code. A commit fails only when it adds a violation, so an existing app's backlog never blocks it; a push fails when the branch made the count rise. See [Standards](docs/guides/standards.md).
 - **A changelog you never write.** It is generated from release tags and conventional commit subjects, and checked on every push.
+- **Secrets that never touch disk in plaintext.** `npx cookwright run dev -- npm run seed` reads the `dev` target's values from a backend (`age`, the macOS keychain or 1Password), checks they point at the project the target names (the Supabase ref, or a host), and injects them into that one command, with a value on its command line refused and its output redacted. No `.env`, not even as a fallback; off until you declare a backend. See [Secrets](docs/guides/secrets.md).
 - **A setup skill.** `/setup` walks doctor's readout one remedy at a time and stops at the decisions that are yours.
 
 ## Why it exists
@@ -32,8 +33,8 @@ wrote    cookwright.json                    baseBranch main; packs: none detecte
 wrote    AGENTS.md                          written with the managed rules block
 wrote    .claude/settings.json              SessionStart hook runs doctor
 wrote    .githooks/pre-commit               the managed shim, executable; it calls the hook in the package
-…                                           (16 steps, every file named, then doctor's 19 lines)
-19 checks — 19 PASS, 0 FAIL, 0 WARN, 0 SKIP
+…                                           (16 steps, every file named, then doctor's 22 lines)
+22 checks — 22 PASS, 0 FAIL, 0 WARN, 0 SKIP
 level 0 declared: complete
 ```
 
@@ -48,6 +49,7 @@ No script is copied into your repo: it holds `cookwright.json`, thin git shims a
 - [Getting started](docs/guides/getting-started.md): install, init, the first commit and doctor, with real output; skills and workflows.
 - [Hooks and escapes](docs/guides/hooks-and-escapes.md): what pre-commit and pre-push check, doc-sync rules, the standards check, `COOKWRIGHT_SKIP`, hooks managed elsewhere.
 - [Standards](docs/guides/standards.md): the stack packs, each rule and what measures it, the ratchet, the contract docs and their audit, switching a rule off.
+- [Secrets](docs/guides/secrets.md): targets, the `age`, keychain and 1Password backends, the proofs, `npx cookwright run`, what doctor checks and what is not covered.
 - [Releases and the changelog](docs/guides/releases-and-changelog.md): conventional subjects, tag bodies, the release order.
 - [Updating](docs/guides/updating.md): a new version, `migrate`, refreshing the rules block and pointers, adding a pack to an existing repo.
 - [Codex](docs/guides/codex.md): the hook, trusting it with `/hooks`, what was measured.
@@ -62,7 +64,8 @@ No script is copied into your repo: it holds `cookwright.json`, thin git shims a
 | Level 2: docs-audit skill | experimental; 0.2.1 on npm |
 | Level 1: screenshot atlas, SQL test suites | not available yet |
 | Level 2: bundle runner | experimental |
-| Level 2: secrets backends, Supabase ops, OTA preflight | not available yet |
+| Level 2: secrets (`run`; `age`, keychain and 1Password backends) | experimental; not on npm yet (after 0.2.1) |
+| Level 2: Supabase ops, OTA preflight | not available yet |
 | Claude Code | supported |
 | Codex | supported interactively, once the hook is trusted; a Codex-only repo has no bundles |
 | Windows, yarn Plug'n'Play, a global install | not supported |

@@ -18,17 +18,21 @@ const linesOf = (text) => (text === '' ? [] : (text.endsWith('\n') ? text.slice(
 const problem = (why, detail = {}) => ({ problem: { why, ...detail } });
 
 /**
- * `text` read against `expected` (secret names): `{ values }`, a Map in the order
- * the lines came, or `{ problem: { why, line?, name? } }`. `ordered`: exactly one
- * line per expected name, in order, and nothing else (a 1Password template's
+ * `text` read against `expected` (secret names): `{ values, stale }`, a Map in the
+ * order the lines came, or `{ problem: { why, line?, name? } }`. `ordered`: exactly
+ * one line per expected name, in order, and nothing else (a 1Password template's
  * references). Otherwise each line sets an expected name at most once, in any
  * order; `partial` allows an expected name to be absent (`secrets set` reading the
- * file it is about to extend). A NUL anywhere, or an empty value, is refused.
+ * file it is about to extend). `stale` keeps a well-formed line of a name not
+ * expected out of `values` and lists its name in `stale` instead of refusing it
+ * (`secrets set` dropping a name the config no longer declares, stage-5
+ * review:whole finding 5). A NUL anywhere, or an empty value, is refused.
  */
-export function parseAgainst(text, expected, { ordered = false, partial = false } = {}) {
+export function parseAgainst(text, expected, { ordered = false, partial = false, stale = false } = {}) {
   const nul = text.indexOf('\0');
   if (nul >= 0) return problem('nul', { line: linesOf(text.slice(0, nul + 1)).length });
   const values = new Map();
+  const dropped = new Set();
   for (const [i, line] of linesOf(text).entries()) {
     const m = LINE.exec(line);
     const at = { line: i + 1 };
@@ -36,14 +40,18 @@ export function parseAgainst(text, expected, { ordered = false, partial = false 
     if (!m) return problem('malformed', at);
     const [, name, value] = m;
     if (ordered && name !== expected[i]) return problem('unexpected', { ...at, name: expected[i] });
+    if (stale && !expected.includes(name)) {
+      dropped.add(name);
+      continue;
+    }
     if (!expected.includes(name)) return problem('unknown', at);
     if (values.has(name)) return problem('duplicate', { name });
     if (value === '') return problem('missing', { name });
     values.set(name, value);
   }
-  if (partial) return { values };
+  if (partial) return { values, stale: [...dropped] };
   const absent = expected.find((name) => !values.has(name));
-  return absent === undefined ? { values } : problem('missing', { name: absent });
+  return absent === undefined ? { values, stale: [...dropped] } : problem('missing', { name: absent });
 }
 
 /**

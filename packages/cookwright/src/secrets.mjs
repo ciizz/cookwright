@@ -63,8 +63,9 @@ async function setCommand([, target, name], flags, opened, io) {
   const { backend, ctx } = backendContext(opened, io, 'set');
   ctx.readValue = () =>
     readValue({ stdin: io.stdin, stderr: io.stderr, fromStdin: flags.stdin === true, prompt: m.prompt.value(name, target) });
-  const { keys, service } = await backend.set(target, name, ctx);
+  const { keys, service, dropped = [] } = await backend.set(target, name, ctx);
   ctx.say(m.set(name, target, service ? m.withService(backend.name, service) : backend.name));
+  if (dropped.length) ctx.say(m.dropped(dropped, target));
   if (keys) ctx.say(m.encryptedTo(keys.map((k) => k.slice(-8))));
   return 0;
 }

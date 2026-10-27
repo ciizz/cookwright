@@ -794,6 +794,7 @@ const secrets = {
   // secrets set's lines: never a value or its length
   set: (name, target, backend) => `secrets: set ${name} for ${target} (${backend})`,
   withService: (backend, service) => `${backend}, service ${service}`,
+  dropped: (names, target) => `secrets: removed ${list(names)} from ${target}'s values, no longer declared`,
   encryptedTo: (keys) => `secrets: encrypted to ${keys.length} recipient(s): ${tailed(keys)}`,
   // readValue (lib/secret/prompt.mjs)
   prompt: {
@@ -817,6 +818,8 @@ const secrets = {
     protectedNoTerminal: 'the identity is passphrase-protected; hand this command to the developer',
     failed: (what, line) => `${what} failed${line ? `: ${line}` : ''}`,
     multiLine: (name) => `${name}: a value is one line, with no NUL byte; nothing written`,
+    stale: (target, line, name) =>
+      `${target}: line ${line} of the resolved text sets a name ${target} does not declare (one removed from secrets.targets.${target}.names?); setting any declared name drops it: ${setLine(target, name)}`,
     identityNotFile: (p) => `${p} exists and is not a file, so it is no age identity; nothing written`,
     noDerivedKey: (p) =>
       `age-keygen -y read no single age1… public key from the identity at ${p} (its output is not shown, since it may quote the key); nothing written`,

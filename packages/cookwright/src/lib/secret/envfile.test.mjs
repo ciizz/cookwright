@@ -35,6 +35,14 @@ describe('parseAgainst, any order', () => {
     expect(render(p)).not.toContain('LD_PRELOAD');
   });
 
+  it('with stale, drops and names an undeclared name instead of refusing it, still refusing a malformed line', () => {
+    const read = parseAgainst(`${TEXT}OLD=x\nOLD=y\n`, NAMES, { stale: true });
+    expect([...read.values.keys()]).toEqual(['SUPABASE_URL', 'DB_URL', 'KEY']);
+    expect(read.stale).toEqual(['OLD']);
+    expect(parseAgainst('OLD=x\n', NAMES, { partial: true, stale: true })).toEqual({ values: new Map(), stale: ['OLD'] });
+    expect(why('OLD=x\nnot a line\n', NAMES, { partial: true, stale: true })).toEqual({ why: 'malformed', line: 2 });
+  });
+
   it('refuses a duplicate, a malformed line, a blank line, a CR and a NUL', () => {
     expect(why(`${TEXT}KEY=again\n`)).toEqual({ why: 'duplicate', name: 'KEY' });
     expect(why('SUPABASE_URL=u\nnot a line\n')).toEqual({ why: 'malformed', line: 2 });

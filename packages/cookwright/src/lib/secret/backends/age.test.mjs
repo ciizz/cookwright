@@ -215,7 +215,6 @@ describe('resolve', () => {
       fs.writeFileSync(path.join(ctx.root, 'secrets/dev.env.age'), `${ARMOR}\n${Buffer.from(text).toString('base64')}\n`);
     };
     const cases = [
-      ['DB_URL=a\nLD_PRELOAD=x\nTOKEN=b\n', messages.secrets.envfile.unknown({ line: 2 })],
       ['DB_URL=a\nDB_URL=b\nTOKEN=c\n', messages.secrets.envfile.duplicate({ name: 'DB_URL' })],
       ['DB_URL=a\0\nTOKEN=b\n', messages.secrets.envfile.nul({ line: 1 })],
       ['DB_URL=a\nnot a line\nTOKEN=b\n', messages.secrets.envfile.malformed({ line: 2 })],
@@ -224,6 +223,8 @@ describe('resolve', () => {
       cipher(text);
       expect(await refused(() => resolve('dev', ctx))).toBe(messages.secrets.resolved('dev', why));
     }
+    cipher('DB_URL=a\nLD_PRELOAD=x\nTOKEN=b\n');
+    expect(await refused(() => resolve('dev', ctx))).toBe(a.stale('dev', 2, 'DB_URL'));
   });
 });
 
@@ -232,7 +233,7 @@ describe('set', () => {
     const { ctx, home, calls } = setup();
     plainIdentity(home);
     const file = path.join(ctx.root, 'secrets/dev.env.age');
-    expect(await set('dev', 'TOKEN', { ...ctx, readValue: async () => 'first-token' })).toEqual({ keys: [KEY] });
+    expect(await set('dev', 'TOKEN', { ...ctx, readValue: async () => 'first-token' })).toEqual({ keys: [KEY], dropped: [] });
     expect(calls.at(-1).args).toEqual(['-a', '-R', path.join(ctx.root, 'secrets/recipients.txt'), '-o', expect.stringMatching(/\.tmp$/)]);
     expect(calls.at(-1).input).toBe('TOKEN=first-token\n');
     await set('dev', 'DB_URL', { ...ctx, readValue: async () => 'postgres://h/db' });
@@ -285,15 +286,29 @@ describe('set', () => {
     await set('dev', 'TOKEN', watched);
     expect(order).toEqual(['-d', 'ask', '-a']);
     const file = path.join(ctx.root, 'secrets/dev.env.age');
-    fs.writeFileSync(file, `${ARMOR}\n${Buffer.from('TOKEN=a\nLD_PRELOAD=x\n').toString('base64')}\n`);
+    fs.writeFileSync(file, `${ARMOR}\n${Buffer.from('TOKEN=a\nnot a line\n').toString('base64')}\n`);
     let asked = false;
     const asking = { ...ctx, readValue: async () => ((asked = true), 'x') };
     expect(await refused(set('dev', 'TOKEN', asking))).toBe(
-      messages.secrets.resolved('dev', messages.secrets.envfile.unknown({ line: 2 })),
+      messages.secrets.resolved('dev', messages.secrets.envfile.malformed({ line: 2 })),
     );
     const failing = { ...asking, probes: { ...ctx.probes, capture: () => ({ status: 1, stdout: '', stderr: 'age: no identity matched\n' }) } };
     expect(await refused(set('dev', 'TOKEN', failing))).toBe(a.failed('age -d', 'age: no identity matched'));
     expect(asked).toBe(false);
+  });
+
+  it('drops the lines of a name removed from the config, naming it, so run works again', async () => {
+    const { ctx, home, calls } = setup();
+    plainIdentity(home);
+    const wide = { ...ctx, config: { ...ctx.config, secrets: { ...ctx.config.secrets, targets: { dev: { names: [...NAMES, 'OLD_KEY'] } } } } };
+    await set('dev', 'OLD_KEY', { ...wide, readValue: async () => 'old-value' });
+    await set('dev', 'DB_URL', { ...wide, readValue: async () => 'postgres://h/db' });
+    await set('dev', 'TOKEN', { ...wide, readValue: async () => 'tok-value' });
+    expect(await refused(() => resolve('dev', ctx))).toBe(a.stale('dev', 1, 'DB_URL'));
+    expect(await set('dev', 'TOKEN', { ...ctx, readValue: async () => 'tok-two' })).toEqual({ keys: [KEY], dropped: ['OLD_KEY'] });
+    expect(calls.at(-1).input).toBe('DB_URL=postgres://h/db\nTOKEN=tok-two\n');
+    expect([...resolve('dev', ctx).keys()]).toEqual(NAMES);
+    expect(await set('dev', 'TOKEN', ctx)).toEqual({ keys: [KEY], dropped: [] });
   });
 
   it('reads a nested config root top-relative, never a decoy secrets/ at the top', async () => {
@@ -301,7 +316,7 @@ describe('set', () => {
     plainIdentity(s.home);
     fs.mkdirSync(path.join(s.top, 'secrets'));
     fs.writeFileSync(path.join(s.top, 'secrets/recipients.txt'), `${NEW_KEY}\n`);
-    expect(await set('dev', 'TOKEN', s.ctx)).toEqual({ keys: [KEY] });
+    expect(await set('dev', 'TOKEN', s.ctx)).toEqual({ keys: [KEY], dropped: [] });
     expect(fs.existsSync(path.join(s.top, 'app/secrets/dev.env.age'))).toBe(true);
     expect(fs.existsSync(path.join(s.top, 'secrets/dev.env.age'))).toBe(false);
   });

@@ -127,6 +127,15 @@ describe('secrets set: the value', () => {
     expect(out).toBe(`${m.set('DB_URL', 'dev', 'age')}\nsecrets: encrypted to 1 recipient(s): …qqqqqqqq\n`);
   });
 
+  it('names on its own line each name dropped as no longer declared', async () => {
+    const r = repo();
+    const backends = fake({});
+    backends.age.set = async (_t, _n, ctx) => (await ctx.readValue(), { keys: [`age1${'q'.repeat(58)}`], dropped: ['OLD_KEY'] });
+    const { code, out } = await secrets(r, ['set', 'dev', 'DB_URL', '--stdin'], { stdin: line(VALUES.DB_URL), backends });
+    expect(code).toBe(0);
+    expect(out.split('\n').slice(0, 2)).toEqual([m.set('DB_URL', 'dev', 'age'), m.dropped(['OLD_KEY'], 'dev')]);
+  });
+
   it('names the keychain service on its line, the value reaching security on stdin only', async () => {
     const r = repo({ version: 4, secrets: { backend: 'keychain', id: 'app', targets: { dev: { names: ['TOKEN'] } } } });
     const store = new Map();

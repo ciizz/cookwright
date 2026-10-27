@@ -121,9 +121,13 @@ function decrypt(file, identity, protect, ctx) {
   return res.stdout;
 }
 
-/** A parseAgainst problem as a refusal: a missing name names its `secrets set` line. */
-function resolvedProblem(problem, target) {
+/**
+ * A parseAgainst problem as a refusal: a missing name names its `secrets set` line,
+ * and a name the target no longer declares names the `secrets set` that drops it.
+ */
+function resolvedProblem(problem, target, names) {
   if (problem.why === 'missing') return new Refused(m.missingName(problem.name, target));
+  if (problem.why === 'unknown') return new Refused(a.stale(target, problem.line, names[0]));
   return new Refused(m.resolved(target, m.envfile[problem.why](problem)));
 }
 
@@ -135,7 +139,7 @@ export function resolve(name, ctx) {
   const identity = requireIdentity(ctx);
   const text = decrypt(file, identity, promptsFor(identity, ctx), ctx);
   const read = parseAgainst(text, target.names);
-  if (read.problem) throw resolvedProblem(read.problem, name);
+  if (read.problem) throw resolvedProblem(read.problem, name, target.names);
   return new Map(target.names.map((n) => [n, read.values.get(n)]));
 }
 
@@ -166,7 +170,9 @@ function encryptTo(file, text, ctx) {
  * `set`: `secret` of target `name` set to the value `ctx.readValue()` reads, every
  * check made before the value is asked for: the existing ciphertext is decrypted
  * and read against the declared names first (stage-5 review:engine finding 1).
- * Returns the recipients' keys.
+ * A line of a name the target no longer declares is dropped from the text written
+ * back, so a config change stays clearable (stage-5 review:whole finding 5).
+ * Returns the recipients' keys and the names dropped.
  */
 export async function set(name, secret, ctx) {
   const target = ctx.config.secrets.targets[name];
@@ -176,17 +182,18 @@ export async function set(name, secret, ctx) {
   const existing = fs.existsSync(file);
   const identity = existing ? requireIdentity(ctx) : null;
   const text = existing ? decrypt(file, identity, promptsFor(identity, ctx), ctx) : '';
-  const read = parseAgainst(text, target.names, { partial: true });
-  if (read.problem) throw resolvedProblem(read.problem, name);
+  const read = parseAgainst(text, target.names, { partial: true, stale: true });
+  if (read.problem) throw resolvedProblem(read.problem, name, target.names);
   const value = await ctx.readValue();
+  const kept = [...read.values].map(([n, v]) => `${n}=${v}\n`).join('');
   let next;
   try {
-    next = replaceLine(text, secret, value);
+    next = replaceLine(kept, secret, value);
   } catch {
     throw new Refused(a.multiLine(secret));
   }
   encryptTo(file, next, ctx);
-  return { keys };
+  return { keys, dropped: read.stale };
 }
 
 /**

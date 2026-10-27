@@ -1,0 +1,73 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "line 241, the `secrets init` step of the end-pass recipe",
+      "problem": "Commit fc2ea0e moved key derivation ahead of consent, so with an existing passphrase-protected identity age now asks for the passphrase before init says what it will write and asks for consent. The setup recipe was not updated and still gives the old order: \"It says what it will write, asks, and age asks for the identity's passphrase on their terminal; with an identity already on this machine it writes none and adds that identity's public key.\" The guide (docs/guides/secrets.md:162) was updated, so the guide and the skill now disagree. AGENTS.md's doc-sync rule says a change with doc implications updates the doc in the same commit.",
+      "severity": "P3",
+      "suggested_fix": "Change the sentence so it says that, with an identity already on this machine, age first asks for that identity's passphrase so init can read its public key, and that init asks for consent afterwards. If the key is already held, it asks nothing more and writes nothing.",
+      "failure_scenario": "A developer has a passphrase-protected identity from a first repo. The agent, following the setup skill, tells them `secrets init` will first say what it writes and ask for consent, and only then ask for a passphrase. Running it in the second repo, they get age's passphrase prompt first and no consent prompt yet. That is the reverse of what the agent said, and they may stop the run thinking it misbehaved.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/skills/setup/SKILL.md:241 still says init \"says what it will write, asks, and age asks for the identity's passphrase\". The skill file is not in the 1615263..HEAD stat, so it was not updated. packages/cookwright/src/lib/secret/backends/age-init.mjs initAge (about line 208) now calls derive() for an existing identity before consent(). For a protected identity that runs `age -d`, so age prompts before the consent text and the question. docs/guides/secrets.md:162 was updated to the new order, so the guide and the skill now disagree. Mitigation: derive() first says a.readingIdentity(file), so the developer sees a notice before the passphrase prompt. That softens the surprise but does not make the skill's stated order correct. The skill also omits that init stops with nothing asked when the recipients file already holds the key."
+    },
+    {
+      "file": "docs/guides/secrets.md",
+      "location": "line 162, \"When the file already holds that key, it says so, asks nothing and writes nothing.\"",
+      "problem": "\"Asks nothing\" claims more than the code does. When the identity is passphrase-protected, initAge calls derive() before the alreadyHeld check, which prints readingIdentity and runs `age -d`, and age asks for the passphrase on the terminal. Only the consent question is skipped (age-init.mjs:211-212).",
+      "severity": "P3",
+      "suggested_fix": "Change it to \"it says so, asks no question beyond age's passphrase prompt, and writes nothing\", or \"asks for no consent\".",
+      "failure_scenario": "In a repo whose recipients.txt already holds their key, a developer with a passphrase-protected identity runs `npx cookwright secrets init` again, trusting the guide's \"asks nothing\". They are still asked for their passphrase by age, which contradicts the guide.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/secret/backends/age-init.mjs:210-212: initAge calls derive(plan.identity, plan.existing.protect, ctx) before the plan.held.includes(enrolled) alreadyHeld check, so a passphrase-protected identity is decrypted (age prompts for the passphrase) before 'already held' is reported. Only the consent question is skipped. docs/guides/secrets.md:162 says 'asks nothing' in the same paragraph that says age asks for the passphrase, so the claim is overbroad for protected identities."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 1615263..HEAD (7 files) reviewed by Codex at high effort",
+    "secrets init held-warning change in age-init.mjs and messages.mjs",
+    "tests in age.test.mjs and secrets.test.mjs",
+    "docs/guides/secrets.md",
+    "scan of the diff for local paths and secrets",
+    "syntax checks on changed files",
+    "git diff --check",
+    "git diff 1615263..HEAD: age-init.mjs, messages.mjs, age.test.mjs, secrets.test.mjs, docs/guides/secrets.md, qa/round-1.md",
+    "QA round 1 P3: initAge now derives the existing identity's key before consent and returns alreadyHeld before the held warning or any question (age-init.mjs:211-212); the held warning is now only reached when a new key will be appended",
+    "Plan dispositions 46 and 57: nothing is written before consent (derive only reads; age -d output stays in memory); init still says the file holds a key and asks before appending",
+    "Passphrase-protected path without a terminal: still refused in preflight before derive spawns age (protectedNoTerminal)",
+    "Secret material: age -d stdout goes only into age-keygen -y stdin; readingIdentity and usedIdentity print the path only; the test asserts no AGE-SECRET-KEY in the output",
+    "enrol() still appends only a derived key that is not already held; the new-identity path is unchanged (enrolled is null/false)",
+    "Tests: the alreadyHeld case runs without --yes and asserts confirm is never called and the file is unchanged; the protected ordering asserts readingIdentity before willWrite; the declined case asserts the held line and no write. Ran vitest on age.test.mjs and secrets.test.mjs: 41 passed",
+    "Doc sync: guide line 162 updated; setup SKILL.md line 241 not updated (reported); agents-block.md unaffected",
+    "AGENTS.md has no pack `### Advisory` section relevant to this diff"
+  ],
+  "notes": "Codex reported no findings. It could not run targeted Vitest because the read-only sandbox blocks Vitest's temp-file writes, so it did no runtime verification. Full output: <local path>\n---\nThe fix in fc2ea0e does what QA round 1 asked. When the recipients file already holds this identity's key, init now prints only the alreadyHeld line, asks nothing and writes nothing. I found no correctness or security regression: reordering derive before consent only reads, and no-terminal is still refused in preflight. One side effect: with an existing passphrase-protected identity, age now asks for the passphrase before the consent summary, and the new readingIdentity line announces that. The plan allows this, since consent only has to precede writes (dispositions 46 and 57). Two P3 doc findings remain: the setup skill still gives the old order, and the guide's \"asks nothing\" claims more than the code does for a protected identity.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": null,
+    "partialReportPath": null
+  }
+}

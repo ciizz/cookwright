@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 236,
+  "revision": 243,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -391,7 +391,8 @@
           "startedAt": "2026-10-27T18:05:00.996Z",
           "stateRevision": 234,
           "planSha": "13da5997463ed143",
-          "codex": true
+          "codex": true,
+          "runId": "wf_97426b6f-055"
         }
       ],
       "startCommit": "1615263441d2d1d58d12cf151b684dc12994a9ab",
@@ -537,6 +538,19 @@
           "ms": 66817
         }
       ]
+    },
+    {
+      "commit": "fc2ea0ebd70b6e5e2224997bf20612f86bf16fd3",
+      "at": "2026-10-27T18:15:53.871Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 55689
+        }
+      ]
     }
   ],
   "findings": [
@@ -665,6 +679,24 @@
       "at": "2026-10-27T17:50:39.103Z",
       "stored": true,
       "head": "e233aaf15cb9643d0d3607be05cca2de1d5b36c9"
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-5/findings/qa-1.json",
+      "counts": {
+        "confirmed": 2,
+        "plausible": 0,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 2
+      },
+      "at": "2026-10-27T18:14:57.068Z",
+      "stored": true,
+      "head": "fc2ea0ebd70b6e5e2224997bf20612f86bf16fd3"
     }
   ],
   "reports": [
@@ -720,6 +752,12 @@
       "phase": "fix:whole",
       "path": "docs/dev/bundles/stage-5/sessions/fix-whole-1.md",
       "at": "2026-10-27T18:03:40.801Z",
+      "stored": true
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-5/sessions/qa-1.md",
+      "at": "2026-10-27T18:14:56.760Z",
       "stored": true
     }
   ],
@@ -1863,6 +1901,27 @@
       "actor": "orchestrator",
       "source": "fix:whole measurements, orchestrator",
       "text": "The orchestrator ran the fixture after fix:whole's commits: fixture PASS, every step as expected; its readouts 31 checks 30 PASS 1 WARN (init and doctor), 27 PASS 4 WARN (the secrets step), as planned (rule 3).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T18:16:02.889Z",
+      "actor": "orchestrator",
+      "source": "qa run 1 open question",
+      "text": "Accepted (rule 3, and the precedent of age secrets set checking before asking): secrets init derives an existing identity's public key before the consent question, so with a passphrase-protected identity age prompts first, after a readingIdentity line; a repo that already holds the key ends with alreadyHeld, no consent asked, nothing written; disposition 46 ('says so and asks before appending') holds since nothing is written before consent.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T18:16:03.156Z",
+      "actor": "orchestrator",
+      "source": "qa run 1 review findings 0 and 1 (P3)",
+      "text": "Fix in the next qa run with the developer's round (P3s never block): the setup skill's secrets init sentence follows the new order (with an existing passphrase-protected identity age asks for the passphrase first so init can read the public key, consent after; an already-held key asks nothing more and writes nothing), and the guide's 'asks nothing' becomes 'asks for no consent' (age's passphrase prompt still comes). One commit each or one commit, staged by path.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T18:16:03.421Z",
+      "actor": "orchestrator",
+      "source": "qa run 1 strings batch",
+      "text": "qa run 1's 3 user-facing strings (the readingIdentity line; the willUse consent line without the passphrase clause; the guide's one-identity paragraph in the new order) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at the closeout.",
       "claim": true
     }
   ],

@@ -75,6 +75,23 @@ run: dev · injected SUPABASE_URL, DB_URL, SERVICE_ROLE_KEY · proved SUPABASE_U
 
 **Redaction.** The command's stdout and stderr pass through a redactor that replaces each value, its `encodeURIComponent` form, and, for a URL value with a password of 8 characters or more, that password (as written, decoded and encoded) with `<NAME>`; an old value your shell exports for a declared or ambient name is replaced too. Other forms (base64, JSON-escaped, shell-quoted) are not caught. Bytes no value covers pass through unchanged, so binary output (`pg_dump -Fc`, `tar`) is byte-identical, and a prompt without a newline shows at once. The cost: the command's stdout and stderr are pipes, not your terminal, so it prints no colour unless forced and opens no pager. Its stdin is your terminal, so a prompt it reads still works. `run` returns once the command has exited and its output has closed: a command that leaves a process running in the background with the same output keeps `run` waiting until that process closes it; redirect such a process's output inside the command.
 
+## The age backend
+
+`age` is the free path that works everywhere `age` and `age-keygen` run (`brew install age`, or your system's age package). A target's values live in `secrets/<target>.env.age`, armored text encrypted to every public key in `secrets/recipients.txt`; both files are committed. The identity that opens them is the one secret, and it lives outside every repo:
+
+- at the path `COOKWRIGHT_AGE_IDENTITY` names, else `$XDG_CONFIG_HOME/cookwright/identity.age`, else `~/.config/cookwright/identity.age`;
+- never inside a git work tree, judged by the real path of its directory (a `~/.config` symlinked into a dotfiles repo counts as inside it).
+
+**`npx cookwright secrets init`** writes the identity and appends its public key to `secrets/recipients.txt`, creating the file on a fresh repo. It checks everything first, and writes nothing when a check fails: no identity there yet, its directory outside every work tree, git not ignoring `secrets/`, `secrets/recipients.txt` or a target's `.env.age` (a refusal names the `.gitignore` line to remove), the recipients file committed and well formed, both places writable. It then says what it will write and asks; `--yes` answers for you. age asks for the identity's passphrase on your terminal: type one. An empty one makes age generate a passphrase and print it on the terminal, once; keep it if you take it. The identity is written mode 600 in a directory created 700. `--no-passphrase` writes the key unprotected, which is weaker: whoever reads that file opens every secret.
+
+Commit `secrets/recipients.txt` before the first `set`: nothing is encrypted to a recipient that has not been through a commit.
+
+**One identity per developer.** On a second machine, copy your identity (passphrase-protected, outside any repo) to the same place instead of running `init`. `init` on a repo whose recipients file already holds a key says so before it asks. A new recipient cannot read what is already encrypted: each value has to be set again after the new key is committed.
+
+**`npx cookwright secrets set <target> <NAME>`** asks for the value on the terminal with echo off and stores it in the target's ciphertext, replacing that name's line or adding it. `--stdin` reads exactly one line from standard input instead (a script's path; two lines are refused). It never takes a value as an argument, and it prints the name, the target and the recipients' key endings, never the value. It refuses a name the target does not declare, and refuses before asking when `secrets/recipients.txt` is not committed, is staged for deletion, or differs from your last commit (`git diff HEAD -- secrets/recipients.txt` shows how).
+
+**A passphrase-protected identity and agents.** age asks for the passphrase on the terminal every time it opens the identity, for `run` and for `set` alike. Without a terminal (an agent's shell), `run` refuses before anything starts: `the identity is passphrase-protected; hand this command to the developer`.
+
 ## Updating to version 4
 
 `npx cookwright migrate` writes an older `cookwright.json` at version 4. The step changes nothing but the version: it never writes a `secrets` key.

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 206,
+  "revision": 215,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -321,9 +321,23 @@
     },
     {
       "name": "fix:surface",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-27T17:32:38.653Z",
+          "stateRevision": 206,
+          "planSha": "13da5997463ed143",
+          "codex": true,
+          "runId": "wf_e34c01f7-3d4",
+          "endedAt": "2026-10-27T17:41:59.910Z",
+          "turnOutputTokens": 124635
+        }
+      ],
+      "startCommit": "d8769c063aad00198e9852c67def70d0f48bcf26",
+      "range": null,
+      "endCommit": "f92ea5e310cd1f20d28ef095ed59757a66bdd3e3",
+      "endCode": "f92ea5e310cd1f20d28ef095ed59757a66bdd3e3"
     },
     {
       "name": "review:whole",
@@ -452,6 +466,19 @@
           "name": "test",
           "result": "pass",
           "ms": 52062
+        }
+      ]
+    },
+    {
+      "commit": "f92ea5e310cd1f20d28ef095ed59757a66bdd3e3",
+      "at": "2026-10-27T17:41:48.450Z",
+      "slice": "surface",
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 63904
         }
       ]
     }
@@ -607,6 +634,12 @@
       "phase": "implement:s5",
       "path": "docs/dev/bundles/stage-5/sessions/implement-s5-1.md",
       "at": "2026-10-27T17:24:22.309Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:surface",
+      "path": "docs/dev/bundles/stage-5/sessions/fix-surface-1.md",
+      "at": "2026-10-27T17:40:43.484Z",
       "stored": true
     }
   ],
@@ -1646,6 +1679,34 @@
       "actor": "orchestrator",
       "source": "review:surface finding 3 (P3 plausible)",
       "text": "No edit: the committed session report names the state of a login ('the stored token is stale'), no value, path or credential, which the rules file's 'nothing private' (paths, credentials, production operations, secret values) does not cover; the bundle directory is never edited by hand. Noted for the closeout's residue: session reports keep the developer's hands to the command, not to the state of their logins.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:41:57.728Z",
+      "actor": "orchestrator",
+      "source": "fix:surface readings",
+      "text": "Accepted: the carriers row reads a tracked .envrc at the top, in each directory down to the config root and anywhere under it, and an untracked one at the top, at each ancestor and at the root, outside a work tree the root only; with the config at the top the output is unchanged; the new envrcAbove message is in the skill and tied by skills.test. The managed block stays at v4 with the backend-read bullet, this repo's AGENTS.md refreshed and committed in the same commit (disposition 38). Two docs-only commits used COOKWRIGHT_SKIP=doc-sync with their reason where no rule would have fired: harmless, recorded.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:41:58.484Z",
+      "actor": "orchestrator",
+      "source": "fix:surface measurements",
+      "text": "fix:surface measured: npm test 38 files, 1075 tests (baseline 1070); init's doctor readout on this repo 22 checks 22 PASS, level 0 complete. The session did not run the fixture (the carriers change affects nested configs only); the orchestrator ran it after the commits, with the result in the next decision.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:41:58.866Z",
+      "actor": "orchestrator",
+      "source": "fix:surface strings batch",
+      "text": "fix:surface's 12 user-facing strings (the envrcAbove carriers part; the setup skill's description, its secrets-request paragraph, step 3's pack sentence, step 5's close condition and the carriers row; the block's backend-read bullet; the guide's model bullet, its agent-rules item and its carriers sentence; the E-015 closure narrowed) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:whole.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:41:59.274Z",
+      "actor": "orchestrator",
+      "source": "fix:surface measurements, orchestrator",
+      "text": "The orchestrator ran the fixture after fix:surface's commits: fixture PASS, every step as expected (rule 3).",
       "claim": true
     }
   ],

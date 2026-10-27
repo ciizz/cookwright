@@ -667,6 +667,10 @@ const recipientsWhy = {
   missing: ({ rel }) => `${rel} not found; ${CLI} secrets init writes it`,
   uncommitted: ({ rel }) =>
     `${rel} is not committed: commit it first, so a recipient is reviewed before anything is encrypted to it`,
+  removed: ({ rel }) =>
+    `${rel} is staged for deletion (git restore --staged -- ${rel} undoes it): keep it tracked, so a recipient is reviewed before anything is encrypted to it`,
+  staged: ({ rel }) =>
+    `${rel} has a staged change (git diff --cached -- ${rel}): commit it first, so a recipient is reviewed before anything is encrypted to it`,
   differs: ({ rel }) =>
     `${rel} differs from HEAD (git diff HEAD -- ${rel}): commit the change first, so a recipient is reviewed before anything is encrypted to it`,
   secretKey: ({ rel, line }) =>

@@ -1,6 +1,7 @@
 // src/lib/secret/recipients.test.mjs — the recipients file's grammar, and the rule
-// that it is committed and equal to HEAD before anything is encrypted to it, read
-// top-relative from a config root below the top (stage-5 plan dispositions 23, 54).
+// that it is committed, tracked and equal to HEAD before anything is encrypted to
+// it, read top-relative from a config root below the top (stage-5 plan dispositions
+// 23, 54).
 // The keys are synthetic: valid in shape, no identity behind them.
 
 import fs from 'node:fs';
@@ -82,6 +83,21 @@ describe('requireCommittedRecipients', () => {
     expect(requireCommittedRecipients(top, rel)).toEqual({ problem: { why: 'secretKey', line: 2 } });
   });
 
+  it('refuses a staged deletion and a staged version, whatever the work tree holds', () => {
+    const { top, root, rel } = nested('index');
+    const file = path.join(root, RECIPIENTS);
+    fs.writeFileSync(file, `${K1}\n`);
+    commit(top, rel);
+    run(top, 'git', ['rm', '-q', '--cached', '--', rel]); // the work tree still equals HEAD
+    expect(requireCommittedRecipients(top, rel)).toEqual({ problem: { why: 'removed' } });
+    run(top, 'git', ['add', '--', rel]);
+    expect(requireCommittedRecipients(top, rel)).toEqual({ keys: [K1] });
+    fs.writeFileSync(file, `${K1}\n${K2}\n`);
+    run(top, 'git', ['add', '--', rel]);
+    fs.writeFileSync(file, `${K1}\n`); // the index differs from both HEAD and the work tree, which equals HEAD
+    expect(requireCommittedRecipients(top, rel)).toEqual({ problem: { why: 'staged' } });
+  });
+
   it('words each refusal naming the file, and the diff to review', () => {
     const rel = 'secrets/recipients.txt';
     const line = (problem) => messages.secrets.recipients(problem, rel);
@@ -89,6 +105,8 @@ describe('requireCommittedRecipients', () => {
     expect(line({ why: 'differs' })).toBe(
       'secrets/recipients.txt differs from HEAD (git diff HEAD -- secrets/recipients.txt): commit the change first, so a recipient is reviewed before anything is encrypted to it',
     );
+    expect(line({ why: 'removed' })).toMatch(/^secrets\/recipients\.txt is staged for deletion \(git restore --staged -- secrets\/recipients\.txt undoes it\)/);
+    expect(line({ why: 'staged' })).toMatch(/^secrets\/recipients\.txt has a staged change \(git diff --cached -- secrets\/recipients\.txt\): commit it first/);
     expect(line({ why: 'uncommitted' })).toMatch(/^secrets\/recipients\.txt is not committed: commit it first/);
     expect(line({ why: 'secretKey', line: 2 })).toMatch(/^line 2 of secrets\/recipients\.txt holds an age secret key/);
     expect(line({ why: 'malformed', line: 3 })).toBe('line 3 of secrets/recipients.txt is neither an age1… recipient nor a # comment');

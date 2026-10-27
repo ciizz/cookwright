@@ -1,9 +1,10 @@
 // src/lib/secret/recipients.mjs — `secrets/recipients.txt`, the public age keys a
 // ciphertext is written to, governed as the origin governs it (stage-5 plan
 // disposition 23): every line a recipient or a comment, no secret key anywhere, and
-// the file committed and equal to HEAD before anything is encrypted to it, so a new
-// recipient is reviewed in a commit first. Git paths are top-relative (disposition
-// 54): the caller passes `topRel` (secret/config.mjs) and git runs from the top.
+// the file committed, still tracked, and equal to HEAD in the index and the work
+// tree before anything is encrypted to it, so a new recipient is reviewed in a
+// commit first. Git paths are top-relative (disposition 54): the caller passes
+// `topRel` (secret/config.mjs) and git runs from the top.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -35,9 +36,11 @@ export const tails = (keys) => keys.map((k) => k.slice(-8));
 
 /**
  * The recipients of the file at `topRel` under the work tree `top`, once it is
- * present, committed and byte-identical to `HEAD:<topRel>`: `{ keys }`, or
- * `{ problem: { why } }` with why `missing`, `uncommitted`, `differs`, or a
- * parseRecipients problem. `cap` bounds the one git call (ms).
+ * present, committed, still tracked, and identical to `HEAD:<topRel>` in the index
+ * and in the work tree: `{ keys }`, or `{ problem: { why } }` with why `missing`,
+ * `uncommitted` (not in HEAD), `removed` (a staged deletion), `staged` (the index
+ * differs from HEAD), `differs` (the work tree does), or a parseRecipients problem.
+ * `cap` bounds each git call (ms).
  */
 export function requireCommittedRecipients(top, topRel, { cap } = {}) {
   let text;
@@ -46,8 +49,11 @@ export function requireCommittedRecipients(top, topRel, { cap } = {}) {
   } catch {
     return { problem: { why: 'missing' } };
   }
-  const head = gitRun(top, ['show', `HEAD:${topRel}`], cap === undefined ? {} : { cap });
+  const git = (args) => gitRun(top, args, cap === undefined ? {} : { cap });
+  const head = git(['show', `HEAD:${topRel}`]);
   if (head.status !== 0) return { problem: { why: 'uncommitted' } };
+  if (git(['ls-files', '--error-unmatch', '--', topRel]).status !== 0) return { problem: { why: 'removed' } };
+  if (git(['diff', '--cached', '--quiet', '--', topRel]).status !== 0) return { problem: { why: 'staged' } };
   if (head.stdout !== text) return { problem: { why: 'differs' } };
   return parseRecipients(text);
 }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 84,
+  "revision": 88,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -78,7 +78,7 @@
   "phases": [
     {
       "name": "plan-review",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -94,10 +94,21 @@
           "planSha": "c6dffc7eb579f87b",
           "codex": true,
           "runId": "wf_38461815-3bb"
+        },
+        {
+          "startedAt": "2026-10-27T13:58:31.123Z",
+          "stateRevision": 84,
+          "planSha": "13da5997463ed143",
+          "codex": true,
+          "runId": "wf_002409d5-597",
+          "endedAt": "2026-10-27T14:01:02.193Z",
+          "turnOutputTokens": 407804
         }
       ],
       "startCommit": "fd2f9ddcc29bfcadec2c9f383ecfffdca58f0fbb",
-      "range": null
+      "range": null,
+      "endCommit": "721377d3e81f1d13c5724fa3c1bf816de07a77f8",
+      "endCode": "9bf467b0e10fa16caf5b078c637da39803a78eea"
     },
     {
       "name": "implement:s1",
@@ -241,6 +252,24 @@
       "at": "2026-10-27T13:57:58.877Z",
       "stored": true,
       "head": "cbc5f5e4b4a6defe4e88710f825bc006cac22907"
+    },
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-5/findings/plan-review-3.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 1,
+        "rejected": 2,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 1,
+        "P3": 0
+      },
+      "at": "2026-10-27T13:59:32.971Z",
+      "stored": true,
+      "head": "721377d3e81f1d13c5724fa3c1bf816de07a77f8"
     }
   ],
   "reports": [],
@@ -776,6 +805,13 @@
       "actor": "orchestrator",
       "source": "plan-review re-check 1, findings 2 and 22 left plausible, plan §2 disposition 71",
       "text": "Rule 7: on a first init the identity's directory does not exist yet, so enclosingWorkTree judges the realpath of the nearest existing ancestor of the identity path (walking up until a directory exists) and runs before mkdir -p; only exit 128 (not inside a work tree) passes, any other failure refuses naming the probe. Tested: an absent cookwright/ under a ~/.config symlinked into a second scratch repo is refused and nothing is written; the same under a plain scratch home passes.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T14:01:02.192Z",
+      "actor": "orchestrator",
+      "source": "phase done plan-review --accept-open",
+      "text": "closed plan-review with findings open: re-check 2 rejected finding 22 (its evidence reads: both are now rejected, no issues remain open) but returned its problem text with repo for repository, so carryForward stored it as not re-judged; a runner defect, B-021, not an open finding",
       "claim": true
     }
   ],

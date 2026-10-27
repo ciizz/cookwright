@@ -1,0 +1,45 @@
+{
+  "phase": "plan-review",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 6; disposition 41; §4.3 age.mjs (line ~37)",
+      "problem": "Identity-location check uses underWorkTree(path, repo.top) so it does not detect an identity inside a different repo (dotfiles symlink) despite claiming to; POSIX permission policy is mentioned but never defined.",
+      "severity": "P1",
+      "suggested_fix": "Detect any enclosing Git work tree of the resolved identity path, refuse before writing. Define and test a POSIX mode policy, FAIL on group/world-readable plaintext identities.",
+      "failure_scenario": "~/.config symlinks into ~/dotfiles; init writes the identity into another Git repo; a pre-existing 0644 passphrase-less identity escapes detection.",
+      "verdict": "rejected",
+      "evidence": "Resolved by disposition 71 (plan line 112) together with disposition 51 (line 93) and §4.3 age.mjs (line 148). The POSIX policy is defined: identity 0600, directory 0700, doctor FAILs a group- or world-readable identity naming `chmod 600`, tested with a 0644 identity. The first-init residual is closed. `enclosingWorkTree(nearestExistingAncestor(path))` takes the realpath of the nearest existing ancestor, walking up until a directory exists, and runs before `mkdir -p`. Only exit 128 (not inside a work tree) passes. Any other failure, including a realpath or git error, refuses and names the probe. So a missing `cookwright/` directory under a `~/.config` that symlinks into a dotfiles repo is judged by `~/.config`'s realpath and refused. §6 tests cover it: the identity's directory is absent and its nearest existing ancestor is symlinked into a second repo; that case is refused and nothing is written, and the plain-home case passes."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 6 ('a symlinked `~/.config` into a dotfiles repo counts'), §4.3 age.mjs `underWorkTree`",
+      "problem": "The identity check compares the realpath of the identity's directory against this repo's work tree only. A `~/.config` symlinked into a dotfiles repo resolves into a different work tree, so the check passes it, yet the parenthetical says that case 'counts'. The claim is wider than the check. Dotfiles repos are often pushed publicly, and the `--no-passphrase` identity is a plaintext AGE-SECRET-KEY. gitleaks only scans this repo's commits.",
+      "severity": "P2",
+      "suggested_fix": "Refuse (init) or FAIL (doctor) when the identity's realpath directory is inside any git work tree: `git -C <dir> rev-parse --is-inside-work-tree` exits 0. Name that repo's top, not only this one. Add a test with a symlinked config dir pointing into a second scratch repo.",
+      "failure_scenario": "The developer's ~/.config is a symlink to ~/dotfiles/config, a public GitHub repo. `secrets init --no-passphrase` writes ~/.config/cookwright/identity.age, whose realpath ~/dotfiles/config/cookwright is not under the app's work tree, so init accepts it and doctor does not FAIL. The next `git add -A && git push` in dotfiles publishes the key that decrypts every tracked `secrets/*.env.age`.",
+      "verdict": "rejected",
+      "evidence": "Resolved by disposition 71 (line 112), referenced from disposition 51 (line 93) and §4.3 age.mjs (line 148). The work-tree probe now runs on the realpath of the nearest existing ancestor of the identity path, before `mkdir -p`, so on a first init `~/.config` resolves into `~/dotfiles/config` and the probe exits 0. `secrets init` refuses there and names that repo's top. Fail-open is closed: only exit 128 passes, and any other probe failure refuses. Doctor FAILs an identity found inside any work tree (§5 `secrets.backend`, line 168). §6 (line 196) tests a missing identity directory whose nearest existing ancestor is symlinked into a second scratch repo: it is refused and nothing is written."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 6 ('a symlinked `~/.config` into a dotfiles repo counts'), §4.3 age.mjs `underWorkTree`",
+      "problem": "The identity check compares the realpath of the identity's directory against this repo's work tree only. A `~/.config` symlinked into a dotfiles repository resolves into a different work tree, so the check passes it, yet the parenthetical says that case 'counts'. The claim is wider than the check. Dotfiles repos are often pushed publicly, and the `--no-passphrase` identity is a plaintext AGE-SECRET-KEY. gitleaks only scans this repo's commits.",
+      "severity": "P2",
+      "suggested_fix": "Refuse (init) or FAIL (doctor) when the identity's realpath directory is inside any git work tree: `git -C <dir> rev-parse --is-inside-work-tree` exits 0. Name that repo's top, not only this one. Add a test with a symlinked config dir pointing into a second scratch repo.",
+      "failure_scenario": "The developer's ~/.config is a symlink to ~/dotfiles/config, a public GitHub repo. `secrets init --no-passphrase` writes ~/.config/cookwright/identity.age, whose realpath ~/dotfiles/config/cookwright is not under the app's work tree, so init accepts it and doctor does not FAIL. The next `git add -A && git push` in dotfiles publishes the key that decrypts every tracked `secrets/*.env.age`.",
+      "verdict": "plausible",
+      "evidence": "not re-judged by the re-check",
+      "index": 22
+    }
+  ],
+  "checked": [
+    "disposition 6; disposition 41; §4.3 age.mjs (line ~37)",
+    "disposition 6 ('a symlinked `~/.config` into a dotfiles repo counts'), §4.3 age.mjs `underWorkTree`"
+  ],
+  "notes": "Re-check 2 of plan.md (sha256 prefix 13da5997463ed143, verified) against plan-review-2.json (aff4faa7916aca0f, verified). 31 issues in the previous round; 29 were already rejected. The 2 left plausible (indexes 2 and 22) shared one residual: on a first init the identity's directory does not exist yet, and the check failed open. Disposition 71 closes it by judging the nearest existing ancestor's realpath before mkdir, passing only on exit 128, with a test for that case. Both are now rejected. No issues remain open.",
+  "timedOut": false,
+  "incomplete": [],
+  "recheckOf": "docs/dev/bundles/stage-5/findings/plan-review-2.json"
+}

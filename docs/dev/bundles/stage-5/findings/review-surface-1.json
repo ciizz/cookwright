@@ -1,0 +1,181 @@
+{
+  "phase": "review:surface",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "lines 240-242",
+      "problem": "The setup pass requires a proof and closes only when the banner contains nothing unproved. This contradicts the approved design, where proofs may cover only some names and uncovered names are intentionally reported as unproved.",
+      "severity": "P2",
+      "suggested_fix": "Close the pass on exit 0 when the proved/unproved partition matches the developer's intended coverage. Make proofs optional where no supported kind applies. Add a skills.test.mjs regression covering a partial Supabase proof and an intentionally unproved name.",
+      "failure_scenario": "The guide's Supabase target declares SUPABASE_URL, DB_URL and SERVICE_ROLE_KEY. The Supabase proof covers only the first two, so a successful exit-0 run reports 'unproved SERVICE_ROLE_KEY'. The setup workflow can never declare this valid configuration complete; no supported proof for the key exists until E-057.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "confirmed",
+      "evidence": "SKILL.md:242 closes only on 'Exit 0 with nothing unproved'; secrets.md:101 banner example and engine.mjs:204-210 show unproved names are a normal, exit-0 result when a proof covers only some names (supabase covers SUPABASE_URL and DB_URL only)."
+    },
+    {
+      "file": "docs/dev/backlog.md",
+      "location": "line 75, E-015 closure; same overclaim in docs/guides/secrets.md line 219",
+      "problem": "E-015 is closed claiming a tracked .envrc 'anywhere' is detected. envrcParts runs git ls-files from repo.root (the config root) with relative pathspecs, so for a supported nested config it cannot see a tracked .envrc above that root in the same work tree.",
+      "severity": "P2",
+      "suggested_fix": "Inspect from repo.top and include applicable ancestor .envrc files, using top-relative paths. Add a nested-config test, and keep E-015 open or narrow the documentation until that passes.",
+      "failure_scenario": "With cookwright.json under apps/mobile/ and a tracked repository-root .envrc, doctor reports secrets.carriers PASS even though direnv's parent file applies to commands run in the app.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/doctor/secrets.mjs:216-224: envrcParts runs gitRun(repo.root, ['ls-files','-z','--','.envrc','*/.envrc']). The pathspecs are relative to repo.root, the config root, so only that directory and below are searched. With cookwright.json under apps/mobile/, a tracked parent .envrc is not listed, and the untracked check (probes.rootFiles(repo.root)) also looks only at the config root. The row stays PASS. The wording 'tracked anywhere' at docs/dev/backlog.md:75 and docs/guides/secrets.md:219 therefore overclaims for a nested config. For a config at the work-tree root the claim holds. I did not run a nested-config reproduction; this rests on reading the code."
+    },
+    {
+      "file": "docs/guides/secrets.md",
+      "location": "line 10, 'The model', second bullet",
+      "problem": "The text categorically says neither the shell nor cookwright's environment holds the target values. Line 238 correctly says cookwright inherits stale exports from the shell. Both cannot hold when the exported value equals the resolved target value.",
+      "severity": "P3",
+      "suggested_fix": "Say that resolved backend values are not added to cookwright's environment, while inherited exports remain in the shell and cookwright process but are removed from the child.",
+      "failure_scenario": "A developer with the current DB_URL already exported may believe cookwright removed it from its own process environment, although it remains inspectable there until exit; only the child environment is scrubbed.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "plausible",
+      "evidence": "docs/guides/secrets.md:10 says the shell and cookwright's own environment never hold the target's values. Line 238 says cookwright's environment is the one the shell gave it, and a stale export of a declared name is still in it and in the shell, with only the child's environment scrubbed. If the stale export equals the resolved value, both statements cannot hold. Line 10 can be read as describing what run does, not what the shell already holds, and line 238 sits in 'What is not closed', so the contradiction is narrow. I could not fully refute it, but I judge it a wording imprecision, not a real defect."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/sessions/implement-s5-1.md",
+      "location": "line 112, 'Developer's hands'",
+      "problem": "The committed report records that the maintainer's stored npm token is stale. That is private authentication/production-release state and violates AGENTS.md 'Nothing private, ever'. It is unnecessary to reproduce the work.",
+      "severity": "P3",
+      "suggested_fix": "Replace it with generic guidance such as 'authenticate to npm if required', and scrub credential-state commentary from stored session reports.",
+      "failure_scenario": "Publishing the repository exposes maintainer credential-state information and establishes a precedent for retaining authentication details in bundle reports.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "plausible",
+      "evidence": "docs/dev/bundles/stage-5/sessions/implement-s5-1.md:112 at e4d9f71 does say \"npm login first, since the stored token is stale\", so the text is committed. It names no token value, path or credential, and AGENTS.md only forbids local paths, credentials and details of a user's production operations, plus secret values. Naming a secret is allowed. It does record the state of the maintainer's local npm login, and the report did not need it to reproduce the work. Whether that breaks \"Nothing private, ever\" is a judgment call, so I could neither confirm nor refute it. The impact is low, at most a P3."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "At the end, the secrets pass, step 5 (line 242); same condition in docs/guides/secrets.md 'Setting up, in order' step 5 (line 23)",
+      "problem": "The pass closes only on 'Exit 0 with nothing `unproved`', and the guide says 'exit 0 with nothing unproved means the target works'. A target holds one proof, and the supabase kind covers only SUPABASE_URL and DB_URL (packs/supabase/pack.mjs:134). No kind can prove a key (E-057 is the open JWT proof), so a target that declares a service-role key, an anon key or any second service's key always shows `unproved <NAME>`. The guide's own banner example (secrets.md:101, `unproved SERVICE_ROLE_KEY`) and the fixture's `dev` target are in that state, so the stated close condition can never be met for the canonical Supabase target.",
+      "severity": "P2",
+      "suggested_fix": "Close the pass on exit 0 with every name a declared kind can cover proved. Say that a name no kind covers (a key; E-057) stays `unproved` on the banner and that this is expected. The agent names it to the developer and does not try to prove it. Make the same change to the guide's step 5.",
+      "failure_scenario": "The developer asks for secrets on an Expo + Supabase app. The agent walks the pass with names SUPABASE_URL, DB_URL and SERVICE_ROLE_KEY and a supabase proof. `run dev -- true` exits 0 with `unproved SERVICE_ROLE_KEY`. The pass does not close, so the agent either (a) adds SERVICE_ROLE_KEY to the proof's `names`, after which every `run dev` refuses with 125 on a proof mismatch, or (b) drops SERVICE_ROLE_KEY from the target, which breaks the seed script that needs it, or (c) loops or stops, reporting secrets as not working.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "SKILL.md:242 and docs/guides/secrets.md:23 both say exit 0 with nothing unproved. secrets.md:101 and engine.test.mjs:233 show 'unproved SERVICE_ROLE_KEY' on a supabase target, so the stated close condition is unreachable for it. Only the options (a)-(c) of the scenario are speculative."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "frontmatter description (line 3); the claim in docs/guides/getting-started.md (Secrets section) and docs/guides/secrets.md (after 'Setting up, in order')",
+      "problem": "Both guides promise 'Ask your agent to set up secrets and the setup skill walks it with you'. The skill's description, which is what a host matches a request against, mentions doctor's readout, updates, hosts and 'set cookwright up', and nothing about secrets. The pass sits as one bullet under '## At the end', so it is reached only after a full doctor walk.",
+      "severity": "P3",
+      "suggested_fix": "Add 'or when the developer asks to set up secrets (a backend, a target, the first run)' to the description. Say at the top of the skill that a secrets request may go straight to the secrets pass once doctor's Level 0 rows are not FAIL.",
+      "failure_scenario": "In a fresh session a developer types 'set up secrets for dev'. The host does not match the setup skill. The agent improvises from the guide: it writes the config, and may run `secrets set` itself or build an `age -d` workflow. It never sees the pass's 'never open secrets/*.env.age or the identity' line or its ordering. The guides' promise does not hold.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "SKILL.md:3 description has no mention of secrets; the pass is one bullet under '## At the end' (SKILL.md:239-242), while the guides promise the setup skill walks it. Whether a host would still match on 'set cookwright up' is uncertain, but the description gives no secrets trigger."
+    },
+    {
+      "file": "packages/cookwright/src/lib/rules/agents-block.md",
+      "location": "Secrets section, the four v4 bullets (lines 36-39; AGENTS.md lines 70-73)",
+      "problem": "The standing agent rules forbid exporting a secret, passing one as an argument and printing a process's command line or environment. They never forbid reading a value from the backend directly: `age -d` on `secrets/<target>.env.age`, `op read`/`op inject`, or `security find-generic-password -w`. The prohibition exists only in the setup skill's pass ('never open secrets/*.env.age or the identity'), which is not loaded during ordinary work. With a no-passphrase age identity (allowed; doctor only WARNs), a signed-in `op`, or a keychain item, each of those commands prints the plaintext into the transcript without a prompt. That transcript leak is the incident the stage was built to prevent.",
+      "severity": "P3",
+      "suggested_fix": "Add one bullet to the block (a v4 render change, so this goes in before release): 'Never read a value from the backend yourself (`age -d`, `op read`, `op inject`, `security find-generic-password -w`) and never open the identity file; a refusal's own line names the fix.' Add it to the guide's 'What the agent is told' list.",
+      "failure_scenario": "During ordinary work `npx cookwright run dev -- npm run seed` exits 125 with a supabase proof mismatch. To debug, the agent runs `age -d -i ~/.config/cookwright/identity secrets/dev.env.age` (no passphrase on the identity) and every value of the target lands in the transcript. No block rule names that command, so the agent only has the general 'never put a value in a transcript' rule to weigh against its debugging goal.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "plausible",
+      "evidence": "packages/cookwright/src/lib/rules/agents-block.md:34-39 (diff adds only the four v4 bullets). None of them names direct backend reads (age -d, op read/inject, security find-generic-password -w). Line 35 does say 'Never put a secret's value in ... a transcript', and line 36 routes credential-needing commands through `run`. So the age -d scenario is already forbidden in general terms, but not by name. I did not confirm that the ban exists only in the setup skill, so I could not call this confirmed or rejected."
+    },
+    {
+      "file": "packages/cookwright/skills/setup/SKILL.md",
+      "location": "At the end, the secrets pass, step 3 (line 240)",
+      "problem": "Step 3 tells the agent to write `{ \"kind\": \"supabase\", \"ref\": \"…\" }` for a Supabase project but does not say the kind exists only when the supabase pack is declared in `packs`. The loader refuses the kind otherwise (config.mjs unknownKind: 'add supabase to packs'). The guide says this (secrets.md:74); the skill does not.",
+      "severity": "P3",
+      "suggested_fix": "In step 3 add: the `supabase` kind needs `supabase` in `packs` (offer the pack first, or use a `host` proof with `names`).",
+      "failure_scenario": "An app reaches its hosted Supabase project through plain fetch: no `supabase/config.toml`, no `@supabase/supabase-js`, so no pack is declared. The agent writes the supabase proof as step 3 says. The config becomes invalid, doctor's `config` row FAILs, and `run`, `secrets` and every other command exit 2 until the agent finds the recipe for that refusal.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "confirmed",
+      "evidence": "SKILL.md:240 gives the supabase proof with no word of declaring the supabase pack in packs; config.mjs:480/499 and config.test.mjs:488 refuse the kind with 'add supabase to packs'; secrets.md:74 says it and the skill does not."
+    },
+    {
+      "file": "AGENTS.md",
+      "location": "Layout, the `src/lib/secret/` sentence (line 10)",
+      "problem": "The Layout lists the secrets modules as 'config, engine, proofs, redactor, prompt, and `backends/` (`age`, `keychain`, `onepassword`)'. The directory also holds `envfile.mjs`, `recipients.mjs` and `backends/age-init.mjs`, all of which ship in the tarball (npm pack --dry-run lists them). The map is narrower than the code it maps.",
+      "severity": "P3",
+      "suggested_fix": "Name all of them (envfile, recipients, `backends/age-init`), or write 'the secrets modules (config, engine, proofs, the redactor, …)' without presenting the list as complete.",
+      "failure_scenario": "A contributor touching how the recipients file is parsed reads the Layout, does not find `recipients.mjs` listed, and looks for the parser elsewhere, or adds a second one beside the engine.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "confirmed",
+      "evidence": "AGENTS.md Layout (changed in e4d9f71 range) lists secret/ modules as 'config, engine, proofs, redactor, prompt, and backends/ (age, keychain, onepassword)'. Directory packages/cookwright/src/lib/secret/ also contains envfile.mjs, recipients.mjs, and backends/age-init.mjs and backends/index.mjs, all non-test source. The list is incomplete as stated. Also the redactor file is named redact.mjs. The listing reads as exhaustive, so the omission is real, though the impact is low (P3)."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff d102755..e4d9f71 via Codex (high effort, read-only, 19 files)",
+    "packages/cookwright/skills/setup/SKILL.md",
+    "docs/dev/backlog.md E-015 closure",
+    "docs/guides/secrets.md",
+    "docs/dev/bundles/stage-5/sessions/implement-s5-1.md",
+    "npx cookwright doctor (22 PASS)",
+    "git diff d102755..e4d9f71 in full: AGENTS.md, CONTRIBUTING.md, README.md, cookwright.json, backlog.md, the guides, the setup SKILL.md, agents-block.md, block.mjs and its test, init and doctor tests, test-helpers",
+    "plan §4.7, §7, §9 and §10 s4/s5 against what was delivered; the singular src/lib/secret/ deviation, recorded in state.json",
+    "v3Block/v2Block/v1Block: v4 minus the 4 added block lines equals the base v3 template (agents-block.md diff is only those lines)",
+    "npx cookwright doctor on this repo: 22 checks, 22 PASS, the three secrets rows read as plan §7 says, level 0 complete",
+    "npm pack --dry-run: src/lib/secret/** and run/secrets shipped; no tests, test-helpers or test-fixtures",
+    "the doc-sync rule `secrets`: paths exist, `:!*.test.mjs` handled by git diff pathspecs in docsync.mjs; CONTRIBUTING's five-rule count matches cookwright.json",
+    "run.mjs: no-backend refusal is a Refused (exit 125) as getting-started shows; no flags (onlyFlags []), no COOKWRIGHT_SKIP read",
+    "the doctor carriers code matches E-015's closure text (RC_FILES list, .envrc parts, scrubNames without a secrets key)",
+    "the backlog openings E-057..E-068 cover plan §9 and §11; B-008 and E-029 exist",
+    "1password and keychain refuse set and init as the skill implies; config validation of keychain `id`, empty targets, proof kinds needing their pack",
+    "the guide's psql wrapper URL rewrite run in node on synthetic pooler and direct URLs",
+    "the committed session reports and diff scanned for local paths: none",
+    "AGENTS.md has no `### Advisory` heading (no pack declared), so no advisory checks applied"
+  ],
+  "notes": "Codex run completed without hitting the ceiling (session 01a17e65-9519-7c31-8662-a423ad30071f). No P1 findings. Codex's targeted Vitest run could not start because the read-only sandbox blocked Vite's .vite-temp. Full output: <local path>\n---\nThe surface slice delivers what plan §4.7, §7 and §9 promised, and the measured claims hold: doctor on this repo gives 22 PASS and level 0 complete, the pack listing is right, and the v4 block stays byte-compatible with v3 apart from the new lines. One P2: the setup skill and the guide close the secrets pass only on 'nothing unproved'. The guide's own canonical Supabase target, which includes SERVICE_ROLE_KEY, can never reach that state, because no proof kind covers a key. Four P3s: the skill's description does not trigger on a secrets request, although both guides promise it does; the standing block has no rule against reading backend values directly; the skill omits the supabase pack prerequisite for the supabase proof; the AGENTS.md Layout module list is incomplete. Nothing private or machine-local is in the range.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a17e65-9519-7c31-8662-a423ad30071f",
+    "partialReportPath": null
+  }
+}

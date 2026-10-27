@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 197,
+  "revision": 206,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -298,9 +298,26 @@
     },
     {
       "name": "review:surface",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-27T17:25:25.965Z",
+          "stateRevision": 197,
+          "planSha": "13da5997463ed143",
+          "codex": true,
+          "runId": "wf_bc90c50d-e1d",
+          "endedAt": "2026-10-27T17:32:38.127Z",
+          "turnOutputTokens": 467194
+        }
+      ],
+      "startCommit": "e4d9f71f9ba847aebac4e17da6f80af514254cd3",
+      "range": {
+        "from": "d102755847fba8df33ec67ce3ab706a62f99cb14",
+        "to": "e4d9f71f9ba847aebac4e17da6f80af514254cd3"
+      },
+      "endCommit": "e4d9f71f9ba847aebac4e17da6f80af514254cd3",
+      "endCode": "509070a0390867478eb1cb12c14c012900184dd0"
     },
     {
       "name": "fix:surface",
@@ -529,6 +546,24 @@
       "at": "2026-10-27T16:46:56.314Z",
       "stored": true,
       "head": "aa819bf5af4ce39c3bda640f1fbece6ff1857edc"
+    },
+    {
+      "phase": "review:surface",
+      "path": "docs/dev/bundles/stage-5/findings/review-surface-1.json",
+      "counts": {
+        "confirmed": 6,
+        "plausible": 3,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 3,
+        "P3": 6
+      },
+      "at": "2026-10-27T17:32:05.305Z",
+      "stored": true,
+      "head": "e4d9f71f9ba847aebac4e17da6f80af514254cd3"
     }
   ],
   "reports": [
@@ -1576,6 +1611,41 @@
       "actor": "orchestrator",
       "source": "implement:s5 strings batch",
       "text": "s5's 12 user-facing strings (README's tagline, doctor count, secrets bullet, quick-start readout, guides entry and status rows; getting-started's re-measured intro, the secrets rows sentence and its Secrets section; hooks-and-escapes' 'No escape for run' section; updating's version-4 paragraph; the secrets guide's rows-position sentence) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at review:surface.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:32:36.603Z",
+      "actor": "orchestrator",
+      "source": "review:surface findings 0 and 4 (P2 confirmed)",
+      "text": "Fix in fix:surface (rules 2 and 3): the setup skill's secrets pass closes on exit 0 with every name a declared proof kind can cover proved; a name no kind covers (a key, E-057) stays unproved on the banner and that is the expected state, which the agent names to the developer and never tries to prove (never adds the name to the proof, never drops it from the target); the guide's 'Setting up, in order' step 5 says the same; a skills.test.mjs tie on the sentence.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:32:36.877Z",
+      "actor": "orchestrator",
+      "source": "review:surface finding 1 (P2 confirmed)",
+      "text": "Fix in fix:surface (rule 3): secrets.carriers judges .envrc from the work tree's top: tracked .envrc at the top, in each ancestor directory of the config root and under the config root (top-relative pathspecs, ls-files from top), and an untracked .envrc at the top, at each ancestor and at the config root (rootFiles per directory); a nested-config test with a tracked top-level .envrc; the backlog's E-015 closure and the guide's sentence narrowed to what the row reads.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:32:37.159Z",
+      "actor": "orchestrator",
+      "source": "review:surface findings 2, 5, 7, 8 (P3), folded",
+      "text": "Fix in fix:surface as cheap P3s: the guide's model bullet says the resolved values are never added to cookwright's environment while a stale export stays in the shell and in cookwright's own environment and is removed from the child's (finding 2); the setup skill's description names a secrets request ('or when the developer asks to set up secrets: a backend, a target, the first run') and the skill says such a request goes straight to the secrets pass once no Level 0 row FAILs (finding 5); the pass's step 3 says the supabase kind needs supabase in packs, offering the pack first or a host proof (finding 7); AGENTS.md's Layout names every secrets module, envfile, recipients and backends/age-init included (finding 8).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:32:37.440Z",
+      "actor": "orchestrator",
+      "source": "review:surface finding 6 (P3 plausible), folded",
+      "text": "Fix in fix:surface (rule 7): the managed block's Secrets section gains one bullet, 'Never read a value from the backend yourself (age -d, op read, op inject, security find-generic-password -w) and never open the identity file; a refusal's own line names the fix', and the guide's 'What the agent is told' list the same; the block stays at v4 (unreleased; a byte change reads stale and init refreshes), this repo's AGENTS.md refreshed by init and committed in the same checkpoint (disposition 38), block.test.mjs asserting the new rule.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T17:32:37.724Z",
+      "actor": "orchestrator",
+      "source": "review:surface finding 3 (P3 plausible)",
+      "text": "No edit: the committed session report names the state of a login ('the stored token is stale'), no value, path or credential, which the rules file's 'nothing private' (paths, credentials, production operations, secret values) does not cover; the bundle directory is never edited by hand. Noted for the closeout's residue: session reports keep the developer's hands to the command, not to the state of their logins.",
       "claim": true
     }
   ],

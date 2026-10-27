@@ -731,6 +731,12 @@ describe('secrets.backend, secrets.targets and secrets.carriers (stage-5 plan §
     expect(r['secrets.targets']).toEqual({ status: 'SKIP', note: st.follows('FAIL', sb.age.inWorkTree(id, real)) });
   });
 
+  it('SKIPs the backend row, never FAILs it, on a machine without git (rule 1)', () => {
+    const r = rows(level0(AGE_FILES, ageConfig()), { probes: tools(['git']) });
+    expect(r['secrets.backend']).toEqual({ status: 'SKIP', note: messages.doctor.needsGit });
+    expect(r['secrets.targets']).toEqual({ status: 'SKIP', note: messages.doctor.needsGit });
+  });
+
   it("SKIPs a missing tool naming the operation, age-keygen only while there is no identity (disposition 58)", () => {
     const root = level0(AGE_FILES, ageConfig());
     const noAge = rows(root, { probes: tools(['age']) });

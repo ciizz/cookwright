@@ -67,7 +67,8 @@ export const CHECKS = Object.freeze({
   'repo.node_modules': { run: checkNodeModules, git: true },
   packs: { run: checkPacks, config: true },
   // Last, so a slow backend inspection never starves a level-required row (stage-5 disposition 69).
-  'secrets.backend': { run: checkSecretsBackend, config: true },
+  // The backend row asks git whether the age identity sits in a work tree, so it needs git too.
+  'secrets.backend': { run: checkSecretsBackend, config: true, git: true },
   'secrets.targets': { run: checkSecretsTargets, config: true, git: true },
   'secrets.carriers': { run: checkSecretsCarriers, git: true },
 });

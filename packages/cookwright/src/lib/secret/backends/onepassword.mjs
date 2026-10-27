@@ -12,8 +12,10 @@
 // naming the line number, never printing the line.
 //
 // `op inject` copies a template's comment and blank lines into its output, so it is
-// fed only the reference lines, on stdin (`-f`, no `-i`), one per declared name, and
-// its output is read against them in order (stage-5 s2's decision, disposition 53):
+// fed only the reference lines, on stdin (`-f`, no `-i`), one per declared name, each
+// reference wrapped in `{{ }}`, op's documented template form, so a vault or item
+// name holding a space is read whole (stage-5 review:engine finding 8); its output is
+// read against them in order (stage-5 s2's decision, disposition 53):
 // exactly one `NAME=value` line per reference, so a field holding more than one line
 // is refused. `op` runs with the scrubbed environment; its own control names (a
 // service-account token, a Connect host, a session) reach it and never the child
@@ -91,7 +93,7 @@ export function resolve(name, ctx) {
   if (!parsed) throw new Refused(o.noTemplate(rel));
   const problem = templateProblem(parsed, target.names);
   if (problem) throw new Refused(o.template[problem.why]({ ...problem, rel, target: name }));
-  const input = parsed.refs.map((r) => `${r.name}=${r.ref}\n`).join('');
+  const input = parsed.refs.map((r) => `${r.name}={{ ${r.ref} }}\n`).join('');
   const res = ctx.probes.capture('op', ['inject', '-f'], { input, env: ctx.env, cwd: ctx.root });
   if (res.status !== 0) throw new Refused(o.failed(firstLine(res.stderr || res.error?.message)));
   const read = parseAgainst(res.stdout, parsed.refs.map((r) => r.name), { ordered: true });

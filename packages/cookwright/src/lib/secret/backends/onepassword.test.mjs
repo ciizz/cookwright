@@ -1,8 +1,9 @@
 // src/lib/secret/backends/onepassword.test.mjs — the 1Password backend with a fake
 // `capture` (stage-5 plan §4.3, §6 "Backends"): the template's grammar (disposition
-// 15), the reference lines fed to `op inject -f` on stdin with the scrubbed
-// environment, the resolved output read against the references (disposition 53),
-// the two environments (disposition 50), doctor's inspect, the writes refused. No
+// 15), the reference lines fed to `op inject -f` on stdin, each reference in
+// `{{ }}`, with the scrubbed environment, the resolved output read against the
+// references (disposition 53), the two environments (disposition 50), doctor's
+// inspect, the writes refused. No
 // real `op` runs here: resolving a reference is the developer's measurement (plan
 // §8). Values are synthetic.
 
@@ -134,13 +135,13 @@ describe('parseTemplate (disposition 15)', () => {
 });
 
 describe('resolve', () => {
-  it('feeds op inject -f only the reference lines on stdin, with the scrubbed environment', () => {
+  it('feeds op inject -f only the reference lines on stdin, each in {{ }}, with the scrubbed environment', () => {
     const { ctx, root, calls } = setup({ env: { OP_SESSION_me: 'session' } });
     const values = resolve('dev', ctx);
     expect(Object.fromEntries(values)).toEqual(VALUES);
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ cmd: 'op', args: ['inject', '-f'], cwd: root, env: ctx.env });
-    expect(calls[0].input).toBe('API_URL=op://Dev Vault/api/url\nAPI_TOKEN=op://Dev Vault/api/credentials/token\n');
+    expect(calls[0].input).toBe('API_URL={{ op://Dev Vault/api/url }}\nAPI_TOKEN={{ op://Dev Vault/api/credentials/token }}\n');
     expect(calls[0].env.OP_SESSION_me).toBe('session');
   });
 

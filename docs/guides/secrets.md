@@ -118,6 +118,36 @@ A line is `NAME=op://<vault>/<item>/<field>`, or `NAME=op://<vault>/<item>/<sect
 
 Doctor looks each declared name up by its service and account (`find-generic-password` without `-g` or `-w`, about 10 ms a name), never reading a value: `dev: present by name under cookwright/<id>/dev` is all it claims. Whether a value is the right one is what `run` proves.
 
+## What doctor checks
+
+Three rows, last in the readout, after every row a level requires, so a slow keychain never costs another row its time. No level requires them: they sit beside the levels until Level 2 opens. Doctor never prompts, never decrypts, never resolves a reference and never reads a value; each line names secrets, files and line numbers, and claims only what it measured.
+
+**`secrets.backend`**: the backend can run here.
+
+- No `secrets` key: PASS `no backend (Level 2 off)`.
+- A tool an operation needs is not on PATH (`age`, `op`, `security`): SKIP naming it, its install line and the command that uses it. `age-keygen` counts only while there is no identity yet, since only `secrets init` uses it. The keychain backend off macOS: SKIP.
+- `age`: FAIL when the identity's directory is inside a git work tree (by real path, so a `~/.config` symlinked into a dotfiles repo counts); WARN `identity missing` (`secrets init` writes it, or copy yours from another machine); FAIL when group or others can read it (`chmod 600`); WARN when it has no passphrase, judged by its first bytes, never quoting them; PASS when it is passphrase-protected and yours alone. On Windows the permissions are not measured, so a protected identity reads SKIP rather than PASS.
+- `1password`: PASS `op on PATH`. Whether you are signed in is not this row's claim: `run` proves it.
+- `keychain`: PASS naming the service of each target.
+
+**`secrets.targets`**: each target's state, one part per target, joined by `; `.
+
+- No `secrets` key: PASS `no targets declared`. An empty `targets`: WARN, a state you chose mid-setup.
+- When `secrets.backend` is SKIP or FAIL, this row is SKIP with its reason: nothing is inspected through a backend that cannot run.
+- Any of `secrets/`, the recipients file or a target's file ignored by git: FAIL naming the `.gitignore` line to remove (the directory alone when it is the one ignored).
+- `age`: `dev: ciphertext and recipients tracked` when `secrets/dev.env.age` is committed and equal to HEAD and so is `secrets/recipients.txt`. The names inside are not checked, since that would mean decrypting: a missing name surfaces at `run`. A target with no ciphertext, or one that is uncommitted or differs from HEAD, WARNs; so does a recipients file that differs from HEAD, and a secret key in it FAILs.
+- `1password`: the template present, committed, one reference per declared name; a literal line FAILs by number.
+- `keychain`: each declared name present by its service and account; a missing one WARNs naming the `secrets set` to run.
+- A target without a proof WARNs `unproved`.
+- When doctor's time budget runs out inside an inspection, the row is SKIP (`unverified: …`), never a PASS on part of the targets.
+
+**`secrets.carriers`**: the places that carry a secret into every process, by name only.
+
+- An `.envrc`, tracked anywhere or at the root: direnv exports it into every command.
+- A declared name, or a name the declared packs' tools read on their own (`SUPABASE_DB_URL`, `PGPASSWORD`, …), exported in the environment doctor runs in.
+- A line setting such a name in `~/.zshenv`, `~/.zshrc`, `~/.zprofile`, `~/.bashrc`, `~/.bash_profile` or `~/.profile`, comments skipped, `export NAME=…` and `NAME=$(op read …)` alike: the row names the line's file, not its value.
+- Each is a WARN. With no `secrets` key, only `.envrc` and the packs' names are looked for.
+
 ## Updating to version 4
 
 `npx cookwright migrate` writes an older `cookwright.json` at version 4. The step changes nothing but the version: it never writes a `secrets` key.

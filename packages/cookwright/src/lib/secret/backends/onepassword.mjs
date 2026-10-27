@@ -130,5 +130,7 @@ export const ONEPASSWORD = Object.freeze({
   resolve,
   set: refuseWrite,
   init: refuseWrite,
+  /** Doctor's `secrets.backend` once `op` is on PATH: sign-in is proved at `run` (disposition 45). */
+  health: () => pass(messages.doctor.secretsBackend.op),
   inspect,
 });

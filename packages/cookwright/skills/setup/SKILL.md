@@ -140,6 +140,51 @@ Doctor refusing with `no cookwright.json at or above …` → `npx cookwright in
 |---|---|---|
 | WARN | `… detected (…), no pack declared; the setup skill offers it` (or `them`) | with consent, add the detected packs' names to `packs` in `cookwright.json` by hand (init never edits an existing config), then `npx cookwright init`, which writes each pack's section of `AGENTS.md`, its contract doc and the `eslint.config.js` lines when that file is Expo's template; the pack's doc-sync rules and gate checks come from its own lines and "At the end" |
 
+### Secrets backends (`secrets.backend`, `secrets.targets`, `secrets.carriers`)
+
+These three rows sit beside the levels: no level requires them, and with no `secrets` key in `cookwright.json` the first two read PASS, Level 2's secrets being off. They name secrets, files and line numbers, never a value. `npx cookwright secrets init` and `npx cookwright secrets set` read a passphrase or a value on the developer's terminal: they are the developer's commands, to hand over, never to run; never ask for a value in the transcript. A note can carry several parts joined by `; `, one per target: take each part as its own line.
+
+`secrets.backend`:
+
+| status | note | remedy |
+|---|---|---|
+| PASS | `no backend (Level 2 off)` | at the end (see "At the end") |
+| SKIP | `skipped, the keychain backend needs macOS` | **stop at**: the keychain backend reads the macOS keychain; on this machine the secrets guide's `age` backend is the one that runs |
+| SKIP | `skipped, needs …, run setup (…; npx cookwright … uses it)` | give the install command the line names, the developer's hands, then doctor again; declined → **stop at** |
+| FAIL | `the age identity … is inside the git work tree …` | **stop at**: never open the identity; say the developer moves it outside every work tree (setting `COOKWRIGHT_AGE_IDENTITY` to its new place), and treats it as exposed if it was ever committed |
+| WARN | `identity missing at …: npx cookwright secrets init (on another machine, copy the identity you already have)` | hand the developer `npx cookwright secrets init` (it asks for consent and for a passphrase on their terminal), then doctor again; on a second machine they copy their identity there instead |
+| FAIL | `the age identity … is readable by others (mode …): chmod 600 …` | with consent, the `chmod 600 <path>` the line names |
+| WARN | `the age identity … has no passphrase (weaker: …)` | **stop at**: adding one is the developer's, by the secrets guide; say that age then asks for it at every `run`, which makes `run` theirs to type too |
+| SKIP | `… permissions are not measured on this platform` | **stop at**: Windows; nothing to do |
+
+`secrets.targets`:
+
+| status | note | remedy |
+|---|---|---|
+| PASS | `no targets declared` | at the end (see "At the end") |
+| WARN | `no targets declared; add one (the secrets guide)` | with consent, write a target into `secrets.targets` of `cookwright.json` by the secrets guide: its `names` and a proof (for a Supabase project, `{ "kind": "supabase", "ref": "…" }` with the ref from their dashboard URL: ask for it) |
+| SKIP | `not inspected, secrets.backend is …` | follows `secrets.backend` |
+| FAIL | `… is ignored by git (…); remove that line, so it can be committed` | with consent, remove that line from the file the note names |
+| WARN | `…: no ciphertext (…): npx cookwright secrets set … <NAME>, for each name` | hand the developer one `npx cookwright secrets set <target> <NAME>` per declared name, then the commit of the ciphertext |
+| WARN | `… is not committed (git add …, then commit)`, `… differs from HEAD (commit it)` | name the file; the commit is the developer's. A ciphertext changed by anything but their own `secrets set` (a merge, a pull) cannot be reviewed: say to set the values again rather than keep it |
+| WARN | `secrets/recipients.txt is not committed …`, `… differs from HEAD (git diff HEAD -- …)`, `… has a staged change …` | show the line: a new recipient is reviewed in a commit, the developer's |
+| FAIL | `line … of secrets/recipients.txt holds an age secret key …` | **stop at**: never open the file; the developer removes the line and treats that identity as exposed |
+| WARN | `…: unproved (no proof declared; the secrets guide shows the kinds)` | offer a proof by the secrets guide (`supabase` with the project ref, or `host`), written into the target with consent; declined → **stop at** |
+| FAIL | `…: line(s) … of secrets/….env.tpl hold neither an op:// reference, a blank nor a comment: a literal value? …` | **stop at**: never open or print that line; the developer replaces it with a reference |
+| WARN | `…: no template (…)`, `… has no reference in …`, `… references … twice`, `…, which … does not declare` | with consent, write the template's reference lines, one `NAME=op://<vault>/<item>/<field>` per declared name, asking the developer for the vault, item and field; never a value |
+| WARN | `…: not in the keychain under …: … (npx cookwright secrets set … <NAME>)` | hand the developer one `npx cookwright secrets set <target> <NAME>` per name the line lists |
+| SKIP | `…: the keychain lookup exited …, so presence is not measured` | **stop at**: show the line |
+| SKIP | `unverified: the time budget ran out while … ran; …` | run doctor once more; if it repeats, **stop at** it |
+
+`secrets.carriers`:
+
+| status | note | remedy |
+|---|---|---|
+| PASS | `no .envrc, and no secret name exported here or set in a shell rc file` | at the end (see "At the end") |
+| WARN | `tracked .envrc: …`, `.envrc at the root …` | **stop at**: never open the file; say direnv exports it into every command, and that moving what it sets into a backend is the developer's, by the secrets guide |
+| WARN | `exported in this environment: …` | **stop at**: never print the value; say the developer unsets it, and removes it where their shell sets it (a part naming an rc file says where) |
+| WARN | `a line setting … in ~/… (…)` | **stop at**: never open or edit a file in the home directory; the developer removes that line |
+
 ### One declared pack's rows (`pack.<name>.…`)
 
 Each pack in `packs` adds its rows after the others: `pack.expo.declared`, `pack.expo.rules`, `pack.expo.docs`, `pack.expo.lint`; `pack.supabase.declared`, `pack.supabase.rules`, `pack.supabase.docs`, `pack.supabase.lint`, `pack.supabase.types`. A `.lint` row appears while one of the pack's ESLint rules is on, `pack.supabase.types` while its `types` rule is on. `pack.expo.declared` and `pack.supabase.declared` always read PASS, naming the pack's version and rules: nothing to do. A note can carry several of the parts below, joined by `; `: take each part as its own line.
@@ -186,6 +231,8 @@ With consent, add the host (`claude`, `codex`) to `hosts` in `cookwright.json` b
 
 - Read the last readout's PASS lines once for the one that carries advice, and act on it when it is there: a Codex `host.hook` line reading `whether it is trusted is yours: restart Codex, then /hooks`, when init wrote or rewrote `.codex/hooks.json` in this walkthrough: say that Codex reads that file only at startup: restart Codex at the work tree's top, trust the hook there with `/hooks`, and the readout comes in the next new session; the same restart and trust again after every rewrite of that file.
 - A `pack.supabase.types` line reading `measured by the gate against the local stack`: say the gate's types check regenerates the types from the local Supabase stack, so it measures only while that stack runs (`supabase start`) and skips, naming why, otherwise.
+- A `secrets.backend` line reading `no backend (Level 2 off)` and a `secrets.targets` line reading `no targets declared`: say secrets are off, so nothing here injects one, and that cookwright's `docs/guides/secrets.md` is where a backend starts. Never set one up unasked.
+- A `secrets.carriers` line reading `no .envrc, and no secret name exported here or set in a shell rc file`: nothing to do; it measured only the names `cookwright.json` declares and the declared packs read, in this shell and its rc files.
 - With a pack declared, offer each of these in turn, each with consent, the developer free to decline any:
   - **The gate checks.** Every `gate` entry of `npx cookwright packs rules` whose name is not in `gate.checks` (the `standards` ratchet among them), added as printed. Their exit 11 is "cannot measure", recorded as skipped (`skipExit`), never a failure.
   - **Doc-sync rules from the tree.** A doc under `docs/` whose name matches a code directory (`docs/api.md` beside `src/api/`) is a candidate: show each, and add the ones the developer keeps to `hooks.docSync` under a name of theirs (never a pack's `expo:`/`supabase:` name), for instance `{ "name": "api", "code": ["src/api/**"], "docs": ["docs/api.md"] }`.

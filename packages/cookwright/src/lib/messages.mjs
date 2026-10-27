@@ -191,6 +191,8 @@ const doctor = {
     none: 'no backend (Level 2 off)',
     platform: (backend) => `skipped, the ${backend} backend needs macOS`,
     needsTool: (tool, op, install) => `skipped, needs ${tool}, run setup (${install}; ${CLI} ${op} uses it)`,
+    // the command each backend operation is, as needsTool names it
+    ops: { resolve: 'run', set: 'secrets set', inspect: 'doctor', init: 'secrets init' },
     op: 'op on PATH',
     keychain: (services) => `security on PATH; ${services.length ? `service ${list(services)}` : 'no target declared'}`,
     age: {

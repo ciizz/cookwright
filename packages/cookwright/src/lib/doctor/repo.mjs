@@ -77,9 +77,10 @@ export const oneLine = (message) => {
 /**
  * The repo doctor runs on, or null when no cookwright.json is found from `cwd` up
  * to the work tree's top. `home` is the user's home directory (its `.claude/` is the
- * user's own settings, never a project file).
+ * user's own settings, never a project file); `env` the environment doctor runs in
+ * and `platform` the OS, which the secrets rows read.
  */
-export function openDoctorRepo(cwd, probes, { home = os.homedir() } = {}) {
+export function openDoctorRepo(cwd, probes, { home = os.homedir(), env = process.env, platform = process.platform } = {}) {
   const hasGit = probes.hasTool('git');
   const top = hasGit ? workTreeRoot(cwd) : null;
   const root = findRoot(cwd, { stopAt: top ?? undefined });
@@ -95,7 +96,8 @@ export function openDoctorRepo(cwd, probes, { home = os.homedir() } = {}) {
   const workTree = Boolean(inside) && inside.status === 0 && inside.stdout.trim() === 'true';
   // Real paths throughout, so the scan's home test and its relative names hold
   // through a symlinked temp or home directory.
-  return { root: real(root), top: top && real(top), cwd: real(cwd), home: real(home), hasGit, workTree, config, configError };
+  const paths = { root: real(root), top: top && real(top), cwd: real(cwd), home: real(home) };
+  return { ...paths, env, platform, hasGit, workTree, config, configError };
 }
 
 /**

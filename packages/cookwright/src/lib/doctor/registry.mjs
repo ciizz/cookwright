@@ -20,7 +20,7 @@ import { checkPointers } from './hosts.mjs';
 import { checkNodeModules } from './repo.mjs';
 import { checkPacks, packChecks } from './packs.mjs';
 import { checkBlock, checkSize } from './rules.mjs';
-import { checkSecrets } from './secrets.mjs';
+import { checkSecrets, checkSecretsBackend, checkSecretsCarriers, checkSecretsTargets } from './secrets.mjs';
 
 const m = messages.doctor;
 
@@ -66,6 +66,10 @@ export const CHECKS = Object.freeze({
   'secrets.env': { run: checkSecrets, git: true },
   'repo.node_modules': { run: checkNodeModules, git: true },
   packs: { run: checkPacks, config: true },
+  // Last, so a slow backend inspection never starves a level-required row (stage-5 disposition 69).
+  'secrets.backend': { run: checkSecretsBackend, config: true },
+  'secrets.targets': { run: checkSecretsTargets, config: true, git: true },
+  'secrets.carriers': { run: checkSecretsCarriers, git: true },
 });
 
 const firstLine = (text) => String(text).split('\n')[0];

@@ -151,5 +151,8 @@ export const KEYCHAIN = Object.freeze({
   resolve,
   set,
   init: refuseInit,
+  /** Doctor's `secrets.backend` once `security` is on PATH on macOS: the services it reads. */
+  health: (ctx) =>
+    pass(messages.doctor.secretsBackend.keychain(Object.keys(ctx.config.secrets.targets).map((n) => serviceOf(ctx.config, n)))),
   inspect,
 });

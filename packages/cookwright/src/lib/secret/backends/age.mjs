@@ -21,6 +21,7 @@ import path from 'node:path';
 
 import { gitRun } from '../../doctor/repo.mjs';
 import { messages } from '../../messages.mjs';
+import { fail, pass, skip, warn } from '../../verdict.mjs';
 import { RECIPIENTS, ciphertextOf, topRel } from '../config.mjs';
 import { Refused } from '../engine.mjs';
 import { parseAgainst, replaceLine } from '../envfile.mjs';
@@ -28,6 +29,8 @@ import { requireCommittedRecipients } from '../recipients.mjs';
 
 const m = messages.secrets;
 const a = m.age;
+const b = messages.doctor.secretsBackend;
+const t = messages.doctor.secretsTargets;
 
 export const IDENTITY_ENV = 'COOKWRIGHT_AGE_IDENTITY';
 /** The first line of a binary age file: a passphrase-protected identity starts so (disposition 7). */
@@ -166,6 +169,50 @@ export async function set(name, secret, ctx) {
   return { keys };
 }
 
+/**
+ * Doctor's `secrets.backend` on age (dispositions 7, 41, 51): the identity outside
+ * every work tree, present, readable by its owner only, passphrase-protected by its
+ * header. Nothing is decrypted, and the note never quotes the file.
+ */
+export function health(ctx) {
+  const identity = identityPath(ctx.env, ctx.home);
+  const top = enclosingWorkTree(nearestExistingAncestor(identity), ctx.env);
+  if (top !== null) return fail(b.age.inWorkTree(identity, top));
+  if (!fs.existsSync(identity)) {
+    const tool = AGE.tools.init.find((name) => !ctx.probes.hasTool(name, { PATH: ctx.env.PATH ?? '' }));
+    return tool ? skip(b.needsTool(tool, b.ops.init, a.install)) : warn(b.age.missing(identity));
+  }
+  const windows = ctx.platform === 'win32';
+  const mode = fs.statSync(identity).mode & 0o777;
+  if (!windows && mode & 0o077) return fail(b.age.mode(identity, mode.toString(8)));
+  if (!isPassphraseProtected(identity)) return warn(b.age.noPassphrase(identity));
+  return windows ? skip(b.age.windows(identity)) : pass(b.age.ok(identity));
+}
+
+/**
+ * Doctor's look at what the targets share: the recipients file committed and equal
+ * to HEAD (disposition 23). `{ parts, ok }`; a secret key in it FAILs.
+ */
+export function inspectShared(ctx) {
+  const got = requireCommittedRecipients(ctx.top, topRel(ctx.root, ctx.top, RECIPIENTS));
+  if (!got.problem) return { parts: [], ok: true };
+  const verdict = got.problem.why === 'secretKey' ? fail : warn;
+  return { parts: [verdict(m.recipients(got.problem, RECIPIENTS))], ok: false };
+}
+
+/**
+ * Doctor's look at target `name` (disposition 45): its ciphertext present and
+ * committed, nothing decrypted, so the names are not the claim. `ctx.states` maps
+ * each backend file to its git state, `ctx.shared` is inspectShared's result.
+ */
+export function inspect(name, ctx) {
+  const rel = ciphertextOf(name);
+  const state = ctx.states.get(rel);
+  if (state === 'missing') return warn(t.age.noCiphertext(name, rel));
+  if (state !== 'tracked') return warn(t.file(name, rel, state));
+  return pass(t.age.ok(name, ctx.shared.ok));
+}
+
 /** The age backend's description, as backends/index.mjs registers it with `init` (age-init.mjs). */
 export const AGE = Object.freeze({
   name: 'age',
@@ -174,6 +221,11 @@ export const AGE = Object.freeze({
   control: [IDENTITY_ENV],
   /** The files `run`'s banner reports uncommitted, relative to the config root. */
   files: (target) => [ciphertextOf(target)],
+  /** The files every target shares, which doctor reads as the targets' files. */
+  sharedFiles: [RECIPIENTS],
   resolve,
   set,
+  health,
+  inspect,
+  inspectShared,
 });

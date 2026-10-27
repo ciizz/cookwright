@@ -28,10 +28,13 @@ import { PACKS, RATCHET_CHECK, packDefaults, packName } from './lib/packs/regist
 import { renderSection } from './lib/packs/section.mjs';
 import { PROBES } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
+import { HEADER } from './lib/secret/backends/age.mjs';
 import { commit, fakeEslintRepo, gitInit, gitWithoutScopes, run, scratchRepo, scratchRoot, stageOnly, v1Block, v2Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-doctor-');
 const m = messages.doctor;
+/** The environment doctor reads: PATH alone, so a name this machine exports never reaches a row. */
+const ENV = Object.freeze({ PATH: process.env.PATH });
 /** The static rows: every repo's readout has them, a declared pack's rows come after. */
 const N = Object.keys(CHECKS).length;
 const WIDTH = Math.max(...Object.keys(CHECKS).map((k) => k.length));
@@ -131,8 +134,8 @@ function level0(files = {}, config = null, { hooksPath = '.githooks' } = {}) {
 }
 
 /** The checks as `{ name: { status, note } }`. */
-function doctor(root, { cwd = root, home = TMP, probes: p = probes() } = {}) {
-  return Object.fromEntries(runChecks(openDoctorRepo(cwd, p, { home }), p));
+function doctor(root, { cwd = root, home = TMP, probes: p = probes(), env = ENV, platform } = {}) {
+  return Object.fromEntries(runChecks(openDoctorRepo(cwd, p, { home, env, ...(platform && { platform }) }), p));
 }
 
 const write = (root, rel, body) => {
@@ -340,7 +343,7 @@ describe('host.rules', () => {
     commit({ root }, { 'cookwright.json': JSON.stringify({ version: CONFIG_VERSION }), ...LEVEL0_FILES }, 'l0');
     write(parent, '.claude/CLAUDE.md', '# user memory\n');
     expect(rules(root, { home: parent }).status).toBe('PASS');
-    expect(rules(root, { home: TMP })).toEqual({
+    expect(rules(root, { home: TMP, env: ENV })).toEqual({
       status: 'FAIL',
       note: m.hostRules.shadowed(['../.claude/CLAUDE.md'], '@AGENTS.md'),
     });
@@ -356,7 +359,7 @@ describe('host.pointers', () => {
   const SETUP = POINTERS.find((x) => x.name === 'setup');
   const SKILLS_SHIPPED = POINTERS.filter((x) => x.kind === 'skill');
   const skills = SKILLS_SHIPPED.length;
-  const check = (root, io = {}, p = probes()) => checkPointers(openDoctorRepo(root, p, { home: TMP }), p, io);
+  const check = (root, io = {}, p = probes()) => checkPointers(openDoctorRepo(root, p, { home: TMP, env: ENV }), p, io);
   const link = (root, rel, text) => {
     fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
     fs.symlinkSync(text, path.join(root, rel));
@@ -377,7 +380,7 @@ describe('host.pointers', () => {
       note: pm.named('claude', pm.missing('.claude/skills/setup')),
     });
     expect(pm.missing('.claude/skills/setup')).toBe('.claude/skills/setup missing (run npx cookwright init)');
-    const rows = runChecks(openDoctorRepo(root, probes(), { home: TMP }), probes());
+    const rows = runChecks(openDoctorRepo(root, probes(), { home: TMP, env: ENV }), probes());
     expect(levelLine(DEFAULTS, rows)).toBe('level 0 declared: drift, 1 piece(s) missing: host.pointers');
 
     const r = doctor(level0({ [SKILL.rel]: null }))['host.pointers'];
@@ -389,7 +392,7 @@ describe('host.pointers', () => {
     const out = [];
     const spy = vi.spyOn(console, 'log').mockImplementation((...a) => out.push(a.join(' ')));
     try {
-      expect(main([], { cwd: level0({ [SKILL.rel]: null }), home: TMP, probes: probes() })).toBe(0);
+      expect(main([], { cwd: level0({ [SKILL.rel]: null }), home: TMP, env: ENV, probes: probes() })).toBe(0);
     } finally {
       spy.mockRestore();
     }
@@ -487,7 +490,7 @@ describe('host.pointers', () => {
       [pm.named('claude', pm.missing('.claude/skills/setup')), pm.named('claude', pm.notRequired(SKILL.name, 2, 0))].join('; '),
     );
     const two = level0({}, { hosts: ['claude', 'codex'] });
-    const both = checkPointers(openDoctorRepo(two, probes(), { home: TMP }), probes());
+    const both = checkPointers(openDoctorRepo(two, probes(), { home: TMP, env: ENV }), probes());
     expect(both).toEqual({
       status: 'PASS',
       note: [pm.counts('claude', skills, POINTERS.length - skills), pm.counts('codex', CODEX_POINTERS.length, null)].join('; '),
@@ -518,7 +521,7 @@ describe('host.hook', () => {
       note: expect.stringMatching(/^\.claude\/settings\.json is not valid JSON \(/),
     });
     const root = level0({ '.claude/settings.json': SETTINGS('old doctor hook') });
-    const repo = openDoctorRepo(root, probes(), { home: TMP });
+    const repo = openDoctorRepo(root, probes(), { home: TMP, env: ENV });
     const entry = { ...HOSTS.claude, hookCommandsPast: ['old doctor hook'] };
     expect(checkClaudeHook(repo, probes(), entry)).toEqual({
       status: 'WARN',
@@ -585,7 +588,7 @@ describe('codex: host.rules and host.hook', () => {
     );
     const root = codexOnly({ [FILE]: HOOKS([{ matcher: 'startup|resume', hooks: [{ type: 'command', command: 'old' }] }]) });
     const entry = { ...HOSTS.codex, hookCommandsPast: ['old'] };
-    expect(checkCodexHook(openDoctorRepo(root, probes(), { home: TMP }), probes(), entry)).toEqual({
+    expect(checkCodexHook(openDoctorRepo(root, probes(), { home: TMP, env: ENV }), probes(), entry)).toEqual({
       status: 'WARN',
       note: m.hostHook.past(FILE),
     });
@@ -659,6 +662,232 @@ describe('secrets.env', () => {
     expect(doctor(level0(), { probes: slow })['secrets.env']).toEqual({
       status: 'SKIP',
       note: m.checkTimedOut(messages.timedOut('git check-ignore')),
+    });
+  });
+});
+
+describe('secrets.backend, secrets.targets and secrets.carriers (stage-5 plan §4.6)', () => {
+  const sb = m.secretsBackend;
+  const st = m.secretsTargets;
+  const sc = m.secretsCarriers;
+  const KEY = `age1${'q'.repeat(58)}`;
+  const ARMORED = '-----BEGIN AGE ENCRYPTED FILE-----\nYWdl\n-----END AGE ENCRYPTED FILE-----\n';
+  const NAMES = ['API_URL', 'API_TOKEN'];
+  const proof = { kind: 'host', host: 'api.example.com', names: ['API_URL'] };
+  const ageConfig = (targets = { dev: { names: NAMES, proof }, prod: { names: NAMES, proof } }) => ({
+    secrets: { backend: 'age', targets },
+  });
+  const AGE_FILES = { 'secrets/recipients.txt': `${KEY}\n`, 'secrets/dev.env.age': ARMORED };
+  /** A machine with age, age-keygen and gitleaks (and git, node) on PATH, `missing` taken away. */
+  const tools = (missing = [], over = {}) =>
+    probes({ hasTool: (bin, o) => !missing.includes(bin) && (['age', 'age-keygen', 'op', 'security', 'gitleaks'].includes(bin) || PROBES.hasTool(bin, o)), ...over });
+  let ids = 0;
+  /** An age identity outside every work tree: `kind` header (passphrase-protected), plain or none, at `mode`. */
+  function identity(kind = 'header', mode = 0o600) {
+    const file = path.join(TMP, 'ids', `i${(ids += 1)}`, 'identity.age');
+    fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+    if (kind === 'header') fs.writeFileSync(file, `${HEADER}-> scrypt fake\n`, { mode });
+    if (kind === 'plain') fs.writeFileSync(file, '# created: now\nAGE-SECRET-KEY-1FAKE\n', { mode });
+    fs.chmodSync(path.dirname(file), 0o700);
+    if (kind !== 'none') fs.chmodSync(file, mode);
+    return file;
+  }
+  const rows = (root, { id = identity(), env = {}, ...rest } = {}) =>
+    doctor(root, { probes: tools(), env: { ...ENV, COOKWRIGHT_AGE_IDENTITY: id, ...env }, ...rest });
+  const pick = (r) => ({ backend: r['secrets.backend'], targets: r['secrets.targets'], carriers: r['secrets.carriers'] });
+
+  it('reads no secrets key as Level 2 off, no targets, and nothing carried: three static PASS rows', () => {
+    const r = doctor(level0());
+    expect(Object.keys(r).slice(-3)).toEqual(['secrets.backend', 'secrets.targets', 'secrets.carriers']);
+    expect(pick(r)).toEqual({
+      backend: { status: 'PASS', note: sb.none },
+      targets: { status: 'PASS', note: st.none },
+      carriers: { status: 'PASS', note: sc.ok },
+    });
+  });
+
+  it('age: the identity missing, plain, passphrase-protected, readable by others, on Windows', () => {
+    const root = level0(AGE_FILES, ageConfig());
+    const missing = path.join(TMP, 'ids', 'never', 'identity.age');
+    expect(rows(root, { id: missing })['secrets.backend']).toEqual({ status: 'WARN', note: sb.age.missing(missing) });
+    const plain = identity('plain');
+    expect(rows(root, { id: plain })['secrets.backend']).toEqual({ status: 'WARN', note: sb.age.noPassphrase(plain) });
+    expect(rows(root, { id: plain })['secrets.backend'].note).not.toMatch(/AGE-SECRET-KEY/);
+    const good = identity();
+    expect(rows(root, { id: good })['secrets.backend']).toEqual({ status: 'PASS', note: sb.age.ok(good) });
+    const open = identity('header', 0o644);
+    expect(rows(root, { id: open })['secrets.backend']).toEqual({ status: 'FAIL', note: sb.age.mode(open, '644') });
+    expect(rows(root, { id: open, platform: 'win32' })['secrets.backend']).toEqual({ status: 'SKIP', note: sb.age.windows(open) });
+  });
+
+  it('age: an identity inside a git work tree FAILs naming it, by realpath, and the targets row follows', () => {
+    const other = gitInit(path.join(TMP, 'dotfiles'));
+    const linked = path.join(TMP, 'linked-config');
+    fs.symlinkSync(other, linked);
+    const id = path.join(linked, 'cookwright', 'identity.age');
+    const r = rows(level0(AGE_FILES, ageConfig()), { id });
+    const real = fs.realpathSync(other);
+    expect(r['secrets.backend']).toEqual({ status: 'FAIL', note: sb.age.inWorkTree(id, real) });
+    expect(r['secrets.targets']).toEqual({ status: 'SKIP', note: st.follows('FAIL', sb.age.inWorkTree(id, real)) });
+  });
+
+  it("SKIPs a missing tool naming the operation, age-keygen only while there is no identity (disposition 58)", () => {
+    const root = level0(AGE_FILES, ageConfig());
+    const noAge = rows(root, { probes: tools(['age']) });
+    expect(noAge['secrets.backend']).toEqual({ status: 'SKIP', note: sb.needsTool('age', 'run', messages.secrets.age.install) });
+    expect(noAge['secrets.targets'].status).toBe('SKIP');
+    expect(rows(root, { probes: tools(['age-keygen']) })['secrets.backend'].status).toBe('PASS');
+    const none = path.join(TMP, 'ids', 'none-yet', 'identity.age');
+    expect(rows(root, { id: none, probes: tools(['age-keygen']) })['secrets.backend']).toEqual({
+      status: 'SKIP',
+      note: sb.needsTool('age-keygen', 'secrets init', messages.secrets.age.install),
+    });
+  });
+
+  it('age: names each target, the committed one tracked, the absent one missing, the unproved one', () => {
+    const config = ageConfig({ dev: { names: NAMES, proof }, prod: { names: NAMES, proof }, ops: { names: ['OPS_TOKEN'] } });
+    const r = rows(level0({ ...AGE_FILES, 'secrets/ops.env.age': ARMORED }, config));
+    expect(r['secrets.targets']).toEqual({
+      status: 'WARN',
+      note: [
+        st.age.ok('dev', true),
+        st.age.noCiphertext('prod', 'secrets/prod.env.age'),
+        st.age.ok('ops', true),
+        st.unproved('ops'),
+      ].join('; '),
+    });
+    expect(r['secrets.targets'].note).toBe(
+      'dev: ciphertext and recipients tracked; prod: no ciphertext (secrets/prod.env.age): npx cookwright secrets set prod <NAME>, for each name; ops: ciphertext and recipients tracked; ops: unproved (no proof declared; the secrets guide shows the kinds)',
+    );
+    const both = rows(level0({ ...AGE_FILES, 'secrets/prod.env.age': ARMORED }, ageConfig()));
+    expect(both['secrets.targets']).toEqual({ status: 'PASS', note: `${st.age.ok('dev', true)}; ${st.age.ok('prod', true)}` });
+  });
+
+  it('age: WARNs a ciphertext changed or untracked, and a recipients file that differs from HEAD', () => {
+    const root = level0({ ...AGE_FILES, 'secrets/prod.env.age': ARMORED }, ageConfig());
+    write(root, 'secrets/dev.env.age', `${ARMORED}x\n`);
+    write(root, 'secrets/recipients.txt', `${KEY}\n# a new line\n`);
+    fs.rmSync(path.join(root, 'secrets/prod.env.age'));
+    run(root, 'git', ['rm', '-q', '--cached', 'secrets/prod.env.age']);
+    write(root, 'secrets/prod.env.age', ARMORED);
+    expect(rows(root)['secrets.targets']).toEqual({
+      status: 'WARN',
+      note: [
+        messages.secrets.recipients({ why: 'differs' }, 'secrets/recipients.txt'),
+        st.file('dev', 'secrets/dev.env.age', 'changed'),
+        st.file('prod', 'secrets/prod.env.age', 'untracked'),
+      ].join('; '),
+    });
+  });
+
+  it('FAILs a secrets path git ignores, naming the .gitignore line (disposition 42)', () => {
+    const root = level0({ ...AGE_FILES, '.gitignore': '.env\n.env.*\n!.env.example\nsecrets/\n' }, ageConfig());
+    expect(rows(root)['secrets.targets']).toEqual({
+      status: 'FAIL',
+      note: st.ignored('secrets/', { source: '.gitignore', line: 4, pattern: 'secrets/' }),
+    });
+    write(root, '.gitignore', '.env\n.env.*\n!.env.example\n*.age\n');
+    const rule = { source: '.gitignore', line: 4, pattern: '*.age' };
+    expect(rows(root)['secrets.targets']).toEqual({
+      status: 'FAIL',
+      note: [st.ignored('secrets/dev.env.age', rule), st.ignored('secrets/prod.env.age', rule)].join('; '),
+    });
+  });
+
+  it('reads the files top-relative from a config root below the top, past a decoy secrets/ at the top (disposition 54)', () => {
+    const top = level0({ 'secrets/dev.env.age': 'a decoy\n' });
+    const config = { version: CONFIG_VERSION, gate: GATE, ...ageConfig({ dev: { names: NAMES, proof } }) };
+    commit({ root: top }, { 'apps/mobile/cookwright.json': JSON.stringify(config), 'apps/mobile/secrets/recipients.txt': `${KEY}\n` }, 'nested');
+    const r = rows(top, { cwd: path.join(top, 'apps/mobile') });
+    expect(r['secrets.targets']).toEqual({ status: 'WARN', note: st.age.noCiphertext('dev', 'secrets/dev.env.age') });
+  });
+
+  it('WARNs an empty targets object, a chosen state (disposition 44)', () => {
+    expect(rows(level0({}, ageConfig({})))['secrets.targets']).toEqual({ status: 'WARN', note: st.empty });
+  });
+
+  it('1password: op on PATH; the template parsed, a literal FAILed by line number', () => {
+    const config = { secrets: { backend: '1password', targets: { dev: { names: NAMES, proof } } } };
+    const tpl = 'API_URL=op://Dev/api/url\nAPI_TOKEN=op://Dev/api/token\n';
+    const r = doctor(level0({ 'secrets/dev.env.tpl': tpl }, config), { probes: tools() });
+    expect(pick(r).backend).toEqual({ status: 'PASS', note: sb.op });
+    expect(pick(r).targets).toEqual({ status: 'PASS', note: st.op.ok('dev') });
+    const literal = doctor(level0({ 'secrets/dev.env.tpl': `${tpl}# API_TOKEN=tok-old\n` }, config), { probes: tools() });
+    expect(literal['secrets.targets']).toEqual({ status: 'FAIL', note: st.op.literal('dev', 'secrets/dev.env.tpl', [3]) });
+    expect(doctor(level0({}, config), { probes: tools(['op']) })['secrets.backend']).toEqual({
+      status: 'SKIP',
+      note: sb.needsTool('op', 'run', messages.secrets.op.install),
+    });
+  });
+
+  describe('keychain', () => {
+    const config = { secrets: { backend: 'keychain', id: 'app', targets: { dev: { names: NAMES, proof } } } };
+    const held = (status) => (cmd, args) => ({ status: args.at(-1) === 'API_TOKEN' ? status : 0, stdout: '', stderr: '' });
+
+    it('SKIPs off macOS; on macOS names the services and looks each name up by attributes', () => {
+      const root = level0({}, config);
+      expect(doctor(root, { probes: tools(), platform: 'linux' })['secrets.backend']).toEqual({
+        status: 'SKIP',
+        note: sb.platform('keychain'),
+      });
+      const calls = [];
+      const capture = (cmd, args, opts) => {
+        calls.push(args);
+        return held(44)(cmd, args, opts);
+      };
+      const r = doctor(root, { probes: tools([], { capture }), platform: 'darwin' });
+      expect(r['secrets.backend']).toEqual({ status: 'PASS', note: sb.keychain(['cookwright/app/dev']) });
+      expect(r['secrets.targets']).toEqual({ status: 'WARN', note: st.keychain.missing('dev', 'cookwright/app/dev', ['API_TOKEN']) });
+      expect(calls.every((a) => !a.includes('-g') && !a.includes('-w'))).toBe(true);
+    });
+
+    it('reads a budget spent inside inspect as a SKIP, the level rows measured first (disposition 69)', () => {
+      const capture = () => {
+        throw new TimedOut('security');
+      };
+      const repo = openDoctorRepo(level0({}, config), tools(), { home: TMP, env: ENV, platform: 'darwin' });
+      const r = Object.fromEntries(runChecks(repo, tools([], { capture })));
+      expect(r['secrets.targets']).toEqual({ status: 'SKIP', note: st.timedOut('security') });
+      expect(r['repo.node_modules'].status).toBe('PASS');
+      const names = Object.keys(r);
+      expect(names.indexOf('repo.node_modules')).toBeLessThan(names.indexOf('secrets.targets'));
+    });
+  });
+
+  describe('secrets.carriers', () => {
+    const carriers = (root, opts = {}) => doctor(root, opts)['secrets.carriers'];
+
+    it('WARNs an .envrc at the root or tracked anywhere, with or without a secrets key', () => {
+      expect(carriers(level0({ '.envrc': 'use flake\n' }))).toEqual({ status: 'WARN', note: sc.envrcTracked(['.envrc']) });
+      const loose = level0();
+      write(loose, '.envrc', 'use flake\n');
+      expect(carriers(loose)).toEqual({ status: 'WARN', note: sc.envrcRoot });
+      expect(carriers(level0({ 'apps/api/.envrc': 'x\n' }))).toEqual({ status: 'WARN', note: sc.envrcTracked(['apps/api/.envrc']) });
+    });
+
+    it("WARNs a declared or ambient name in doctor's environment, by name only", () => {
+      const root = level0({}, { packs: ['supabase'], secrets: { backend: 'age', targets: { dev: { names: NAMES, proof } } } });
+      const env = { ...ENV, API_TOKEN: 'a-stale-token-value', SUPABASE_DB_URL: 'postgresql://x', UNRELATED: '1' };
+      const got = carriers(root, { env });
+      expect(got).toEqual({ status: 'WARN', note: sc.exported(['API_TOKEN', 'SUPABASE_DB_URL']) });
+      expect(got.note).not.toMatch(/stale|postgresql/);
+    });
+
+    it('WARNs a line setting such a name in a shell rc file, comments skipped, names and files only', () => {
+      const root = level0({}, { packs: ['supabase'], secrets: { backend: 'age', targets: { dev: { names: NAMES, proof } } } });
+      const home = fs.mkdtempSync(path.join(TMP, 'home-'));
+      fs.writeFileSync(path.join(home, '.zshrc'), '# export API_TOKEN=old\nexport SUPABASE_DB_URL=postgresql://u:p@h/d\nexport PATH=/x\n');
+      fs.writeFileSync(path.join(home, '.zshenv'), '  API_TOKEN=$(op read op://v/i/f)\n');
+      const got = carriers(root, { home });
+      expect(got).toEqual({
+        status: 'WARN',
+        note: sc.rcLine([
+          ['API_TOKEN', '~/.zshenv'],
+          ['SUPABASE_DB_URL', '~/.zshrc'],
+        ]),
+      });
+      expect(got.note).not.toMatch(/postgresql|op read/);
+      expect(carriers(level0(), { home })).toEqual({ status: 'PASS', note: sc.ok });
     });
   });
 });
@@ -1028,7 +1257,7 @@ describe('packs and the pack rows', () => {
 
   it('has no pack row without a config, and a pack FAIL never moves the level line', () => {
     expect(Object.keys(doctor(level0({}, { hosts: ['gemini'] }))).some((k) => k.startsWith('pack.'))).toBe(false);
-    const rows = runChecks(openDoctorRepo(packed(['expo'], { 'AGENTS.md': agents() }), probes(), { home: TMP }), probes());
+    const rows = runChecks(openDoctorRepo(packed(['expo'], { 'AGENTS.md': agents() }), probes(), { home: TMP, env: ENV }), probes());
     expect(Object.fromEntries(rows)['pack.expo.rules'].status).toBe('FAIL');
     expect(levelLine(DEFAULTS, rows)).toBe('level 0 declared: complete');
   });
@@ -1143,7 +1372,7 @@ describe('repo.node_modules', () => {
   it('reads a tracked node_modules as drift at Level 0', () => {
     const root = level0();
     stageOnly(root, 'node_modules/left-pad/index.js');
-    const rows = runChecks(openDoctorRepo(root, probes(), { home: TMP }), probes());
+    const rows = runChecks(openDoctorRepo(root, probes(), { home: TMP, env: ENV }), probes());
     expect(levelLine(DEFAULTS, rows)).toBe('level 0 declared: drift, 1 piece(s) missing: repo.node_modules');
   });
 
@@ -1218,7 +1447,7 @@ describe('the readout', () => {
     out.length = 0;
     err.length = 0;
   });
-  const doc = (root, argv = [], over = {}) => main(argv, { cwd: root, home: TMP, probes: probes(over) });
+  const doc = (root, argv = [], over = {}) => main(argv, { cwd: root, home: TMP, env: ENV, probes: probes(over) });
 
   it('prints every check, the counts, the level line and the next level', () => {
     expect(doc(level0())).toBe(0);
@@ -1295,7 +1524,7 @@ describe('--hook', () => {
   afterEach(() => {
     out.length = 0;
   });
-  const hook = (root, over = {}) => main(['--hook'], { cwd: root, home: TMP, probes: probes(over) });
+  const hook = (root, over = {}) => main(['--hook'], { cwd: root, home: TMP, env: ENV, probes: probes(over) });
 
   it('prints exactly one line when everything passes', () => {
     expect(hook(level0())).toBe(0);
@@ -1325,7 +1554,7 @@ describe('--hook', () => {
 
   it('runs through the dispatcher, from a subdirectory', async () => {
     const root = level0({ 'src/x.txt': 'x' });
-    expect(await dispatch(['doctor', '--hook'], { cwd: path.join(root, 'src'), home: TMP, probes: probes() })).toBe(0);
+    expect(await dispatch(['doctor', '--hook'], { cwd: path.join(root, 'src'), home: TMP, env: ENV, probes: probes() })).toBe(0);
     expect(out).toEqual(['cookwright doctor: level 0 complete']);
   });
 });

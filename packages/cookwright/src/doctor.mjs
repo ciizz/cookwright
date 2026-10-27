@@ -17,12 +17,12 @@ import { PROBES } from './lib/probes.mjs';
 
 const m = messages.doctor;
 
-function doctor(argv, { cwd = process.cwd(), probes: over = {}, home } = {}) {
+function doctor(argv, { cwd = process.cwd(), probes: over = {}, home, env, platform } = {}) {
   const { pos, flags } = parseArgv(argv);
   if (pos.length || (flags.hook !== undefined && flags.hook !== true)) throw new Refusal(m.usage);
   onlyFlags(flags, ['hook']);
   const probes = { ...PROBES, ...over };
-  const repo = openDoctorRepo(cwd, probes, home ? { home } : {});
+  const repo = openDoctorRepo(cwd, probes, { ...(home && { home }), ...(env && { env }), ...(platform && { platform }) });
   if (!repo) throw new Refusal(m.noConfig(cwd));
   const rows = runChecks(repo, probes);
   for (const line of renderReport(repo.config, rows, { hook: flags.hook === true })) {
@@ -31,7 +31,7 @@ function doctor(argv, { cwd = process.cwd(), probes: over = {}, home } = {}) {
   return rows.some(([, r]) => r.status === FAIL) ? 1 : 0;
 }
 
-/** `io.probes` and `io.home` are the tests' seams; the bin passes neither. */
+/** `io.probes`, `io.home`, `io.env` and `io.platform` are the tests' seams; the bin passes none. */
 export function main(argv = [], io = {}) {
   const hook = argv.includes('--hook');
   try {

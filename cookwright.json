@@ -1,6 +1,6 @@
 {
   "$schema": "./packages/cookwright/schema/cookwright.schema.json",
-  "version": 3,
+  "version": 4,
   "level": 0,
   "hosts": [
     "claude"

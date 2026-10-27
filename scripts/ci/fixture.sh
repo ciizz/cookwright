@@ -166,7 +166,7 @@ init() {
   done
   node -e 'const c = JSON.parse(require("fs").readFileSync("cookwright.json", "utf8"));
     const names = (l) => l.map((x) => x.name).join(",");
-    process.exit(c.version === 3 && c.packs.join(",") === "expo,supabase"
+    process.exit(c.version === 4 && c.packs.join(",") === "expo,supabase"
       && names(c.hooks.docSync) === "expo:design-doc,supabase:data-doc"
       && names(c.gate.checks) === "standards,standards:types" ? 0 : 1)' \
     || fail "cookwright.json does not carry the packs, their doc-sync rules and gate checks"
@@ -367,7 +367,7 @@ rerun() {
   step "npx cookwright changelog --check, migrate, init again"
   npx cookwright changelog --check || fail "changelog --check exited non-zero"
   npx cookwright migrate | tee "$WORK/migrate.out" || fail "migrate exited non-zero"
-  expect "$WORK/migrate.out" "already at version 3" "migrate did not read version 3"
+  expect "$WORK/migrate.out" "already at version 4" "migrate did not read version 4"
   npx cookwright init >/dev/null || fail "a second init exited non-zero"
   [ -z "$(git status --porcelain)" ] || fail "a second init changed the tree"
 }

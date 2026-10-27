@@ -352,4 +352,27 @@ describe('init', () => {
     await initAge(s.ctx, { noPassphrase: true, yes: true });
     expect(fs.existsSync(identityPath({}, s.home))).toBe(true);
   });
+
+  it('removes only the empty directories it created, never a file another process put there', async () => {
+    const s = setup({ terminal: true });
+    const recipients = path.join(s.root, 'secrets/recipients.txt');
+    const id = identityPath({}, s.home);
+    const fail = { ...s.ctx, confirm: async () => (fs.chmodSync(recipients, 0o400), true) };
+    expect((await initAge(fail, { noPassphrase: true, yes: false }).catch((e) => e)).code).toBe('EACCES');
+    expect(fs.existsSync(path.join(s.home, '.config'))).toBe(false);
+    const other = path.join(path.dirname(id), 'other.txt');
+    const original = fs.writeFileSync;
+    fs.writeFileSync = (file, ...rest) => {
+      if (file === id) original(other, 'not ours');
+      return original(file, ...rest);
+    };
+    try {
+      expect((await initAge(fail, { noPassphrase: true, yes: false }).catch((e) => e)).code).toBe('EACCES');
+    } finally {
+      fs.writeFileSync = original;
+      fs.chmodSync(recipients, 0o644);
+    }
+    expect(fs.existsSync(id)).toBe(false);
+    expect(fs.readFileSync(other, 'utf8')).toBe('not ours');
+  });
 });

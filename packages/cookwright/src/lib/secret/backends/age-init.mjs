@@ -6,8 +6,8 @@
 // yet, its nearest existing directory inside no work tree by realpath, the
 // recipients file committed and well formed when present, the secrets paths not
 // ignored by git, both places writable, a terminal for age's passphrase prompt, and
-// consent (or `--yes`). A failure after the identity was written removes it, so a
-// retry starts clean. The identity is written binary (`age -p -o`, never `-a`), mode
+// consent (or `--yes`). A failure after the identity was written removes it, and
+// the directories init created while they are empty, so a retry starts clean. The identity is written binary (`age -p -o`, never `-a`), mode
 // 600 in a directory created 700, so its header says it is passphrase-protected
 // (disposition 24); `--no-passphrase` writes age-keygen's key as it is.
 
@@ -122,6 +122,27 @@ function writeIdentity(file, key, ctx, noPassphrase) {
   if (!isPassphraseProtected(file)) throw new Refused(a.notProtected);
 }
 
+/** The directories `mkdir -p dir` would create, deepest first. */
+function missingDirs(dir) {
+  const out = [];
+  for (let d = dir; !fs.existsSync(d) && path.dirname(d) !== d; d = path.dirname(d)) out.push(d);
+  return out;
+}
+
+/**
+ * Remove `dirs` (deepest first), each only while empty, never recursively: a file
+ * another process put there meanwhile is left, with its directory (finding 2).
+ */
+function removeEmpty(dirs) {
+  for (const dir of dirs) {
+    try {
+      fs.rmdirSync(dir);
+    } catch {
+      return;
+    }
+  }
+}
+
 /** `publicKey` appended to the recipients file, created with it when absent. */
 function appendRecipient(file, publicKey) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -137,7 +158,7 @@ export async function initAge(ctx, flags) {
   const plan = preflight(ctx, flags);
   await consent(plan, ctx, flags);
   const { key, publicKey } = generate(ctx);
-  const created = !fs.existsSync(path.dirname(plan.identity));
+  const created = missingDirs(path.dirname(plan.identity));
   fs.mkdirSync(path.dirname(plan.identity), { recursive: true, mode: 0o700 });
   try {
     writeIdentity(plan.identity, key, ctx, flags.noPassphrase);
@@ -147,7 +168,7 @@ export async function initAge(ctx, flags) {
       fs.rmSync(plan.identity, { force: true });
       ctx.say(a.removed(plan.identity));
     }
-    if (created) fs.rmSync(path.dirname(plan.identity), { recursive: true, force: true });
+    removeEmpty(created);
     throw err;
   }
   ctx.say(a.wroteIdentity(plan.identity, !flags.noPassphrase));

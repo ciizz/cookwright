@@ -182,7 +182,7 @@ These three rows sit beside the levels: no level requires them, and with no `sec
 | status | note | remedy |
 |---|---|---|
 | PASS | `no .envrc, and no secret name exported here or set in a shell rc file` | at the end (see "At the end") |
-| WARN | `tracked .envrc: …`, `.envrc at the root …` | **stop at**: never open the file; say direnv exports it into every command, and that moving what it sets into a backend is the developer's, by the secrets guide |
+| WARN | `tracked .envrc: …`, `.envrc above the config root: …`, `.envrc at the root …` | **stop at**: never open the file; say direnv exports it into every command, and that moving what it sets into a backend is the developer's, by the secrets guide |
 | WARN | `exported in this environment: …` | **stop at**: never print the value; say the developer unsets it, and removes it where their shell sets it (a part naming an rc file says where) |
 | WARN | `a line setting … in ~/… (…)` | **stop at**: never open or edit a file in the home directory; the developer removes that line |
 

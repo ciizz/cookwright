@@ -243,6 +243,8 @@ const doctor = {
     ok: 'no .envrc, and no secret name exported here or set in a shell rc file',
     envrcTracked: (files) => `tracked .envrc: ${list(files)} (direnv exports it into every command; run injects into one)`,
     envrcRoot: '.envrc at the root (direnv exports it into every command; run injects into one)',
+    envrcAbove: (files) =>
+      `.envrc above the config root: ${list(files)} (direnv exports it into every command below it; run injects into one)`,
     exported: (names) => `exported in this environment: ${list(names)} (unset them; run injects each into one child)`,
     rcLine: (hits) =>
       `a line setting ${list(hits.map(([name, file]) => `${name} in ${file}`))} (move it out; run injects each into one child)`,

@@ -872,6 +872,20 @@ describe('secrets.backend, secrets.targets and secrets.carriers (stage-5 plan §
       expect(carriers(level0({ 'apps/api/.envrc': 'x\n' }))).toEqual({ status: 'WARN', note: sc.envrcTracked(['apps/api/.envrc']) });
     });
 
+    it('reads .envrc from the top for a config root below it: tracked above or under the root, untracked above or at it, top-relative (review:surface finding 1)', () => {
+      const top = level0({ '.envrc': 'use flake\n', 'apps/web/.envrc': 'x\n' });
+      const config = { version: CONFIG_VERSION, gate: GATE };
+      commit({ root: top }, { 'apps/mobile/cookwright.json': JSON.stringify(config), 'apps/mobile/ios/.envrc': 'x\n' }, 'nested');
+      const cwd = path.join(top, 'apps/mobile');
+      expect(carriers(top, { cwd })).toEqual({ status: 'WARN', note: sc.envrcTracked(['.envrc', 'apps/mobile/ios/.envrc']) });
+      write(top, 'apps/.envrc', 'x\n');
+      write(top, 'apps/mobile/.envrc', 'x\n');
+      expect(carriers(top, { cwd })).toEqual({
+        status: 'WARN',
+        note: [sc.envrcTracked(['.envrc', 'apps/mobile/ios/.envrc']), sc.envrcAbove(['apps/.envrc']), sc.envrcRoot].join('; '),
+      });
+    });
+
     it("WARNs a declared or ambient name in doctor's environment, by name only", () => {
       const root = level0({}, { packs: ['supabase'], secrets: { backend: 'age', targets: { dev: { names: NAMES, proof } } } });
       const env = { ...ENV, API_TOKEN: 'a-stale-token-value', SUPABASE_DB_URL: 'postgresql://x', UNRELATED: '1' };

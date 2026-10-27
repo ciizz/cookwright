@@ -210,6 +210,7 @@ const QUOTED = [
   ['no .envrc, and no secret name exported here or set in a shell rc file', d.secretsCarriers.ok],
   ['tracked .envrc: ', d.secretsCarriers.envrcTracked(['.envrc'])],
   ['.envrc at the root ', d.secretsCarriers.envrcRoot],
+  ['.envrc above the config root: ', d.secretsCarriers.envrcAbove(['.envrc'])],
   ['exported in this environment: ', d.secretsCarriers.exported(['A'])],
   ['a line setting ', d.secretsCarriers.rcLine([['A', '~/.zshrc']])],
   [' in ~/', d.secretsCarriers.rcLine([['A', '~/.zshrc']])],

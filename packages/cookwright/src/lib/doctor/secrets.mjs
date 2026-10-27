@@ -212,16 +212,48 @@ function rcHits(home, names) {
   );
 }
 
-/** The `.envrc` parts: tracked anywhere in the repo, or at the root untracked. */
+/**
+ * The directories whose `.envrc` direnv can load for a command run at the config
+ * root, top-relative: the work tree's top, each directory down to the root, the root
+ * last (`''` is the top). Outside a work tree, `null`: the root is looked at alone.
+ */
+function envrcDirs(repo) {
+  if (!repo.workTree || !repo.top) return null;
+  if (repo.root === repo.top) return [''];
+  const rel = topRel(repo.root, repo.top, '.');
+  if (rel === null) return null;
+  const parts = rel.split('/');
+  return ['', ...parts.map((_, i) => parts.slice(0, i + 1).join('/'))];
+}
+
+/** The `.envrc` of a top-relative directory (`''` is the top). */
+const envrcAt = (dir) => (dir ? `${dir}/.envrc` : '.envrc');
+
+/** Tracked `.envrc` files, top-relative: in each of `dirs`, and anywhere under the root. */
+function trackedEnvrc(repo, dirs) {
+  const under = envrcAt(dirs.at(-1)).replace(/\.envrc$/, '*/.envrc');
+  const specs = [...dirs.map((dir) => `:(literal)${envrcAt(dir)}`), under];
+  const out = gitRun(repo.top, ['ls-files', '-z', '--', ...specs]);
+  if (out.status !== 0) throw new Error(messages.probeFailed('git ls-files', out.stderr.trim()));
+  return out.stdout.split('\0').filter(Boolean);
+}
+
+/**
+ * The `.envrc` parts (finding 1 of review:surface): tracked at the work tree's top,
+ * in a directory above the config root or anywhere under it; untracked at the top,
+ * above the root or at the root. Paths are top-relative.
+ */
 function envrcParts(repo, probes) {
-  let tracked = [];
-  if (repo.workTree) {
-    const out = gitRun(repo.root, ['ls-files', '-z', '--', '.envrc', '*/.envrc']);
-    if (out.status !== 0) throw new Error(messages.probeFailed('git ls-files', out.stderr.trim()));
-    tracked = out.stdout.split('\0').filter(Boolean);
-  }
-  const atRoot = !tracked.includes('.envrc') && probes.rootFiles(repo.root).includes('.envrc');
-  return [tracked.length && c.envrcTracked(tracked), atRoot && c.envrcRoot].filter(Boolean);
+  const dirs = envrcDirs(repo);
+  if (!dirs) return probes.rootFiles(repo.root).includes('.envrc') ? [c.envrcRoot] : [];
+  const root = dirs.at(-1);
+  const tracked = trackedEnvrc(repo, dirs);
+  const loose = dirs.filter(
+    (dir) => !tracked.includes(envrcAt(dir)) && probes.rootFiles(path.join(repo.top, dir)).includes('.envrc'),
+  );
+  const atRoot = loose.includes(root);
+  const above = loose.filter((dir) => dir !== root).map(envrcAt);
+  return [tracked.length && c.envrcTracked(tracked), above.length && c.envrcAbove(above), atRoot && c.envrcRoot].filter(Boolean);
 }
 
 /**

@@ -144,9 +144,11 @@ install_package() {
     "$ESLINT" "$ESLINT_CONFIG_EXPO" "$I18NEXT_PLUGIN"
 }
 
+# init ends with doctor's readout, so it runs isolated like doctor (stage-5
+# disposition 63): the machine's own exports never reach the readout.
 init() {
   step "npx cookwright init"
-  npx cookwright init | tee "$WORK/init.out" || fail "init exited non-zero"
+  isolated npx cookwright init | tee "$WORK/init.out" || fail "init exited non-zero"
   local row
   for row in 'wrote +cookwright\.json' 'updated +AGENTS\.md' 'kept +CLAUDE\.md' \
     'updated +\.claude/settings\.json' 'wrote +\.claude/skills/setup' \

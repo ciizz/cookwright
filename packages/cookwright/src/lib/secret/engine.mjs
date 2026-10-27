@@ -17,7 +17,8 @@
 // (disposition 13). SIGINT is ignored while the child runs (the terminal delivers
 // it to the child); SIGTERM and SIGHUP are forwarded to it (disposition 66). `run`
 // returns only once the child has exited and both its output pipes have closed
-// (disposition 59).
+// (disposition 59), or, after the child has exited, on a SIGTERM or SIGHUP, which
+// then ends the wait on a descendant holding the pipes.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -291,8 +292,7 @@ const exitOf = (code, signal) => (signal ? 128 + (os.constants.signals[signal] ?
  */
 export function runChild(spawnChild, [cmd, ...args], { env, cwd, list, stdout, stderr }) {
   const child = spawnChild(cmd, args, { env, cwd, stdio: ['inherit', 'pipe', 'pipe'] });
-  const forward = (signal) => () => child.kill(signal);
-  const handlers = { SIGINT: () => {}, SIGTERM: forward('SIGTERM'), SIGHUP: forward('SIGHUP') };
+  const { handlers, cut } = signalHandlers(child);
   for (const [signal, handler] of Object.entries(handlers)) process.on(signal, handler);
   let failed = null;
   child.on('error', (err) => {
@@ -300,14 +300,41 @@ export function runChild(spawnChild, [cmd, ...args], { env, cwd, list, stdout, s
   });
   const closed = new Promise((resolve) => child.on('close', (code, signal) => resolve({ code, signal })));
   const pipes = [redacted(child.stdout, list, stdout), redacted(child.stderr, list, stderr)];
-  return Promise.all([closed, ...pipes]).then(([{ code, signal }]) => {
-    for (const [sig, handler] of Object.entries(handlers)) process.off(sig, handler);
+  const done = Promise.all([closed, ...pipes]).then(([{ code, signal }]) => {
     if (failed && child.pid === undefined) {
       stderr.write(`${r.refused(r.notStarted(cmd, failed.code ?? failed.message))}\n`);
       return NOT_STARTED_EXIT;
     }
     return exitOf(code, signal);
   });
+  return Promise.race([done, cut]).finally(() => {
+    for (const [sig, handler] of Object.entries(handlers)) process.off(sig, handler);
+  });
+}
+
+/**
+ * The handlers `run` holds while it waits: SIGINT ignored, SIGTERM and SIGHUP
+ * forwarded to the child while it runs. Once it has exited, a descendant may still
+ * hold the output pipes open; SIGTERM or SIGHUP then ends the wait instead,
+ * destroying both pipes, and `cut` resolves to 128 + n (stage-5 review:whole
+ * finding 8).
+ */
+function signalHandlers(child) {
+  let exited = false;
+  let end;
+  const cut = new Promise((resolve) => {
+    end = resolve;
+  });
+  child.on('exit', () => {
+    exited = true;
+  });
+  const onSignal = (signal) => () => {
+    if (!exited) return child.kill(signal);
+    child.stdout?.destroy();
+    child.stderr?.destroy();
+    return end(exitOf(null, signal));
+  };
+  return { handlers: { SIGINT: () => {}, SIGTERM: onSignal('SIGTERM'), SIGHUP: onSignal('SIGHUP') }, cut };
 }
 
 /** `run <name> -- <child…>`: the banner on stderr, then the child's exit code. */

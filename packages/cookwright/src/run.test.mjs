@@ -321,7 +321,7 @@ describe('run: signals', () => {
   const PROBES = pathToFileURL(path.join(import.meta.dirname, 'lib/probes.mjs')).href;
 
   /** `run dev -- node -e <child>` in its own process with the fake backend; resolves `{ code, err }`. */
-  function outer(root, child, send) {
+  function outer(root, child, send, delay = 0) {
     const script = [
       `import { main } from ${JSON.stringify(RUN)};`,
       `import { spawnChild } from ${JSON.stringify(PROBES)};`,
@@ -336,7 +336,8 @@ describe('run: signals', () => {
       p.stderr.on('data', (d) => {
         err += d;
         if (err.includes('ready') && send) {
-          p.kill(send);
+          const signal = send;
+          setTimeout(() => p.kill(signal), delay);
           send = null;
         }
       });
@@ -349,6 +350,20 @@ describe('run: signals', () => {
     const { code, err } = await outer(root, "console.error('ready'); setTimeout(() => {}, 10000)", 'SIGTERM');
     expect(code).toBe(143);
     expect(err).toContain('ready');
+  });
+
+  it('ends the wait with 128 + 15 on a SIGTERM once the child has exited and a descendant holds its output', async () => {
+    const root = repo();
+    const child = [
+      "const { spawn } = require('node:child_process');",
+      "spawn(process.execPath, ['-e', 'setTimeout(() => {}, 4000)'], { stdio: ['ignore', 'inherit', 'inherit'] }).unref();",
+      "console.error('ready');",
+    ].join(' ');
+    const start = Date.now();
+    const { code, err } = await outer(root, child, 'SIGTERM', 500);
+    expect(code).toBe(143);
+    expect(err).toContain('ready');
+    expect(Date.now() - start).toBeLessThan(3500);
   });
 
   it('ignores a SIGINT sent to cookwright alone; the child ends on its own', async () => {

@@ -177,8 +177,19 @@ describe('set with a fake security', () => {
   it('removes an item that does not read back as entered, and refuses', async () => {
     const fake = fakeSecurity({ mangle: (v) => v.slice(0, 3) });
     expect(await refusal(() => set('dev', 'DB_URL', ctxOf(fake)))).toBe(k.readBack('DB_URL', SERVICE));
-    expect(fake.calls.at(-1).args).toEqual(['delete-generic-password', '-s', SERVICE, '-a', 'DB_URL']);
+    expect(fake.calls.at(-2).args).toEqual(['delete-generic-password', '-s', SERVICE, '-a', 'DB_URL']);
+    expect(fake.calls.at(-1).args).toEqual(['find-generic-password', '-s', SERVICE, '-a', 'DB_URL']);
     expect(fake.store.size).toBe(0);
+  });
+
+  it('says the mismatched item remains, with the status, when the deletion fails', async () => {
+    const fake = fakeSecurity({ mangle: (v) => v.slice(0, 3) });
+    const capture = (cmd, args, opts) =>
+      args[0] === 'delete-generic-password' ? { status: 51, stdout: '', stderr: '' } : fake.capture(cmd, args, opts);
+    const ctx = ctxOf(fake, { probes: { ...PROBES, capture } });
+    expect(await refusal(() => set('dev', 'DB_URL', ctx))).toBe(k.readBackKept('DB_URL', SERVICE, 51));
+    expect(k.readBackKept('DB_URL', SERVICE, 51)).not.toContain('nothing kept');
+    expect(fake.store.size).toBe(1);
   });
 
   it('refuses init with one line, runs on macOS only, and names its service on the banner', async () => {

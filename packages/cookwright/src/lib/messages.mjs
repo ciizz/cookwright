@@ -884,6 +884,8 @@ const secrets = {
       `the value is too long for the keychain backend: security reads one command of at most 4096 bytes, which leaves ${room} bytes for this value (a \\ or " counts twice); nothing written`,
     readBack: (name, service) =>
       `the keychain returned a different value for ${name} than the one entered; the item under ${service} is removed, nothing kept`,
+    readBackKept: (name, service, status) =>
+      `the keychain returned a different value for ${name} than the one entered, and removing it failed (security delete-generic-password exited ${status}): the item under ${service}, account ${name}, remains with the wrong value; unlock the keychain and set it again, or delete it in Keychain Access`,
     notText: (name) => `${name}'s keychain item is not UTF-8 text`,
     nul: (name) => `${name}'s keychain item holds a NUL byte`,
     noInit: `the keychain backend needs no init: set each name with ${CLI} secrets set <target> <NAME>`,

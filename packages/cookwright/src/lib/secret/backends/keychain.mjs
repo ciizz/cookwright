@@ -98,8 +98,8 @@ export function resolve(name, ctx) {
 
 /**
  * `set`: `secret` of target `name` written through `security -i` (disposition 60),
- * then read back; a value that does not come back as entered is removed. Returns
- * the service, for the command's line.
+ * then read back; a value that does not come back as entered is removed, or the
+ * refusal says it remains. Returns the service, for the command's line.
  */
 export async function set(name, secret, ctx) {
   if (!ctx.config.secrets.targets[name].names.includes(secret)) throw new Refused(m.undeclared(secret, name));
@@ -111,12 +111,21 @@ export async function set(name, secret, ctx) {
   }
   const res = ctx.probes.capture('security', ['-i'], { input: line, env: ctx.env });
   if (res.status !== 0) throw new Refused(k.failed('-i add-generic-password', res.status));
-  if (sha(readItem(service, secret, ctx)) !== sha(value)) {
-    const args = ['delete-generic-password', '-s', service, '-a', secret, ...keychainArgs(ctx)];
-    ctx.probes.capture('security', args, { env: ctx.env });
-    throw new Refused(k.readBack(secret, service));
-  }
+  if (sha(readItem(service, secret, ctx)) !== sha(value)) throw new Refused(removeMismatched(service, secret, ctx));
   return { service };
+}
+
+/**
+ * The refusal after a read-back mismatch: the item deleted, then looked up by its
+ * attributes to confirm it is gone. A deletion that leaves it says so, with the
+ * status, never claiming nothing was kept (stage-5 review:whole finding 2).
+ */
+function removeMismatched(service, secret, ctx) {
+  const item = ['-s', service, '-a', secret, ...keychainArgs(ctx)];
+  const del = ctx.probes.capture('security', ['delete-generic-password', ...item], { env: ctx.env });
+  const left = ctx.probes.capture('security', ['find-generic-password', ...item], { env: ctx.env });
+  if (left.status === NOT_FOUND) return k.readBack(secret, service);
+  return k.readBackKept(secret, service, del.status);
 }
 
 /**

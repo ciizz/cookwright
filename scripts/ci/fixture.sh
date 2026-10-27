@@ -188,12 +188,13 @@ init() {
 # import and measures without claude on PATH (measured 2026-10-25 with both
 # hidden), and that PASS is asserted too.
 expect_level() {
-  expect "$WORK/doctor.out" "^PASS +host\.rules +CLAUDE\.md imports @AGENTS\.md$" \
+  local out="${1:-$WORK/doctor.out}"
+  expect "$out" "^PASS +host\.rules +CLAUDE\.md imports @AGENTS\.md$" \
     "host.rules does not read the scaffold's CLAUDE.md import"
   if command -v gitleaks >/dev/null 2>&1; then
-    expect "$WORK/doctor.out" "^level 0 declared: complete$" "level 0 is not complete"
+    expect "$out" "^level 0 declared: complete$" "level 0 is not complete"
   else
-    expect "$WORK/doctor.out" "^level 0 declared: not verified: tools\.gitleaks \(see their lines\)$" \
+    expect "$out" "^level 0 declared: not verified: tools\.gitleaks \(see their lines\)$" \
       "gitleaks is absent but the level line does not name exactly tools.gitleaks as not verified"
   fi
 }
@@ -235,6 +236,9 @@ doctor() {
   isolated npx cookwright doctor | tee "$WORK/doctor.out" || fail "doctor exited non-zero"
   expect_level
   expect_types_row
+  expect "$WORK/doctor.out" "^PASS +secrets\.backend +no backend \(Level 2 off\)$" "secrets.backend is not PASS with no secrets key"
+  expect "$WORK/doctor.out" "^PASS +secrets\.targets +no targets declared$" "secrets.targets is not PASS with no secrets key"
+  expect "$WORK/doctor.out" "^PASS +secrets\.carriers +no \.envrc, " "secrets.carriers is not PASS in an empty HOME"
   if command -v gitleaks >/dev/null 2>&1; then
     expect "$WORK/doctor.out" "^PASS +tools\.gitleaks " "gitleaks is on PATH but tools.gitleaks is not PASS"
   fi
@@ -458,6 +462,38 @@ secrets_runs() {
   rm secrets/prod.env.age
 }
 
+# The summary line's counts, "total pass fail warn skip", of a doctor readout.
+counts() {
+  sed -nE 's/^([0-9]+) checks — ([0-9]+) PASS, ([0-9]+) FAIL, ([0-9]+) WARN, ([0-9]+) SKIP$/\1 \2 \3 \4 \5/p' "$1"
+}
+
+# The second doctor run (stage-5 dispositions 37, 63): the three secrets rows on
+# the age backend, measured as a fresh user's shell would see them. The identity
+# has no passphrase, prod has no ciphertext, and a line planted in the scratch
+# HOME's .zshrc sets SUPABASE_DB_URL, which the row names without its value.
+# Every other row reads as in the first run, so the counts are the first run's
+# with three PASS rows turned WARN.
+secrets_doctor() {
+  step "npx cookwright doctor, the secrets rows"
+  printf 'export SUPABASE_DB_URL=postgresql://planted-value\n' > "$WORK/home/.zshrc"
+  isolated npx cookwright doctor > "$WORK/doctor2.out" || fail "the second doctor exited non-zero"
+  cat "$WORK/doctor2.out"
+  expect "$WORK/doctor2.out" "^WARN +secrets\.backend +the age identity .*/identity\.age has no passphrase \(weaker: " \
+    "secrets.backend does not WARN the identity without a passphrase"
+  expect "$WORK/doctor2.out" "^WARN +secrets\.targets +dev: ciphertext and recipients tracked; prod: no ciphertext \(secrets/prod\.env\.age\): " \
+    "secrets.targets does not name dev as tracked and prod as without a ciphertext"
+  expect "$WORK/doctor2.out" "^WARN +secrets\.carriers +a line setting SUPABASE_DB_URL in ~/\.zshrc " \
+    "secrets.carriers does not name the planted .zshrc line"
+  grep -q "planted-value" "$WORK/doctor2.out" && fail "doctor printed the planted line's value"
+  local total pass failed warned skipped
+  read -r total pass failed warned skipped <<< "$(counts "$WORK/doctor.out")"
+  [ -n "$total" ] || fail "the first doctor run printed no counts"
+  local want="$total checks — $((pass - 3)) PASS, $failed FAIL, $((warned + 3)) WARN, $skipped SKIP"
+  grep -qxF "$want" "$WORK/doctor2.out" || fail "the second doctor run's counts are not: $want"
+  expect_level "$WORK/doctor2.out"
+  rm "$WORK/home/.zshrc"
+}
+
 secrets_step() {
   step "npx cookwright secrets init, secrets set, run (age)"
   local tool
@@ -479,6 +515,7 @@ secrets_step() {
   V_SERVICE_ROLE_KEY="fixture-service-role-$RANDOM$RANDOM$RANDOM"
   secrets_init
   secrets_set
+  secrets_doctor
   secrets_runs
   unset COOKWRIGHT_AGE_IDENTITY
   [ -z "$(git status --porcelain)" ] || fail "the tree is dirty after the secrets step"

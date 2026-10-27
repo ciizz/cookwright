@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 1,
+  "revision": 55,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -173,10 +173,396 @@
       "runs": []
     }
   ],
-  "gates": [],
+  "gates": [
+    {
+      "commit": "6d7452bb1eb36bcee14274b54d1091f2b4cbdd39",
+      "at": "2026-10-27T13:35:53.356Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 46263
+        }
+      ]
+    }
+  ],
   "findings": [],
   "reports": [],
   "qaRounds": [],
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-10-27T13:36:33.317Z",
+      "actor": "developer",
+      "source": "kickoff 2026-10-26, decision 1",
+      "text": "Secrets sit beside the levels, not on the ladder: secrets is a config key orthogonal to the level, as packs is, measured by its own secrets.* rows whatever the level reads; Level 2's requirement list claims those rows when Level 2 opens. No charter amendment.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:33.584Z",
+      "actor": "developer",
+      "source": "kickoff 2026-10-26, decision 2",
+      "text": "The age ciphertext is tracked: secrets/<target>.env.age and secrets/recipients.txt are committed, so a clone plus the identity is a working machine. The identity, passphrase-protected and outside the repo, is the only secret.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:33.883Z",
+      "actor": "developer",
+      "source": "kickoff 2026-10-26, decision 3",
+      "text": "Proof is required to read PASS: a target without a proof is WARN in doctor and unproved on the banner (rule 2: a chosen state, with the reason).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:34.140Z",
+      "actor": "developer",
+      "source": "plan review 2026-10-27",
+      "text": "Plan approved with five P2 amendments (dispositions 42 to 46) and the two answers to §12 (dispositions 47, 48); dispositions 1 to 41, the residue in §11 and the five-session split accepted as planned.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:34.399Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 1",
+      "text": "Rule 3: run splits its argv at the first -- before parseArgv; everything after it is the child's verbatim, flags included; no -- or nothing after it is the usage, exit 2. A target name is ^[a-z][a-z0-9-]*$, a secret name ^[A-Z][A-Z0-9_]*$, both validated by the config.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:34.667Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 2",
+      "text": "Rules 3 and 7: a proof names the names it covers, never infers them by value shape. { kind: supabase, ref, names? } defaults names to those of SUPABASE_URL and DB_URL the target declares (invalid when neither); { kind: host, host, names } requires names. A covered name must be declared; a covered value that does not satisfy the kind is a mismatch, never skipped; a proof covering zero names is invalid.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:34.930Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 3",
+      "text": "Rule 2: a target without proof is secrets.targets WARN and unproved on the banner; a declared proof that fails refuses the run with the kind's reason (the name, the expected identifier, the anchor that failed; a found ref only when the value parsed as a *.supabase.co URL; never a value, host or password).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:35.193Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 4",
+      "text": "Rule 1 governs hooks; run is the user's own command and refusing is the product: a missing tool, wrong platform, missing name, a literal in a template, a failed proof, a malformed resolved line, a value on the child's command line each print one line naming the fix, exit 125 (disposition 47), nothing spawned. The hooks are unchanged.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:35.456Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 5",
+      "text": "Rule 3: redaction costs the child its output terminal, said not weakened: stdin inherited, stdout and stderr piped through the redactor (no TTY on them: no colour unless forced, no pager), the banner says so once. Redacted: every injected value, its encodeURIComponent form, and for a URL-shaped value a password of 8+ characters alone, decoded and encoded, each replaced by <NAME>. The guide says these are the forms covered.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:35.733Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 6",
+      "text": "Rules 5 and 7: secrets/ is a fixed directory at the config root; the ciphertext is armored (age -a), text, through the pre-commit scan like any file. The identity lives at $XDG_CONFIG_HOME/cookwright/identity.age (~/.config when unset) or COOKWRIGHT_AGE_IDENTITY, never under the work tree judged by realpath: secrets init refuses such a path and doctor FAILs it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:36.032Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 7",
+      "text": "Rule 3: doctor never prompts. 1password: the template is parsed. keychain: items found by attributes (find-generic-password -s -a, no -w), present by name; whether that can raise the unlock dialog on a locked keychain is measured in QA and the row reads not measured if it can. age: the three files exist and are tracked; the identity header (age-encryption.org/v1) decides passphrase-protected else WARN naming the upgrade; the note never interpolates the line; nothing is decrypted.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:36.289Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 8",
+      "text": "Rule 9: no dependency. Echo-off input is setRawMode on a terminal stdin; no pseudo-terminal for the child.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:36.542Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 9",
+      "text": "Rule 4: backends behind one interface in src/lib/secrets/backends/, reaching their tools only through two new probes: capture (synchronous runBounded with input; budget-bounded inside doctor, 120 s cap outside, uncapped when the call prompts on a terminal) and spawnChild (asynchronous spawn, never shell: true). The engine is tested with a fake backend and fake probes; each tool once for real.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:36.803Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 10",
+      "text": "Rule 7, deviating from the kickoff's keychain sentence: security add-generic-password takes the value only as an argument or through its own prompt, so secrets set on keychain runs it with -w last and the terminal inherited; the value never reaches cookwright. For age, secrets set reads from a terminal prompt with echo off, or one line from stdin with --stdin (a visible flag); without either it refuses. Never from an argument. secrets init asks for consent, pipes the key through age -p -o <identity> (binary), captures age's stderr and refuses on an autogenerated passphrase; --no-passphrase writes the key as generated, mode 600, the WARN state.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:37.074Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 11",
+      "text": "Rule 6: E-015 closes here. secrets.carriers reads .envrc tracked or at the root, any declared or ambient name present in doctor's own environment, and a line setting such a name in ~/.zshenv, ~/.zshrc, ~/.zprofile, ~/.bashrc, ~/.bash_profile, ~/.profile (names and file names only; comments skipped). It guards repo.config and repo.workTree itself. With no secrets key it still checks .envrc.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:37.330Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 12",
+      "text": "Rule 3: the keychain backend's real test uses a throwaway keychain (create, unlock, no auto-lock, in a scratch dir, deleted in afterAll, a vitest timeout) through an optional keychain argument the product never passes; items are added by the test with -w <value> <keychain> (test-only); resolve and inspect exercised; set's prompted path is the developer's QA. npm test never touches a login keychain.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:37.616Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 13",
+      "text": "Rule 3: run's exit is the child's status; 128 + signal number on a signal; 127 when the command could not be spawned; 125 for a refusal before spawn. cookwright ignores SIGINT and SIGTERM while the child runs, waits for it, sets process.exitCode and lets the loop drain; after exit the pipes drain for at most 200 ms then end(). The banner goes to stderr. The child's cwd is process.cwd().",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:37.917Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 14",
+      "text": "Rules 2 and 3: the child's environment is the inherited one with every declared name of every target, every ambient name, and any variable whose value equals a resolved value removed, then the target's values added; each removed name is on the banner as dropped from the environment. cookwright's own process.env is left as inherited; values live in one Map until spawn.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:38.175Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 15",
+      "text": "Rule 3: a 1Password template line is NAME=op://<vault>/<item>/[<section>/]<field> with each segment [A-Za-z0-9 ._-]+ (no $, { or }), a blank line, or a # comment that does not look like NAME=; any other line is a literal: doctor FAILs and run refuses naming the line number, never the line. op inject -f -i <tpl> runs with the scrubbed environment. Output parsed as NAME=value at the first =, no trimming; an empty value is missing; a malformed line is refused by number.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:38.430Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 16",
+      "text": "Rule 5: the 3→4 migration changes nothing but the version (outcome secretsNone); freshConfig writes no secrets key.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:38.688Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 17",
+      "text": "Rule 3: secrets.backend reads PASS no backend (Level 2 off) and secrets.targets PASS no targets declared when secrets is absent, measured facts, so the three rows are static (22 rows on this repo).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:39.119Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 18",
+      "text": "Rules 3 and 4: proof kinds are a registry: core host plus proofs from each declared pack's manifest (data and pure functions importing nothing). The config validates proof.kind against host and the declared packs' kinds, one home, as it validates pack rules; an unknown kind is an invalid config naming the pack that has it.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:39.397Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 19",
+      "text": "Rule 3: the supabase kind is the origin's anchored check with the kickoff's <role>.<ref>: project URL https://<ref>.supabase.co; database URL names the ref as the pooler username ^[a-z_][a-z0-9_]*\\.<ref>$ on a host ending in .pooler.supabase.com, or as the direct host db.<ref>.supabase.co; when both appear they must agree; userinfo split at the last @, never by new URL. The host kind compares new URL(value).host with the declared host canonicalised the same way. A ref is ^[a-z]{20}$.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:39.690Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 20",
+      "text": "Rule 7: nothing in the stage prints a value: tests assert on length or sha256; the fixture's synthetic values are asserted by length through the child; the closeout records the 1Password run's banner only.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:40.010Z",
+      "actor": "orchestrator",
+      "source": "plan §2 disposition 21",
+      "text": "Rule 7: before spawning, run checks every argument after -- for a needle as a substring (the value and its encoded form); a match refuses naming the name and the argument's position.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:40.290Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security) finding, plan §2 disposition 22",
+      "text": "Rule 7: the argv check's needles are the resolved values and the inherited values of every declared and ambient name (the ones childEnv drops), so -- psql \"$DB_URL\" after a stale prod export is refused for the dev run; an argument of the shape <scheme>://<user>:<password>@ is refused regardless, loopback hosts excepted (disposition 43).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:40.552Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security) finding, plan §2 disposition 23",
+      "text": "Rule 7: secrets set and secrets init's append refuse when secrets/recipients.txt is untracked or differs from HEAD; every line is age1[a-z0-9]{58} or a comment, an AGE-SECRET-KEY- line refused; the recipient count and each key's last eight characters are printed; secrets.targets WARNs when the file differs from HEAD; init on a fresh repo creates the file and says to commit it before the first set.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:40.805Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security) finding, plan §2 disposition 24",
+      "text": "Rule 2: the identity is written binary (age -p -o, no -a) so the header check holds for an identity made the recommended way; only the ciphertext in the repo is armored.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:41.069Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security) finding, plan §2 disposition 25",
+      "text": "Rule 3: the streaming redactor holds back only a tail that is a prefix of some needle, writes everything else at once (a prompt shows immediately, no timer), and releases a held tail only on more input, a newline that breaks the prefix, or end().",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:41.326Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security) finding, plan §2 disposition 26",
+      "text": "Rule 7: keychain items are per repo: service cookwright/<id>/<target> with id = secrets.id when set else the config root's basename; the banner, secrets set and the doctor row print the service; the default search list is used (residue §11); the guide names secrets.id for a renamed directory.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:41.587Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security) finding, plan §2 disposition 27",
+      "text": "Rule 3: the child's own command line is the child's, and the guide says so beside the environment-block residual; the guide shows a wrapper that reads the environment and hands libpq a password-less URL with PGPASSWORD; PG* derivation inside run is noted on E-001.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:42.062Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security) finding, plan §2 disposition 28",
+      "text": "Rule 3: doctor's age row measures files, not names; the fixture's assertions say so (superseded in wording by disposition 45).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:42.339Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security) finding, plan §2 disposition 29",
+      "text": "Rule 3: a pack manifest may declare ambient names its tools read on their own (supabase: SUPABASE_DB_URL, SUPABASE_ACCESS_TOKEN, PGPASSWORD, PGPASSFILE, PGSERVICE, PGSERVICEFILE); run drops and names them; secrets.carriers names them when present; the registry test accepts the key.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:42.605Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security) finding, plan §2 disposition 30",
+      "text": "Rule 3: the template grammar forbids $ and braces (op inject expands them from the environment) and op inject runs with -f and the scrubbed environment.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:42.878Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security and fit) findings, plan §2 disposition 31",
+      "text": "Rule 3: the supabase anchors as disposition 19 reads; the near-miss table gains postgres.<ref> on evil.example and a disagreeing username and host.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:43.142Z",
+      "actor": "orchestrator",
+      "source": "plan-review (fit) P1, plan §2 disposition 32",
+      "text": "The playbook's green rule: the three setup-skill recipe tables and the first version of docs/guides/secrets.md land in s3 with the rows (skills.test.mjs requires every CHECKS key; the setup doc-sync rule wants a guide staged); s4 keeps the block, the skill's end pass (repeating the three PASS notes) and the guide's completion.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:43.401Z",
+      "actor": "orchestrator",
+      "source": "plan-review (fit) finding, plan §2 disposition 33",
+      "text": "capture is synchronous and spawnChild asynchronous; doctor's inspect, 1Password resolve and age's steps use capture; security's prompt and the one child use spawnChild. s3 measures one security find-generic-password call's time on this machine; a spent budget reads SKIP naming the row, never a partial PASS.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:43.660Z",
+      "actor": "orchestrator",
+      "source": "plan-review (fit) finding, plan §2 disposition 34",
+      "text": "A second error class, Refused, printed as run: <reason> (or secrets: <reason>) with exit 125; Refusal stays usage and config problems, exit 2, through the shared refuse().",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:43.916Z",
+      "actor": "orchestrator",
+      "source": "plan-review (fit) finding, plan §2 disposition 35",
+      "text": "messages.test.mjs SCANNED gains src/lib/secrets and src/lib/secrets/backends (the scan is one level deep); the public-key line is matched by a regex literal; refusal texts naming tools live in messages.secrets, not in ALLOWED.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:44.215Z",
+      "actor": "orchestrator",
+      "source": "plan-review (fit) finding, plan §2 disposition 36",
+      "text": "The playbook's Implementer role: s1's commits touching packs/supabase/pack.mjs go through with COOKWRIGHT_SKIP=doc-sync and the reason (the secrets guide lands in s3); s1 also updates src/migrate.test.mjs and the fixture's two version-3 lines so npm test and the fixture are green at s1's end.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:44.476Z",
+      "actor": "orchestrator",
+      "source": "plan-review (fit) finding, plan §2 disposition 37",
+      "text": "The fixture's secrets step is its own function after audit_args and before rerun, with a step-local skip without age (a failure under FIXTURE_STRICT): rewrite the config, init, secrets init --no-passphrase --yes, commit recipients.txt through the hooks, three secrets set --stdin, commit the ciphertext through the hooks, a second doctor run with its own count assertions, the run assertions, the prod copy and its refused run.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:44.755Z",
+      "actor": "orchestrator",
+      "source": "plan-review (fit) P3 folded, plan §2 disposition 38",
+      "text": "s4 runs npx cookwright init on this repo and commits AGENTS.md in the same checkpoint so rules.block never FAILs on the branch; migrate to version 4 stays s5.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:45.035Z",
+      "actor": "orchestrator",
+      "source": "plan-review (fit) P3 folded, plan §2 disposition 39",
+      "text": "The ci.yml age step extracts age/age and age/age-keygen onto $RUNNER_TEMP/bin, sha256-pinned.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:45.291Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security) P3 folded, plan §2 disposition 40",
+      "text": "age -d with a passphrase-protected identity and no terminal is refused before spawning; on a terminal the call is uncapped.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:45.558Z",
+      "actor": "orchestrator",
+      "source": "plan-review (security) P3 folded, plan §2 disposition 41",
+      "text": "On Windows the engine never uses a shell, the age row SKIPs the identity's permissions with the reason, the keychain backend SKIPs; nothing else is claimed (B-008 stands).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:45.843Z",
+      "actor": "developer",
+      "source": "plan review 2026-10-27, amendment 1 (disposition 42)",
+      "text": "Rules 2 and 3: an existing app may ignore secrets/ already. secrets init and doctor's secrets.targets ask git (probes.ignored) whether secrets/, secrets/recipients.txt and each target's file are ignored; ignored reads FAIL naming the .gitignore line to remove, and init writes nothing. The configurable directory stays backlog.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:46.100Z",
+      "actor": "developer",
+      "source": "plan review 2026-10-27, amendment 2 (disposition 43)",
+      "text": "Rule 3: the URL-with-password argv refusal exempts loopback hosts (localhost, 127.0.0.0/8, ::1, host.docker.internal): the local Supabase stack with its public password has no finding; those hosts still get the needle check.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:46.411Z",
+      "actor": "developer",
+      "source": "plan review 2026-10-27, amendment 3 (disposition 44)",
+      "text": "Rule 2: an empty targets object is a valid config. With a backend set and no target, secrets.targets reads WARN no targets declared; add one (the secrets guide), never an invalid config that SKIPs every config row; a developer mid-setup is a chosen state.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:46.668Z",
+      "actor": "developer",
+      "source": "plan review 2026-10-27, amendment 4 (disposition 45)",
+      "text": "Rule 3 (the B-013 lesson): the age line of secrets.targets claims only what it tests: ciphertext and recipients present and tracked reads PASS dev: ciphertext and recipients tracked, the names not mentioned; the guide says a missing name surfaces at run. not measured never appears on a PASS line; where a backend cannot measure the thing a row names, the row is SKIP with the reason; secrets.backend for 1password reads PASS op on PATH.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:46.932Z",
+      "actor": "developer",
+      "source": "plan review 2026-10-27, amendment 5 (disposition 46)",
+      "text": "Rule 6: one identity per developer, said in the guide and by secrets init; a second machine copies the identity and does not run init; init on a repo whose recipients.txt already holds a key says so and asks before appending; a second recipient needs every ciphertext re-encrypted, which nothing in this stage does: secrets rekey goes to the backlog and the guide names the limit.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:47.205Z",
+      "actor": "developer",
+      "source": "plan review 2026-10-27, answer 1 (disposition 47)",
+      "text": "Rule 3: pre-spawn refusals exit 125, so a wrapper, the gate included, tells cookwright refused from the child returned 1; 127 for ENOENT and 128+signal follow the shell's codes; the gate's exit 11 is the precedent. The fixture's refusal assertions read 125.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:47.465Z",
+      "actor": "developer",
+      "source": "plan review 2026-10-27, answer 2 (disposition 48)",
+      "text": "Rule 7: secrets set on keychain lets security prompt for the value with -w last and the terminal inherited; the kickoff's wording would have put the value on security's command line; the deviation is recorded.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:36:47.746Z",
+      "actor": "developer",
+      "source": "plan review 2026-10-27, P3s folded",
+      "text": "The keychain service defaults to the config root's basename, so renaming the directory loses the items; the guide names secrets.id for that. secrets.carriers flags a line setting NAME in an rc file even when it holds no value (NAME=$(op read …)): names only, a WARN, the note saying a line setting NAME.",
+      "claim": true
+    }
+  ],
   "costs": []
 }

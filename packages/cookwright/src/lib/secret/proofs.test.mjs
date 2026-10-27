@@ -13,7 +13,7 @@ const REF = 'abcdefghijklmnopqrst';
 const OTHER = 'tsrqponmlkjihgfedcba';
 const PW = 'Sup3r-s3cret-pw';
 const kinds = proofKinds({ packs: ['supabase'] });
-const one = (name, value, proof) => prove(new Map([[name, value]]), { names: [name], ...proof }, kinds);
+const one = (name, value, proof) => prove(new Map([[name, value]]), { names: [name], ...proof }, kinds, [name]);
 const host = (value, h) => one('API_URL', value, { kind: 'host', host: h });
 const supa = (value, ref = REF) => one('DB_URL', value, { kind: 'supabase', ref });
 const pooler = (user, h = 'aws-0-eu-central-1.pooler.supabase.com') => `postgresql://${user}:${PW}@${h}:6543/postgres`;
@@ -169,27 +169,35 @@ describe('prove and the names a proof covers', () => {
     ['DB_URL', pooler(`postgres.${REF}`)],
     ['SENTRY_DSN', 'https://k@o1.ingest.sentry.io/1'],
   ]);
+  const declared = [...values.keys()];
 
   it('defaults supabase to the SUPABASE_URL and DB_URL the target declares, nothing inferred from shape', () => {
-    const r = prove(values, { kind: 'supabase', ref: REF }, kinds);
+    const r = prove(values, { kind: 'supabase', ref: REF }, kinds, declared);
     expect(r).toEqual({ ok: true, proved: ['SUPABASE_URL', 'DB_URL'], against: REF, kind: 'supabase' });
     expect(coveredNames({ kind: 'supabase' }, kinds.supabase, ['DB_URL', 'KEY'])).toEqual(['DB_URL']);
     expect(coveredNames({ kind: 'supabase', names: ['X'] }, kinds.supabase, ['DB_URL'])).toEqual(['X']);
   });
 
   it('judges every covered name, the first failure refusing', () => {
-    const r = prove(values, { kind: 'supabase', ref: OTHER }, kinds);
+    const r = prove(values, { kind: 'supabase', ref: OTHER }, kinds, declared);
     expect(r).toMatchObject({ ok: false, proved: [], against: OTHER, kind: 'supabase' });
     expect(r.reason).toEqual({ name: 'SUPABASE_URL', anchor: 'projectUrl', found: REF });
   });
 
   it('proves nothing and passes with no proof (unproved, disposition 3)', () => {
-    expect(prove(values, undefined, kinds)).toEqual({ ok: true, proved: [], against: null, kind: null });
+    expect(prove(values, undefined, kinds, declared)).toEqual({ ok: true, proved: [], against: null, kind: null });
   });
 
   it('judges an absent covered value as empty, a mismatch', () => {
-    const r = prove(new Map(), { kind: 'host', host: 'a.example', names: ['A'] }, kinds);
+    const r = prove(new Map(), { kind: 'host', host: 'a.example', names: ['A'] }, kinds, ['A']);
     expect(r.reason).toEqual({ name: 'A', anchor: 'notUrl' });
+  });
+
+  it('covers a default name the target declares even when its value is absent, judged as empty', () => {
+    const partial = new Map([['DB_URL', pooler(`postgres.${REF}`)]]);
+    const r = prove(partial, { kind: 'supabase', ref: REF }, kinds, ['SUPABASE_URL', 'DB_URL']);
+    expect(r).toMatchObject({ ok: false, proved: [], reason: { name: 'SUPABASE_URL', anchor: 'projectUrl', found: null } });
+    expect(prove(partial, { kind: 'supabase', ref: REF }, kinds, ['DB_URL']).proved).toEqual(['DB_URL']);
   });
 
   it('takes a pack’s kinds only when the pack is declared', () => {

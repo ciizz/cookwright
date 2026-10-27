@@ -143,15 +143,17 @@ export function coveredNames(proof, kind, targetNames) {
 /**
  * Judge `values` (a Map of name → resolved value) against `proof` with `kinds`:
  * `{ ok, proved, against, kind }`, and `reason: { name, anchor, … }` when a covered
- * value fails. No proof → ok, nothing proved. A covered value is never skipped: an
- * absent one is judged as empty, a mismatch. A postgres-scheme value must first
+ * value fails. `targetNames` are the names the target declares, which a proof
+ * without `names` covers from (never the keys of `values`). No proof → ok, nothing
+ * proved. A covered value is never skipped: an absent one is judged as empty, a
+ * mismatch. A postgres-scheme value must first
  * pass the query, user-part and host-list rules, whatever the kind.
  */
-export function prove(values, proof, kinds) {
+export function prove(values, proof, kinds, targetNames) {
   if (proof === undefined) return { ok: true, proved: [], against: null, kind: null };
   const kind = kinds[proof.kind];
   const against = kind.against(proof);
-  const names = coveredNames(proof, kind, [...values.keys()]);
+  const names = coveredNames(proof, kind, targetNames);
   for (const name of names) {
     const value = values.get(name) ?? '';
     const problem = pgQueryProblem(value) ?? pgUserinfoProblem(value) ?? pgHostProblem(value) ?? kind.check(value, proof);

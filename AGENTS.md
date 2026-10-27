@@ -31,7 +31,7 @@ The repo's own harness config (this file, the hooks, the bundle runner, `docs/de
 - `docs/dev/closeouts/` — one past-tense file per shipped bundle.
 - `docs/dev/bundles/` — bundle state, written only by the runner.
 
-<!-- cookwright:begin rules v3 -->
+<!-- cookwright:begin rules v4 -->
 This block is managed by cookwright. `npx cookwright init` refreshes it from the package, so an edit between the markers is lost on the next refresh. Your own rules go outside the markers, above or below.
 
 ## State homes
@@ -67,6 +67,10 @@ When `npx cookwright init` has installed the hooks (`.githooks/`): pre-commit sc
 
 - Never write a plaintext env file (`.env`, `.env.*`), not as a fallback and not for a test.
 - Never put a secret's value in a doc, a commit, a log or a transcript. Name the secret instead.
+- When `cookwright.json` declares `secrets`, a command that needs a credential runs through `npx cookwright run <target> -- <command…>`, which injects the target's secrets into that one process after checking its proof. Run it only with a target the developer named in this session.
+- With a passphrase-protected age identity, hand the `run` command to the developer: age asks for the passphrase on their terminal.
+- Never `export` a secret, never pass one as an argument (the command reads it from its environment), never print a process's command line or environment.
+- `npx cookwright secrets init` and `npx cookwright secrets set` are the developer's commands: hand them over, never run them, and never ask for a value in the transcript.
 
 ## Conventions
 

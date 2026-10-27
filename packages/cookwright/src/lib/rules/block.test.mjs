@@ -16,7 +16,7 @@ import {
   renderBlock,
   renderTemplate,
 } from './block.mjs';
-import { v2Block } from '../../test-helpers.mjs';
+import { v2Block, v3Block } from '../../test-helpers.mjs';
 
 /** The paragraph after `heading` in `text`. */
 const paragraph = (text, heading) => text.split(`${heading}\n\n`)[1].split('\n\n')[0];
@@ -35,14 +35,25 @@ describe('renderBlock', () => {
     expect(block).not.toMatch(/\{\{|\r/);
   });
 
-  it('is v3, whose Session start points at the setup skill', () => {
-    expect(RULES_VERSION).toBe(3);
+  it('keeps v3’s Session start, which points at the setup skill', () => {
     expect(paragraph(block, '## Session start')).toContain(
       "On a FAIL whose line does not clear it, on an update, or when the developer asks, the `setup` skill walks doctor's readout.",
     );
   });
 
-  it('reads a v2 block as stale', () => {
+  it('is v4, whose Secrets section gives the agent the run rules', () => {
+    expect(RULES_VERSION).toBe(4);
+    const secrets = block.split('## Secrets\n\n')[1].split('\n\n')[0];
+    expect(secrets).toContain(`\`${CLI} run <target> -- <command…>\``);
+    expect(secrets).toContain('Run it only with a target the developer named in this session.');
+    expect(secrets).toContain('With a passphrase-protected age identity, hand the `run` command to the developer');
+    expect(secrets).toContain('Never `export` a secret, never pass one as an argument');
+    expect(secrets).toContain("never print a process's command line or environment");
+    expect(secrets).toContain(`\`${CLI} secrets init\` and \`${CLI} secrets set\` are the developer's commands`);
+  });
+
+  it('reads a v3 or v2 block as stale', () => {
+    expect(blockState(`${v3Block(block)}\n`, block)).toMatchObject({ state: 'stale', version: 3 });
     expect(blockState(`${v2Block(block)}\n`, block)).toMatchObject({ state: 'stale', version: 2 });
   });
 
@@ -106,7 +117,7 @@ describe('kinds: the core block and a pack section in one file', () => {
 
   it('keeps the core markers byte for byte, the kind defaulting to the core', () => {
     expect(CORE_KIND).toBe('rules');
-    expect(beginMarker()).toBe('<!-- cookwright:begin rules v3 -->');
+    expect(beginMarker()).toBe('<!-- cookwright:begin rules v4 -->');
     expect(beginMarker(RULES_VERSION, CORE_KIND)).toBe(beginMarker());
     expect(beginMarker(1, expo)).toBe('<!-- cookwright:begin pack expo v1 -->');
     expect(blockState(both, block)).toEqual(blockState(both, block, CORE_KIND));

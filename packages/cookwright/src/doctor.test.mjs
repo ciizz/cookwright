@@ -29,7 +29,7 @@ import { renderSection } from './lib/packs/section.mjs';
 import { PROBES } from './lib/probes.mjs';
 import { RULES_VERSION, beginMarker, renderBlock } from './lib/rules/block.mjs';
 import { HEADER } from './lib/secret/backends/age.mjs';
-import { commit, fakeEslintRepo, gitInit, gitWithoutScopes, run, scratchRepo, scratchRoot, stageOnly, v1Block, v2Block } from './test-helpers.mjs';
+import { commit, fakeEslintRepo, gitInit, gitWithoutScopes, run, scratchRepo, scratchRoot, stageOnly, v1Block, v2Block, v3Block } from './test-helpers.mjs';
 
 const TMP = scratchRoot('cookwright-doctor-');
 const m = messages.doctor;
@@ -275,6 +275,7 @@ describe('rules', () => {
   it.each([
     ['v1', v1Block],
     ['v2', v2Block],
+    ['v3', v3Block],
   ])('FAILs a %s block as stale', (_, older) => {
     expect(state(`# Rules\n\n${older(block)}\n`)).toEqual({ status: 'FAIL', note: m.block.stale('AGENTS.md') });
   });

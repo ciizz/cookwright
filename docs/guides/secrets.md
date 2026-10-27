@@ -158,6 +158,17 @@ Three rows, last in the readout, after every row a level requires, so a slow key
 - A line setting such a name in `~/.zshenv`, `~/.zshrc`, `~/.zprofile`, `~/.bashrc`, `~/.bash_profile` or `~/.profile`, comments skipped, `export NAME=…` and `NAME=$(op read …)` alike: the row names the line's file, not its value.
 - Each is a WARN. With no `secrets` key, only `.envrc` and the packs' names are looked for.
 
+## What the agent is told
+
+The managed block that `npx cookwright init` writes into `AGENTS.md` (version 4 of it) gives the agent these rules in its Secrets section, beside the two it always had (no plaintext env file; a secret is named, never written down):
+
+- a command that needs a credential runs through `npx cookwright run <target> -- <command…>`, and only with a target you named in the session;
+- with a passphrase-protected age identity, the agent hands you the `run` command instead of running it, since age asks you for the passphrase;
+- never `export` a secret, never pass one as an argument, never print a process's command line or environment;
+- `secrets init` and `secrets set` are yours: the agent hands them over, never runs them, and never asks you for a value in the transcript.
+
+An older block reads stale in doctor's `rules.block` until `npx cookwright init` refreshes it.
+
 ## Updating to version 4
 
 `npx cookwright migrate` writes an older `cookwright.json` at version 4. The step changes nothing but the version: it never writes a `secrets` key.

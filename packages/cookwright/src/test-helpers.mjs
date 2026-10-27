@@ -86,12 +86,24 @@ export function commit(repo, files, msg) {
   return run(dir, 'git', ['rev-parse', 'HEAD']);
 }
 
+/** The agent's rules v4 added to the block's Secrets section (stage 5), up to the next section. */
+const RUN_RULES = /(Name the secret instead\.)\n- When `cookwright\.json` declares `secrets`[\s\S]*?(\n\n## Conventions)/;
+
+/** The managed block as v3 shipped it (stage 3), from a v4 render: the v3 marker, no `run` rules. */
+export function v3Block(v4) {
+  const out = v4
+    .replace(/^<!-- cookwright:begin rules v4 -->$/m, '<!-- cookwright:begin rules v3 -->')
+    .replace(RUN_RULES, '$1$2');
+  if (/rules v4|cookwright run|secrets set/.test(out)) throw new Error('v3Block: the v4 render changed shape');
+  return out;
+}
+
 /** The sentence v3 added to the block's Session start (stage 3). */
 const SETUP_SENTENCE = / On a FAIL whose line does not clear it, on an update, or when the developer asks, the `setup` skill walks doctor's readout\./;
 
-/** The managed block as v2 shipped it (stage 2), from a v3 render: the v2 marker, no setup sentence. */
-export function v2Block(v3) {
-  const out = v3
+/** The managed block as v2 shipped it (stage 2), from a v4 render: the v2 marker, no setup sentence. */
+export function v2Block(v4) {
+  const out = v3Block(v4)
     .replace(/^<!-- cookwright:begin rules v3 -->$/m, '<!-- cookwright:begin rules v2 -->')
     .replace(SETUP_SENTENCE, '');
   if (/rules v3|`setup` skill/.test(out)) throw new Error('v2Block: the v3 render changed shape');
@@ -99,11 +111,11 @@ export function v2Block(v3) {
 }
 
 /**
- * The managed block as v1 shipped it (stage 1), from a v3 render: the v1 marker,
+ * The managed block as v1 shipped it (stage 1), from a v4 render: the v1 marker,
  * the hand-kept changelog line, no doc-sync enforcement, no Git hooks section.
  */
-export function v1Block(v3) {
-  const v2 = v2Block(v3);
+export function v1Block(v4) {
+  const v2 = v2Block(v4);
   const out = v2
     .replace(/^<!-- cookwright:begin rules v2 -->$/m, '<!-- cookwright:begin rules v1 -->')
     .replace(/^- User-visible changes: .*$/m, '- User-visible changes: the Unreleased section of `CHANGELOG.md`.')

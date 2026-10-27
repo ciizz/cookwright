@@ -16,7 +16,7 @@ import fs from 'node:fs';
 
 import { CLI, messages } from '../messages.mjs';
 
-export const RULES_VERSION = 3;
+export const RULES_VERSION = 4;
 export const RULES_FILE = 'AGENTS.md';
 export const END_MARKER = '<!-- cookwright:end -->';
 export const CORE_KIND = 'rules';

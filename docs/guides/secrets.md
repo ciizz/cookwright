@@ -84,6 +84,16 @@ run: dev · injected SUPABASE_URL, DB_URL, SERVICE_ROLE_KEY · proved SUPABASE_U
 
 **`npx cookwright secrets init`** writes the identity and appends its public key to `secrets/recipients.txt`, creating the file on a fresh repo. It checks everything first, and writes nothing when a check fails: no identity there yet, its directory outside every work tree, git not ignoring `secrets/`, `secrets/recipients.txt` or a target's `.env.age` (a refusal names the `.gitignore` line to remove), the recipients file committed and well formed, both places writable. It then says what it will write and asks; `--yes` answers for you. age asks for the identity's passphrase on your terminal: type one. An empty one makes age generate a passphrase and print it on the terminal, once; keep it if you take it. The identity is written mode 600 in a directory created 700. `--no-passphrase` writes the key unprotected, which is weaker: whoever reads that file opens every secret.
 
+**Adding a passphrase later.** An identity written with `--no-passphrase` gets one the way `init` writes a protected one: age encrypts it with a passphrase it asks for on your terminal, and a passphrase-encrypted file is an identity age reads. In the identity's directory:
+
+```
+age -p -o identity.age.new identity.age
+chmod 600 identity.age.new
+mv identity.age.new identity.age
+```
+
+Doctor's `secrets.backend` then reads the identity as passphrase-protected, and every `run` asks for the passphrase.
+
 Commit `secrets/recipients.txt` before the first `set`: nothing is encrypted to a recipient that has not been through a commit.
 
 **One identity per developer.** On a second machine, copy your identity (passphrase-protected, outside any repo) to the same place instead of running `init`. `init` on a repo whose recipients file already holds a key says so before it asks. A new recipient cannot read what is already encrypted: each value has to be set again after the new key is committed.

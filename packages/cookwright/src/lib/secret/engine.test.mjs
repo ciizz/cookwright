@@ -15,6 +15,7 @@ import {
   helperEnv,
   inheritedValues,
   isLoopback,
+  loopbackUrl,
   openBackend,
   openTarget,
   passwordUrl,
@@ -120,6 +121,29 @@ describe('inheritedValues', () => {
     const bare = { secrets: { backend: 'age', targets: { dev: { names: ['DB_URL'] } } } };
     const libpq = ['PGHOST', 'PGPASSWORD'];
     expect(inheritedValues({ PGHOST: 'h', PGPASSWORD: 'pw' }, bare, libpq).map(([n]) => n)).toEqual(['PGPASSWORD']);
+  });
+
+  it("never makes the local stack's loopback URL a needle, so passing it on the command line runs (s2's open question 4)", () => {
+    const local = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+    const env = { SUPABASE_DB_URL: local, DB_URL: 'postgresql://postgres:postgres@localhost/postgres', SUPABASE_ACCESS_TOKEN: 'sbp_old-token' };
+    expect(inheritedValues(env, config, []).map(([n]) => n)).toEqual(['SUPABASE_ACCESS_TOKEN']);
+    const list = needles(new Map([['SUPABASE_URL', 'https://abcdefghijklmnopqrst.supabase.co']]), inheritedValues(env, config, []));
+    expect(() => argvCheck(['psql', local], list)).not.toThrow();
+    const remote = { SUPABASE_DB_URL: 'postgresql://postgres:postgres@db.example.com/postgres' };
+    expect(inheritedValues(remote, config, []).map(([n]) => n)).toEqual(['SUPABASE_DB_URL']);
+  });
+
+  it.each([
+    ['postgresql://postgres:postgres@127.0.0.1:54322/postgres', true],
+    ['postgres://u:p@[::1]:5432/d', true],
+    ['http://localhost', true],
+    ['postgresql://u:p@evil.example@127.0.0.1/d', true],
+    ['postgresql://u:p@127.0.0.1.evil.example/d', false],
+    ['postgresql://u:127.0.0.1@evil.example/d', false],
+    ['127.0.0.1', false],
+    ['postgresql:///d', false],
+  ])('loopbackUrl(%j) is %s', (value, want) => {
+    expect(loopbackUrl(value)).toBe(want);
   });
 });
 

@@ -103,12 +103,23 @@ export function childEnv(env, drop, values) {
 /**
  * The inherited values that are needles beside the resolved ones (dispositions 22,
  * 68): those of every declared and ambient name (and libpq's, when dropped), as
- * `[name, value]`, minus the names whose value is a file, a service or a host.
+ * `[name, value]`, minus the names whose value is a file, a service or a host, and
+ * minus a URL on a loopback host, the local stack's public URL (stage-5 s2's open
+ * question 4, disposition 43).
  */
 export function inheritedValues(env, config, libpq) {
   const pointers = new Set([...pointerNames(config), ...libpq.filter((n) => !LIBPQ_SECRETS.includes(n))]);
   const names = new Set([...declaredNames(config), ...ambientNames(config), ...libpq]);
-  return [...names].filter((n) => !pointers.has(n) && typeof env[n] === 'string').map((n) => [n, env[n]]);
+  const needle = (n) => !pointers.has(n) && typeof env[n] === 'string' && !loopbackUrl(env[n]);
+  return [...names].filter(needle).map((n) => [n, env[n]]);
+}
+
+/** True when `value` is a `<scheme>://…` URL whose host, after the last `@`, is a loopback host. */
+export function loopbackUrl(value) {
+  const authority = /^[a-z][a-z0-9+.-]*:\/\/([^/?#\s]*)/i.exec(value)?.[1];
+  if (!authority) return false;
+  const host = authority.slice(authority.lastIndexOf('@') + 1);
+  return host !== '' && isLoopback(host);
 }
 
 /** True for a loopback host (`host[:port]` or `[v6][:port]`): its password is public (disposition 43). */

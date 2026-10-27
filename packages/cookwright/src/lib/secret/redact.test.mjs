@@ -54,6 +54,13 @@ describe('needles', () => {
     expect(needles(map({ U: 'https://example.com/a:verylongvalue@b' }))).toHaveLength(2);
   });
 
+  it('leaves out the password of a URL publicUrl calls public, the whole value staying a needle', () => {
+    const local = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+    const isLocal = (v) => v === local;
+    expect(texts(needles(map({ DB_URL: local }), [], isLocal)).map(([n]) => n)).toEqual([encodeURIComponent(local), local]);
+    expect(texts(needles(map({ DB_URL: local }))).map(([n]) => n)).toContain('postgres');
+  });
+
   it('takes an inherited value only from 8 characters (disposition 68), the resolved one winning', () => {
     const inherited = [
       ['DB_URL', 'x'.repeat(MIN_INHERITED - 1)],

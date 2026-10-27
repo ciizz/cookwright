@@ -20,6 +20,7 @@ import {
   openTarget,
   passwordUrl,
   publicLocal,
+  publicLocalUrl,
   scrubNames,
 } from './engine.mjs';
 import { needles } from './redact.mjs';
@@ -197,6 +198,14 @@ describe('the argv check', () => {
     expect(refusal(() => argvCheck(['psql', 'postgresql://postgres:old-prod-pass@prod.example/db'], list))).toMatch(
       /^argument 2 holds the value of SUPABASE_DB_URL;/,
     );
+  });
+
+  it("lets the local stack's public password through for a resolved local URL, the URL itself still refused", () => {
+    const local = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+    const own = needles(new Map([['DB_URL', local]]), [], publicLocalUrl);
+    expect(() => argvCheck(['psql', '-U', 'postgres', '-d', 'postgres'], own)).not.toThrow();
+    expect(refusal(() => argvCheck(['psql', local], own))).toBe(messages.run.argValue(2, 'DB_URL'));
+    expect(publicLocalUrl('postgresql://postgres:postgres@db.example/postgres')).toBe(false);
   });
 
   it('passes a short inherited value, and the command itself is argument 1', () => {

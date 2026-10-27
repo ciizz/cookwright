@@ -124,6 +124,11 @@ export const LOCAL_STACK_PASSWORD = 'postgres';
  */
 export function publicLocal(name, value) {
   if (LIBPQ_SECRETS.includes(name)) return value === LOCAL_STACK_PASSWORD;
+  return publicLocalUrl(value);
+}
+
+/** True when `value` is a URL on a loopback host whose password is the local stack's public one. */
+export function publicLocalUrl(value) {
   return loopbackUrl(value) && urlPasswordOf(value) === LOCAL_STACK_PASSWORD;
 }
 
@@ -247,7 +252,7 @@ export async function prepareRun({ root, top, config }, name, child, io) {
   if (!proof.ok) throw new Refused(m.proof.failed(proof));
   const drop = [...scrubNames(config), ...controlNames(backend, io.env)];
   const { env, dropped, libpq } = childEnv(io.env, drop, values);
-  const list = needles(values, inheritedValues(io.env, config, libpq));
+  const list = needles(values, inheritedValues(io.env, config, libpq), publicLocalUrl);
   argvCheck(child, list);
   const uncommitted = uncommittedFiles(root, top, [CONFIG_FILE, ...backend.files(name)]);
   const extra = backend.bannerParts?.(name, config) ?? [];

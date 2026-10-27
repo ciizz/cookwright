@@ -40,11 +40,17 @@ const decoded = (text) => {
   }
 };
 
-/** The forms of `value` the redactor covers: itself, its encodeURIComponent form, and a URL password of 8+ characters as written, decoded and encoded. */
-function forms(value) {
+/**
+ * The forms of `value` the redactor covers: itself, its encodeURIComponent form, and
+ * a URL password of 8+ characters as written, decoded and encoded, unless
+ * `publicUrl(value)` says that password is public (the local stack's `postgres`,
+ * stage-5 review:whole finding 9): the whole value stays a needle then.
+ */
+function forms(value, publicUrl) {
   const out = [value, encodeURIComponent(value)];
   const raw = urlPassword(value);
-  if (raw !== null && decoded(raw).length >= MIN_PASSWORD) out.push(raw, decoded(raw), encodeURIComponent(decoded(raw)));
+  if (raw === null || publicUrl(value) || decoded(raw).length < MIN_PASSWORD) return out;
+  out.push(raw, decoded(raw), encodeURIComponent(decoded(raw)));
   return out;
 }
 
@@ -52,13 +58,14 @@ function forms(value) {
  * The needles for `values` (name → resolved value, every length) and `inherited`
  * (name → the inherited value of a declared or ambient name, 8+ characters only),
  * as `[needle, replacement]` Buffer pairs, longest first; empties and duplicates
- * dropped, a resolved value's name winning over an inherited one's.
+ * dropped, a resolved value's name winning over an inherited one's. `publicUrl`
+ * tells a URL whose password is public, so its password alone is no needle.
  */
-export function needles(values, inherited = []) {
+export function needles(values, inherited = [], publicUrl = () => false) {
   const seen = new Set();
   const out = [];
   const add = (name, value) => {
-    for (const text of forms(value)) {
+    for (const text of forms(value, publicUrl)) {
       if (text === '' || seen.has(text)) continue;
       seen.add(text);
       out.push([Buffer.from(text), Buffer.from(`<${name}>`)]);

@@ -35,8 +35,8 @@ describe('the names', () => {
   });
 
   it('takes the ambient and pointer names from the declared packs only', () => {
-    expect(ambientNames(config)).toEqual(['SUPABASE_DB_URL', 'SUPABASE_ACCESS_TOKEN', 'PGPASSWORD', 'PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE']);
-    expect(pointerNames(config)).toEqual(['PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE']);
+    expect(ambientNames(config)).toEqual(['SUPABASE_DB_URL', 'SUPABASE_ACCESS_TOKEN', 'PGPASSWORD', 'PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE', 'PGHOSTADDR', 'PGHOST', 'PGPORT', 'PGUSER', 'PGDATABASE', 'PGOPTIONS']);
+    expect(pointerNames(config)).toEqual(['PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE', 'PGHOSTADDR', 'PGHOST', 'PGPORT', 'PGUSER', 'PGDATABASE', 'PGOPTIONS']);
     expect([ambientNames({ packs: ['expo'] }), pointerNames({ packs: [] })]).toEqual([[], []]);
   });
 });

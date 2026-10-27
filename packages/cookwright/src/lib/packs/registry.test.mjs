@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULTS, SECRET_NAME, validateConfig, withDefaults } from '../config.mjs';
 import { PACKAGE_ROOT } from '../hosts.mjs';
+import { LIBPQ_NAMES } from '../secret/config.mjs';
 import { KINDS } from '../secret/proofs.mjs';
 import {
   ADVISORY,
@@ -195,9 +196,14 @@ describe('the secrets data of stage 5', () => {
     expect(Object.keys(PACKS.supabase.proofs)).toEqual(['supabase']);
     expect(PACKS.supabase.proofs.supabase.fields).toEqual(['ref']);
     expect(PACKS.supabase.proofs.supabase.names).toEqual(['SUPABASE_URL', 'DB_URL']);
-    expect(PACKS.supabase.ambient).toEqual(['SUPABASE_DB_URL', 'SUPABASE_ACCESS_TOKEN', 'PGPASSWORD', 'PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE']);
-    expect(PACKS.supabase.pointers).toEqual(['PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE']);
+    expect(PACKS.supabase.ambient).toEqual(['SUPABASE_DB_URL', 'SUPABASE_ACCESS_TOKEN', 'PGPASSWORD', 'PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE', 'PGHOSTADDR', 'PGHOST', 'PGPORT', 'PGUSER', 'PGDATABASE', 'PGOPTIONS']);
+    expect(PACKS.supabase.pointers).toEqual(['PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE', 'PGHOSTADDR', 'PGHOST', 'PGPORT', 'PGUSER', 'PGDATABASE', 'PGOPTIONS']);
     expect([PACKS.expo.proofs, PACKS.expo.ambient]).toEqual([undefined, undefined]);
+  });
+
+  it('drops every libpq name the core drops for a postgres URL, PGPASSWORD alone a needle', () => {
+    for (const n of LIBPQ_NAMES) expect([n, PACKS.supabase.ambient.includes(n)]).toEqual([n, true]);
+    expect(LIBPQ_NAMES.filter((n) => !PACKS.supabase.pointers.includes(n))).toEqual(['PGPASSWORD']);
   });
 });
 

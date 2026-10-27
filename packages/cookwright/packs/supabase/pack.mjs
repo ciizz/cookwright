@@ -21,6 +21,11 @@
 // own: `run` drops them from the child's environment, and doctor names them where it
 // finds them. `pointers` are the ambient names whose value names a file or a service
 // rather than holding a secret: dropped all the same, never redacted (disposition 22).
+// libpq's routing names (PGHOSTADDR, PGHOST, PGPORT, PGUSER, PGDATABASE, PGOPTIONS)
+// are among them: an inherited one fills or overrides what a proved URL says (a
+// stale PGHOSTADDR picks the address libpq connects to), so it never reaches the
+// child. The list holds the core's LIBPQ_NAMES (src/lib/secret/config.mjs), which a
+// registry test pins; this file imports nothing, so it repeats them.
 
 const REF = /^[a-z]{20}$/;
 /** One pooler host, nothing before or after it (a host list never matches: no comma, no `%`). */
@@ -131,6 +136,19 @@ export const manifest = {
       check: checkSupabase,
     },
   },
-  ambient: ['SUPABASE_DB_URL', 'SUPABASE_ACCESS_TOKEN', 'PGPASSWORD', 'PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE'],
-  pointers: ['PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE'],
+  ambient: [
+    'SUPABASE_DB_URL',
+    'SUPABASE_ACCESS_TOKEN',
+    'PGPASSWORD',
+    'PGPASSFILE',
+    'PGSERVICE',
+    'PGSERVICEFILE',
+    'PGHOSTADDR',
+    'PGHOST',
+    'PGPORT',
+    'PGUSER',
+    'PGDATABASE',
+    'PGOPTIONS',
+  ],
+  pointers: ['PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE', 'PGHOSTADDR', 'PGHOST', 'PGPORT', 'PGUSER', 'PGDATABASE', 'PGOPTIONS'],
 };

@@ -26,6 +26,26 @@ export const declaredNames = (config) => unique(Object.values(targets(config)).f
 /** The names the declared packs' tools read from the environment on their own (disposition 29). */
 export const ambientNames = (config) => unique(declaredPacks(config).flatMap((p) => p.manifest.ambient ?? []));
 
+/**
+ * libpq's environment names that supply or override a connection's host, address,
+ * port, user, database, options or credentials. A postgres URL proves nothing while
+ * one is inherited, so the engine drops them from the child whenever an injected
+ * value is a postgres-scheme URL, whatever packs are declared (stage-5 review:model
+ * finding 5); the supabase pack's `ambient` holds them all.
+ */
+export const LIBPQ_NAMES = Object.freeze([
+  'PGHOSTADDR',
+  'PGHOST',
+  'PGPORT',
+  'PGUSER',
+  'PGDATABASE',
+  'PGOPTIONS',
+  'PGPASSWORD',
+  'PGPASSFILE',
+  'PGSERVICE',
+  'PGSERVICEFILE',
+]);
+
 /** The ambient names whose value names a file or a service, never a needle (disposition 22). */
 export const pointerNames = (config) => unique(declaredPacks(config).flatMap((p) => p.manifest.pointers ?? []));
 

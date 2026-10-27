@@ -108,6 +108,16 @@ A line is `NAME=op://<vault>/<item>/<field>`, or `NAME=op://<vault>/<item>/<sect
 
 `secrets set` and `secrets init` write nothing on this backend: you add and change the items in 1Password. Doctor checks the template only (present, committed, one reference per name, no literal), so `secrets.backend` reads `op on PATH`: whether you are signed in, and whether each reference resolves, is what `run` proves. A failed `op inject` refuses with `op`'s own first line and the sign-in hint.
 
+## The keychain backend
+
+`keychain` keeps each value in your default macOS keychain (normally the login keychain), through `security`, which ships with macOS. Nothing of it is in the repo. Each secret is a password item whose service is `cookwright/<id>/<target>` and whose account is the secret's name, so `secrets.id` is required with this backend: two repos never share an item, even with the same directory name. `run`'s banner and `secrets set` name the service. There is nothing to `init`.
+
+**`npx cookwright secrets set <target> <NAME>`** asks for the value on the terminal with echo off (or reads one line with `--stdin`), as for `age`, and stores it. The value is on no command line: `security`'s own prompt cuts a value at 128 characters without a word, which a service-role key or a pooler URL exceeds, so cookwright writes the item through `security -i`, which reads its command from stdin, then reads the item back and compares it with what you typed. A value that does not come back whole is removed, and nothing is kept. `security -i` reads one command of at most 4096 bytes, so a value can be about 4000 bytes long (a `\` or `"` counts twice); a longer one is refused before anything is written. A value read back holding a tab or a non-ASCII character comes back as typed: cookwright reads items with `find-generic-password -g`, which tells such a value from one made of hex digits.
+
+`security` searches your default keychain list, so an item with the same service and account in another keychain on that list could be found first.
+
+Doctor looks each declared name up by its service and account (`find-generic-password` without `-g` or `-w`, about 10 ms a name), never reading a value: `dev: present by name under cookwright/<id>/dev` is all it claims. Whether a value is the right one is what `run` proves.
+
 ## Updating to version 4
 
 `npx cookwright migrate` writes an older `cookwright.json` at version 4. The step changes nothing but the version: it never writes a `secrets` key.

@@ -126,6 +126,21 @@ describe('secrets set: the value', () => {
     expect(out).toBe(`${m.set('DB_URL', 'dev', 'age')}\nsecrets: encrypted to 1 recipient(s): …qqqqqqqq\n`);
   });
 
+  it('names the keychain service on its line, the value reaching security on stdin only', async () => {
+    const r = repo({ version: 4, secrets: { backend: 'keychain', id: 'app', targets: { dev: { names: ['TOKEN'] } } } });
+    const store = new Map();
+    const capture = (cmd, args, opts = {}) => {
+      if (args[0] === '-i') store.set('item', opts.input);
+      const value = /-w "(.*)"\n$/.exec(store.get('item') ?? '')?.[1] ?? '';
+      return { status: 0, stdout: '', stderr: `password: "${value}"\n`, args };
+    };
+    const stdout = sink();
+    const io = { cwd: r.root, env: r.env, home: r.home, stdin: line('t0ken-value'), stdout, stderr: sink(), platform: 'darwin', probes: { capture, hasTool: () => true } };
+    expect(await main(['set', 'dev', 'TOKEN', '--stdin'], io)).toBe(0);
+    expect(stdout.text()).toBe('secrets: set TOKEN for dev (keychain, service cookwright/app/dev)\n');
+    expect(store.get('item')).toBe('add-generic-password -U -s "cookwright/app/dev" -a TOKEN -w "t0ken-value"\n');
+  });
+
   it('refuses without a terminal and without --stdin, and two lines on stdin', async () => {
     const r = repo();
     expect(await secrets(r, ['set', 'dev', 'DB_URL'], { stdin: line('x'), backends: fake({}) })).toMatchObject({

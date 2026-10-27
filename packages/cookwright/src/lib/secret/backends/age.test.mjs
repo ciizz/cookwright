@@ -453,6 +453,24 @@ describe('init', () => {
     expect(fs.existsSync(identityPath({}, s.home))).toBe(true);
   });
 
+  it('never removes an identity another init wrote between its preflight and its write', async () => {
+    const s = setup({ terminal: true });
+    const id = identityPath({}, s.home);
+    const ctx = {
+      ...s.ctx,
+      confirm: async () => {
+        fs.mkdirSync(path.dirname(id), { recursive: true });
+        fs.writeFileSync(id, 'the other run\'s identity\n', { mode: 0o600 });
+        return true;
+      },
+    };
+    const err = await initAge(ctx, { noPassphrase: true, yes: false }).catch((e) => e);
+    expect(err.code).toBe('EEXIST');
+    expect(fs.readFileSync(id, 'utf8')).toBe("the other run's identity\n");
+    expect(s.lines).not.toContain(a.removed(id));
+    expect(fs.readFileSync(path.join(s.root, 'secrets/recipients.txt'), 'utf8')).toBe(`${KEY}\n`);
+  });
+
   it('removes only the empty directories it created, never a file another process put there', async () => {
     const s = setup({ terminal: true });
     const recipients = path.join(s.root, 'secrets/recipients.txt');

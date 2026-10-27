@@ -2,6 +2,18 @@
 
 A secret never touches disk in plaintext, and no env file stands in for one, not even as a fallback. cookwright reads a target's secrets from a backend and injects them into one child process, after checking that the values name the target you asked for (its proof). With no backend declared, Level 2 is off and nothing here applies.
 
+## The model
+
+cookwright's secrets were built after two things went wrong in a real dev loop: a value exported long before aimed a dev command at production, and a password on a command line showed up in a process listing, then in an agent's transcript. So:
+
+- A secret lives in a backend (an encrypted file, the macOS keychain, 1Password), never in a plaintext file in the repo or beside it.
+- A *target* (`dev`, `prod`) names the secrets one environment needs. `npx cookwright run <target> -- <command>` reads that target's values, checks that they point where the target says (its *proof*: the Supabase project ref, or a host), and hands them to the environment of that one command. Your shell never holds them, and neither does cookwright's own environment: the values stay in its memory until the command starts.
+- What the command must not inherit is taken out of its environment and named on the banner: every name any target declares (so a stale `export DB_URL=…` never reaches a dev run), the names the stack's own tools read (`SUPABASE_DB_URL`, libpq's `PG*`), and the backend's own credentials.
+- An argument holding a value is refused, and the command's output passes through a redactor.
+- Doctor checks the setup, the files and your shell's rc files by name, without reading a value.
+
+What this leaves open is listed under "What is not closed" below.
+
 ## Setting up, in order
 
 1. Choose a backend and write it into `cookwright.json` with no target yet: `"secrets": { "backend": "age", "targets": {} }`. `age` first (free, on every platform); `keychain` on macOS when you want nothing of it in the repo (with `"id"`); `1password` when you already use `op`.
@@ -11,6 +23,18 @@ A secret never touches disk in plaintext, and no env file stands in for one, not
 5. `npx cookwright run <target> -- true`: the banner names what was injected and what was proved; exit 0 with nothing unproved means the target works.
 
 Ask your agent to set up secrets and the `setup` skill walks these five steps with you, one at a time, running doctor after each. It writes the config and the template; the commands that read a value or a passphrase on your terminal (`secrets init`, `secrets set`, and `run` with a passphrase-protected identity) it hands to you, and the commits are yours.
+
+## Choosing a backend
+
+| | `age` | `keychain` | `1password` |
+|---|---|---|---|
+| The values live in | `secrets/<target>.env.age`, encrypted, committed | your default macOS keychain | your 1Password vaults |
+| In the repo | the ciphertext and `secrets/recipients.txt` | nothing | `secrets/<target>.env.tpl`, references only |
+| The one thing to guard | the identity, a file outside every repo | your macOS login | your 1Password account |
+| Runs on | anywhere `age` runs | macOS | anywhere `op` runs |
+| You write values with | `secrets init` once, then `secrets set` | `secrets set` (`secrets.id` required) | 1Password itself, plus a template |
+
+`age` is the default: free, the same on every machine, and the ciphertext travels with the repo. `keychain` suits a Mac-only setup that wants nothing of it in the repo. `1password` suits a developer whose values are in 1Password already. The sections below take each in turn.
 
 ## The config
 
@@ -83,7 +107,32 @@ run: dev · injected SUPABASE_URL, DB_URL, SERVICE_ROLE_KEY · proved SUPABASE_U
 
 **A value on the command line is refused.** `-- psql "$DB_URL"` is expanded by your shell before cookwright starts, so the URL would sit on psql's command line, where any process listing shows it, and if your shell still exports an old `DB_URL`, it would be that one, under the dev banner. `run` refuses an argument that holds a target's value (or its URL-encoded form, or a URL's password), or the value of a declared or ambient name your shell still exports (8 characters or more, unless it is the local Supabase stack's public default: a URL on a loopback host whose password is `postgres`, or `PGPASSWORD=postgres`; any other loopback URL, such as a tunnel to production on `localhost`, is still refused), and any `scheme://user:password@host` argument, naming its position, never the argument: `argument 2 holds the value of DB_URL; read it from the environment inside the command instead`. A URL with a password whose host is `localhost`, `127.x.x.x`, `::1` or `host.docker.internal` (the local Supabase stack's `postgres:postgres`) passes that shape check. Write the command so it reads the variable itself: a script, an npm script, or a program that reads its environment. Every value is checked whatever its length, so a short value refuses every argument that contains it.
 
-**Redaction.** The command's stdout and stderr pass through a redactor that replaces each value, its `encodeURIComponent` form, and, for a URL value with a password of 8 characters or more, that password (as written, decoded and encoded) with `<NAME>`; an old value your shell exports for a declared or ambient name is replaced too, the local stack's public default excepted. Other forms (base64, JSON-escaped, shell-quoted) are not caught. Bytes no value covers pass through unchanged, so binary output (`pg_dump -Fc`, `tar`) is byte-identical, and a prompt without a newline shows at once. The cost: the command's stdout and stderr are pipes, not your terminal, so it prints no colour unless forced and opens no pager. Its stdin is your terminal, so a prompt it reads still works. `run` returns once the command has exited and its output has closed: a command that leaves a process running in the background with the same output keeps `run` waiting until that process closes it; redirect such a process's output inside the command.
+**Redaction.** The command's stdout and stderr pass through a redactor that replaces each value, its `encodeURIComponent` form, and, for a URL value with a password of 8 characters or more, that password (as written, decoded and encoded) with `<NAME>`; an old value your shell exports for a declared or ambient name is replaced too, the local stack's public default excepted. Other forms (base64, JSON-escaped, shell-quoted) are not caught. Every declared value is redacted wherever it appears, whatever its length: a public one (`SUPABASE_URL`) or a short one is replaced in all of the command's output. That costs readable output, never a leak; marking a name as public is not built. Bytes no value covers pass through unchanged, so binary output (`pg_dump -Fc`, `tar`) is byte-identical, and a prompt without a newline shows at once. The cost: the command's stdout and stderr are pipes, not your terminal, so it prints no colour unless forced and opens no pager. Its stdin is your terminal, so a prompt it reads still works. `run` returns once the command has exited and its output has closed: a command that leaves a process running in the background with the same output keeps `run` waiting until that process closes it; redirect such a process's output inside the command.
+
+**The command's own command line is the command's.** The check above sees the arguments `run` is given, not the ones the command later gives its own children. `-- sh -c 'psql "$DB_URL"'` passes it, since the argument is the text `$DB_URL`, yet the inner shell expands it, and psql then runs with the URL and its password on its command line for as long as it runs. Hand such a tool its credential through the environment instead. For psql, a wrapper that takes the password out of the URL and gives it to libpq as `PGPASSWORD`:
+
+```js
+// scripts/psql.mjs: psql against DB_URL, with no password on any command line
+import { spawnSync } from 'node:child_process';
+
+const { DB_URL, ...env } = process.env;
+const url = new URL(DB_URL);
+const password = decodeURIComponent(url.password);
+url.password = '';
+const { status } = spawnSync('psql', [url.href, ...process.argv.slice(2)], {
+  stdio: 'inherit',
+  env: { ...env, PGPASSWORD: password },
+});
+process.exit(status ?? 1);
+```
+
+```
+npx cookwright run dev -- node scripts/psql.mjs -c 'select 1'
+```
+
+cookwright does not split a URL into libpq's `PG*` names for you.
+
+**The command's descendants.** "One child" is the process tree the command starts: everything it starts inherits its environment, values included, unless it clears them, as the wrapper above does for `DB_URL`.
 
 ## The age backend
 
@@ -105,6 +154,10 @@ mv identity.age.new identity.age
 Doctor's `secrets.backend` then reads the identity as passphrase-protected, and every `run` asks for the passphrase.
 
 Commit `secrets/recipients.txt` before the first `set`: nothing is encrypted to a recipient that has not been through a commit.
+
+**The recipients file.** `secrets/recipients.txt` lists the public keys (`age1…`) every ciphertext is encrypted to, one per line; blank lines and `#` comments are allowed. `secrets set` encrypts only to a recipients file that is committed and equal to your last commit, and prints each key's last eight characters, so a key added to the file has to go through a commit you can read before anything is encrypted to it. Any other line refuses; a secret key (`AGE-SECRET-KEY-…`) in the file refuses too, and doctor FAILs it: remove the line and treat that identity as exposed.
+
+**A ciphertext you did not write.** An age ciphertext does not say who wrote it: anyone holding the public recipients file can write a valid `secrets/<target>.env.age`. A change to it that did not come from your own `secrets set` (a merge, a pull, someone else's branch) cannot be reviewed, since its diff is ciphertext. Don't keep it: take your own version and set the values again from where they come from. A proof catches a swapped value for a name it covers; an unproved name has no such check, which is the exposure. Signed ciphertext is not built.
 
 **One identity per developer.** In a second repo on the same machine, run `npx cookwright secrets init` there too: it finds your identity, writes no new one, reads its public key (`age-keygen -y`; for a passphrase-protected identity, age asks for the passphrase on your terminal and the key is read in memory only) and appends it to that repo's `secrets/recipients.txt`, after the same checks and the same question; commit the file before the first `set`. When the file already holds that key, it writes nothing. On a second machine, copy your identity (passphrase-protected, outside any repo) to the same place instead of making a new one; `init` there then finds it the same way. `init` on a repo whose recipients file already holds a key says so before it asks. A new recipient cannot read what is already encrypted: each value has to be set again after the new key is committed.
 
@@ -178,6 +231,23 @@ The managed block that `npx cookwright init` writes into `AGENTS.md` (version 4 
 - `secrets init` and `secrets set` are yours: the agent hands them over, never runs them, and never asks you for a value in the transcript.
 
 An older block reads stale in doctor's `rules.block` until `npx cookwright init` refreshes it.
+
+## What is not closed
+
+- **The command's environment.** The values sit in the environment of the command `run` starts, for as long as it runs, as any injected variable does. Another process running as you, or as root, can read a process's environment (`/proc/<pid>/environ` on Linux, `ps eww <pid>` where `ps` prints environments). cookwright narrows this to one command for one run; it does not close it.
+- **cookwright's own process.** It holds the target's values in memory until the command starts. Its own environment is the one your shell gave it: a stale export of a declared name is still in it (and in your shell). `run` keeps it from the command and names it on the banner; `secrets.carriers` names where it comes from.
+- **What the command does with a value.** The command's own command line and its children's (above), a file it writes, a request it sends, a log line in a form the redactor does not know (base64, JSON-escaped, shell-quoted): these are the command's.
+- **An identity without a passphrase.** Whoever reads that file opens every ciphertext encrypted to it.
+- **A recipient added after a ciphertext was written** cannot read it until each value is set again; there is no `secrets rekey`.
+
+## Moving an existing app off its `.env`
+
+1. Write down the names your `.env` holds, not the values (`cut -d= -f1 .env` prints the names alone; never paste the file into a transcript). Values that go to the shipped app (`EXPO_PUBLIC_…` in an Expo app) are compiled into it and readable by anyone who has it: they are public by design, not secrets, so they belong in committed config (a build profile's `env` in `eas.json`, for instance), not in a target.
+2. Choose a backend and declare a target per environment with those names and its proof (Setting up, above).
+3. Set each value: `npx cookwright secrets set dev DB_URL`, pasting it at the hidden prompt from where it comes from (the dashboard, your password manager), or, for a plain unquoted line, straight from the file without it touching a command line or the screen: `grep '^DB_URL=' .env | cut -d= -f2- | npx cookwright secrets set dev DB_URL --stdin`.
+4. Stop loading the file: remove the `dotenv` import or the `--env-file` flag, and run the commands that need a credential through `run`: `npx cookwright run dev -- npm run seed`.
+5. Delete `.env`. If it was ever committed, untracking it is not enough: the values are in git's history, so rotate each one at its source.
+6. Remove any `export NAME=…` of those names from your shell's rc files, then run doctor: `secrets.env` and `secrets.carriers` read PASS when nothing is left.
 
 ## Updating to version 4
 

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 55,
+  "revision": 80,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -78,9 +78,19 @@
   "phases": [
     {
       "name": "plan-review",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-27T13:36:54.491Z",
+          "stateRevision": 55,
+          "planSha": "dbc4b8f50628dc78",
+          "codex": true,
+          "runId": "wf_5556c20f-4c4"
+        }
+      ],
+      "startCommit": "fd2f9ddcc29bfcadec2c9f383ecfffdca58f0fbb",
+      "range": null
     },
     {
       "name": "implement:s1",
@@ -188,7 +198,26 @@
       ]
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "phase": "plan-review",
+      "path": "docs/dev/bundles/stage-5/findings/plan-review-1.json",
+      "counts": {
+        "confirmed": 23,
+        "plausible": 8,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 10,
+        "P2": 13,
+        "P3": 8
+      },
+      "at": "2026-10-27T13:46:38.259Z",
+      "stored": true,
+      "head": "fd2f9ddcc29bfcadec2c9f383ecfffdca58f0fbb"
+    }
+  ],
   "reports": [],
   "qaRounds": [],
   "decisions": [
@@ -561,6 +590,160 @@
       "actor": "developer",
       "source": "plan review 2026-10-27, P3s folded",
       "text": "The keychain service defaults to the config root's basename, so renaming the directory loses the items; the guide names secrets.id for that. secrets.carriers flags a line setting NAME in an rc file even when it holds no value (NAME=$(op read …)): names only, a WARN, the note saying a line setting NAME.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:37.798Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 0 (P1 plausible), plan §2 disposition 49",
+      "text": "Rules 2 and 3: run does not refuse an uncommitted cookwright.json, template or ciphertext (the setup recipe runs run -- true before committing, and the edit is the developer's own); the banner names what differs from HEAD (uncommitted: cookwright.json, secrets/dev.env.tpl) from one git status --porcelain over those paths, so a relabelled target is visible on every run. Tested with each file edited after a commit.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:38.077Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 1 (P1 plausible), plan §2 disposition 50",
+      "text": "Rule 7: two environments. Every helper (op, age, age-keygen, security) runs with the scrubbed environment (declared, ambient and value-equal names removed). The child additionally loses each backend's control names (1password: OP_SERVICE_ACCOUNT_TOKEN, OP_CONNECT_HOST, OP_CONNECT_TOKEN, every OP_SESSION_*; age: COOKWRIGHT_AGE_IDENTITY), named on the banner as dropped. Tests assert the exact environment each helper and the child receive.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:38.357Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 2 and 22 (P1, P2 confirmed), plan §2 disposition 51",
+      "text": "Rule 7: the identity's directory, by realpath, must be inside no git work tree at all (git -C <dir> rev-parse --show-toplevel exits 0 → secrets init refuses and doctor FAILs naming that repo's top; a ~/.config symlinked into a dotfiles repo is the case). On POSIX the identity must be mode 0600 and its directory 0700: init writes them so, doctor FAILs a group- or world-readable identity naming chmod 600; Windows per disposition 41. Tested with a symlinked config dir into a second scratch repo and a 0644 identity.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:38.684Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 3 (P1 confirmed), plan §2 disposition 52",
+      "text": "Rule 7: no basename default. secrets.id is required by the config when backend is keychain (invalid without it, naming the key) and optional otherwise; the service is cookwright/<id>/<target>. Tested: two repos with the same basename and different ids never share an item.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:38.958Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 4 and 29 (P1, P3 confirmed), plan §2 disposition 53",
+      "text": "Rule 3: resolved output is parsed against the expected set. 1password: exactly one line per template reference, the same names in the same order, no other line; age: every line NAME=value with each declared name at most once and no undeclared name (secrets set refuses an undeclared name); a NUL, a duplicate, an unknown or a missing declared name refuses naming the name or the line number only; an empty value is missing; a multi-line field is refused as an extra line. Adversarial tests: a continuation line shaped LD_PRELOAD=x, a duplicate, an unknown name, a NUL.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:39.233Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 5 (P1 confirmed), plan §2 disposition 54",
+      "text": "Rule 3: every git path of the stage is top-relative: secrets/… is joined to the config root, made relative to repo.top, and git show HEAD:<topRel>, ls-files, check-ignore and status --porcelain run from the top with that literal path. Tested with a config root below the top and a decoy secrets/ at the top.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:39.500Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 6 (P1 plausible), plan §2 disposition 55",
+      "text": "The playbook's doc-sync rule and the Session start rule: no escape. s1 writes the first version of docs/guides/secrets.md (the config shape, the migration, the proof kinds), which meets the setup rule on the manifest commit honestly; s2, s3 and s4 grow it. s1 also runs npx cookwright migrate on this repo (version 4, no secrets key) and commits cookwright.json, so no session starts with a migrated-in-memory WARN. Supersedes disposition 36's escape and moves this repo's migrate from s5 to s1.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:39.761Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 7 and 20 (P1, P2 confirmed), plan §2 disposition 56",
+      "text": "The amendments are folded into the earlier text: §4.1 reads targets an object, possibly empty; disposition 34 reads 125; disposition 7's not-measured wording is marked superseded by 45; disposition 44 is on s1's list.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:40.026Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 8 (P2 confirmed), plan §2 disposition 57",
+      "text": "Rule 1: secrets init preflights everything (the identity path and its enclosing work tree, the ignore probes, the recipients file's tracking, HEAD-equality and grammar, the directory's writability, consent) before writing anything, and on a failure after the identity was written removes it and says so; a retry is clean. Tested: each refusal leaves no identity and no recipients change.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:40.306Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 9 (P2 plausible), plan §2 disposition 58",
+      "text": "Rule 3: a backend declares its tools per operation (age: resolve needs age, init needs age and age-keygen); secrets.backend names the missing one; secrets.targets SKIPs with the backend row's reason whenever that row is SKIP or FAIL, never calling inspect. Tested: age without age-keygen; keychain on linux.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:40.603Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 10, 17 and 26 (P2, P1, P3), plan §2 disposition 59",
+      "text": "Rule 3: the redactor works on bytes: needles are Buffers (raw and encoded forms) matched with Buffer.indexOf, the prefix hold-back on bytes, bytes passed unchanged when nothing matches, so a binary stream (pg_dump -Fc, tar, gzip) comes through byte-identical. It is a Transform piped with normal backpressure, and run exits only after both pipes have closed and the child has exited: no 200 ms drain. A daemonising grandchild keeps run alive until it closes its output, as a shell pipeline would; the guide says to redirect such output inside the command. Tests: random binary and a pg_dump-shaped header byte-identical; invalid UTF-8 untouched; a slow consumer with a large output; a grandchild holding the pipe for a second.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:40.873Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 16 (P1 confirmed), plan §2 disposition 60, PROVISIONAL pending the developer",
+      "text": "Rule 7: security's prompt truncates at 128 characters silently (measured: getpass(3), _PASSWORD_LEN), which a service-role JWT and most pooler URLs exceed, so decision 48's mechanism cannot stand. Provisionally: secrets set on keychain reads the value through cookwright's own echo-off prompt (or --stdin), writes it through security -i (the interactive mode reading the add-generic-password line from stdin, so the value is on no command line), s3 measures security -i's quoting and limits (220 characters, spaces, quotes, non-ASCII) before building on it, and after every set reads the item back with -w and compares sha256 with the input, refusing otherwise. If security -i fails the measurement, the keychain set refuses values the OS cannot store faithfully and the limit goes to the guide and the developer. The ruling is the developer's (contradicts decision 48 on a measurement).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:41.147Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 12 (P2 plausible), plan §2 disposition 61",
+      "text": "Rule 1: readValue restores the terminal in a finally whatever happens, treats Ctrl-C and EOF as a refusal, handles backspace, and with --stdin refuses input beyond one line and one optional final newline. Tests through a fake tty stream: success, Ctrl-C, EOF, a write that throws, two lines on stdin.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:41.564Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 13 (P2 confirmed), plan §2 disposition 62",
+      "text": "Rule 3: the CI age pin is version 1.3.2 (this machine's), asset age-v1.3.2-linux-amd64.tar.gz from the FiloSottile/age release; s2 fetches the asset, records its sha256 in ci.yml beside the gitleaks digest, and extracts only age/age and age/age-keygen.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:41.908Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 18 (P2 confirmed), plan §2 disposition 63",
+      "text": "Rule 3: the fixture's doctor calls run with HOME=$WORK/home (created empty) and every declared and ambient name unset (env -u), so a developer machine's shell exports never trip the counts; the secrets step plants export SUPABASE_DB_URL= into $WORK/home/.zshrc and asserts secrets.carriers WARNs naming it, so the row is measured, not assumed.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:42.269Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 19 (P2 confirmed), plan §2 disposition 64",
+      "text": "The three PASS notes under ## At the end land in s3 with the recipe tables (skills.test.mjs requires them), as disposition 32 now reads.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:42.861Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 21 (P2 confirmed), plan §2 disposition 65",
+      "text": "Rule 3: for a postgres-scheme value both kinds refuse as a mismatch any query parameter among host, hostaddr, user, port, dbname, service, options, password, passfile (names percent-decoded, as the origin's splitDbPassword does), naming the parameter and never its value; sslmode and application_name pass. The near-miss table gains ?user=postgres.<other>, ?host=db.<other>.supabase.co, ?hostaddr=, ?pass%77ord=.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:43.126Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 23 (P2 confirmed), plan §2 disposition 66",
+      "text": "Rule 3: SIGINT stays ignored by cookwright while the child runs (the terminal delivers it to the child); SIGTERM and SIGHUP are forwarded to the child with child.kill(signal) and cookwright keeps waiting; the exit is 128+n from the child's own end. Tested: SIGTERM sent to cookwright alone reaches the child, exit 143.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:43.386Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 24 (P2 confirmed), plan §2 disposition 67",
+      "text": "Rules 2 and 3: with a passphrase-protected age identity, run is the developer's command, said in the block (with a passphrase-protected age identity, hand the run command to the developer), the guide and the setup recipe; the refusal without a terminal reads 'the identity is passphrase-protected; hand this command to the developer' and never names --no-passphrase. An identity unlock cache for agent sessions is a backlog entry.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:43.646Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 25 (P3 confirmed), plan §2 disposition 68",
+      "text": "Rule 3, bounded: the ambient file and service names (PGSERVICE, PGSERVICEFILE, PGPASSFILE) are never needles; every declared value stays a needle whatever its length (the guarantee), and the guide says a short or public declared value redacts its every occurrence; the inherited values of declared and ambient names are needles only when 8 or more characters.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:43.959Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, finding 27 (P3 plausible), plan §2 disposition 69",
+      "text": "Rules 1 and 3: secrets.targets is registered config: true, git: true; the three rows are registered after packs, at the end of CHECKS, so a slow backend inspection can never starve a level-required row; a doctor test asserts a spent budget inside inspect leaves repo.node_modules measured. The readout order changes accordingly (22 rows, the secrets rows last).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T13:53:44.285Z",
+      "actor": "orchestrator",
+      "source": "plan-review round 1, findings 14, 15, 28, 30 (P3), plan §2 disposition 70",
+      "text": "Folded: the migration returns secretsKept when a secrets key is already present (disposition 16); the JSON schema is structural and the guide says so (disposition 18); SCANNED gains src/run.mjs and src/secrets.mjs (disposition 35); the guide says a change to secrets/*.env.age not made by the developer's own secrets set is unreviewable (age ciphertext has no sender authentication) and is re-set rather than merged, unproved names being the exposure; a signed-ciphertext enhancement is a backlog entry.",
       "claim": true
     }
   ],

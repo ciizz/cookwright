@@ -1,0 +1,509 @@
+{
+  "phase": "plan-review",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "§4.2 steps 2-4; §4.3 onepassword.mjs; dispositions 15, 23 (line ~102)",
+      "problem": "Target proof trusts unreviewed working-tree state: only age recipients are required to match HEAD; cookwright.json and the 1Password template are not checked as tracked and HEAD-identical.",
+      "severity": "P1",
+      "suggested_fix": "Before a proved run, require cookwright.json and any 1Password template to be tracked and byte-identical to HEAD; refuse before resolution otherwise. Test modifying each after commit, asserting exit 125 and no child spawned.",
+      "failure_scenario": "An uncommitted edit changes dev's ref/template/ciphertext to production; `cookwright run dev` proves production values against the relabelled ref and spawns the command under a dev banner.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "plausible",
+      "evidence": "plan.md:102 (disp 23) only recipients.txt is compared to HEAD; §4.2 steps 2-4 and §4.3 onepassword.mjs read config/template/ciphertext from the working tree with no tracked/HEAD-equal check. The edit is the developer's own, so impact is limited, but the plan does not refute it."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "§4.2 step 5; §4.3 backend calls; dispositions 9, 14, 15, 29 (line ~110)",
+      "problem": "Secret-bearing helper processes and backend credentials cross the environment boundary: age/security calls omit env so inherit stale declared and ambient secrets; the final child inherits 1Password auth variables (OP_SERVICE_ACCOUNT_TOKEN, OP_SESSION_*).",
+      "severity": "P1",
+      "suggested_fix": "Define separate resolver and child environments. Strip declared/ambient secrets from every helper; additionally drop backend-control credentials (including dynamic OP_SESSION_*) from the final child. Test the exact env received by each helper and the child.",
+      "failure_scenario": "A stale production DB_URL is passed to age/security, or an app run via the 1Password backend receives a service-account token able to read the vault.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "plausible",
+      "evidence": "plan.md:110 (disp 14/29) childEnv drops only declared and pack-ambient names; OP_SERVICE_ACCOUNT_TOKEN and OP_SESSION_* are not on any list. Only 'op inject' is stated to get a scrubbed env (disp 15); the age/security capture calls in §4.3 give no env."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 6; disposition 41; §4.3 age.mjs (line ~37)",
+      "problem": "Identity-location check uses underWorkTree(path, repo.top) so it does not detect an identity inside a different repo (dotfiles symlink) despite claiming to; POSIX permission policy is mentioned but never defined.",
+      "severity": "P1",
+      "suggested_fix": "Detect any enclosing Git work tree of the resolved identity path, refuse before writing. Define and test a POSIX mode policy, FAIL on group/world-readable plaintext identities.",
+      "failure_scenario": "~/.config symlinks into ~/dotfiles; init writes the identity into another Git repo; a pre-existing 0644 passphrase-less identity escapes detection.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "plan.md:37 disp 6 and §4.3 age.mjs underWorkTree(path, top) compare realpath against this work tree only, so a ~/.config symlink into another repo passes while the parenthetical says it 'counts'. Disp 41 mentions identity permissions but no POSIX policy is defined anywhere."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 26; §4.1 secrets.id; §4.3 keychain.mjs (line ~60)",
+      "problem": "Default keychain service cookwright/<basename>/<target> is not per repository; same-basename repos collide and -U can overwrite the other's item.",
+      "severity": "P1",
+      "suggested_fix": "Require an explicit stable secrets.id for the keychain backend or generate a unique non-secret id at setup. Test two repos with the same basename.",
+      "failure_scenario": "/client-a/app and /client-b/app both use target prod; setting a key in one overwrites or retrieves the other's item.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 3,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 26: service cookwright/<id>/<target> with id defaulting to the config root's basename; §4.3 keychain set uses add-generic-password -U. Same-basename repos share the service and account, so -U overwrites."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "§4.2 step 3; disposition 15; §4.3 parseEnv (line ~108)",
+      "problem": "Backend output is not constrained to the target's declared names: unknown/duplicate names from op inject or age plaintext are not refused; claim that values may contain any byte but newline is incompatible with Node env (NUL).",
+      "severity": "P1",
+      "suggested_fix": "Parse against the exact expected-name set: each declared name exactly once, no unknown, no duplicates, no NUL, no extra physical lines. Add adversarial tests.",
+      "failure_scenario": "A multiline 1Password value yields a second line LD_PRELOAD=... or NODE_OPTIONS=... that becomes a map entry and reaches the child.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 4,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 15 and §4.3 onepassword.mjs: parseEnv splits at the first '=' and refuses only a 'malformed' line by number. Nothing checks parsed names against the target's declared names or for duplicates, so an extra 'LD_PRELOAD=x' continuation line becomes an entry. Disp 15 also claims any byte but newline, but Node rejects NUL in env."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 23; §4.3 recipients.mjs; doctor target tracking checks (line ~57)",
+      "problem": "Git paths wrong for nested config roots: HEAD:secrets/recipients.txt via gitRun(root) resolves from the work-tree top, not cwd.",
+      "severity": "P1",
+      "suggested_fix": "Carry both root and top, compute a literal top-relative path, run HEAD/index ops from top. Test a nested config root with a top-level decoy secrets directory.",
+      "failure_scenario": "apps/mobile/secrets/recipients.txt is reported missing or compared against an unrelated top-level secrets/recipients.txt.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 5,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 23 and §4.3 recipients.mjs use 'HEAD:secrets/recipients.txt' through gitRun(root,...). packages/cookwright/src/lib/doctor/repo.mjs:84-85 shows root (found config root) can differ from top, and 'git show HEAD:path' resolves from the work-tree top, not the cwd."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "dispositions 32, 36, 38; §10 sessions s1-s5 (line ~66)",
+      "problem": "Session ordering violates repo workflow rules: s1 uses COOKWRIGHT_SKIP=doc-sync despite doc implications; guide not begun until s3 though s2 ships CLI/age behavior; config version bumped in s1 but this repo's config stays at v3 until s5 so session-start doctors WARN.",
+      "severity": "P1",
+      "suggested_fix": "Land an initial secrets guide with the first manifest/config change and update per slice; migrate this repo's config in s1; do not prescribe the doc-sync escape.",
+      "failure_scenario": "s1 and s2 end green with unsynchronized user-visible behavior; s2 starts with a config-migration WARN contrary to the session-start rule.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 6,
+      "verdict": "plausible",
+      "evidence": "plan.md disp 36 and §10 s1 use COOKWRIGHT_SKIP=doc-sync for the supabase manifest commit, though playbook.md:114 reserves it for commits with no doc implication; the guide is not begun until s3 (disp 32). src/lib/messages.mjs:60,281 shows an older-version config yields a 'migrated in memory' weak result, and this repo's migrate is s5 (§7), so session-start doctor likely WARNs from s1 on. Whether this breaks a hard rule is arguable."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 34 vs 47; §4.1 vs disposition 44 (line ~68)",
+      "problem": "Accepted amendments not folded in: disposition 34 says Refused exits 1 while 47 says 125; §4.1 requires non-empty targets while 44 makes {} valid.",
+      "severity": "P1",
+      "suggested_fix": "Rewrite disposition 34 and §4.1 so Refused is 125 and targets may be empty.",
+      "failure_scenario": "An implementer follows §4.1 and rejects the approved setup state, or follows disposition 34 and writes tests for exit 1.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 7,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 34 says 'exit 1' while disp 47 says 'Refused carries 125'. §4.1 validateSecrets says 'a non-empty object' while disp 44 makes an empty targets object valid. Neither text was folded into the earlier section."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "§4.3 age.mjs init ordering (line ~122)",
+      "problem": "secrets init writes the identity before guarding/validating an existing recipients file, leaving unrecoverable partial setup.",
+      "severity": "P2",
+      "suggested_fix": "Preflight all ignore, tracking, HEAD-equality, parse, consent, directory, destination conditions before writing; roll back created artifacts on failure. Test each refusal leaves no identity or recipients change.",
+      "failure_scenario": "Recipients file is dirty/untracked/malformed/unwritable; init writes identity then refuses; retry refuses because identity exists.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 8,
+      "verdict": "confirmed",
+      "evidence": "plan.md §4.3 age.mjs init: the identity is written (age -p -o / --no-passphrase), and only afterwards does the append step require recipients.txt to be committed and HEAD-equal. A failure there leaves the identity, and a retry hits 'refuse an existing identity'. The ignored-file check is the only guard placed before the write."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "backend interface; §4.6 doctor rows; tests §6 (line ~118)",
+      "problem": "Backend availability has one `tool` but age needs age and age-keygen; doctor rows run independently so secrets.targets calls backend.inspect even when secrets.backend SKIPs.",
+      "severity": "P2",
+      "suggested_fix": "Model required tools per operation, share an availability result across doctor rows, SKIP secrets.targets with the same reason when inspection cannot run. Test partial age install and wrong-platform keychain.",
+      "failure_scenario": "Machine has age but not age-keygen: doctor suggests init though impossible; on Linux with keychain configured, targets row tries `security` and reports a misleading failure.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 9,
+      "verdict": "plausible",
+      "evidence": "plan.md §4.3 gives each backend a single 'tool', while init needs age-keygen as well. §4.6 secrets.targets calls backend.inspect per target with no stated dependence on the secrets.backend row's SKIP, so on Linux with keychain configured it would reach 'security'. An implementer could add the gating, but the plan does not say so."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 13; §4.5; engine tests (line ~44)",
+      "problem": "Redactor transport can corrupt/truncate child output: StringDecoder is text-only and replaces invalid UTF-8; backpressure unspecified; ending after arbitrary 200 ms can discard buffered output.",
+      "severity": "P2",
+      "suggested_fix": "Use a byte-safe transform with normal backpressure and wait for both pipes to close, or explicitly narrow the contract to text. Test invalid UTF-8, large output via slow consumer, delayed post-exit data.",
+      "failure_scenario": "`run ... -- pg_dump -Fc > dump` yields a corrupt/truncated dump; high-volume child grows memory.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 10,
+      "verdict": "confirmed",
+      "evidence": "plan.md §4.5 and disp 13/25: Redactor decodes with a StringDecoder, which replaces invalid UTF-8 with U+FFFD. Backpressure is unspecified, and a 200 ms drain followed by end() can drop buffered output. §6 redactor tests cover only a multibyte split."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 5; disposition 27; §4.7 secrets guide (line ~36)",
+      "problem": "The 'one child' residual omits descendants, which inherit the env; plan recommends sh -c wrappers and acknowledges grandchildren elsewhere.",
+      "severity": "P2",
+      "suggested_fix": "State the process-tree boundary precisely in plan and guide, reconcile with charter's 'one child process' wording (dated amendment if literal), add a descendant-inheritance test.",
+      "failure_scenario": "`run dev -- sh -c 'tool &'` leaves a background descendant holding all injected values after run exits.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 11,
+      "verdict": "plausible",
+      "evidence": "plan.md disp 27 and §4.7 guide outline ('what is not closed: the environment block'), disp 13 ('a grandchild... writes unseen'). The guide does not exist yet, so whether its residual wording omits descendants cannot be settled, but the outline does not name descendants."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 8/10; §4.3 prompt.mjs; prompt tests (line ~125)",
+      "problem": "No-echo prompt lacks cancellation and terminal-restoration requirements (finally restore, Ctrl-C/EOF/backspace) and does not reject trailing data in --stdin.",
+      "severity": "P2",
+      "suggested_fix": "Specify a prompt state machine with unconditional terminal restoration and explicit cancellation; refuse --stdin input beyond one optional final newline; add fake-TTY tests for success, Ctrl-C, EOF, thrown writes.",
+      "failure_scenario": "Ctrl-C leaves terminal in raw/no-echo; a two-line pipeline silently stores only the first line.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 12,
+      "verdict": "plausible",
+      "evidence": "plan.md disp 8 (setRawMode) and §4.3 prompt.mjs, §6 prompt tests list only '--stdin one line, trailing newline stripped, empty refused'. No terminal-restore, Ctrl-C/EOF or trailing-data requirement is stated. These are likely implementer details, but the omission is real."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 39; §8 verification (line ~73)",
+      "problem": "CI age pin not specified: promises sha256-pinned release but gives no version or digest.",
+      "severity": "P2",
+      "suggested_fix": "Record exact age version, archive name and SHA-256 in the plan before implementation; verify both binaries are the only extracted members.",
+      "failure_scenario": "Different sessions pick different releases, or CI lands with an unreviewed/incorrect checksum.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 13,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 39 says the ci.yml age step is 'sha256-pinned' and names neither a version nor a digest, although the plan measured age 1.3.2 locally (§1)."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 16; §4.1 migration (line ~47)",
+      "problem": "Migration always reports `secretsNone: no secrets backend declared` even when a v3 raw file already contains a valid future `secrets` key.",
+      "severity": "P3",
+      "suggested_fix": "Use a neutral outcome ('secrets configuration unchanged') or branch into secretsKept and secretsNone; test both.",
+      "failure_scenario": "Migrating such a file enables its backend while printing that none is declared.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 14,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 16 and §4.1: the 3->4 step 'changes nothing but the version (outcome secretsNone...)' unconditionally. packages/cookwright/src/lib/migrations.mjs:41-43 has a precedent (addPacks returns 'packsKept' when the key is present), so the pattern exists but the plan does not use it."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "§4.1 schema; config tests §6 (line ~99)",
+      "problem": "Editor schema proof.oneOf allows a Supabase proof without the Supabase pack declared while runtime validation rejects it; schema tests compare structure only.",
+      "severity": "P3",
+      "suggested_fix": "Add a schema condition tying proof kind to the declared pack, or document the schema as structural-only; add representative parity cases without a new dependency.",
+      "failure_scenario": "Editor reports a config valid but every cookwright command rejects it.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 15,
+      "verdict": "confirmed",
+      "evidence": "plan.md §4.1: the schema's proof oneOf is 'per known kind', but config.mjs validates the supabase kind only when the pack is declared (disp 18). A JSON schema cannot see declared packs, and §6 says only that the 'schema in step' (structure)."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "dispositions 10 and 48; §4.3 keychain.mjs `set`",
+      "problem": "The keychain write path relies on `security add-generic-password ... -w` (last) prompting for the value. Measured on this machine: /usr/bin/security links `_getpass` (nm -u) and its prompt strings are 'password data for new item:' and 'retype password for new item:'. getpass(3) on macOS says 'The password may be up to _PASSWORD_LEN (currently 128) characters ... Any additional characters ... are discarded' (pwd.h: `#define _PASSWORD_LEN 128`). Both prompts truncate the same way, so the retype matches and nothing reports an error. `find-generic-password -w` also prints hex for a non-ASCII value, so that value is injected hex-encoded.",
+      "severity": "P1",
+      "suggested_fix": "Before s3, measure a 200+ character value round-tripped through the prompt. If it truncates, take this back to the developer, because it contradicts their dated decision 48. One candidate keeps the value off any command line: `security -i`, which reads the `add-generic-password ... -w <value>` command from stdin. Its quoting and length limits need measuring too. Whatever path is chosen, check after every set that the stored length matches the input length (compare the sha256), and refuse otherwise. Add a test with a 220-character value and a non-ASCII value, and a QA step with a real service-role JWT.",
+      "failure_scenario": "The developer runs `secrets set dev SERVICE_ROLE_KEY` on the keychain backend and pastes a Supabase service-role JWT (about 220 characters), or a pooler DB_URL longer than 128 characters. security keeps the first 128 characters and exits 0, and cookwright prints 'set SERVICE_ROLE_KEY'. Every later `run dev` injects the truncated key and the proof still passes (it does not cover that name). Calls then fail with opaque auth errors, and nothing in doctor or run points at the cause.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 16,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 10/48 and §4.3 keychain set rely on 'security add-generic-password ... -w' (last) prompting. I confirmed on this machine: nm -u /usr/bin/security lists _getpass, and strings shows 'password data for new item:' and 'retype password for new item:'. getpass(3) caps at _PASSWORD_LEN 128 and discards the rest, with no error, so a longer JWT or pooler URL is truncated silently."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "§4.5 the redactor (`StringDecoder`), disposition 5, §4.2 step 7",
+      "problem": "The child's stdout and stderr always go through a Redactor that decodes the bytes as UTF-8 text with a StringDecoder and writes strings back out. Any byte sequence that is not valid UTF-8 is replaced with U+FFFD (EF BF BD), whether or not a needle matched. So `run` silently corrupts every binary stream a child writes, and the plan's tests (§6, redactor: multibyte split only) never cover binary output.",
+      "severity": "P1",
+      "suggested_fix": "Redact on Buffers: hold the needles as Buffers (both the raw and the encoded forms) and search with Buffer.indexOf. Keep the same prefix hold-back on bytes, and pass bytes through unchanged when nothing matches. Add a redactor test and an engine test that pipe random binary (and a pg_dump-shaped header) through and assert the bytes are identical.",
+      "failure_scenario": "`npx cookwright run prod -- pg_dump -Fc > backup.dump` (or `-- tar c ...`, `-- gzip -c`): cookwright's stdout is the file, and the child's binary stdout passes through the StringDecoder. Each invalid UTF-8 sequence becomes EF BF BD, the command exits 0, and the file is a corrupted backup that is only found when `pg_restore` fails later.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 17,
+      "verdict": "confirmed",
+      "evidence": "plan.md §4.5 'streaming with a StringDecoder' and §4.2 step 7 pipe all child stdout/stderr through it. Text decoding replaces invalid UTF-8 with U+FFFD, so binary output (pg_dump -Fc, tar, gzip) is corrupted. §6 redactor tests cover only a multibyte split."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "dispositions 11 and 29, §8 fixture second doctor run, §10 s3 'the fixture green'",
+      "problem": "`secrets.carriers` reads doctor's own environment and the real `~/.zshrc` and similar files for every ambient name of the declared packs. The fixture declares `supabase`, and isolate_git does not isolate HOME or the environment. Measured on this machine (names only): `~/.zshrc` has `export SUPABASE_DB_URL=`, and `SUPABASE_DB_URL` is set in the environment. That name is on the supabase pack's ambient list (disposition 29). The fixture's first doctor run asserts ' 0 FAIL, 1 WARN, ' (or ' 0 FAIL, 0 WARN, '), and the second asserts `PASS secrets.carriers` and exact counts.",
+      "severity": "P2",
+      "suggested_fix": "Have the fixture run doctor with a scrubbed environment and a scratch HOME, for example `env -u` for the ambient names plus `HOME=$WORK/home` for the doctor calls only (or a doctor `--home` seam). Alternatively, make the carriers assertion depend on the environment. Add an assertion that a planted rc line WARNs, so the row is measured rather than assumed.",
+      "failure_scenario": "From s3 on, `bash scripts/ci/fixture.sh` on the developer's Mac: `secrets.carriers` WARNs, naming SUPABASE_DB_URL in ~/.zshrc and the environment. The first doctor run shows 2 WARN and fails 'doctor reported a FAIL, or a WARN besides pack.supabase.types'. The plan's 'fixture green at the end of every session' is false locally even though the ubuntu CI job passes.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 18,
+      "verdict": "confirmed",
+      "evidence": "scripts/ci/fixture.sh:78-83 isolate_git sets only git variables and does not isolate HOME or the environment. Plan disp 11/29 make secrets.carriers read doctor's env and the real ~/.zshrc, and the fixture declares supabase. scripts/ci/fixture.sh:203,207 assert exact WARN counts, and §8 asserts PASS secrets.carriers. A developer machine with SUPABASE_DB_URL set would trip them."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 32 vs src/lib/skills.test.mjs:200-205; §10 s3/s4",
+      "problem": "skills.test.mjs 'acts on every PASS row of its recipe at the end' requires the note of every `| PASS |` recipe row to appear in the text after `## At the end`. The plan puts the three recipe tables, which have PASS rows, in s3, and the end-pass item 'which repeats the three PASS notes, as the test requires' in s4.",
+      "severity": "P2",
+      "suggested_fix": "Move the three PASS notes under `## At the end` into s3, together with the tables. s4 can still write the narrative end-pass item around them. Update s3's checkpoint text to match.",
+      "failure_scenario": "At the end of s3, `npm test` fails 'acts on every PASS row of its recipe at the end' for `no backend (Level 2 off)`, `no targets declared` and the carriers PASS note. The s3 gate is red, and the playbook's green rule (the rule disposition 32 was written to satisfy) is broken.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 19,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/skills.test.mjs:200-205 requires every '| PASS |' note to appear after '## At the end'. Plan disp 32 and §10 put the recipe tables in s3 and the end-pass item in s4, so the s3 gate fails."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "§4.1 validateSecrets ('`targets` a non-empty object') vs disposition 44; s1 disposition list",
+      "problem": "§4.1, which s1 implements, says `targets` must be a non-empty object. Amendment 44 says an empty `targets` object is valid and reads WARN. But 44 is assigned to s3, not s1. Disposition 34 (Refused, 'exit 1') also contradicts 47 (125). Disposition 7 ('the row reads `not measured`', 1Password 'sign-in reads `not measured`') contradicts 45 ('`not measured` never appears on a PASS line'). The plan's own text gives an implementer the superseded rule.",
+      "severity": "P2",
+      "suggested_fix": "Edit §4.1 to 'an object, possibly empty' and put 44 in s1's disposition list. Strike 'with exit 1' from 34, and mark 7's 'not measured' wording as superseded by 45.",
+      "failure_scenario": "s1 builds validateSecrets per §4.1. A developer mid-setup writes `\"secrets\": {\"backend\": \"age\", \"targets\": {}}`. The config is invalid, so `config` FAILs and every config-dependent row SKIPs, which is the state amendment 44 forbids. s3 then has to rewrite s1's validator and tests.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 20,
+      "verdict": "confirmed",
+      "evidence": "plan.md §4.1 validateSecrets says 'targets a non-empty object' and s1 implements it (§10), while disp 44 (empty targets valid) is only realised in §4.6, a doctor row in s3. Disp 34 (exit 1) contradicts 47 (125), and disp 7 ('not measured' on a row) contradicts 45 ('never on a PASS line')."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "dispositions 19 and 31; §4.4 `host` and `supabase` kinds",
+      "problem": "The proofs check only the URL's authority (the pooler username and the host). libpq connection URIs accept the connection parameters in the query string as well, and those override the authority: `?host=`, `?hostaddr=`, `?user=`, `?service=`, `?port=`. The near-miss table only covers the expected ref appearing in the query (unanchored), never a query parameter that redirects the connection. The `host` kind has the same gap. A supabase-proved banner then claims more than the check establishes.",
+      "severity": "P2",
+      "suggested_fix": "For postgres-scheme values, refuse as a mismatch any query parameter in {host, hostaddr, user, service, port, dbname, options}, or refuse any query that libpq would read as a connection parameter, naming the parameter but never the value. Add `?user=postgres.<other>`, `?host=db.<other>.supabase.co` and `?hostaddr=` rows to the near-miss table, in both kinds.",
+      "failure_scenario": "dev's DB_URL is `postgresql://postgres.<devref>:pw@aws-0-eu.pooler.supabase.com:6543/postgres?user=postgres.<prodref>`, for example a pasted connection string with an edited query. The proof sees username `postgres.<devref>` on a pooler host and prints 'proved DB_URL against <devref>'. psql connects as `postgres.<prodref>`, and the pooler routes to prod: the stale-target incident the proof exists to stop.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 21,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 19/31 and §4.4: userinfo is split at the last '@' and only the authority is checked, and the near-miss table (§6) covers only the ref placed in the query. libpq URI query parameters (user=, host=, hostaddr=, service=, port=) are applied after the authority and override it, and the plan does not check them. The 'host' kind uses new URL(value).host, which has the same gap."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 6 ('a symlinked `~/.config` into a dotfiles repo counts'), §4.3 age.mjs `underWorkTree`",
+      "problem": "The identity check compares the realpath of the identity's directory against this repo's work tree only. A `~/.config` symlinked into a dotfiles repository resolves into a different work tree, so the check passes it, yet the parenthetical says that case 'counts'. The claim is wider than the check. Dotfiles repos are often pushed publicly, and the `--no-passphrase` identity is a plaintext AGE-SECRET-KEY. gitleaks only scans this repo's commits.",
+      "severity": "P2",
+      "suggested_fix": "Refuse (init) or FAIL (doctor) when the identity's realpath directory is inside any git work tree: `git -C <dir> rev-parse --is-inside-work-tree` exits 0. Name that repo's top, not only this one. Add a test with a symlinked config dir pointing into a second scratch repo.",
+      "failure_scenario": "The developer's ~/.config is a symlink to ~/dotfiles/config, a public GitHub repo. `secrets init --no-passphrase` writes ~/.config/cookwright/identity.age, whose realpath ~/dotfiles/config/cookwright is not under the app's work tree, so init accepts it and doctor does not FAIL. The next `git add -A && git push` in dotfiles publishes the key that decrypts every tracked `secrets/*.env.age`.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 22,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 6 says a symlinked ~/.config into a dotfiles repo 'counts', but §4.3 age.mjs underWorkTree(path, top) compares only against this repo's top. A different repo's work tree passes, and the --no-passphrase identity (disp 10) is a plaintext key."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 13 ('cookwright ignores SIGINT and SIGTERM while the child runs'), §4.2 step 7",
+      "problem": "Ignoring SIGINT is right for a terminal, which signals the whole foreground group. SIGTERM, though, normally comes from a supervisor that signals one pid: a wrapper's `child.kill()`, a CI step timeout, an agent host killing a stuck command, or `kill <pid>`. With SIGTERM ignored and not forwarded, cookwright neither exits nor passes the signal on, so the child is never told to stop. §6 tests only 'SIGINT ignored while the child runs'.",
+      "severity": "P2",
+      "suggested_fix": "Forward SIGTERM and SIGHUP to the child (`child.kill(sig)`) and keep waiting. Exit with 128+n from the child's own end, and keep SIGINT ignored, since the terminal already delivers it to the child. Add an engine test that sends SIGTERM to the cookwright process alone and asserts the child receives it and the exit is 143.",
+      "failure_scenario": "An orchestrator or wrapper times out `npx cookwright run dev -- node long-migration.js` and sends SIGTERM to cookwright's pid. cookwright ignores it, and the migration keeps running against the database with nothing told to stop it. The wrapper escalates to SIGKILL, which kills cookwright and orphans the child. The child keeps running with the injected secrets in its environment, and its output is now written to a closed pipe.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 23,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 13: 'cookwright ignores SIGINT and SIGTERM while the child runs' and does not forward them. §6 tests only SIGINT. A supervisor sending SIGTERM to cookwright's pid gets no exit, and the child is never signalled."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "dispositions 9 and 40, §4.7 managed block ('a command that needs a credential runs through `{{cli}} run <target> -- …`')",
+      "problem": "The block tells the agent to run credentialed commands through `run`. With the charter's recommended free path, `age` with a passphrase-protected identity, `run` refuses whenever there is no terminal (disposition 40), and an agent's tool shell has none. No cache along the lines of ssh-agent exists, so with the recommended setup the agent can never use `run`. The only states in which an agent can use the age backend are the WARN state (`--no-passphrase`) and the other two backends. Neither the block nor the guide says this, and the refusal's remedy, 'run in a terminal', gives an agent nothing to do.",
+      "severity": "P2",
+      "suggested_fix": "State the limit in the block, the guide and the setup recipe: with a passphrase-protected age identity, `run` is the developer's command, and the agent asks the developer to run it. Make the refusal line say exactly that (for example, 'hand this command to the developer'). It must never point at `--no-passphrase`. Alternatively, log an unlock-cache enhancement in the backlog.",
+      "failure_scenario": "A user follows the setup skill: `age`, a passphrase identity, the PASS path. In the next session the agent, obeying the block, runs `npx cookwright run dev -- supabase db push` and gets exit 125, 'the identity is passphrase-protected; run in a terminal'. It retries or improvises, for example suggesting `secrets init --no-passphrase` to 'fix' it, which downgrades the user's security to get past a refusal the plan treats as working as intended.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 24,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 40 refuses a passphrase-protected identity without a terminal, and §4.7 tells the agent to run credentialed commands through run. No identity cache is planned, so the recommended age setup cannot be used by an agent. The refusal text 'run in a terminal' gives the agent no alternative, and the guide outline does not address it."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "dispositions 14, 22 and 29; §4.5 `needles`; §11 'Short password needles'",
+      "problem": "The whole value of every declared name, and the inherited value of every declared or ambient name, becomes a substring needle for both the argv check and the redactor, with no minimum length. The ambient list includes names that hold non-secret, often short values (`PGSERVICE`, `PGSERVICEFILE`, `PGPASSFILE`). A declared low-entropy value (a mode, a port, a public URL) likewise becomes a needle. Disposition 14 also drops any inherited variable whose value equals a resolved value. §11 notes only the redaction cost of public values, not the argv refusals.",
+      "severity": "P3",
+      "suggested_fix": "Do not use the ambient file and service names (PGSERVICE, PGSERVICEFILE, PGPASSFILE) as needles: drop them, but don't match on them. Give needles a minimum length (8, like the password needle). A shorter declared value is injected and named on the banner as 'not redacted (too short)', and doctor WARNs about it. Add tests for a 3-character declared value and an inherited PGSERVICE=dev.",
+      "failure_scenario": "The shell exports `PGSERVICE=dev`, and the supabase pack is declared. `npx cookwright run dev -- npm run dev` is refused with exit 125, 'argument 3 holds the value of PGSERVICE'. In the same way, a target declaring `STRIPE_MODE=test` refuses `-- npm test` and rewrites every 'test' in the output to `<STRIPE_MODE>`. It also drops an unrelated `NODE_ENV=test` from the child's environment.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 25,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 22 makes inherited values of declared and ambient names needles, with no minimum length (§11 'the whole value is always a needle'). Disp 29 lists PGSERVICE as ambient. An argv word equal to the needle (e.g. 'dev') is refused with exit 125, and disp 14 drops variables whose value equals a resolved value."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 13 (200 ms drain, 'a grandchild that keeps the pipe open past that writes unseen')",
+      "problem": "After the child exits, the plan calls `end()` on the Redactor but says nothing about the pipe handles themselves. If they stay open and referenced, Node keeps reading and the process does not exit while a grandchild (a daemon or a `&` job) holds the write end. If they are destroyed instead, the grandchild's next write gets EPIPE or SIGPIPE and it dies. Either way 'writes unseen' is not what happens, and §6 does not test either case.",
+      "severity": "P3",
+      "suggested_fix": "Choose and state one behaviour. For example, after 200 ms `unref()` the pipes and stop forwarding, so cookwright exits and a grandchild's writes go to a still-open but unread pipe until the buffer fills. Or say plainly that a grandchild dies on EPIPE. Test it with a child that runs `(sleep 1; echo x) &`.",
+      "failure_scenario": "`run dev -- sh -c 'some-server & exit 0'`. With the pipe still referenced, cookwright hangs until some-server exits, which blocks the agent's shell call until its timeout. With the pipe destroyed, some-server is killed by SIGPIPE on its first log line, contradicting the guide's 'writes unseen'.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 26,
+      "verdict": "plausible",
+      "evidence": "plan.md disp 13: after exit, drain at most 200 ms 'then end()'. The plan does not say whether the pipe handles are destroyed or left referenced, so the hang or SIGPIPE outcomes depend on the implementation, and §6 tests only 'the 200 ms drain'."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "§4.6 registration flags; order 'registered after `secrets.env`'",
+      "problem": "`secrets.targets` runs git (`ls-files`, `check-ignore`, the diff against HEAD) but is registered with `config: true` only. probes.ignored and gitRun throw `probeFailed` when git cannot run, and runOne turns that into FAIL 'the check could not run', which breaks the 'never fails on absence' rule. Separately, the three rows sit before `repo.node_modules` (required at level 0, src/lib/levels.mjs:29) and `packs` in CHECKS order, and share the 1800 ms budget. Per-name `security` lookups across several keychain targets can therefore spend the budget, and the required row SKIPs.",
+      "severity": "P3",
+      "suggested_fix": "Register `secrets.targets` with `config: true, git: true`. Place the three secrets rows after `packs`, at the end of CHECKS, so a slow backend cannot starve a required row. Alternatively, cap the keychain inspect's share of the budget, and add a doctor test showing that a spent budget inside inspect leaves `repo.node_modules` measured.",
+      "failure_scenario": "A keychain repo with two targets of six names makes twelve `security find-generic-password` calls at session start. They use up the shared budget, `repo.node_modules` SKIPs 'unverified: git ls-files', and the readout says 'level 0 declared: not verified' on a healthy repo. Separately, on a machine where git is not on PATH, `secrets.targets` FAILs instead of SKIP 'needs git'.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 27,
+      "verdict": "plausible",
+      "evidence": "plan.md §4.6 registers the rows after secrets.env, so before repo.node_modules (registry.mjs:66-67), and they share the one 1800 ms budget (§1). Disp 33 measures one security call but does not bound the total. The git-flag half is weaker: §4.6 says the third check has git:true and that each check guards what runOne does not."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 35; §4.8 (SCANNED) vs src/lib/messages.test.mjs:20-41",
+      "problem": "SCANNED lists the top-level command files one by one (`src/init.mjs`, `src/doctor.mjs`, …). Disposition 35 adds only `src/lib/secrets` and `src/lib/secrets/backends`. The two new command modules, `src/run.mjs` and `src/secrets.mjs`, are not scanned, so prose literals there escape the 'user-facing strings in one place' test.",
+      "severity": "P3",
+      "suggested_fix": "Add `src/run.mjs` and `src/secrets.mjs` to SCANNED in s1 or s2, alongside the directories.",
+      "failure_scenario": "s2 writes the banner's 'child output piped through the redactor' or a consent prompt as an inline literal in src/run.mjs or src/secrets.mjs. messages.test.mjs stays green, and the string never reaches the per-session strings batch the playbook escalates to the developer.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 28,
+      "verdict": "confirmed",
+      "evidence": "packages/cookwright/src/lib/messages.test.mjs:18-39 SCANNED lists top-level command files individually. Plan disp 35 adds only src/lib/secrets and src/lib/secrets/backends, and §5 creates src/run.mjs and src/secrets.mjs, which stay unscanned."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "disposition 15, §4.3 onepassword.mjs `parseEnv(stdout)`",
+      "problem": "The resolved output of `op inject` is parsed line by line at the first `=`. A 1Password field that holds a newline, which the plan defers to the backlog, is detected only when its continuation line is 'malformed'. A continuation line that itself looks like `NAME=value` parses as another assignment, and the plan does not say to check the parsed names against the template's refs.",
+      "severity": "P3",
+      "suggested_fix": "Require the parsed output to have exactly as many lines as the template has refs, with the same names in the same order and no duplicates. Refuse otherwise, naming the line number only. Test with a field value of 'a\\nDB_URL=x'.",
+      "failure_scenario": "SERVICE_ROLE_KEY's 1Password field holds a pasted .env snippet ending in a line 'DB_URL=postgresql://…prod…'. op inject outputs two lines for it, parseEnv yields a second DB_URL, and depending on map order the dev target injects prod's database URL. The template check never saw it, because the template only held refs.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 29,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 15 and §4.3 onepassword.mjs: 'parseEnv(stdout)' splits at the first '='. Only a malformed line is refused. A continuation line shaped like NAME=value parses as an entry, and no check ties parsed names to the template's refs."
+    },
+    {
+      "file": "docs/dev/bundles/stage-5/plan.md",
+      "location": "dispositions 23 and 45, §4.6 `secrets.targets` age line",
+      "problem": "age ciphertext carries no sender authentication. Anyone who can read the public `recipients.txt` can write a valid `secrets/<target>.env.age` holding values of their choosing. The recipients guard stops encryption to a new key, but nothing in the plan or the guide says that a ciphertext change from someone else cannot be reviewed and may hold attacker values. Doctor PASSes it as 'ciphertext and recipients tracked'.",
+      "severity": "P3",
+      "suggested_fix": "Have the guide say that a change to `secrets/*.env.age` not made by the developer's own `secrets set` is unreviewable and is re-set rather than merged. Unproved names are the exposure. Log a signed-ciphertext or MAC enhancement in the backlog.",
+      "failure_scenario": "A contributor's PR replaces `secrets/dev.env.age` with a file encrypted to the committed recipients, keeping SUPABASE_URL and DB_URL so the proof still passes but changing the unproved SENTRY_DSN or a webhook URL to their own endpoint. The opaque diff is merged, doctor PASSes, and `run dev` injects the attacker's endpoint without a word.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 30,
+      "verdict": "confirmed",
+      "evidence": "plan.md disp 23/45: recipients.txt is public by design and age ciphertext has no sender authentication. Doctor's 'ciphertext and recipients tracked' PASS (disp 45) says nothing about ciphertext provenance, and the guide outline (§4.7) does not warn that a ciphertext diff cannot be reviewed."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "Codex ran in foreground at high effort with read-only sandbox against docs/dev/bundles/stage-5/plan.md, 19 read-only commands, completed with a full report (no ceiling hit)",
+    "Codex read AGENTS.md, CHARTER.md, the plan and repo files it names",
+    "AGENTS.md / CLAUDE.md rules (secrets never on disk, every piece optional, strings in one place, functions under 40 lines)",
+    "playbook reviewer role and prompt header",
+    "plan.md in full (dispositions 1-48, §4-§12)",
+    "state.json session scopes and disposition assignment per session",
+    "src/lib/cli.mjs parseArgv and the cli-main dispatcher",
+    "src/lib/config.mjs version and migration path (an older config migrates in memory, so it loads)",
+    "src/lib/doctor/registry.mjs CHECKS order and runOne guards; levels.mjs requires repo.node_modules",
+    "src/lib/doctor/secrets.mjs, src/lib/probes.mjs (ignored throws on git failure), src/lib/budget.mjs shared budget",
+    "src/lib/messages.test.mjs SCANNED/ALLOWED lists",
+    "src/lib/skills.test.mjs PASS-note end-section rule",
+    "scripts/ci/fixture.sh doctor count assertions, isolate_git (HOME not isolated), rerun/audit_args order",
+    ".github/workflows/ci.yml fixture job",
+    "CHARTER.md Secrets decision and the stage-5 kickoff on passphrase-less identity (a chosen WARN state, so not raised)",
+    "measured: /usr/bin/security links getpass; the getpass(3) 128-character limit; op inject --help shows bare references",
+    "measured (names only): this machine's ~/.zshrc exports SUPABASE_DB_URL, which is set in the environment"
+  ],
+  "notes": "Findings transcribed from Codex without additions. Codex verdict: plan not ready to implement (8 P1, 6 P2, 2 P3). Raw output at <local path> Codex session id 01a17d94-5ced-71d0-a4f9-db836b5914cb. Line numbers are Codex's approximate plan.md anchors.\n---\nPlan-review red-team pass, read-only. Two P1s need resolving before implementation. (1) The keychain write path chosen by the developer's decision 48 silently truncates values over 128 characters, because /usr/bin/security prompts through getpass. That goes back to the developer, since it contradicts a dated decision. (2) The StringDecoder-based redactor corrupts any binary child stdout. Of the P2s, two make sessions red: s3 fails skills.test because the PASS notes under '## At the end' are planned for s4, and the fixture fails locally on this machine because it does not isolate HOME or the environment from secrets.carriers (SUPABASE_DB_URL measured in ~/.zshrc). One P2 is internal plan inconsistency: §4.1 says targets must be non-empty while amendment 44 says empty is valid, and 44 is assigned to s3, not s1. Not measured, because the sandbox denied it: whether npx preserves a user `--` after the command name. The fixture's `npx cookwright run dev -- …` steps will show it. The passphrase-less identity on disk was not raised, since the kickoff explicitly decided it as a chosen WARN state.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a17d94-5ced-71d0-a4f9-db836b5914cb",
+    "partialReportPath": null
+  }
+}

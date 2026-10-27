@@ -8,7 +8,7 @@
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { Readable, Writable } from 'node:stream';
+import { PassThrough, Readable, Writable } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
@@ -136,6 +136,100 @@ describe('secrets set: the value', () => {
       code: 125,
       err: `secrets: ${m.prompt.oneLine}\n`,
     });
+  });
+});
+
+/** A fake terminal stdin that answers `typed` once read. */
+function tty(typed) {
+  const stdin = new PassThrough();
+  stdin.isTTY = true;
+  stdin.modes = [];
+  stdin.setRawMode = (on) => stdin.modes.push(on);
+  const resume = stdin.resume.bind(stdin);
+  stdin.resume = () => {
+    setImmediate(() => stdin.write(typed));
+    stdin.resume = resume;
+    return resume();
+  };
+  return stdin;
+}
+
+const PUBLIC = `age1${'z'.repeat(58)}`;
+/** A fake age-keygen and age (base64 behind the armor line): no tool needed. */
+function fakeCapture(cmd, args, opts = {}) {
+  if (cmd === 'age-keygen') return { status: 0, stdout: `# public key: ${PUBLIC}\nAGE-SECRET-KEY-1FAKE\n`, stderr: '' };
+  if (args[0] === '-a') {
+    fs.writeFileSync(args.at(-1), `-----BEGIN AGE ENCRYPTED FILE-----\n${Buffer.from(opts.input).toString('base64')}\n`);
+    return { status: 0, stdout: '', stderr: '' };
+  }
+  return { status: 1, stdout: '', stderr: 'unexpected' };
+}
+const fakes = (terminal = false) => ({ capture: fakeCapture, terminal: () => terminal, hasTool: () => true });
+
+describe('secrets init: consent, the recipients rule and the ignore refusal', () => {
+  const recipients = (r) => path.join(r.root, 'secrets/recipients.txt');
+
+  it('says what it will write and asks; no writes nothing, yes writes', async () => {
+    const r = repo();
+    const no = await secrets(r, ['init', '--no-passphrase'], { stdin: tty('n\n'), probes: fakes() });
+    expect(no.code).toBe(125);
+    expect(no.out.split('\n').slice(0, 3)).toEqual([m.age.willWrite, m.age.willIdentity(r.identity, false), m.age.willRecipients('secrets/recipients.txt', false)]);
+    expect(no.err).toBe(`${m.prompt.proceed}secrets: ${m.age.declined}\n`);
+    expect(fs.existsSync(r.identity) || fs.existsSync(recipients(r))).toBe(false);
+    const yes = await secrets(r, ['init', '--no-passphrase'], { stdin: tty('y\n'), probes: fakes() });
+    expect(yes.code).toBe(0);
+    expect(fs.readFileSync(recipients(r), 'utf8')).toBe(`${PUBLIC}\n`);
+  });
+
+  it('refuses without a terminal to consent on unless --yes, and without one for the passphrase', async () => {
+    const r = repo();
+    expect(await secrets(r, ['init', '--no-passphrase'], { probes: fakes() })).toMatchObject({ code: 125, err: `secrets: ${m.age.consentTerminal}\n` });
+    expect(await secrets(r, ['init', '--yes'], { probes: fakes(false) })).toMatchObject({ code: 125, err: `secrets: ${m.age.passphraseTerminal}\n` });
+    expect(fs.existsSync(r.identity)).toBe(false);
+  });
+
+  it('says the recipients file already holds a key before it asks', async () => {
+    const r = repo();
+    const held = `age1${'q'.repeat(58)}`;
+    commit({ root: r.root }, { 'secrets/recipients.txt': `${held}\n` }, 'recipients');
+    const { code, out } = await secrets(r, ['init', '--no-passphrase'], { stdin: tty('n\n'), probes: fakes() });
+    expect(code).toBe(125);
+    expect(out.split('\n')[3]).toBe(m.age.held('secrets/recipients.txt', ['qqqqqqqq']));
+  });
+
+  it('refuses an ignored secrets path naming the .gitignore line, and a changed recipients file', async () => {
+    const r = repo();
+    commit({ root: r.root }, { '.gitignore': 'node_modules\nsecrets/*.age\n' }, 'ignore');
+    const ignored = await secrets(r, ['init', '--no-passphrase', '--yes'], { probes: fakes() });
+    expect(ignored).toMatchObject({ code: 125, err: `secrets: ${m.age.ignored('secrets/dev.env.age', { source: '.gitignore', line: 2, pattern: 'secrets/*.age' })}\n` });
+    expect(fs.existsSync(r.identity)).toBe(false);
+    const changed = repo();
+    commit({ root: changed.root }, { 'secrets/recipients.txt': `age1${'q'.repeat(58)}\n` }, 'recipients');
+    fs.appendFileSync(recipients(changed), '# a new teammate\n');
+    expect(await secrets(changed, ['init', '--no-passphrase', '--yes'], { probes: fakes() })).toMatchObject({
+      code: 125,
+      err: `secrets: ${m.recipients({ why: 'differs' }, 'secrets/recipients.txt')}\n`,
+    });
+  });
+});
+
+describe('secrets set: the hidden prompt and the recipients rule', () => {
+  it('reads the value typed with echo off, restoring the terminal, and refuses a changed recipients file before asking', async () => {
+    const r = repo();
+    commit({ root: r.root }, { 'secrets/recipients.txt': `${PUBLIC}\n` }, 'recipients');
+    const stdin = tty('typed-value\r');
+    const { code, out, err } = await secrets(r, ['set', 'dev', 'SERVICE_ROLE_KEY'], { stdin, probes: fakes() });
+    expect(code).toBe(0);
+    expect(err).toBe(`${m.prompt.value('SERVICE_ROLE_KEY', 'dev')}\n`);
+    expect(stdin.modes).toEqual([true, false]);
+    expect(out).toBe(`${m.set('SERVICE_ROLE_KEY', 'dev', 'age')}\nsecrets: encrypted to 1 recipient(s): …zzzzzzzz\n`);
+    const body = fs.readFileSync(path.join(r.root, 'secrets/dev.env.age'), 'utf8').split('\n')[1];
+    expect(Buffer.from(body, 'base64').toString()).toBe('SERVICE_ROLE_KEY=typed-value\n');
+    fs.appendFileSync(path.join(r.root, 'secrets/recipients.txt'), `age1${'q'.repeat(58)}\n`);
+    const asked = tty('never\r');
+    const refused = await secrets(r, ['set', 'dev', 'DB_URL'], { stdin: asked, probes: fakes() });
+    expect(refused).toMatchObject({ code: 125, err: `secrets: ${m.recipients({ why: 'differs' }, 'secrets/recipients.txt')}\n` });
+    expect(asked.modes).toEqual([]);
   });
 });
 

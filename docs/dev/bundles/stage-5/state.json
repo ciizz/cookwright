@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "revision": 1,
+  "slug": "stage-5",
+  "branch": "bundle/stage-5",
+  "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
+  "createdAt": "2026-10-27T13:34:57.166Z",
+  "plan": {
+    "path": "docs/dev/bundles/stage-5/plan.md",
+    "sha": "dbc4b8f50628dc78"
+  },
+  "slices": [
+    {
+      "id": "model",
+      "sessions": [
+        {
+          "id": "s1",
+          "scope": "plan §4.1 (config version 4, the 3→4 migration, migrate.test.mjs and the fixture's two version lines, the schema), §4.5 the redactor, §4.4 the host kind, the proof registry, the supabase kind and ambient in the pack manifest, envfile.mjs, recipients.mjs, splitArgv in cli.mjs, §4.8 strings; dispositions 1, 2, 5, 15, 16, 19, 21, 22, 23, 25, 29, 30, 31, 35, 36, 43",
+          "checkpoints": [
+            "config version 4 with validateSecrets (backend, id, targets, proof kinds against host and the declared packs) and the schema test in step",
+            "migration 3→4 (secretsNone) with migrate.test.mjs and the fixture's two version lines updated, npm test and the fixture green",
+            "the redactor pure and streaming (prefix hold-back, no timer) with its tests",
+            "the host and supabase kinds with the near-miss table, ambient in the supabase manifest, registry.test.mjs accepting proofs and ambient",
+            "envfile.mjs, recipients.mjs, splitArgv and the messages groups, messages.test.mjs SCANNED widened"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "engine",
+      "sessions": [
+        {
+          "id": "s2",
+          "scope": "plan §4.2 the engine and run (the scrub, the argv check with inherited values and the loopback exemption, the banner, exits 125/127/128+n, signals, the drain), probes.capture (sync) and probes.spawnChild (async), the Refused class; §4.3 the age backend (resolve, set, init with consent, the recipients rule, the ignore probes) and secrets init|set with readValue and --stdin; the fixture's secrets step and ci.yml's age install; dispositions 4, 9, 10, 13, 14, 20, 24, 33, 34, 37, 39, 40, 42, 46, 47",
+          "checkpoints": [
+            "run end to end with a fake backend and fake probes: split, scrub, argv check, proof, banner, redaction on both streams, exit codes and signals",
+            "the age backend real in a scratch repo (init --no-passphrase, set --stdin, resolve, a run through the engine) and with fakes",
+            "secrets init|set commands with readValue, consent, the recipients-file rule and the ignore refusal",
+            "the fixture green with the secrets step (ubuntu CI installs age sha256-pinned; local skip without age)"
+          ]
+        },
+        {
+          "id": "s3",
+          "scope": "plan §4.3 the 1password and keychain backends with the throwaway-keychain test and the security timing measured; §4.6 the three doctor rows secrets.backend, secrets.targets, secrets.carriers (E-015) with the fixture's row assertions; the three setup-skill recipe tables and the first version of docs/guides/secrets.md; dispositions 7, 11, 12, 17, 26, 28, 32, 44, 45",
+          "checkpoints": [
+            "the 1password backend with fakes: template grammar, literals, op inject -f with the scrubbed env, resolved-output parsing",
+            "the keychain backend with fakes and the real throwaway-keychain test on darwin (resolve, inspect; set through security's prompt)",
+            "the three doctor rows per state with fakes, the budget-spent SKIP, readout counts from CHECKS, the fixture's second doctor run asserted",
+            "the setup skill's three recipe tables tied by skills.test.mjs and the secrets guide's first version"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "surface",
+      "sessions": [
+        {
+          "id": "s4",
+          "scope": "plan §4.7 the managed block's Secrets section and RULES_VERSION = 4 with the test helpers (v3Block, v2Block, v1Block rebased), this repo's AGENTS.md refreshed by init and committed, the setup skill's end-pass item with the three PASS notes, docs/guides/secrets.md completed; dispositions 27, 38, 48",
+          "checkpoints": [
+            "the block at v4 with block.test.mjs, init.test.mjs and doctor.test.mjs updated, this repo's AGENTS.md refreshed in the same checkpoint",
+            "the setup skill's end pass (backend choice, secrets init, recipients commit, the target and its proof, secrets set, the first run -- true) with the PASS notes under At the end",
+            "the secrets guide completed (the model, backends, recipients rule, proofs, banner, redaction, the child's argv, what is not closed, moving off .env, one identity per developer)"
+          ]
+        },
+        {
+          "id": "s5",
+          "scope": "plan §4.7 the other guides (getting-started, updating, hooks-and-escapes), README, AGENTS.md Layout; §7 dogfood (migrate to version 4, the secrets doc-sync rule, 22 rows complete); §9 backlog (close E-015, note E-001, the openings); npm pack --dry-run; dispositions 41",
+          "checkpoints": [
+            "the guides and README updated",
+            "this repo at version 4 with the secrets doc-sync rule and doctor 22 rows complete",
+            "the backlog closures and openings; npm pack --dry-run listing src/lib/secrets and not src/test-fixtures"
+          ]
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "name": "plan-review",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s1",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:model",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:model",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s2",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s3",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:engine",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:engine",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s4",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "implement:s5",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:surface",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:surface",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "review:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "fix:whole",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "qa",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    },
+    {
+      "name": "closeout",
+      "status": "pending",
+      "claim": true,
+      "runs": []
+    }
+  ],
+  "gates": [],
+  "findings": [],
+  "reports": [],
+  "qaRounds": [],
+  "decisions": [],
+  "costs": []
+}

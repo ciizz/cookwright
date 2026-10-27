@@ -434,6 +434,8 @@ const migrate = {
     playbookPinned: (rel) => `paths.playbook set to ${rel} (your own playbook, which version 1 read when the key was absent)`,
     packsAdded: () => 'packs added, empty (no stack pack declared; the setup skill offers the ones your tree shows)',
     packsKept: () => 'packs kept as it is',
+    secretsNone: () => 'no secrets backend declared, Level 2 off (the secrets guide shows the key)',
+    secretsKept: () => 'secrets kept as it is',
   },
   invalid: (problems) => `the migrated ${CONFIG_FILE} would be invalid: ${problems.join('; ')}; nothing written`,
   wrote: (version, relaid) => `${CONFIG_FILE} written at version ${version}${relaid ? RELAID : ''}`,

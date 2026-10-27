@@ -13,11 +13,12 @@
       "type": "string"
     },
     "version": {
-      "description": "Config format version, bumped only with a migration. 3 is current; a version-1 or version-2 file is migrated in memory and loads, and npx cookwright migrate writes it at version 3.",
+      "description": "Config format version, bumped only with a migration. 4 is current; a file at version 1, 2 or 3 is migrated in memory and loads, and npx cookwright migrate writes it at version 4.",
       "enum": [
         1,
         2,
-        3
+        3,
+        4
       ]
     },
     "level": {
@@ -324,6 +325,130 @@
           "type": "string",
           "minLength": 1
         }
+      }
+    },
+    "secrets": {
+      "description": "The secrets backend and the targets npx cookwright run injects from, each secret into one child process, with the target's proof checked first. Absent: no backend, Level 2 off. This schema checks the shape only: a proof kind a pack brings (supabase) is valid only when that pack is in packs, which the loader checks.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backend",
+        "targets"
+      ],
+      "properties": {
+        "backend": {
+          "description": "Where the values live: age (an encrypted file in the repo, the identity outside it), keychain (macOS), 1password (op).",
+          "enum": [
+            "age",
+            "keychain",
+            "1password"
+          ]
+        },
+        "id": {
+          "description": "This repo's id among your repos: the keychain backend names its items cookwright/<id>/<target>. Required with keychain.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "targets": {
+          "description": "Targets by name (lowercase letters, digits and dashes): the secret names each injects, and its proof. May be empty while you set up.",
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-z][a-z0-9-]*$": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "names"
+              ],
+              "properties": {
+                "names": {
+                  "description": "Secret names: uppercase letters, digits and _, starting with a letter, each once.",
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]*$"
+                  }
+                },
+                "proof": {
+                  "description": "What the values must name before anything runs: a host, or a pack's kind (supabase). Without one the target runs unproved.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "host",
+                        "names"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "const": "host"
+                        },
+                        "host": {
+                          "description": "The host each covered value's URL must name, a port allowed (db.example.com:5432); compared as new URL reads it.",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "names": {
+                          "description": "Secret names: uppercase letters, digits and _, starting with a letter, each once.",
+                          "type": "array",
+                          "minItems": 1,
+                          "uniqueItems": true,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]*$"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "ref"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "const": "supabase"
+                        },
+                        "ref": {
+                          "description": "The Supabase project ref, from the dashboard URL.",
+                          "type": "string",
+                          "pattern": "^[a-z]{20}$"
+                        },
+                        "names": {
+                          "description": "The names the proof covers; absent, those of SUPABASE_URL and DB_URL the target declares. Needs the supabase pack in packs.",
+                          "type": "array",
+                          "minItems": 1,
+                          "uniqueItems": true,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]*$"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "backend": {
+            "const": "keychain"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "id"
+        ]
       }
     }
   }

@@ -12,8 +12,12 @@ import {
   CONFIG_FILE,
   CONFIG_VERSION,
   DEFAULTS,
+  KNOWN_BACKENDS,
   KNOWN_KEYS,
   OPTIONAL_PATHS,
+  SECRETS_ID,
+  SECRET_NAME,
+  TARGET_NAME,
   applyMigrations,
   findRoot,
   loadConfig,
@@ -34,6 +38,7 @@ import {
 import { KNOWN_LEVELS } from './levels.mjs';
 import { MIGRATIONS } from './migrations.mjs';
 import { KNOWN_PACKS, PACKS, switchableRules } from './packs/registry.mjs';
+import { KINDS } from './secret/proofs.mjs';
 import { gitInit, linkPackage } from '../test-helpers.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -167,9 +172,9 @@ describe('an older version, migrated in memory', () => {
   });
 
   it('refuses a newer version naming the update, and keeps today’s line for any other', () => {
-    expect(() => loadConfig(repoWith('v4', { version: 4 }))).toThrow(
+    expect(() => loadConfig(repoWith('v5', { version: 5 }))).toThrow(
       new Error(
-        `${CONFIG_FILE}: version 4 is newer than this cookwright's 3: update cookwright (npm install cookwright@latest)`,
+        `${CONFIG_FILE}: version 5 is newer than this cookwright's 4: update cookwright (npm install cookwright@latest)`,
       ),
     );
     for (const [i, version] of [0, -1, 1.5, '1', null].entries()) {
@@ -187,13 +192,14 @@ describe('an older version, migrated in memory', () => {
       seen.push([n, raw.version]);
       return { raw: { ...raw, level: 0 }, outcome: `step${n}` };
     };
-    const migrations = { 0: step(0), 1: step(1), 2: step(2) };
+    const migrations = { 0: step(0), 1: step(1), 2: step(2), 3: step(3) };
     const dir = repoWith('v0-chain', { version: 0 });
     expect(loadConfig(dir, { migrations }).migratedFrom).toBe(0);
     expect(seen).toEqual([
       [0, 0],
       [1, 1],
       [2, 2],
+      [3, 3],
     ]);
     // A chain with a gap is not a chain: the validator names the version.
     expect(() => loadConfig(dir, { migrations: { 1: step(1) } })).toThrow(`version must be ${CONFIG_VERSION}`);
@@ -203,10 +209,11 @@ describe('an older version, migrated in memory', () => {
     const raw = structuredClone(stale);
     const out = applyMigrations(raw, { exists: () => false });
     expect(raw).toEqual(stale);
-    expect(out.raw).toEqual({ version: 3, paths: {}, packs: [] });
+    expect(out.raw).toEqual({ version: 4, paths: {}, packs: [] });
     expect(out.steps).toEqual([
       { from: 1, to: 2, outcome: 'playbookDropped', detail: 'docs/playbook.md' },
       { from: 2, to: 3, outcome: 'packsAdded', detail: undefined },
+      { from: 3, to: 4, outcome: 'secretsNone', detail: undefined },
     ]);
     expect(applyMigrations({ version: CONFIG_VERSION }, { exists: () => false })).toBeNull();
   });
@@ -218,6 +225,13 @@ describe('an older version, migrated in memory', () => {
     expect([config.version, config.packs, config.migratedFrom]).toEqual([CONFIG_VERSION, [], 2]);
     const kept = loadConfig(repoWith('v2-packs', { version: 2, packs: ['expo'] }));
     expect([kept.packs, kept.migratedFrom]).toEqual([['expo'], 2]);
+  });
+
+  it('loads a version-3 config unchanged but for the version, no secrets key written', () => {
+    const config = loadConfig(repoWith('v3', { version: 3, hosts: ['claude'], packs: [] }));
+    expect([config.version, config.migratedFrom, Object.hasOwn(config, 'secrets')]).toEqual([CONFIG_VERSION, 3, false]);
+    const steps = applyMigrations({ version: 3, secrets: { backend: 'age', targets: {} } }, { exists: () => false }).steps;
+    expect(steps).toEqual([{ from: 3, to: 4, outcome: 'secretsKept', detail: undefined }]);
   });
 });
 
@@ -413,6 +427,124 @@ describe('validateConfig', () => {
   });
 });
 
+const REF = 'abcdefghijklmnopqrst';
+
+describe('secrets (stage-5 plan §4.1)', () => {
+  const problems = (secrets, packs = []) => validateConfig({ ...valid(), packs, secrets });
+  const target = (t, packs = ['supabase']) => problems({ backend: 'age', targets: { dev: t } }, packs);
+  const supabaseDev = { names: ['SUPABASE_URL', 'DB_URL', 'SERVICE_ROLE_KEY'], proof: { kind: 'supabase', ref: REF } };
+
+  it('is optional, and loads in each form', () => {
+    expect(validateConfig(valid())).toEqual([]);
+    expect(problems({ backend: 'age', targets: {} })).toEqual([]); // empty: a developer mid-setup (disposition 44)
+    expect(problems({ backend: '1password', targets: { dev: { names: ['API_KEY'] } } })).toEqual([]);
+    expect(problems({ backend: 'keychain', id: 'my-app', targets: { 'prod-eu': { names: ['A', 'B_2'] } } })).toEqual([]);
+    expect(target(supabaseDev)).toEqual([]);
+    expect(target({ names: ['API_URL'], proof: { kind: 'host', host: 'api.example.com', names: ['API_URL'] } }, [])).toEqual([]);
+  });
+
+  it('refuses a secrets value that is not an object, an unknown key, an unknown backend', () => {
+    for (const bad of [[], 'age', null, 1]) expect(problems(bad)).toEqual(['secrets must be an object { backend, targets }']);
+    expect(problems({ backend: 'vault', targets: {}, where: 'x' })).toEqual([
+      'secrets: unknown key "where"',
+      'secrets.backend must be one of age, keychain, 1password',
+    ]);
+    expect(problems({ targets: {} })).toEqual(['secrets.backend must be one of age, keychain, 1password']);
+  });
+
+  it('requires an id with keychain (disposition 52), and holds any id to its pattern', () => {
+    expect(problems({ backend: 'keychain', targets: {} })).toEqual([
+      'secrets.id is required with the keychain backend (its items are named cookwright/<id>/<target>)',
+    ]);
+    for (const id of ['My-App', '1app', '', 'a/b', 3]) {
+      expect(problems({ backend: 'age', id, targets: {} })).toEqual([
+        'secrets.id must be lowercase letters, digits and dashes, starting with a letter',
+      ]);
+    }
+  });
+
+  it('requires targets, an object of valid names, each with a list of unique secret names', () => {
+    for (const targets of [undefined, [], 'dev', null]) {
+      expect(problems({ backend: 'age', targets })).toEqual(['secrets.targets must be an object of targets by name (it may be empty)']);
+    }
+    expect(problems({ backend: 'age', targets: { Dev: { names: ['A'] }, 'dev_1': { names: ['A'] } } })).toEqual([
+      'secrets.targets.Dev: a target name is lowercase letters, digits and dashes, starting with a letter',
+      'secrets.targets.dev_1: a target name is lowercase letters, digits and dashes, starting with a letter',
+    ]);
+    expect(target('x')).toEqual(['secrets.targets.dev must be an object { names, proof }']);
+    expect(target({ names: ['A'], env: 'x' })).toEqual(['secrets.targets.dev: unknown key "env"']);
+    for (const names of [undefined, [], 'A']) {
+      expect(target({ names })).toEqual(['secrets.targets.dev.names must be a non-empty list of secret names']);
+    }
+    expect(target({ names: ['db_url', 'A', 'A', '1X', 'db_url'] })).toEqual([
+      'secrets.targets.dev.names: "db_url" is not a secret name (uppercase letters, digits and _, starting with a letter)',
+      'secrets.targets.dev.names: "1X" is not a secret name (uppercase letters, digits and _, starting with a letter)',
+      'secrets.targets.dev.names: each name once',
+    ]);
+  });
+
+  it('takes a proof kind from the core or a declared pack, naming the pack of an undeclared one (disposition 18)', () => {
+    expect(target(supabaseDev, [])).toEqual([
+      "secrets.targets.dev.proof.kind: supabase is the supabase pack's proof kind; add supabase to packs",
+    ]);
+    expect(target(supabaseDev, ['expo'])).toHaveLength(1);
+    expect(target(supabaseDev, [{ name: 'supabase', rules: { types: false } }])).toEqual([]);
+    expect(target({ names: ['A'], proof: { kind: 'jwt' } })).toEqual([
+      'secrets.targets.dev.proof.kind: jwt is not a proof kind (known: host, supabase)',
+    ]);
+    for (const kind of [undefined, 3, 'toString', '__proto__']) {
+      expect(target({ names: ['A'], proof: { kind } }, [])[0]).toMatch(/^secrets\.targets\.dev\.proof\.kind.*\(known: host\)$/);
+    }
+    expect(target({ names: ['A'], proof: 'host' })).toEqual(['secrets.targets.dev.proof must be an object { kind, … }']);
+  });
+
+  it('allows only the keys of the kind', () => {
+    expect(target({ ...supabaseDev, proof: { ...supabaseDev.proof, host: 'x.supabase.co' } })).toEqual([
+      'secrets.targets.dev.proof: unknown key "host"',
+    ]);
+    expect(target({ names: ['A'], proof: { kind: 'host', host: 'a.example', names: ['A'], ref: REF } })).toEqual([
+      'secrets.targets.dev.proof: unknown key "ref"',
+    ]);
+  });
+
+  it('holds the names a proof covers to the target’s, never zero (disposition 2)', () => {
+    expect(target({ names: ['A', 'B'], proof: { kind: 'host', host: 'a.example', names: ['A', 'C'] } })).toEqual([
+      "secrets.targets.dev.proof.names: C is not one of the target's names",
+    ]);
+    expect(target({ names: ['A'], proof: { kind: 'host', host: 'a.example', names: [] } })).toEqual([
+      'secrets.targets.dev.proof.names must be a non-empty list of secret names',
+    ]);
+    expect(target({ names: ['A'], proof: { kind: 'host', host: 'a.example' } })).toEqual([
+      'secrets.targets.dev.proof.names is required by the host kind: list the names the proof covers',
+    ]);
+    // supabase defaults to the SUPABASE_URL and DB_URL the target declares: one is enough, none is invalid.
+    expect(target({ names: ['DB_URL', 'KEY'], proof: { kind: 'supabase', ref: REF } })).toEqual([]);
+    expect(target({ names: ['SUPABASE_URL'], proof: { kind: 'supabase', ref: REF } })).toEqual([]);
+    expect(target({ names: ['KEY'], proof: { kind: 'supabase', ref: REF } })).toEqual([
+      "secrets.targets.dev.proof covers none of the target's names: name them in names, or declare one of SUPABASE_URL, DB_URL",
+    ]);
+    expect(target({ names: ['KEY', 'URL'], proof: { kind: 'supabase', ref: REF, names: ['URL'] } })).toEqual([]);
+  });
+
+  it('holds a ref to 20 lowercase letters and a host to one that round-trips (disposition 19)', () => {
+    for (const ref of ['abc', REF.toUpperCase(), `${REF}a`, 'abcdefghijklmnopqrs1', undefined]) {
+      expect(target({ ...supabaseDev, proof: { kind: 'supabase', ref } })).toEqual([
+        'secrets.targets.dev.proof.ref must be the project ref, 20 lowercase letters (the dashboard URL holds it)',
+      ]);
+    }
+    const host = (h) => target({ names: ['A'], proof: { kind: 'host', host: h, names: ['A'] } });
+    for (const ok of ['api.example.com', 'API.Example.com', 'db.example.com:5432', '[::1]:5432', 'bücher.de', 'example.com.']) {
+      expect([ok, host(ok)]).toEqual([ok, []]);
+    }
+    for (const bad of ['https://api.example.com', 'api.example.com/v1', 'user@api.example.com', 'a b', '', '::1', 'x:port', '.', 7]) {
+      expect([bad, host(bad)]).toEqual([
+        bad,
+        ['secrets.targets.dev.proof.host must be a bare host, a port allowed (no scheme, path or user: api.example.com, db.example.com:5432)'],
+      ]);
+    }
+  });
+});
+
 describe('the schema and the validator agree', () => {
   const props = (schema) => Object.keys(schema.properties).sort();
 
@@ -428,6 +560,37 @@ describe('the schema and the validator agree', () => {
     const rule = SCHEMA.properties.hooks.properties.docSync.items;
     expect(props(rule)).toEqual([...KNOWN_KEYS.docSyncRule].sort());
     expect([...rule.required].sort()).toEqual([...KNOWN_KEYS.docSyncRule].sort());
+  });
+
+  it('agree on secrets: the keys, the backends, the name patterns, and one proof shape per kind', () => {
+    const secrets = SCHEMA.properties.secrets;
+    expect(props(secrets)).toEqual([...KNOWN_KEYS.secrets].sort());
+    expect(secrets.additionalProperties).toBe(false);
+    expect(secrets.properties.backend.enum).toEqual(KNOWN_BACKENDS);
+    expect(secrets.properties.id.pattern).toBe(SECRETS_ID.source);
+    expect(secrets.then.required).toEqual(['id']);
+    expect(secrets.if.properties.backend.const).toBe('keychain');
+    const { patternProperties, additionalProperties } = secrets.properties.targets;
+    expect([Object.keys(patternProperties), additionalProperties]).toEqual([[TARGET_NAME.source], false]);
+    const target = patternProperties[TARGET_NAME.source];
+    expect(props(target)).toEqual([...KNOWN_KEYS.target].sort());
+    expect(target.properties.names.items.pattern).toBe(SECRET_NAME.source);
+    // Structural only: every kind the package knows, whether or not its pack is declared.
+    const kinds = { ...KINDS, ...Object.assign({}, ...KNOWN_PACKS.map((n) => PACKS[n].proofs ?? {})) };
+    const shapes = target.properties.proof.oneOf;
+    expect(shapes.map((s) => s.properties.kind.const)).toEqual(Object.keys(kinds));
+    const keys = new Set();
+    for (const shape of shapes) {
+      const kind = kinds[shape.properties.kind.const];
+      expect(props(shape)).toEqual(['kind', 'names', ...kind.fields].sort());
+      expect(shape.additionalProperties).toBe(false);
+      expect([...shape.required].sort()).toEqual(['kind', ...kind.fields, ...(kind.names === null ? ['names'] : [])].sort());
+      expect(shape.properties.names.items.pattern).toBe(SECRET_NAME.source);
+      Object.keys(shape.properties).forEach((k) => keys.add(k));
+    }
+    expect([...keys].sort()).toEqual([...KNOWN_KEYS.proof].sort());
+    const ref = new RegExp(shapes[1].properties.ref.pattern);
+    for (const v of [REF, 'abc', REF.toUpperCase(), `${REF}a`]) expect(ref.test(v)).toBe(kinds.supabase.valid.ref(v));
   });
 
   it('agree on the packs: the names, the object keys, and each pack’s switchable rules', () => {

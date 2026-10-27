@@ -2,7 +2,8 @@
 //
 // The config is the ONLY place a user repo tells the harness about itself: where the
 // state homes live, which host runs the agent, which commands make up the gate,
-// which stack packs it takes (packs/registry.mjs). Everything the lifted scripts
+// which stack packs it takes (packs/registry.mjs), which secrets backend and targets
+// `run` injects from (stage-5 plan §4.1). Everything the lifted scripts
 // hardcoded is a key here, and the repo declares its level (levels.mjs), which
 // doctor measures.
 //
@@ -19,9 +20,10 @@ import { KNOWN_HOSTS } from './hosts.mjs';
 import { KNOWN_LEVELS } from './levels.mjs';
 import { MIGRATIONS } from './migrations.mjs';
 import { KNOWN_PACKS, PACKS, packName, switchableRules } from './packs/registry.mjs';
+import { coveredNames, proofKinds } from './secret/proofs.mjs';
 
 export const CONFIG_FILE = 'cookwright.json';
-export const CONFIG_VERSION = 3;
+export const CONFIG_VERSION = 4;
 
 export const DEFAULTS = Object.freeze({
   version: CONFIG_VERSION,
@@ -44,7 +46,7 @@ export const OPTIONAL_PATHS = Object.freeze(['playbook']);
 
 /** Every key the validator knows, per object — the schema test compares these. */
 export const KNOWN_KEYS = Object.freeze({
-  top: ['$schema', 'version', 'level', 'hosts', 'packs', 'baseBranch', 'paths', 'gate', 'hooks', 'ci'],
+  top: ['$schema', 'version', 'level', 'hosts', 'packs', 'baseBranch', 'paths', 'gate', 'hooks', 'ci', 'secrets'],
   paths: ['bundles', 'closeouts', 'backlog', 'playbook', 'changelog'],
   gate: ['checks', 'flakes'],
   check: ['name', 'run', 'needs', 'skipExit'],
@@ -52,7 +54,18 @@ export const KNOWN_KEYS = Object.freeze({
   docSyncRule: ['name', 'code', 'docs'],
   pack: ['name', 'rules'],
   ci: ['workflow'],
+  secrets: ['backend', 'id', 'targets'],
+  target: ['names', 'proof'],
+  proof: ['kind', 'ref', 'host', 'names'],
 });
+
+/** The secrets backends `secrets.backend` may name (stage-5 plan §4.3). */
+export const KNOWN_BACKENDS = Object.freeze(['age', 'keychain', '1password']);
+
+/** A target's name, a secret's name, and `secrets.id` (disposition 1). */
+export const TARGET_NAME = /^[a-z][a-z0-9-]*$/;
+export const SECRET_NAME = /^[A-Z][A-Z0-9_]*$/;
+export const SECRETS_ID = /^[a-z][a-z0-9-]*$/;
 
 /** git's long pathspec magic words (gitglossary); `attr` may carry `:<spec>`. */
 export const PATHSPEC_MAGIC = Object.freeze(['top', 'literal', 'icase', 'glob', 'attr', 'exclude']);
@@ -207,6 +220,7 @@ export function validateConfig(config) {
     ...validateGate(config.gate),
     ...validateHooks(config.hooks),
     ...validateCi(config.ci),
+    ...validateSecrets(config.secrets, config.packs),
   ];
 }
 
@@ -414,6 +428,79 @@ function validateCi(ci) {
   const out = unknownKeys(ci, KNOWN_KEYS.ci, 'ci');
   if (!isStr(ci.workflow)) out.push('ci.workflow must name a workflow file (e.g. "ci.yml")');
   return out;
+}
+
+/**
+ * `secrets`: absent is Level 2 off. Present, it names a known `backend`, an `id`
+ * (required by `keychain`, whose items are named after it; disposition 52) and
+ * `targets`, an object (empty is a developer mid-setup; disposition 44) of targets
+ * by name, each with its secret `names` and an optional `proof`.
+ */
+function validateSecrets(secrets, packs) {
+  if (secrets === undefined) return [];
+  if (!isObj(secrets)) return ['secrets must be an object { backend, targets }'];
+  const out = unknownKeys(secrets, KNOWN_KEYS.secrets, 'secrets');
+  if (!KNOWN_BACKENDS.includes(secrets.backend)) out.push(`secrets.backend must be one of ${KNOWN_BACKENDS.join(', ')}`);
+  if (secrets.id !== undefined && !(isStr(secrets.id) && SECRETS_ID.test(secrets.id))) {
+    out.push('secrets.id must be lowercase letters, digits and dashes, starting with a letter');
+  } else if (secrets.id === undefined && secrets.backend === 'keychain') {
+    out.push('secrets.id is required with the keychain backend (its items are named cookwright/<id>/<target>)');
+  }
+  if (!isObj(secrets.targets)) return [...out, 'secrets.targets must be an object of targets by name (it may be empty)'];
+  const kinds = proofKinds({ packs: Array.isArray(packs) ? packs.filter((e) => KNOWN_PACKS.includes(packName(e))) : [] });
+  for (const [name, target] of Object.entries(secrets.targets)) out.push(...validateTarget(name, target, kinds));
+  return out;
+}
+
+function validateTarget(name, target, kinds) {
+  const where = `secrets.targets.${name}`;
+  const out = TARGET_NAME.test(name) ? [] : [`${where}: a target name is lowercase letters, digits and dashes, starting with a letter`];
+  if (!isObj(target)) return [...out, `${where} must be an object { names, proof }`];
+  out.push(...unknownKeys(target, KNOWN_KEYS.target, where));
+  out.push(...validateNames(target.names, `${where}.names`));
+  const names = Array.isArray(target.names) ? target.names : [];
+  return target.proof === undefined ? out : [...out, ...validateProof(target.proof, names, kinds, `${where}.proof`)];
+}
+
+/** A non-empty list of unique secret names. */
+function validateNames(names, where) {
+  if (!Array.isArray(names) || names.length === 0) return [`${where} must be a non-empty list of secret names`];
+  const out = [...new Set(names)]
+    .filter((n) => !(isStr(n) && SECRET_NAME.test(n)))
+    .map((n) => `${where}: ${JSON.stringify(n)} is not a secret name (uppercase letters, digits and _, starting with a letter)`);
+  if (new Set(names).size !== names.length) out.push(`${where}: each name once`);
+  return out;
+}
+
+/** Shown in a refusal of the core `host` kind's `host` (a pack's kind carries its own `hints`). */
+const CORE_HINTS = { host: 'a bare host, a port allowed (no scheme, path or user: api.example.com, db.example.com:5432)' };
+
+function validateProof(proof, names, kinds, where) {
+  if (!isObj(proof)) return [`${where} must be an object { kind, … }`];
+  if (!isStr(proof.kind) || !Object.hasOwn(kinds, proof.kind)) return [unknownKind(proof.kind, kinds, where)];
+  const kind = kinds[proof.kind];
+  const out = unknownKeys(proof, ['kind', 'names', ...kind.fields], where);
+  for (const field of kind.fields) {
+    if (!kind.valid[field](proof[field])) out.push(`${where}.${field} must be ${kind.hints?.[field] ?? CORE_HINTS[field]}`);
+  }
+  if (proof.names !== undefined) {
+    const problems = validateNames(proof.names, `${where}.names`);
+    if (problems.length) return [...out, ...problems];
+    for (const n of proof.names.filter((x) => !names.includes(x))) out.push(`${where}.names: ${n} is not one of the target's names`);
+  } else if (kind.names === null) {
+    out.push(`${where}.names is required by the ${proof.kind} kind: list the names the proof covers`);
+  } else if (coveredNames(proof, kind, names).length === 0) {
+    out.push(`${where} covers none of the target's names: name them in names, or declare one of ${kind.names.join(', ')}`);
+  }
+  return out;
+}
+
+/** An unknown kind, naming the pack that has it when one does (disposition 18). */
+function unknownKind(kind, kinds, where) {
+  if (!isStr(kind)) return `${where}.kind must name a proof kind (known: ${Object.keys(kinds).join(', ')})`;
+  const owner = KNOWN_PACKS.find((n) => Object.hasOwn(PACKS[n].proofs ?? {}, kind));
+  if (owner !== undefined) return `${where}.kind: ${kind} is the ${owner} pack's proof kind; add ${owner} to packs`;
+  return `${where}.kind: ${kind} is not a proof kind (known: ${Object.keys(kinds).join(', ')})`;
 }
 
 /**

@@ -76,3 +76,23 @@ describe('2 → 3: packs', () => {
     }
   });
 });
+
+describe('3 → 4: secrets', () => {
+  const addSecrets = MIGRATIONS[3];
+
+  it('changes nothing but the version: no secrets key is written (disposition 16)', () => {
+    const raw = { $schema: 's', version: 3, level: 0, hosts: ['claude'], packs: [] };
+    const before = structuredClone(raw);
+    const out = addSecrets(raw);
+    expect(out).toEqual({ raw, outcome: 'secretsNone' });
+    expect(Object.hasOwn(out.raw, 'secrets')).toBe(false);
+    expect(raw).toEqual(before);
+  });
+
+  it('keeps any secrets value already there, valid or not, for the validator to judge', () => {
+    for (const secrets of [{ backend: 'age', targets: {} }, 'age', null]) {
+      const raw = { version: 3, secrets };
+      expect(addSecrets(raw)).toEqual({ raw, outcome: 'secretsKept' });
+    }
+  });
+});

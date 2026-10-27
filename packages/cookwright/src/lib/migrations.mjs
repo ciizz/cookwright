@@ -51,7 +51,17 @@ function addPacks(raw) {
   return { raw: next, outcome: 'packsAdded' };
 }
 
+/**
+ * 3 → 4: `secrets` arrives, optional with no default (stage-5 plan disposition 16):
+ * nothing changes but the version. Absent, the repo has no secrets backend and Level
+ * 2 stays off; a present value is kept for the validator to judge.
+ */
+function addSecretsVersion(raw) {
+  return { raw, outcome: Object.hasOwn(raw, 'secrets') ? 'secretsKept' : 'secretsNone' };
+}
+
 export const MIGRATIONS = Object.freeze({
   1: dropStalePlaybook,
   2: addPacks,
+  3: addSecretsVersion,
 });

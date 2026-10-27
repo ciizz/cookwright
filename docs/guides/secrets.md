@@ -217,7 +217,7 @@ Three rows, after every row a level requires (after `packs`, before a declared p
 **`secrets.carriers`**: the places that carry a secret into every process, by name only.
 
 - An `.envrc` at the work tree's top or in any directory down to the config root, tracked or not, or tracked anywhere under the config root: direnv exports it into every command below it. The row names each from the top, so a nested config's parent `.envrc` counts.
-- A declared name, or a name the declared packs' tools read on their own (`SUPABASE_DB_URL`, `PGPASSWORD`, …), exported in the environment doctor runs in.
+- A declared name, or a name the declared packs' tools read on their own (`SUPABASE_DB_URL`, `PGPASSWORD`, …), exported in the environment doctor runs in. A pack's pointer names, which hold no secret (`PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE` and libpq's other non-secret settings), are not looked for: exporting them for a local Postgres is fine, and `run` keeps them from its command anyway.
 - A line setting such a name in `~/.zshenv`, `~/.zshrc`, `~/.zprofile`, `~/.bashrc`, `~/.bash_profile` or `~/.profile`, comments skipped, `export NAME=…` and `NAME=$(op read …)` alike: the row names the line's file, not its value.
 - Each is a WARN. With no `secrets` key, only `.envrc` and the packs' names are looked for.
 

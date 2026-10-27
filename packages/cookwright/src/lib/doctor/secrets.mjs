@@ -19,7 +19,7 @@ import path from 'node:path';
 import { TimedOut } from '../budget.mjs';
 import { messages } from '../messages.mjs';
 import { BACKENDS } from '../secret/backends/index.mjs';
-import { SECRETS_DIR, topRel } from '../secret/config.mjs';
+import { SECRETS_DIR, pointerNames, topRel } from '../secret/config.mjs';
 import { helperEnv, scrubNames } from '../secret/engine.mjs';
 import { FAIL, PASS, SKIP, WARN, fail, pass, skip, warn } from '../verdict.mjs';
 import { gitRun } from './repo.mjs';
@@ -259,11 +259,14 @@ function envrcParts(repo, probes) {
 /**
  * `secrets.carriers` (dispositions 11, 29; E-015): a place that carries a secret
  * into every process, by name: an `.envrc`, a declared or ambient name exported in
- * doctor's own environment, a line setting one in a shell rc file. Names and file
- * names only, never a value. Without a config, only `.envrc`.
+ * doctor's own environment, a line setting one in a shell rc file. A pack's pointer
+ * names (`PGHOST`, `PGUSER`) hold no secret and `run` never injects them, so they
+ * are left out (stage-5 review:whole finding 7). Names and file names only, never
+ * a value. Without a config, only `.envrc`.
  */
 export function checkSecretsCarriers(repo, probes) {
-  const names = repo.config ? scrubNames(repo.config) : [];
+  const pointers = new Set(repo.config ? pointerNames(repo.config) : []);
+  const names = repo.config ? scrubNames(repo.config).filter((n) => !pointers.has(n)) : [];
   const exported = names.filter((n) => Object.hasOwn(repo.env, n));
   const hits = names.length ? rcHits(repo.home, names) : [];
   const parts = [...envrcParts(repo, probes), exported.length && c.exported(exported), hits.length && c.rcLine(hits)];

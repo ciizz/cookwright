@@ -904,6 +904,18 @@ describe('secrets.backend, secrets.targets and secrets.carriers (stage-5 plan §
       expect(got.note).not.toMatch(/stale|postgresql/);
     });
 
+    it("leaves a pack's pointer names out, exported or set in an rc file, and keeps PGPASSWORD", () => {
+      const root = level0({}, { packs: ['supabase'], secrets: { backend: 'age', targets: { dev: { names: NAMES, proof } } } });
+      const home = fs.mkdtempSync(path.join(TMP, 'home-'));
+      fs.writeFileSync(path.join(home, '.zshrc'), 'export PGHOST=localhost PGUSER=postgres\nexport PGPORT=54322\n');
+      const env = { ...ENV, PGHOST: 'localhost', PGUSER: 'postgres', PGDATABASE: 'postgres' };
+      expect(carriers(root, { env, home })).toEqual({ status: 'PASS', note: sc.ok });
+      expect(carriers(root, { env: { ...env, PGPASSWORD: 'local-pass' }, home })).toEqual({
+        status: 'WARN',
+        note: sc.exported(['PGPASSWORD']),
+      });
+    });
+
     it('WARNs a line setting such a name in a shell rc file, comments skipped, names and files only', () => {
       const root = level0({}, { packs: ['supabase'], secrets: { backend: 'age', targets: { dev: { names: NAMES, proof } } } });
       const home = fs.mkdtempSync(path.join(TMP, 'home-'));

@@ -2,6 +2,16 @@
 
 A secret never touches disk in plaintext, and no env file stands in for one, not even as a fallback. cookwright reads a target's secrets from a backend and injects them into one child process, after checking that the values name the target you asked for (its proof). With no backend declared, Level 2 is off and nothing here applies.
 
+## Setting up, in order
+
+1. Choose a backend and write it into `cookwright.json` with no target yet: `"secrets": { "backend": "age", "targets": {} }`. `age` first (free, on every platform); `keychain` on macOS when you want nothing of it in the repo (with `"id"`); `1password` when you already use `op`.
+2. `age` only: `npx cookwright secrets init`, then commit `secrets/recipients.txt`.
+3. Declare a target, its `names` and its proof (for Supabase, the ref from your dashboard URL). For `1password`, write its template.
+4. `age` and `keychain`: `npx cookwright secrets set <target> <NAME>` per name; for `age`, commit `secrets/<target>.env.age`.
+5. `npx cookwright run <target> -- true`: the banner names what was injected and what was proved; exit 0 with nothing unproved means the target works.
+
+Ask your agent to set up secrets and the `setup` skill walks these five steps with you, one at a time, running doctor after each. It writes the config and the template; the commands that read a value or a passphrase on your terminal (`secrets init`, `secrets set`, and `run` with a passphrase-protected identity) it hands to you, and the commits are yours.
+
 ## The config
 
 `secrets` in `cookwright.json` declares the backend and the targets. It is optional and has no default; format version 4 added it.

@@ -42,6 +42,8 @@ describe('the host kind', () => {
       ['https://api.example.com', 'api.example.com'],
       ['https://API.example.com/v1/rest?x=1', 'api.example.com'],
       ['https://api.example.com:443/', 'api.example.com'],
+      ['https://api.example.com:443', 'api.example.com:443'],
+      ['http://api.example.com:8080/', 'api.example.com:8080'],
       ['https://api.example.com./', 'api.example.com'],
       ['https://bücher.de/', 'xn--bcher-kva.de'],
       ['https://xn--bcher-kva.de/', 'bücher.de'],
@@ -64,6 +66,8 @@ describe('the host kind', () => {
       ['https://evil.example/api.example.com', 'host'],
       ['https://api.example.com@evil.example/', 'host'],
       ['https://api.example.com:8443', 'host'],
+      ['http://api.example.com:443', 'host'], // 443 is the default port of https only
+      ['ftp://api.example.com:443', 'host'],
       [`postgresql://u:${PW}@db.example.com/app`, 'host'], // the port is part of the declared host
       ['not a url', 'notUrl'],
       ['', 'notUrl'],

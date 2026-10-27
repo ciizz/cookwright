@@ -95,6 +95,18 @@ export function pgHostProblem(value) {
   return /,|%2c/i.test(hostPart) ? { anchor: 'hostList' } : null;
 }
 
+/**
+ * A parsed value's host as the declared one is canonicalised: the hostname alone
+ * normalised (case, IDN, trailing dot, as canonicalHost reads it), the port kept as
+ * the parser normalised it for the value's own scheme: only that scheme's default
+ * port is dropped, so `http://h:443` keeps `:443` and never reads as `h`. Null when
+ * the hostname is not a bare host.
+ */
+function valueHost(url) {
+  const name = canonicalHost(url.hostname);
+  return name === null ? null : url.port ? `${name}:${url.port}` : name;
+}
+
 /** The core `host` kind: each covered value is a URL whose host is the declared one. */
 const host = {
   fields: ['host'],
@@ -108,7 +120,7 @@ const host = {
     } catch {
       return { anchor: 'notUrl' };
     }
-    const got = canonicalHost(url.host);
+    const got = valueHost(url);
     return got !== null && got === canonicalHost(proof.host) ? null : { anchor: 'host' };
   },
 };

@@ -92,6 +92,22 @@ Commit `secrets/recipients.txt` before the first `set`: nothing is encrypted to 
 
 **A passphrase-protected identity and agents.** age asks for the passphrase on the terminal every time it opens the identity, for `run` and for `set` alike. Without a terminal (an agent's shell), `run` refuses before anything starts: `the identity is passphrase-protected; hand this command to the developer`.
 
+## The 1Password backend
+
+`1password` reads each value from an item in 1Password through its CLI, `op` (`brew install 1password-cli`, or the CLI's install guide). Nothing secret is in the repo: `secrets/<target>.env.tpl`, committed, names where each value lives, one reference per declared name:
+
+```
+# dev: the API project's items
+API_URL=op://Dev/api/url
+API_TOKEN=op://Dev/api/credentials/token
+```
+
+A line is `NAME=op://<vault>/<item>/<field>`, or `NAME=op://<vault>/<item>/<section>/<field>` for a field inside a section, each part made of letters, digits, spaces, `.`, `_` and `-`; or a blank line; or a `#` comment. Anything else is a literal, a value that would sit in the repo: `run` refuses it and doctor FAILs it, naming the line number and never printing the line. That includes a comment that looks like an assignment (`# API_TOKEN=…`), a quoted reference, a reference holding `$`, `{` or `}` (which `op` would fill in from your environment), and `{{ … }}` templating. Each declared name has exactly one reference, and the template references no other name.
+
+`run` hands `op inject` the reference lines alone, on stdin, so `op` sees no comment and nothing else of the file, and reads its answer back line by line against them: one line per reference, in order. A field whose value spans several lines is refused, as is any line that is not the next reference's. `op` runs with your environment minus the declared and ambient names; it keeps its own `OP_SERVICE_ACCOUNT_TOKEN`, `OP_CONNECT_HOST`, `OP_CONNECT_TOKEN` and `OP_SESSION_*`, which the command never receives (the banner names them as dropped).
+
+`secrets set` and `secrets init` write nothing on this backend: you add and change the items in 1Password. Doctor checks the template only (present, committed, one reference per name, no literal), so `secrets.backend` reads `op on PATH`: whether you are signed in, and whether each reference resolves, is what `run` proves. A failed `op inject` refuses with `op`'s own first line and the sign-in hint.
+
 ## Updating to version 4
 
 `npx cookwright migrate` writes an older `cookwright.json` at version 4. The step changes nothing but the version: it never writes a `secrets` key.

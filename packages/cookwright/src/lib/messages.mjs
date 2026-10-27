@@ -185,6 +185,67 @@ const doctor = {
     notWorkTree: 'not a git work tree',
   },
 
+  // secrets.backend, secrets.targets, secrets.carriers (stage-5 plan §4.6): names, files
+  // and line numbers, never a value; a row claims only what it measured (disposition 45).
+  secretsBackend: {
+    none: 'no backend (Level 2 off)',
+    platform: (backend) => `skipped, the ${backend} backend needs macOS`,
+    needsTool: (tool, op, install) => `skipped, needs ${tool}, run setup (${install}; ${CLI} ${op} uses it)`,
+    op: 'op on PATH',
+    keychain: (services) => `security on PATH; ${services.length ? `service ${list(services)}` : 'no target declared'}`,
+    age: {
+      inWorkTree: (p, top) =>
+        `the age identity ${p} is inside the git work tree ${top}: move it outside every work tree (COOKWRIGHT_AGE_IDENTITY names where), and treat it as exposed if it was ever committed`,
+      missing: (p) => `identity missing at ${p}: ${CLI} secrets init (on another machine, copy the identity you already have)`,
+      mode: (p, mode) => `the age identity ${p} is readable by others (mode ${mode}): chmod 600 ${p}`,
+      noPassphrase: (p) =>
+        `the age identity ${p} has no passphrase (weaker: whoever reads the file opens every secret; the secrets guide shows how to add one)`,
+      windows: (p) => `the age identity ${p} is passphrase-protected; its permissions are not measured on this platform`,
+      ok: (p) => `age identity ${p}, passphrase-protected, readable by you only`,
+    },
+  },
+  secretsTargets: {
+    none: 'no targets declared',
+    empty: 'no targets declared; add one (the secrets guide)',
+    follows: (status, note) => `not inspected, secrets.backend is ${status}: ${note}`,
+    ignored: (rel, rule) =>
+      `${rel} is ignored by git (${rule.source}:${rule.line}: ${rule.pattern}); remove that line, so it can be committed`,
+    timedOut: (what) => `unverified: the time budget ran out while ${what} ran; run ${CLI} doctor again`,
+    target: (name, detail) => `${name}: ${detail}`,
+    unproved: (name) => `${name}: unproved (no proof declared; the secrets guide shows the kinds)`,
+    file: (name, rel, state) =>
+      ({
+        missing: `${name}: ${rel} missing`,
+        untracked: `${name}: ${rel} is not committed (git add ${rel}, then commit)`,
+        changed: `${name}: ${rel} differs from HEAD (commit it)`,
+      })[state],
+    age: {
+      ok: (name, recipients) => `${name}: ciphertext${recipients ? ' and recipients' : ''} tracked`,
+      noCiphertext: (name, rel) => `${name}: no ciphertext (${rel}): ${CLI} secrets set ${name} <NAME>, for each name`,
+    },
+    op: {
+      noTemplate: (name, rel) =>
+        `${name}: no template (${rel}): write one, a line NAME=op://<vault>/<item>/<field> per name (the secrets guide)`,
+      literal: (name, rel, lines) =>
+        `${name}: line(s) ${lines.join(', ')} of ${rel} hold neither an op:// reference, a blank nor a comment: a literal value? Replace each with a reference`,
+      ok: (name) => `${name}: template tracked, one reference per name`,
+    },
+    keychain: {
+      ok: (name, service) => `${name}: present by name under ${service}`,
+      missing: (name, service, names) =>
+        `${name}: not in the keychain under ${service}: ${list(names)} (${CLI} secrets set ${name} <NAME>)`,
+      lookup: (name, status) => `${name}: the keychain lookup exited ${status}, so presence is not measured`,
+    },
+  },
+  secretsCarriers: {
+    ok: 'no .envrc, and no secret name exported here or set in a shell rc file',
+    envrcTracked: (files) => `tracked .envrc: ${list(files)} (direnv exports it into every command; run injects into one)`,
+    envrcRoot: '.envrc at the root (direnv exports it into every command; run injects into one)',
+    exported: (names) => `exported in this environment: ${list(names)} (unset them; run injects each into one child)`,
+    rcLine: (hits) =>
+      `a line setting ${list(hits.map(([name, file]) => `${name} in ${file}`))} (move it out; run injects each into one child)`,
+  },
+
   // packs: the declared packs, or the stacks the tree shows (stage-4 plan disposition 22).
   packs: {
     declared: (names) => `declared: ${list(names)}`,
@@ -728,6 +789,7 @@ const secrets = {
   notWorkTree: NOT_WORK_TREE,
   // secrets set's lines: never a value or its length
   set: (name, target, backend) => `secrets: set ${name} for ${target} (${backend})`,
+  withService: (backend, service) => `${backend}, service ${service}`,
   encryptedTo: (keys) => `secrets: encrypted to ${keys.length} recipient(s): ${tailed(keys)}`,
   // readValue (lib/secret/prompt.mjs)
   prompt: {
@@ -779,6 +841,36 @@ const secrets = {
         : `secrets: wrote ${p} (no passphrase, mode 600: weaker; the secrets guide shows how to add one)`,
     wroteRecipients: (rel, keys) => `secrets: ${rel} holds ${keys.length} recipient(s): ${tailed(keys)}`,
     commitFirst: (rel) => `secrets: commit ${rel} before the first secrets set (git add ${rel} && git commit)`,
+  },
+  // the 1password backend (lib/secret/backends/onepassword.mjs): a line number, a name or a reference, never a value
+  op: {
+    install: 'brew install 1password-cli (or the install guide of the 1Password CLI)',
+    noTemplate: (rel) =>
+      `${rel} not found: write it, one line NAME=op://<vault>/<item>/<field> per name (the secrets guide shows it)`,
+    template: {
+      literal: ({ rel, lines }) =>
+        `line(s) ${lines.join(', ')} of ${rel} hold neither an op:// reference, a blank nor a comment: replace each with a reference`,
+      duplicate: ({ rel, name }) => `${rel} references ${name} twice`,
+      undeclared: ({ rel, name, target }) => `${rel} references ${name}, which ${target} does not declare`,
+      missing: ({ rel, name }) => `${name} has no reference in ${rel}: add a line ${name}=op://<vault>/<item>/<field>`,
+    },
+    failed: (line) =>
+      `op inject failed${line ? `: ${line}` : ''}; sign in (op signin, or unlock the 1Password app) and run it again`,
+    resolved: (target, detail) => `${target}: ${detail} (a field holding more than one line is refused)`,
+    noWrite: `the 1password backend writes nothing: add the items in 1Password and reference each in secrets/<target>.env.tpl (the secrets guide)`,
+  },
+  // the keychain backend (lib/secret/backends/keychain.mjs): security's own output is never printed
+  keychain: {
+    install: 'security ships with macOS (/usr/bin/security)',
+    banner: (service) => `keychain service ${service}`,
+    failed: (what, status) => `security ${what} exited ${status}`,
+    tooLong: (room) =>
+      `the value is too long for the keychain backend: security reads one command of at most 4096 bytes, which leaves ${room} bytes for this value (a \\ or " counts twice); nothing written`,
+    readBack: (name, service) =>
+      `the keychain returned a different value for ${name} than the one entered; the item under ${service} is removed, nothing kept`,
+    notText: (name) => `${name}'s keychain item is not UTF-8 text`,
+    nul: (name) => `${name}'s keychain item holds a NUL byte`,
+    noInit: `the keychain backend needs no init: set each name with ${CLI} secrets set <target> <NAME>`,
   },
   proof: {
     // prove()'s result when ok is false: the name, the expected identifier, the kind, the anchor

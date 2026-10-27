@@ -234,6 +234,30 @@ describe('set', () => {
     expect(await refused(set('dev', 'TOKEN', bad.ctx))).toBe(messages.secrets.recipients({ why: 'secretKey', line: 2 }, rel));
   });
 
+  it('decrypts and reads the existing ciphertext before asking for the value, refusing a bad one unasked', async () => {
+    const { ctx, home } = setup();
+    plainIdentity(home);
+    await set('dev', 'TOKEN', { ...ctx, readValue: async () => 'first-token' });
+    const order = [];
+    const watched = {
+      ...ctx,
+      probes: { ...ctx.probes, capture: (cmd, args, opts) => (order.push(args[0]), ctx.probes.capture(cmd, args, opts)) },
+      readValue: async () => (order.push('ask'), 'second-token'),
+    };
+    await set('dev', 'TOKEN', watched);
+    expect(order).toEqual(['-d', 'ask', '-a']);
+    const file = path.join(ctx.root, 'secrets/dev.env.age');
+    fs.writeFileSync(file, `${ARMOR}\n${Buffer.from('TOKEN=a\nLD_PRELOAD=x\n').toString('base64')}\n`);
+    let asked = false;
+    const asking = { ...ctx, readValue: async () => ((asked = true), 'x') };
+    expect(await refused(set('dev', 'TOKEN', asking))).toBe(
+      messages.secrets.resolved('dev', messages.secrets.envfile.unknown({ line: 2 })),
+    );
+    const failing = { ...asking, probes: { ...ctx.probes, capture: () => ({ status: 1, stdout: '', stderr: 'age: no identity matched\n' }) } };
+    expect(await refused(set('dev', 'TOKEN', failing))).toBe(a.failed('age -d', 'age: no identity matched'));
+    expect(asked).toBe(false);
+  });
+
   it('reads a nested config root top-relative, never a decoy secrets/ at the top', async () => {
     const s = setup({ sub: 'app' });
     plainIdentity(s.home);

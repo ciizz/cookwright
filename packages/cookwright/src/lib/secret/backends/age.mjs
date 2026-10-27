@@ -145,7 +145,9 @@ function encryptTo(file, text, ctx) {
 
 /**
  * `set`: `secret` of target `name` set to the value `ctx.readValue()` reads, every
- * check made before the value is asked for. Returns the recipients' keys.
+ * check made before the value is asked for: the existing ciphertext is decrypted
+ * and read against the declared names first (stage-5 review:engine finding 1).
+ * Returns the recipients' keys.
  */
 export async function set(name, secret, ctx) {
   const target = ctx.config.secrets.targets[name];
@@ -154,11 +156,10 @@ export async function set(name, secret, ctx) {
   const file = path.join(ctx.root, ciphertextOf(name));
   const existing = fs.existsSync(file);
   const identity = existing ? requireIdentity(ctx) : null;
-  const protect = existing && promptsFor(identity, ctx);
-  const value = await ctx.readValue();
-  const text = existing ? decrypt(file, identity, protect, ctx) : '';
+  const text = existing ? decrypt(file, identity, promptsFor(identity, ctx), ctx) : '';
   const read = parseAgainst(text, target.names, { partial: true });
   if (read.problem) throw resolvedProblem(read.problem, name);
+  const value = await ctx.readValue();
   let next;
   try {
     next = replaceLine(text, secret, value);

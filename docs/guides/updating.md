@@ -12,12 +12,16 @@ Scripts are imported from the package, never copied into your repo, so an update
 
 ## migrate
 
-`npx cookwright migrate [--dry-run]` writes `cookwright.json` at the current format version. An older file already loads, migrated in memory, and doctor reads its `config` check as weak until you run this; each step prints one line, the file keeps its indent and line endings, and `--dry-run` prints the steps and writes nothing. On a file already current (the harness fixture, 2026-10-25):
+`npx cookwright migrate [--dry-run]` writes `cookwright.json` at the current format version. An older file already loads, migrated in memory, and doctor reads its `config` check as weak until you run this; each step prints one line, the file keeps its indent and line endings, and `--dry-run` prints the steps and writes nothing. On a file already current (the line the harness fixture checks):
 
 ```
 $ npx cookwright migrate
-cookwright.json: already at version 3
+cookwright.json: already at version 4
 ```
+
+## Version 4: secrets
+
+Format version 4 adds the optional `secrets` key; migrating only bumps the version and never writes one. See [Secrets](secrets.md#updating-to-version-4).
 
 ## Version 3: the stack packs
 

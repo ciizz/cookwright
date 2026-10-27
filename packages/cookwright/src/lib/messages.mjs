@@ -661,12 +661,37 @@ const proofAnchors = {
   disagree: () => 'its user and its host name different projects',
 };
 
+/** Why the recipients file at `rel` refuses an encryption (lib/secret/recipients.mjs), by the problem's `why`. */
+const recipientsWhy = {
+  missing: ({ rel }) => `${rel} not found; ${CLI} secrets init writes it`,
+  uncommitted: ({ rel }) =>
+    `${rel} is not committed: commit it first, so a recipient is reviewed before anything is encrypted to it`,
+  differs: ({ rel }) =>
+    `${rel} differs from HEAD (git diff HEAD -- ${rel}): commit the change first, so a recipient is reviewed before anything is encrypted to it`,
+  secretKey: ({ rel, line }) =>
+    `line ${line} of ${rel} holds an age secret key: remove it (only age1… public keys belong there) and treat that identity as exposed`,
+  malformed: ({ rel, line }) => `line ${line} of ${rel} is neither an age1… recipient nor a # comment`,
+  empty: ({ rel }) => `${rel} holds no recipient`,
+};
+
 const secrets = {
   proof: {
     // prove()'s result when ok is false: the name, the expected identifier, the kind, the anchor
     failed: ({ against, kind, reason }) =>
       `${reason.name} is not proved against ${against} (${kind}): ${proofAnchors[reason.anchor](against, reason)}`,
   },
+  // parseAgainst's problems (lib/secret/envfile.mjs): a declared name or a line number, never a line's text
+  envfile: {
+    nul: ({ line }) => `line ${line} of the resolved text holds a NUL byte`,
+    malformed: ({ line }) => `line ${line} of the resolved text is not NAME=value`,
+    extra: ({ line }) => `line ${line} of the resolved text matches no template reference (a value spanning lines?)`,
+    unexpected: ({ line, name }) => `line ${line} of the resolved text is not ${name}, the template's line there`,
+    unknown: ({ line }) => `line ${line} of the resolved text sets a name the target does not declare`,
+    duplicate: ({ name }) => `${name} is set twice in the resolved text`,
+    missing: ({ name }) => `${name} is missing or empty`,
+    multiLine: (name) => `${name}: a value is one line, with no NUL byte`,
+  },
+  recipients: (problem, rel) => recipientsWhy[problem.why]({ ...problem, rel }),
 };
 
 export const messages = {

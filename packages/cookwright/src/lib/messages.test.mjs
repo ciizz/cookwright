@@ -38,6 +38,7 @@ const SCANNED = [
   'src/lib/changelog',
   'src/lib/hooks',
   'src/lib/packs',
+  'src/lib/secret',
 ];
 
 /** Modules whose literals are content written into the user's repo, not messages. */

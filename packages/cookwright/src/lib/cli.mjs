@@ -27,6 +27,16 @@ export function parseArgv(argv) {
   return { pos, flags };
 }
 
+/**
+ * `argv` split at the first `--`, before parseArgv sees it: `own`, the command's
+ * arguments, and `child`, everything after it verbatim, flags included (null when
+ * there is no `--`). parseArgv would read `--` as a flag named ''.
+ */
+export function splitArgv(argv) {
+  const at = argv.indexOf('--');
+  return at < 0 ? { own: argv, child: null } : { own: argv.slice(0, at), child: argv.slice(at + 1) };
+}
+
 /** `value`, or a refusal naming `what` when it is absent or a bare boolean flag. */
 export const need = (value, what) => {
   if (value === undefined || value === true) throw new Refusal(messages.missing(what));

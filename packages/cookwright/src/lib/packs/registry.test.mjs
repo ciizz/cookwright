@@ -8,8 +8,9 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULTS, validateConfig, withDefaults } from '../config.mjs';
+import { DEFAULTS, SECRET_NAME, validateConfig, withDefaults } from '../config.mjs';
 import { PACKAGE_ROOT } from '../hosts.mjs';
+import { KINDS } from '../secret/proofs.mjs';
 import {
   ADVISORY,
   KNOWN_PACKS,
@@ -117,6 +118,31 @@ describe.each(manifests)('the %s manifest', (name, manifest) => {
     for (const rule of byMeasure(manifest, 'gate')) expect(rule.gate.name).toMatch(/^standards:/);
   });
 
+  it('declares its proof kinds as data and pure functions, none shadowing a core or another pack’s kind', () => {
+    const kinds = Object.entries(manifest.proofs ?? {});
+    for (const [kind, def] of kinds) {
+      expect(kind).toMatch(/^[a-z]+(-[a-z]+)*$/);
+      expect(Object.hasOwn(KINDS, kind)).toBe(false);
+      for (const other of KNOWN_PACKS.filter((n) => n !== name)) expect(Object.hasOwn(PACKS[other].proofs ?? {}, kind)).toBe(false);
+      expect(Object.keys(def).sort()).toEqual(['against', 'check', 'fields', 'hints', 'names', 'valid']);
+      expect(def.fields.every((f) => !['kind', 'names'].includes(f))).toBe(true);
+      expect(Object.keys(def.valid).sort()).toEqual([...def.fields].sort());
+      expect(Object.keys(def.hints).sort()).toEqual([...def.fields].sort());
+      for (const f of def.fields) expect([typeof def.valid[f], def.hints[f]]).toEqual(['function', expect.stringMatching(/^[a-z][^\n.]+[^.]$/)]);
+      expect(def.names === null || def.names.every((n) => SECRET_NAME.test(n))).toBe(true);
+      expect([typeof def.against, typeof def.check]).toEqual(['function', 'function']);
+    }
+  });
+
+  it('lists its ambient names as secret names, each once, and its pointers among them', () => {
+    const ambient = manifest.ambient ?? Object.freeze([]);
+    const pointers = manifest.pointers ?? Object.freeze([]);
+    expect([Array.isArray(ambient), Object.isFrozen(ambient), Array.isArray(pointers), Object.isFrozen(pointers)]).toEqual([true, true, true, true]);
+    for (const n of ambient) expect(n).toMatch(SECRET_NAME);
+    expect(new Set(ambient).size).toBe(ambient.length);
+    for (const n of pointers) expect(ambient).toContain(n);
+  });
+
   it('declares each contract doc with its scope, its code directories and its entries kind', () => {
     expect(manifest.docs.length).toBeGreaterThan(0);
     const docSyncDocs = byMeasure(manifest, 'doc-sync').flatMap((r) => r.docSync.docs);
@@ -161,6 +187,17 @@ describe('the rules of the kickoff', () => {
     const types = PACKS.supabase.rules.find((r) => r.id === 'types').gate;
     expect(types).toEqual({ name: 'standards:types', run: 'npx cookwright standards --types', skipExit: 11 });
     expect(RATCHET_CHECK).toEqual({ name: 'standards', run: 'npx cookwright standards --ratchet', skipExit: 11 });
+  });
+});
+
+describe('the secrets data of stage 5', () => {
+  it('gives the supabase pack its proof kind and the names its tools read on their own (dispositions 19, 22, 29)', () => {
+    expect(Object.keys(PACKS.supabase.proofs)).toEqual(['supabase']);
+    expect(PACKS.supabase.proofs.supabase.fields).toEqual(['ref']);
+    expect(PACKS.supabase.proofs.supabase.names).toEqual(['SUPABASE_URL', 'DB_URL']);
+    expect(PACKS.supabase.ambient).toEqual(['SUPABASE_DB_URL', 'SUPABASE_ACCESS_TOKEN', 'PGPASSWORD', 'PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE']);
+    expect(PACKS.supabase.pointers).toEqual(['PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE']);
+    expect([PACKS.expo.proofs, PACKS.expo.ambient]).toEqual([undefined, undefined]);
   });
 });
 

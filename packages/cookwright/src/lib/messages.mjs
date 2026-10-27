@@ -641,6 +641,34 @@ const packs = {
   none: `no pack declared in ${CONFIG_FILE} (packs is empty; the setup skill offers the ones your tree shows)`,
 };
 
+// secrets: the lines of the secrets engine (stage-5 plan §4.8). A line names a
+// secret, a target, a line number or a declared identifier, never a value, a host
+// read from a value or a password.
+
+/** A proof anchor that failed, by the anchor key a kind returns (lib/secret/proofs.mjs, a pack manifest). */
+const proofAnchors = {
+  notUrl: () => 'not a URL',
+  host: (against) => `its URL's host is not ${against}`,
+  param: (_, { param }) => `its query string sets ${param}, which libpq lets override the URL's host, user or credentials`,
+  paramName: () => 'its query string has a parameter name that does not decode',
+  userinfo: () => 'the part before its host holds an unencoded /, ?, # or @ (percent-encode it)',
+  projectUrl: (ref, { found }) =>
+    `expected https://${ref}.supabase.co, ${found ? `found ref ${found}` : 'not a supabase.co URL'}`,
+  dbUrl: (ref, { found }) =>
+    found
+      ? `expected the host db.${ref}.supabase.co, found ref ${found}`
+      : `expected the user <role>.${ref} on a *.pooler.supabase.com host, or the host db.${ref}.supabase.co`,
+  disagree: () => 'its user and its host name different projects',
+};
+
+const secrets = {
+  proof: {
+    // prove()'s result when ok is false: the name, the expected identifier, the kind, the anchor
+    failed: ({ against, kind, reason }) =>
+      `${reason.name} is not proved against ${against} (${kind}): ${proofAnchors[reason.anchor](against, reason)}`,
+  },
+};
+
 export const messages = {
   // the bin
   usage: (commands) => `usage: ${CLI} <${commands.join('|')}> …`,
@@ -684,4 +712,5 @@ export const messages = {
   standards,
   audit,
   packs,
+  secrets,
 };

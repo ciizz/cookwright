@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 225,
+  "revision": 234,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -364,9 +364,23 @@
     },
     {
       "name": "fix:whole",
-      "status": "pending",
+      "status": "done",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-27T17:51:13.146Z",
+          "stateRevision": 225,
+          "planSha": "13da5997463ed143",
+          "codex": true,
+          "runId": "wf_9b08306a-567",
+          "endedAt": "2026-10-27T18:05:00.501Z",
+          "turnOutputTokens": 185792
+        }
+      ],
+      "startCommit": "2d78a1e042664e0688eca41f00c05b633be777f2",
+      "range": null,
+      "endCommit": "c09a0656425cd5f0e0176a8503e8bd8a029ffd0e",
+      "endCode": "c09a0656425cd5f0e0176a8503e8bd8a029ffd0e"
     },
     {
       "name": "qa",
@@ -496,6 +510,19 @@
           "name": "test",
           "result": "pass",
           "ms": 63904
+        }
+      ]
+    },
+    {
+      "commit": "c09a0656425cd5f0e0176a8503e8bd8a029ffd0e",
+      "at": "2026-10-27T18:04:49.091Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 66817
         }
       ]
     }
@@ -675,6 +702,12 @@
       "phase": "fix:surface",
       "path": "docs/dev/bundles/stage-5/sessions/fix-surface-1.md",
       "at": "2026-10-27T17:40:43.484Z",
+      "stored": true
+    },
+    {
+      "phase": "fix:whole",
+      "path": "docs/dev/bundles/stage-5/sessions/fix-whole-1.md",
+      "at": "2026-10-27T18:03:40.801Z",
       "stored": true
     }
   ],
@@ -1784,6 +1817,34 @@
       "actor": "orchestrator",
       "source": "review:whole finding 4 (P3 confirmed)",
       "text": "No edit, as at review:engine finding 9: the record names the system temp folder and the fixture's own suffix, no user or random segment; the bundle directory is never edited by hand; B-022 holds the scrubber's gap and the closeout's residue names the fragment.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T18:04:59.233Z",
+      "actor": "orchestrator",
+      "source": "fix:whole readings",
+      "text": "Accepted beyond the dispositions' letter: parseAgainst's stale option (undeclared lines listed, not refused, for set; run still refuses them naming the set that drops them); isLoopback as one anchored regex, 'localhost:' with an empty port no longer loopback (errs on refusing); needles takes the public-URL predicate as an argument (no circular import); signalHandlers resolving the wait with 128+n once the child exited; two commits with no guide implication used COOKWRIGHT_SKIP=doc-sync with their reason (identity cleanup flag; literal pathspecs), harmless and recorded.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T18:04:59.502Z",
+      "actor": "orchestrator",
+      "source": "fix:whole measurements",
+      "text": "fix:whole measured: npm test 38 files, 1090 tests (baseline 1075); doctor on this repo 22 checks 22 PASS, level 0 complete. The session did not run the fixture; the orchestrator ran it after the commits, with the result in the next decision.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T18:04:59.780Z",
+      "actor": "orchestrator",
+      "source": "fix:whole strings batch",
+      "text": "fix:whole's 10 user-facing strings (run's stale-name refusal naming the set that drops it; set's removed-names line; the keychain readBackKept refusal; the guide's identity-location, stale-names, loopback-hosts, local-password, signals, keychain read-back and carriers-pointers sentences) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at QA.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-27T18:05:00.053Z",
+      "actor": "orchestrator",
+      "source": "fix:whole measurements, orchestrator",
+      "text": "The orchestrator ran the fixture after fix:whole's commits: fixture PASS, every step as expected; its readouts 31 checks 30 PASS 1 WARN (init and doctor), 27 PASS 4 WARN (the secrets step), as planned (rule 3).",
       "claim": true
     }
   ],

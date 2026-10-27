@@ -246,6 +246,13 @@ describe('the setup skill', () => {
     expect(text).toContain(fragment);
   });
 
+  it('is matched by a secrets request and sends it straight to the secrets pass (review:surface finding 5)', () => {
+    expect(parse(text).fields.description).toContain('or to set up secrets (a backend, a target, the first run)');
+    const intro = text.slice(0, text.indexOf('## Rules'));
+    expect(intro).toContain('goes straight to **the secrets pass**');
+    expect(text).toContain('**The secrets pass**');
+  });
+
   it("closes the secrets pass with a key left unproved, never proving it (review:surface findings 0 and 4)", () => {
     const pass = text.slice(text.indexOf('**The secrets pass**'));
     expect(pass).toContain('Exit 0 with every name a proof kind can cover proved closes the pass.');

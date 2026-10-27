@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Walk cookwright doctor's readout to a complete level, one remedy at a time — run doctor, fix the first line that is not PASS by the recipe for it, run doctor again. Use when a doctor line is not PASS and its own hint did not clear it, after updating the cookwright package, when adding a host (Claude Code, Codex) to cookwright.json, or when the developer asks to set cookwright up.
+description: Walk cookwright doctor's readout to a complete level, one remedy at a time — run doctor, fix the first line that is not PASS by the recipe for it, run doctor again. Use when a doctor line is not PASS and its own hint did not clear it, after updating the cookwright package, when adding a host (Claude Code, Codex) to cookwright.json, or when the developer asks to set cookwright up, or to set up secrets (a backend, a target, the first run).
 ---
 
 # setup — Level 0
@@ -8,6 +8,8 @@ description: Walk cookwright doctor's readout to a complete level, one remedy at
 **Doctor is the state; this skill keeps none of its own.** Every decision below is made from a doctor readout taken after the last thing you changed. The logic lives in the CLI (`npx cookwright …`); this skill only says which command answers which line.
 
 It is reached once `npx cookwright init` has run (init writes the pointer that makes this skill visible), so a repo without `cookwright.json` starts from the README's quick start, not here.
+
+A request to set up secrets (a backend, a target, the first run) goes straight to **the secrets pass** under "At the end" once no Level 0 row FAILs: run doctor, take such a FAIL by its recipe first, then walk the pass; the rest of the walkthrough waits until the developer asks for it.
 
 ## Rules
 

@@ -22,7 +22,7 @@ What this leaves open is listed under "What is not closed" below.
 4. `age` and `keychain`: `npx cookwright secrets set <target> <NAME>` per name; for `age`, commit `secrets/<target>.env.age`.
 5. `npx cookwright run <target> -- true`: the banner names what was injected and what was proved; exit 0 with every name a proof kind can cover proved means the target works. A name no kind covers (a key, such as Supabase's `service_role` key) stays unproved on the banner, and that is expected: keep it in the target, and don't add it to the proof's `names`, which would refuse every run.
 
-Ask your agent to set up secrets and the `setup` skill walks these five steps with you, one at a time, running doctor after each. It writes the config and the template; the commands that read a value or a passphrase on your terminal (`secrets init`, `secrets set`, and `run` with a passphrase-protected identity) it hands to you, and the commits are yours.
+Ask your agent to set up secrets and the `setup` skill walks these five steps with you, one at a time, running doctor after each; a FAIL among doctor's Level 0 rows is cleared first, and the rest of its walkthrough waits until you ask for it. It writes the config and the template; the commands that read a value or a passphrase on your terminal (`secrets init`, `secrets set`, and `run` with a passphrase-protected identity) it hands to you, and the commits are yours.
 
 ## Choosing a backend
 

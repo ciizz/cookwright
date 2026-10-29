@@ -868,8 +868,8 @@ const secrets = {
       undeclared: ({ rel, name, target }) => `${rel} references ${name}, which ${target} does not declare`,
       missing: ({ rel, name }) => `${name} has no reference in ${rel}: add a line ${name}=op://<vault>/<item>/<field>`,
     },
-    failed: (line) =>
-      `op inject failed${line ? `: ${line}` : ''}; sign in (op signin, or unlock the 1Password app) and run it again`,
+    failed: (line, signIn) =>
+      `op inject failed${line ? `: ${line}` : ''}${signIn ? '; sign in (op signin, or unlock the 1Password app) and run it again' : ''}`,
     resolved: (target, detail) => `${target}: ${detail} (a field holding more than one line is refused)`,
     noWrite: `the 1password backend writes nothing: add the items in 1Password and reference each in secrets/<target>.env.tpl (the secrets guide)`,
   },

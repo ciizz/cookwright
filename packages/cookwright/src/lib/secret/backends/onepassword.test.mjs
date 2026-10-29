@@ -1,13 +1,15 @@
 // src/lib/secret/backends/onepassword.test.mjs — the 1Password backend with a fake
 // `capture` (stage-5 plan §4.3, §6 "Backends"): the template's grammar (disposition
-// 15), the reference lines fed to `op inject -f` on stdin, each reference in
-// `{{ }}`, with the scrubbed environment, the resolved output read against the
-// references (disposition 53), the two environments (disposition 50), doctor's
-// inspect, the writes refused. No
-// real `op` runs here: resolving a reference is the developer's measurement (plan
-// §8). Values are synthetic.
+// 15), the reference lines fed to `op inject -f -i` in a private temporary file,
+// each reference in `{{ }}`, with the scrubbed environment, the resolved output read
+// against the references (disposition 53), the two environments (disposition 50),
+// doctor's inspect, the writes refused. One test runs the real `capture` against a
+// fake `op` script that, like op 2.39, refuses a stdin that is not a pipe (stage-5
+// qa round 2, P1). No real `op` runs here: resolving a reference is the developer's
+// measurement (plan §8). Values are synthetic.
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -39,12 +41,18 @@ const TEMPLATE = [
 ].join('\n');
 const VALUES = { API_URL: 'https://api.example.com/v1', API_TOKEN: `tok-${'t'.repeat(16)}` };
 
-/** A fake op: `stdout` (or `inject(input)`) for `op inject`, every call recorded. */
+/**
+ * A fake op: `stdout` (or `inject(lines)`) for `op inject`, every call recorded with
+ * the `-i` file's text and mode, and its directory's mode, read during the call.
+ */
 function fakeOp({ stdout, status = 0, stderr = '', inject } = {}) {
   const calls = [];
   const capture = (cmd, args, opts = {}) => {
-    calls.push({ cmd, args, ...opts });
-    const out = inject ? inject(opts.input) : stdout;
+    const file = args[args.indexOf('-i') + 1];
+    const lines = fs.readFileSync(file, 'utf8');
+    const modes = { file: fs.statSync(file).mode & 0o777, dir: fs.statSync(path.dirname(file)).mode & 0o777 };
+    calls.push({ cmd, args, ...opts, file, lines, modes });
+    const out = inject ? inject(lines) : stdout;
     return { status, stdout: out ?? '', stderr };
   };
   return { capture, calls };
@@ -135,14 +143,24 @@ describe('parseTemplate (disposition 15)', () => {
 });
 
 describe('resolve', () => {
-  it('feeds op inject -f only the reference lines on stdin, each in {{ }}, with the scrubbed environment', () => {
+  it('feeds op inject -f -i only the reference lines, each in {{ }}, in a private file it removes, with the scrubbed environment', () => {
     const { ctx, root, calls } = setup({ env: { OP_SESSION_me: 'session' } });
     const values = resolve('dev', ctx);
     expect(Object.fromEntries(values)).toEqual(VALUES);
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatchObject({ cmd: 'op', args: ['inject', '-f'], cwd: root, env: ctx.env });
-    expect(calls[0].input).toBe('API_URL={{ op://Dev Vault/api/url }}\nAPI_TOKEN={{ op://Dev Vault/api/credentials/token }}\n');
+    expect(calls[0]).toMatchObject({ cmd: 'op', args: ['inject', '-f', '-i', calls[0].file], cwd: root, env: ctx.env });
+    expect(calls[0].input).toBeUndefined();
+    expect(calls[0].lines).toBe('API_URL={{ op://Dev Vault/api/url }}\nAPI_TOKEN={{ op://Dev Vault/api/credentials/token }}\n');
+    expect(calls[0].modes).toEqual({ file: 0o600, dir: 0o700 });
+    expect(path.dirname(path.dirname(calls[0].file))).toBe(os.tmpdir());
+    expect(fs.existsSync(path.dirname(calls[0].file))).toBe(false);
     expect(calls[0].env.OP_SESSION_me).toBe('session');
+  });
+
+  it('removes the reference file when op fails, too', () => {
+    const fake = fakeOp({ status: 1, stderr: '[ERROR] boom\n' });
+    refusal(() => resolve('dev', setup({ fake }).ctx));
+    expect(fs.existsSync(path.dirname(fake.calls[0].file))).toBe(false);
   });
 
   it('refuses a literal by line number, never printing the line, and runs no op', () => {
@@ -165,9 +183,14 @@ describe('resolve', () => {
     expect(extra.calls).toHaveLength(0);
   });
 
-  it("refuses op's failure with its first stderr line and the sign-in hint", () => {
-    const fake = fakeOp({ status: 1, stderr: '[ERROR] you are not currently signed in\nmore\n' });
-    expect(refusal(() => resolve('dev', setup({ fake }).ctx))).toBe(o.failed('[ERROR] you are not currently signed in'));
+  it("refuses op's failure with its first stderr line, the sign-in hint only when that line is about sign-in", () => {
+    const signedOut = fakeOp({ status: 1, stderr: '[ERROR] You are not currently signed in. Please run `op signin --help`\nmore\n' });
+    const msg = refusal(() => resolve('dev', setup({ fake: signedOut }).ctx));
+    expect(msg).toBe(o.failed('[ERROR] You are not currently signed in. Please run `op signin --help`', true));
+    expect(msg).toContain('sign in (op signin, or unlock the 1Password app)');
+    const other = fakeOp({ status: 1, stderr: '[ERROR] "Dev Vault" isn\'t a vault in this account\n' });
+    const line = refusal(() => resolve('dev', setup({ fake: other }).ctx));
+    expect(line).toBe(`op inject failed: [ERROR] "Dev Vault" isn't a vault in this account`);
   });
 
   it.each([
@@ -184,6 +207,40 @@ describe('resolve', () => {
   it('keeps a value as op printed it: no trim, an = inside', () => {
     const fake = fakeOp({ stdout: 'API_URL= https://a?x=1 \nAPI_TOKEN=t=t\n' });
     expect(Object.fromEntries(resolve('dev', setup({ fake }).ctx))).toEqual({ API_URL: ' https://a?x=1 ', API_TOKEN: 't=t' });
+  });
+});
+
+/**
+ * A fake `op` script on PATH that, like op 2.39, refuses a stdin that is not a pipe
+ * (`expected data on stdin but none found`) unless `-i` names a file, and resolves
+ * each `NAME={{ op://… }}` line to `NAME=resolved-NAME`.
+ */
+function fakeOpOnPath() {
+  const bin = path.join(TMP, `bin${(count += 1)}`);
+  fs.mkdirSync(bin, { recursive: true });
+  const script = [
+    '#!/bin/sh',
+    'file=',
+    'while [ $# -gt 0 ]; do case "$1" in -i) file=$2; shift ;; esac; shift; done',
+    'if [ -z "$file" ]; then',
+    '  [ -p /dev/stdin ] || { echo "[ERROR] expected data on stdin but none found" >&2; exit 1; }',
+    '  file=/dev/stdin',
+    'fi',
+    "sed -E 's/^([A-Z_][A-Z0-9_]*)=[{][{] op:.* [}][}]$/\\1=resolved-\\1/' \"$file\"",
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(bin, 'op'), script, { mode: 0o755 });
+  return bin;
+}
+
+describe('resolve against a fake op on PATH (stage-5 qa round 2, P1)', () => {
+  it('reaches op through the real capture, where a stdin from Node is not a pipe', () => {
+    const bin = fakeOpOnPath();
+    const { ctx } = setup();
+    const real = { ...ctx, probes: PROBES, env: { ...ctx.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` } };
+    const viaStdin = PROBES.capture('op', ['inject', '-f'], { input: 'API_URL={{ op://v/i/f }}\n', env: real.env });
+    expect(viaStdin.stderr).toContain('expected data on stdin but none found');
+    expect(Object.fromEntries(resolve('dev', real))).toEqual({ API_URL: 'resolved-API_URL', API_TOKEN: 'resolved-API_TOKEN' });
   });
 });
 

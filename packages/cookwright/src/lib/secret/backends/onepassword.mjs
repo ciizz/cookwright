@@ -12,16 +12,21 @@
 // naming the line number, never printing the line.
 //
 // `op inject` copies a template's comment and blank lines into its output, so it is
-// fed only the reference lines, on stdin (`-f`, no `-i`), one per declared name, each
-// reference wrapped in `{{ }}`, op's documented template form, so a vault or item
-// name holding a space is read whole (stage-5 review:engine finding 8); its output is
-// read against them in order (stage-5 s2's decision, disposition 53):
+// fed only the reference lines, one per declared name, each reference wrapped in
+// `{{ }}`, op's documented template form, so a vault or item name holding a space is
+// read whole (stage-5 review:engine finding 8). They go in a private temporary file
+// (mode 600 in a mode 700 directory under the OS temp folder, removed whatever
+// happens), named by `-i`: `op` refuses a stdin that is not a pipe, and Node hands a
+// child's stdin over as a socket (stage-5 qa round 2, P1). The file holds references
+// only, the lines already committed, never a value. Its output is read against them
+// in order (stage-5 s2's decision, disposition 53):
 // exactly one `NAME=value` line per reference, so a field holding more than one line
 // is refused. `op` runs with the scrubbed environment; its own control names (a
 // service-account token, a Connect host, a session) reach it and never the child
 // (disposition 50).
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { messages } from '../../messages.mjs';
@@ -40,6 +45,8 @@ const REF_LINE = new RegExp(`^([A-Z][A-Z0-9_]*)=(op://${SEG}/${SEG}(?:/${SEG})?/
 const COMMENTED_ASSIGNMENT = /^\s*#\s*(export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=/;
 
 const firstLine = (text) => (text ?? '').trim().split('\n')[0];
+/** op's first line is about sign-in (not signed in, a locked app, a dismissed prompt): the hint applies. */
+const SIGN_IN = /sign(ed)?[ -]?in|unlock|locked|authori[sz]/i;
 
 /**
  * A template's lines (disposition 15): `{ refs: [{ name, ref, line }], literals:
@@ -85,6 +92,23 @@ function readTemplate(name, ctx) {
   return parseTemplate(fs.readFileSync(file, 'utf8'));
 }
 
+/**
+ * `fn(file)` with `text` (reference lines, never a value) in a private temporary
+ * file: mode 600 in a fresh mode 700 directory under the OS temp folder, both
+ * removed whatever `fn` does.
+ */
+export function withReferenceFile(text, fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cookwright-op-'));
+  try {
+    fs.chmodSync(dir, 0o700);
+    const file = path.join(dir, 'references.tpl');
+    fs.writeFileSync(file, text, { mode: 0o600, flag: 'wx' });
+    return fn(file);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 /** `resolve`: the target's values through `op inject`, read against its references (disposition 53). */
 export function resolve(name, ctx) {
   const target = ctx.config.secrets.targets[name];
@@ -93,9 +117,14 @@ export function resolve(name, ctx) {
   if (!parsed) throw new Refused(o.noTemplate(rel));
   const problem = templateProblem(parsed, target.names);
   if (problem) throw new Refused(o.template[problem.why]({ ...problem, rel, target: name }));
-  const input = parsed.refs.map((r) => `${r.name}={{ ${r.ref} }}\n`).join('');
-  const res = ctx.probes.capture('op', ['inject', '-f'], { input, env: ctx.env, cwd: ctx.root });
-  if (res.status !== 0) throw new Refused(o.failed(firstLine(res.stderr || res.error?.message)));
+  const lines = parsed.refs.map((r) => `${r.name}={{ ${r.ref} }}\n`).join('');
+  const res = withReferenceFile(lines, (file) =>
+    ctx.probes.capture('op', ['inject', '-f', '-i', file], { env: ctx.env, cwd: ctx.root }),
+  );
+  if (res.status !== 0) {
+    const line = firstLine(res.stderr || res.error?.message);
+    throw new Refused(o.failed(line, SIGN_IN.test(line)));
+  }
   const read = parseAgainst(res.stdout, parsed.refs.map((r) => r.name), { ordered: true });
   if (read.problem) throw new Refused(o.resolved(name, m.envfile[read.problem.why](read.problem)));
   return read.values;

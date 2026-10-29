@@ -1,0 +1,87 @@
+{
+  "phase": "qa",
+  "stored": true,
+  "issues": [
+    {
+      "file": "packages/cookwright/src/lib/secret/backends/onepassword.mjs",
+      "location": "line 49, SIGN_IN pattern (lines 124-126)",
+      "problem": "SIGN_IN treats any error containing authoriz/authoris as a sign-in failure. Authorization failures can mean the signed-in account lacks access to a vault or item. This also contradicts the guide's claim that the hint appears only for errors about signing in.",
+      "severity": "P3",
+      "suggested_fix": "Restrict detection to known authentication/session phrases such as 'not currently signed in', 'sign in', 'unlock', 'locked'; remove the broad authori[sz] alternative and add a test confirming an authorization-denied error gets no sign-in hint.",
+      "failure_scenario": "A signed-in user without permission receives 'not authorized'; cookwright wrongly recommends op signin or unlocking the app, obscuring the real access-control problem. Tests cover signed-out and missing-vault errors but not authorization denial.",
+      "reviewers": [
+        "codex"
+      ],
+      "alsoReported": [],
+      "index": 0,
+      "verdict": "plausible",
+      "evidence": "onepassword.mjs:49 SIGN_IN includes authori[sz]; used at :124-126 to pass signIn to messages.mjs:871-872, which then adds 'sign in ... unlock the 1Password app'. A 'not authorized' access-denial line matches and gets the wrong hint. I could not confirm op's exact wording for such errors. Tests are not shown to cover it."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/backends/onepassword.mjs",
+      "location": "SIGN_IN (line ~49) and resolve's refusal (line ~124-126)",
+      "problem": "The sign-in hint is now given only when op's first stderr line matches /sign(ed)?[ -]?in|unlock|locked|authori[sz]/i. Before this change the hint was always given. The regex misses sign-in failures that op words differently, and it also runs over the vault and item names that op quotes in the same line.",
+      "severity": "P3",
+      "suggested_fix": "Test the regex only against op's message after the `[ERROR] <date> <time>` prefix, with any quoted names removed. Also match the account and desktop-integration phrasings ('no accounts configured', 'connecting to desktop app', 'logged in'). Or keep the hint unconditional and append it after op's line, so a missed match only adds noise rather than losing guidance.",
+      "failure_scenario": "Case 1, the hint is lost. A developer whose op has no account configured, or whose 1Password app has CLI integration turned off, gets op's line ('No accounts configured for use with 1Password CLI', or 'connecting to desktop app: … make sure … Integrate with 1Password CLI'). Neither phrase matches, so the refusal drops the 'op signin, or unlock the 1Password app' hint that it printed before this change. Case 2, a wrong hint. A template references a vault named 'Locked Keys' that does not exist. op's line `\"Locked Keys\" isn't a vault in this account` matches 'locked', so the refusal tells the developer to sign in although they are signed in.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 1,
+      "verdict": "confirmed",
+      "evidence": "onepassword.mjs:49 regex is tested against the whole first line (:124-125), vault and item names included. A line like `\"Locked Keys\" isn't a vault in this account` matches /locked/i, so the sign-in hint is wrongly added (messages.mjs:872). 'No accounts configured...' and 'make sure ... Integrate with 1Password CLI' match none of sign-in, unlock, locked or authori[sz], so the hint is dropped. That differs from the always-on hint before the change (qa/round-2.md:22)."
+    },
+    {
+      "file": "packages/cookwright/src/lib/secret/backends/onepassword.mjs",
+      "location": "module header comment (lines ~15-19), withReferenceFile",
+      "problem": "The header says the reference file is 'removed whatever happens'. Removal only runs in a JS finally. `run` installs its SIGINT handler only once the child has started, so an interrupt while op is still running kills node before the finally runs and the directory stays behind. The file holds only op:// references, not values, so this is a claim wider than the code rather than a leak. The guide's wording ('removed as soon as op returns, whether it succeeded or not') is accurate. Related wording issue: the guide also calls the file's contents 'the lines already committed in the template', but run accepts an uncommitted template (the banner only flags it), so the lines may not be committed yet.",
+      "severity": "P3",
+      "suggested_fix": "Narrow the comment to 'removed when op returns or fails'. Optionally, say in the guide that the references come from the template, without claiming they are committed.",
+      "failure_scenario": "The developer runs `npx cookwright run dev -- true` with the 1Password backend. op waits on the 1Password app's authorization prompt (the call is capped at 120 s), and the developer presses Ctrl-C. No SIGINT handler is installed yet, so node exits on the default action and the finally never runs. `$TMPDIR/cookwright-op-XXXXXX/references.tpl` (mode 600, references only) stays on disk.",
+      "reviewers": [
+        "red-team"
+      ],
+      "alsoReported": [],
+      "index": 2,
+      "verdict": "confirmed",
+      "evidence": "onepassword.mjs:15-19 header says 'removed whatever happens', but withReferenceFile (about :100-110) removes the directory only in a JS finally. The capture call is synchronous, and engine.mjs:316-337 installs SIGINT handlers only while the child runs. A Ctrl-C during op inject kills node by default and the finally never runs. docs/guides/secrets.md:180 says 'the lines already committed in the template', although run accepts an uncommitted template, so that wording is also loose. The leftover file holds references only, so the severity is P3."
+    }
+  ],
+  "incomplete": [],
+  "checked": [
+    "git diff 1615263..HEAD (c565889, 34643fa, b66d027)",
+    "1password backend private reference file: mode 0600 in a 0700 dir, holds references not resolved values, removed in finally on success, reported failure, timeout and thrown capture errors",
+    "doctor passed 22 checks",
+    "git diff 1615263441d2d1d58d12cf151b684dc12994a9ab..HEAD (code, guide, setup skill, tests) and the commit messages of c565889, 34643fa, b66d027 (fc2ea0e is also in the range and was reviewed)",
+    "qa/round-1.md and qa/round-2.md findings against what was fixed: P1 op stdin, the conditional sign-in hint, both P3 wording fixes, the ps eww guide note",
+    "onepassword.mjs withReferenceFile: mkdtemp gives a 0700 directory, file written 0600 with flag wx, removed in a finally on both success and failure; contents are reference lines only and grammar-restricted (no $, { or }), so nothing secret goes to disk and the rule that secrets never touch disk holds",
+    "Measured on this machine with op 2.39.0 and Node spawnSync in the scratchpad, using a template with no references: `op inject -f` with input fails 'expected data on stdin but none found'; `op inject -f -i <file>` gets past that check to op's sign-in check, so the fix removes the P1's cause",
+    "probes.capture and budget.runBounded: without input, stdin is an empty pipe and op reads -i; the 120 s cap is still applied; a TimedOut thrown inside fn still runs the cleanup",
+    "engine.mjs: SIGINT handler installed only around the child (basis of finding 2); run accepts an uncommitted template and reports it on the banner",
+    "age-init.mjs reorder: preflight still runs before derive (including protectedNoTerminal), the public key is derived before consent, an already-held key returns before consent and writes nothing, consent's held warning is reached only when a new key will be appended, enrol appends the key that was derived before consent",
+    "messages.mjs: willUse's signature change has no stale callers; o.failed's only caller passes the new second argument; readingIdentity sits in messages (user strings kept in one place)",
+    "The guide's one-identity paragraph and the setup skill's step 2 checked against initAge's actual order; the guide's 1Password paragraph checked against resolve; no stale 'on stdin' or 'asks nothing' wording left in user docs",
+    "The regression test's fake op on PATH: libuv uses a socketpair for a piped stdin on Linux and macOS, so its `[ -p /dev/stdin ]` assertion holds on the CI matrix",
+    "npx vitest run for the whole package: 38 files, 1092 tests passed",
+    "AGENTS.md and CLAUDE.md rules (no private paths, user strings in one place, functions under ~40 lines, doc sync in the same commit): no violations; no Advisory pack section applies"
+  ],
+  "notes": "Codex run completed within the ceiling, no resume needed. Codex could not run the targeted tests: Vitest needs writable cache and temp dirs under the read-only sandbox. Session id 01a1886a-b876-7781-a23b-fce18afb1ad0. Raw output: <local path>\n---\nNo P1 or P2. The P1 fix is sound. Measured here with real op 2.39.0 through Node's spawnSync: `-i <file>` gets past the stdin-must-be-a-pipe refusal and reaches op's sign-in check, where op stopped because this sandbox is not signed in. Resolving a real reference still needs the developer's own signed-in run, which is presumably the step 14 they report running now. The age-init reorder (fc2ea0e) and the two P3 doc fixes match the code. Both findings are P3: the sign-in hint's regex is fragile (it can miss real sign-in failures and fire on vault names), and one code comment says the temp reference file is removed whatever happens, which is wider than the code. The full package suite passes. The working-tree change to docs/dev/bundles/stage-5/state.json is the orchestrator's and was not touched.",
+  "reviewers": [
+    {
+      "name": "codex",
+      "returned": true
+    },
+    {
+      "name": "red-team",
+      "returned": true
+    }
+  ],
+  "codex": {
+    "installed": true,
+    "returned": true,
+    "timedOut": false,
+    "sessionId": "01a1886a-b876-7781-a23b-fce18afb1ad0",
+    "partialReportPath": null
+  }
+}

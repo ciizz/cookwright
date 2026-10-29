@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 244,
+  "revision": 251,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -393,6 +393,13 @@
           "planSha": "13da5997463ed143",
           "codex": true,
           "runId": "wf_97426b6f-055"
+        },
+        {
+          "startedAt": "2026-10-29T16:02:36.913Z",
+          "stateRevision": 244,
+          "planSha": "13da5997463ed143",
+          "codex": true,
+          "runId": "wf_872a20d7-c4b"
         }
       ],
       "startCommit": "1615263441d2d1d58d12cf151b684dc12994a9ab",
@@ -551,6 +558,19 @@
           "ms": 55689
         }
       ]
+    },
+    {
+      "commit": "b66d027d090cb36560c42bb97a1f876dd650b483",
+      "at": "2026-10-29T16:13:03.185Z",
+      "slice": null,
+      "passed": true,
+      "checks": [
+        {
+          "name": "test",
+          "result": "pass",
+          "ms": 58504
+        }
+      ]
     }
   ],
   "findings": [
@@ -697,6 +717,24 @@
       "at": "2026-10-27T18:14:57.068Z",
       "stored": true,
       "head": "fc2ea0ebd70b6e5e2224997bf20612f86bf16fd3"
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-5/findings/qa-2.json",
+      "counts": {
+        "confirmed": 2,
+        "plausible": 1,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 0,
+        "P3": 3
+      },
+      "at": "2026-10-29T16:11:54.290Z",
+      "stored": true,
+      "head": "b66d027d090cb36560c42bb97a1f876dd650b483"
     }
   ],
   "reports": [
@@ -758,6 +796,12 @@
       "phase": "qa",
       "path": "docs/dev/bundles/stage-5/sessions/qa-1.md",
       "at": "2026-10-27T18:14:56.760Z",
+      "stored": true
+    },
+    {
+      "phase": "qa",
+      "path": "docs/dev/bundles/stage-5/sessions/qa-2.md",
+      "at": "2026-10-29T16:11:54.003Z",
       "stored": true
     }
   ],
@@ -1927,6 +1971,20 @@
       "actor": "orchestrator",
       "source": "qa run 1 strings batch",
       "text": "qa run 1's 3 user-facing strings (the readingIdentity line; the willUse consent line without the passphrase clause; the guide's one-identity paragraph in the new order) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at the closeout.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-29T16:13:20.678Z",
+      "actor": "orchestrator",
+      "source": "qa run 2 review findings 0, 1, 2 (P3)",
+      "text": "P3s, never blocking: the sign-in pattern drops the broad authori[sz] alternative and is tested against op's message after its [ERROR] prefix, quoted names removed (findings 0 and 1); the module header says the reference file is removed in a finally, so an interrupt before the child starts can leave a directory holding references only, never a value (finding 2). Folded into the next qa run if the developer's retest needs one; otherwise residue named in the closeout.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-29T16:13:20.943Z",
+      "actor": "orchestrator",
+      "source": "qa run 2 strings batch",
+      "text": "qa run 2's 6 user-facing strings (the op inject refusal with the conditional sign-in hint; the guide's sentences on the reference file, the refusal, init's consent order and the macOS ps eww measurement; the setup skill's secrets init sentence) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at the closeout.",
       "claim": true
     }
   ],

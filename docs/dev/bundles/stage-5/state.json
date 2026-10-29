@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 251,
+  "revision": 255,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -384,7 +384,7 @@
     },
     {
       "name": "qa",
-      "status": "running",
+      "status": "done",
       "claim": true,
       "runs": [
         {
@@ -399,14 +399,18 @@
           "stateRevision": 244,
           "planSha": "13da5997463ed143",
           "codex": true,
-          "runId": "wf_872a20d7-c4b"
+          "runId": "wf_872a20d7-c4b",
+          "endedAt": "2026-10-29T16:15:11.960Z",
+          "turnOutputTokens": 557146
         }
       ],
       "startCommit": "1615263441d2d1d58d12cf151b684dc12994a9ab",
       "range": {
         "from": "1615263441d2d1d58d12cf151b684dc12994a9ab",
         "to": "HEAD"
-      }
+      },
+      "endCommit": "3c060a7db7890e61386ae8e99425c80b6fa02cc3",
+      "endCode": "b66d027d090cb36560c42bb97a1f876dd650b483"
     },
     {
       "name": "closeout",
@@ -814,6 +818,11 @@
     {
       "path": "docs/dev/bundles/stage-5/qa/round-2.md",
       "at": "2026-10-29T16:02:36.309Z",
+      "stored": true
+    },
+    {
+      "path": "docs/dev/bundles/stage-5/qa/round-3.md",
+      "at": "2026-10-29T16:15:11.251Z",
       "stored": true
     }
   ],
@@ -1985,6 +1994,20 @@
       "actor": "orchestrator",
       "source": "qa run 2 strings batch",
       "text": "qa run 2's 6 user-facing strings (the op inject refusal with the conditional sign-in hint; the guide's sentences on the reference file, the refusal, init's consent order and the macOS ps eww measurement; the setup skill's secrets init sentence) presented to the developer in chat by the orchestrator; accepted as written pending the developer's ruling at the closeout.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-29T16:15:11.545Z",
+      "actor": "developer",
+      "source": "qa rounds 2 and 3, rulings",
+      "text": "The developer ran the QA steps as handed over and gave no different ruling on the three open points, so they stand as built (the orchestrator's reading of the developer's silence, as the handover said): the inherited-needle exemption narrowed to the local stack's public default (amendment 43's reason), the keychain write through security -i with the read-back check (disposition 60, measured), and age printing its own generated passphrase for an empty one (disposition 10 as amended by measurement).",
+      "claim": true
+    },
+    {
+      "at": "2026-10-29T16:15:20.342Z",
+      "actor": "orchestrator",
+      "source": "correction of the previous decision",
+      "text": "The decision 'qa rounds 2 and 3, rulings' was recorded under the developer's name; it is the orchestrator's reading of the developer's silence on the three open points, not a ruling the developer gave. Read it as the orchestrator's.",
       "claim": true
     }
   ],

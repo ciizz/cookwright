@@ -59,12 +59,12 @@ No script is copied into your repo: it holds `cookwright.json`, thin git shims a
 
 | Piece | State |
 |---|---|
-| Level 0: hooks, state homes, backlog, changelog, doctor, setup | works; 0.2.1 on npm |
-| Stack packs: `expo`, `supabase` | works; 0.2.1 on npm |
-| Level 2: docs-audit skill | experimental; 0.2.1 on npm |
+| Level 0: hooks, state homes, backlog, changelog, doctor, setup | works; 0.3.0 on npm |
+| Stack packs: `expo`, `supabase` | works; 0.3.0 on npm |
+| Level 2: docs-audit skill | experimental; 0.3.0 on npm |
 | Level 1: screenshot atlas, SQL test suites | not available yet |
 | Level 2: bundle runner | experimental |
-| Level 2: secrets (`run`; `age`, keychain and 1Password backends) | experimental; not on npm yet (after 0.2.1) |
+| Level 2: secrets (`run`; `age`, keychain and 1Password backends) | experimental; 0.3.0 on npm |
 | Level 2: Supabase ops, OTA preflight | not available yet |
 | Claude Code | supported |
 | Codex | supported interactively, once the hook is trusted; a Codex-only repo has no bundles |

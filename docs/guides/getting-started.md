@@ -1,6 +1,6 @@
 # Getting started
 
-From an app repo with nothing installed to a Level 0 the agent checks at every session start. The output below is real: cookwright at the version that adds secrets, installed from its `npm pack` tarball into a fresh git repo whose `package.json` has a test script, on 2026-10-27, with Claude Code 2.1.311 and gitleaks 8.30.1 on PATH. Your paths and versions will differ.
+From an app repo with nothing installed to a Level 0 the agent checks at every session start. The output below is real: cookwright 0.3.0, installed from its `npm pack` tarball into a fresh git repo whose `package.json` has a test script, on 2026-10-27, with Claude Code 2.1.311 and gitleaks 8.30.1 on PATH. Your paths and versions will differ.
 
 ## 1. Install
 

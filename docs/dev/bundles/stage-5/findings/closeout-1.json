@@ -1,0 +1,71 @@
+{
+  "phase": "closeout",
+  "stored": true,
+  "issues": [
+    {
+      "file": "docs/dev/closeouts/stage-5.md",
+      "location": "Verified by hand, first bullet (fixture after every implement and fix session)",
+      "problem": "The closeout says the fixture ran with `fixture: PASS` after every implement and fix session, and that the orchestrator ran it whenever a session did not. The record does not support this for two sessions. implement-s5-1.md line 102 says the fixture ran \"at session start on unchanged code\", so it ran before s5's commits, not after them. The state records no orchestrator run after s5. qa run 2 is one of the two fix runs the closeout itself counts (\"QA: three rounds, two fix runs\"), and it changed onepassword.mjs in c565889. Its session report says \"I did not run the fixture\" (qa-2.md line 31). No decision, gate or QA round records a fixture run after it. QA round 3 installed the packed package into the existing kept tree and did not run scripts/ci/fixture.sh. Gate #11 ran `test` only.",
+      "severity": "P2",
+      "suggested_fix": "Narrow the sentence to the sessions that have a recorded run. Say that s5 ran the fixture at session start, before its docs, config and backlog commits. Say that the fixture was not re-run after qa run 2's c565889, which QA round 3 and gate #11 (npm test) cover instead. Or run the fixture at e4b6e111 now and record that run.",
+      "failure_scenario": "A reader trusts that every fix commit went through the end-to-end fixture. c565889 rewrote how op inject is fed (a temp file and `-i` instead of stdin), and the fixture never exercised that commit. A regression in a fixture-covered path would go unnoticed until CI.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-5.md",
+      "location": "Reviews, Plan review",
+      "problem": "The closeout lists five examples as findings of plan-review round 1. Two of them are not in plan-review-1.json: \"the argv check missing a stale export\" and \"the recipients file's integrity\". Those came from the pre-runner security read that produced dispositions 22 and 23 (plan.md line 3: \"two adversarial reads ... dispositions 22 to 41\"). That read happened before the runner's round 1 started at 13:36:54. Round 1's 31 findings (0 to 30) contain no argv or stale-export finding. Finding 0 takes the recipients rule as already present and asks for the same check on cookwright.json and the template. The other three examples do match round 1: finding 3 (keychain sharing), finding 4 (backend output names) and findings 10 and 17 (the text-only redactor).",
+      "severity": "P2",
+      "suggested_fix": "Attribute the stale-export argv check and the recipients integrity rule to the plan's pre-runner security read (dispositions 22 and 23). Replace them in the round-1 list with findings actually in plan-review-1.json, for example finding 2 (the identity inside another repo through a dotfiles symlink) or finding 16 (security's 128-character prompt).",
+      "failure_scenario": "A reader checks plan-review-1.json for the stale-export finding and does not find it. This misstates which review caught what, and the closeout is the record future bundles calibrate against.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-5.md",
+      "location": "What shipped, Doctor",
+      "problem": "The closeout says the three secrets rows sit \"at the end of the table\". That is true only of their registration order in CHECKS. In the measured readout of a repo that declares a pack, the rows appear between `packs` and `pack.expo.declared` (implement-s5-1.md lines 39 and 52). Decision 241 corrected the guide's \"last in the readout\" to \"after packs, before a declared pack's own rows\" for exactly this reason.",
+      "severity": "P3",
+      "suggested_fix": "Say the three rows are registered at the end of CHECKS, after packs, and appear before a declared pack's own rows. This matches the guide as corrected in s5.",
+      "failure_scenario": "A reader or the setup skill looks for secrets.* as the last lines of doctor's output. In an Expo or Supabase app they are not last, so the closeout repeats the guide error that s5 corrected.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-5.md",
+      "location": "Reviews, Plan review (\"re-check 2 the rest\")",
+      "problem": "The closeout says re-check 2 resolved the rest. The state does not show that. plan-review-3.json records 1 plausible finding still open (P2) and 2 rejected. The phase closed with `--accept-open` (decision 179), because a runner defect (B-021, read as B-019) stored the re-judged finding as not re-judged. The closeout never mentions the forced close.",
+      "severity": "P3",
+      "suggested_fix": "Say that re-check 2 left one finding recorded as plausible, an artifact of the carry-forward defect B-019, and that plan-review was closed with --accept-open (decision 179).",
+      "failure_scenario": "A reader concludes plan-review closed clean. The state shows an accept-open close with one P2 still recorded as open, which the generated Review trajectory table (0/1/2) contradicts on the same page.",
+      "verdict": "plausible"
+    },
+    {
+      "file": "docs/dev/closeouts/stage-5.md",
+      "location": "What shipped, The backends (keychain)",
+      "problem": "The closeout says security add-generic-password's prompt truncates at 128 characters, \"measured\". The recorded evidence is static, not a run. Plan-review finding 16 and plan.md line 23 cite `nm -u` showing /usr/bin/security links _getpass, the prompt strings, and the getpass(3) man page's _PASSWORD_LEN 128. No session or QA round recorded storing a value longer than 128 characters through security's prompt and reading back a truncated value. The only keychain measurements are of `security -i`: 220 characters round-tripping in s3, and the developer's 240-character value through cookwright's own prompt.",
+      "severity": "P3",
+      "suggested_fix": "Say \"documented by getpass(3) and found by inspecting the binary\", or \"inferred from getpass(3)\", instead of \"measured\". Or measure it once and record the result.",
+      "failure_scenario": "The truncation is the stated reason the keychain write deviates from decision 48. Calling it measured when it was inferred overstates the evidence for that deviation.",
+      "verdict": "plausible"
+    }
+  ],
+  "checked": [
+    "Header: 79 commits in 9bf467b0..e4b6e111; type tally 12 feat, 28 fix, 9 docs, 4 test, 3 chore, 23 chore(bundle); 89 files, +12381/-116 (all match git)",
+    "Per-fix-phase commit counts: fix:model 6, fix:engine 8, fix:surface 7, fix:whole 9 (match phase start/end commits)",
+    "Review finding counts and severities for plan-review 1-3, review:model/engine/surface/whole, qa-1, qa-2 against state findings[] and the JSON files",
+    "Generated tables (five numbers: wall clock 50.7h from createdAt to closeout start, output tokens 4992955 summed from turnOutputTokens, 9 review runs, 3 QA rounds; review trajectory; gate history 0-11 commits and slices) against state at revision 255 (committed) and 257 (working tree, only the closeout phase added); the header's revision 256 is plausible as a transient revision",
+    "Test counts chain 762, 861, 870, 939, 1048, 1067, 1070, 1070, 1075, 1090, 1092 in 38 files against the session reports",
+    "Real keychain test (describe.skipIf on darwin) and real age test (secrets.test.mjs HAS_AGE); no package.json change, so no new dependency",
+    "QA rounds 1-3 claims against qa/round-1.md, round-2.md, round-3.md and the user's pasted round-3 transcript (exit 0, banner, <DB_URL>, 0 temp dirs, vault deleted)",
+    "c565889 contents: mode 600 file in a 700 directory, -f -i, finally, the conditional sign-in hint, the fake-op regression test",
+    "CI age 1.3.2 sha256 pin in ci.yml",
+    "Backlog diff: E-015 closed, E-001 PG note, E-057 to E-068, B-021 closed into B-019, B-022 opened",
+    "CHARTER.md unchanged in range; schema version enum includes 4",
+    "Residue: implement-s2-1.md (temp suffix) and implement-s5-1.md (stale token) are the two session reports; qa run 2 review's three P3s per decision 268",
+    "Deviations and decisions list (169 decisions, matching state at 255)",
+    "Fixture run records per session (s1-s5, fix sessions, qa runs) against decisions and session reports"
+  ],
+  "notes": "Five claims in docs/dev/closeouts/stage-5.md are wider than the evidence or wrong; the generated tables, counts and commit ids all match.\n\nTwo P2s:\n- **Fixture claim.** The closeout says the fixture ran after every implement and fix session. s5 ran it only at session start, before its commits. qa run 2 (c565889) never had a fixture run.\n- **Plan review attribution.** Two of the five examples given as round-1 findings (the stale-export argv check, the recipients integrity rule) came from the plan's earlier security read (dispositions 22 and 23), not from plan-review-1.json.\n\nThree P3s:\n- **Doctor rows.** The closeout puts them \"at the end of the table\", but measured on a repo with a pack they sit before the pack's own rows.\n- **Re-check 2.** \"Re-check 2 the rest\" leaves out that plan-review closed with --accept-open and one plausible finding still recorded.\n- **Keychain truncation.** The 128-character limit is called \"measured\", but it was inferred from getpass(3) and the binary's symbols, not from storing a long value.\n\nCommitted state is at revision 255 in both e4b6e111 and 238d5d4. The working tree is at 257 and adds only the closeout phase run. The header's revision 256 comes from closeout.mjs's state.revision and is consistent with a transient write.",
+  "timedOut": false,
+  "incomplete": [],
+  "closeoutSha": "b1a49b1dfab2d50d"
+}

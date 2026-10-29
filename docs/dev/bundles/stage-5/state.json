@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 255,
+  "revision": 259,
   "slug": "stage-5",
   "branch": "bundle/stage-5",
   "base": "9bf467b0e10fa16caf5b078c637da39803a78eea",
@@ -414,9 +414,22 @@
     },
     {
       "name": "closeout",
-      "status": "pending",
+      "status": "running",
       "claim": true,
-      "runs": []
+      "runs": [
+        {
+          "startedAt": "2026-10-29T16:15:20.833Z",
+          "stateRevision": 255,
+          "planSha": "13da5997463ed143",
+          "codex": true,
+          "runId": "wf_3a3ef3db-0e1"
+        }
+      ],
+      "startCommit": "e4b6e111687bf15b019f6a39668c5105c42ece3c",
+      "range": {
+        "from": "9bf467b0e10fa16caf5b078c637da39803a78eea",
+        "to": "e4b6e111687bf15b019f6a39668c5105c42ece3c"
+      }
     }
   ],
   "gates": [
@@ -739,6 +752,25 @@
       "at": "2026-10-29T16:11:54.290Z",
       "stored": true,
       "head": "b66d027d090cb36560c42bb97a1f876dd650b483"
+    },
+    {
+      "phase": "closeout",
+      "path": "docs/dev/bundles/stage-5/findings/closeout-1.json",
+      "counts": {
+        "confirmed": 0,
+        "plausible": 5,
+        "rejected": 0,
+        "unverified": 0
+      },
+      "openBySeverity": {
+        "P1": 0,
+        "P2": 2,
+        "P3": 3
+      },
+      "at": "2026-10-29T16:19:55.248Z",
+      "stored": true,
+      "head": "238d5d4e30277b778ebfc811bffc272802f83f6f",
+      "closeoutSha": "b1a49b1dfab2d50d"
     }
   ],
   "reports": [
@@ -2008,6 +2040,13 @@
       "actor": "orchestrator",
       "source": "correction of the previous decision",
       "text": "The decision 'qa rounds 2 and 3, rulings' was recorded under the developer's name; it is the orchestrator's reading of the developer's silence on the three open points, not a ruling the developer gave. Read it as the orchestrator's.",
+      "claim": true
+    },
+    {
+      "at": "2026-10-29T16:20:54.872Z",
+      "actor": "orchestrator",
+      "source": "closeout verify run 1",
+      "text": "All five findings fixed in the closeout text (rule 3): the fixture claim narrowed to the runs on record, plus a fixture run at 238d5d4 (PASS, 27 PASS 4 WARN in the secrets step); the stale-export and recipients findings attributed to the pre-runner reads; the secrets rows described by registration and readout order; plan-review's accept-open close named with B-019; the 128-character truncation called inferred, not measured.",
       "claim": true
     }
   ],

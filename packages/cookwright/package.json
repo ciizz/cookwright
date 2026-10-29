@@ -1,6 +1,6 @@
 {
   "name": "cookwright",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "A guided, incremental, non-rotting agentic harness for solo developers building mobile apps with React Native, TypeScript and Supabase.",
   "license": "MIT",
   "repository": {
